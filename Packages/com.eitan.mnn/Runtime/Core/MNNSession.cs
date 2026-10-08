@@ -44,8 +44,8 @@ namespace MNN.Unity
                 throw new ArgumentException("Invalid session pointer", nameof(sessionPtr));
             }
 
-            _sessionHandle = new SessionHandle(interpreterHandle);
-            _sessionHandle.SetHandle(sessionPtr);
+            // 直接创建SessionHandle，不使用SetHandle
+            _sessionHandle = new SessionHandle(interpreterHandle, sessionPtr);
 
             _inputTensors = new Dictionary<string, MNNTensor>();
             _outputTensors = new Dictionary<string, MNNTensor>();

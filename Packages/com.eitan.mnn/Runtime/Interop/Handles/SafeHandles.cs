@@ -35,6 +35,12 @@ namespace MNN.Unity.Interop.Handles
             _interpreter = interpreter;
         }
 
+        internal SessionHandle(InterpreterHandle interpreter, IntPtr handle) : base(true)
+        {
+            _interpreter = interpreter;
+            SetHandle(handle);
+        }
+
         protected override bool ReleaseHandle()
         {
             if (!IsInvalid && _interpreter != null && !_interpreter.IsInvalid)
