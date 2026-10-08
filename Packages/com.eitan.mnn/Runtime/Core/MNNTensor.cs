@@ -246,8 +246,17 @@ namespace MNN.Unity
 
         #endregion
 
+        #region 辅助方法
+
         // Unity集成方法已移至MNNTensorExtensions扩展类
         // 使用方法：tensor.CopyFromTexture(texture) 或 tensor.CopyToTexture(texture)
+        // 这些扩展方法会自动检测Unity.Collections和Unity.Burst是否可用
+        // 如果可用，自动使用Burst优化；否则使用高性能的托管实现
+
+        private void ValidateDataType<T>() where T : unmanaged
+        {
+            var expectedType = GetMNNDataType<T>();
+            if (DataType != expectedType)
             {
                 throw new InvalidOperationException(
                     $"Type mismatch: tensor is {DataType}, requested {expectedType}");
