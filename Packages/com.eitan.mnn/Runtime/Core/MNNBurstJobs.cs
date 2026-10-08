@@ -1,3 +1,6 @@
+// 此文件仅在Unity.Burst和Unity.Collections可用时编译
+#if UNITY_COLLECTIONS && UNITY_BURST
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -133,3 +136,5 @@ namespace MNN.Unity.Performance
         }
     }
 }
+
+#endif // UNITY_COLLECTIONS && UNITY_BURST
