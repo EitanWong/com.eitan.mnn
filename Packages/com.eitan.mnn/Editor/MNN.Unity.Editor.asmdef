@@ -1,8 +1,8 @@
 {
-    "name": "ProjectScope.ProjectName.Editor",
-    "rootNamespace": "ProjectScope.ProjectName.Editor",
+    "name": "MNN.Unity.Editor",
+    "rootNamespace": "MNN.Unity.Editor",
     "references": [
-        "ProjectScope.ProjectName"
+        "MNN.Unity"
     ],
     "includePlatforms": [
         "Editor"
