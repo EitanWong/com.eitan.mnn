@@ -71,6 +71,25 @@ namespace MNN.Unity.Editor
         }
 
         /// <summary>
+        /// 刷新语言设置（用于动态切换）
+        /// </summary>
+        public static void RefreshLanguage()
+        {
+            _initialized = false;
+            Initialize();
+        }
+
+        /// <summary>
+        /// 设置语言
+        /// </summary>
+        public static void SetLanguage(SystemLanguage language)
+        {
+            EditorPrefs.SetString("MNN.EditorLanguage", language.ToString());
+            _currentLanguage = language;
+            Debug.Log($"[MNN] Language changed to: {language}");
+        }
+
+        /// <summary>
         /// 获取翻译文本
         /// </summary>
         /// <param name="key">翻译键</param>
