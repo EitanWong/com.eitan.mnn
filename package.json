@@ -1,0 +1,33 @@
+{
+  "name": "com.eitan.mnn",
+  "displayName": "MNN for Unity",
+  "description": "轻量级深度学习端侧推理引擎：专为资源受限的设备设计，能在Unity构建出来的程序上高效运行神经网络模型。支持 iOS, Android, macOS, Windows, Linux, WebGL 全平台。",
+  "keywords": [
+    "MNN",
+    "Machine Learning",
+    "Deep Learning",
+    "Neural Network",
+    "Inference",
+    "AI",
+    "Computer Vision",
+    "Edge Computing",
+    "Mobile ML"
+  ],
+  "version": "3.6.1",
+  "unity": "2021.3",
+  "documentationUrl": "https://github.com/EitanWong/com.eitan.mnn#documentation",
+  "changelogUrl": "https://github.com/EitanWong/com.eitan.mnn/releases",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EitanWong/com.eitan.mnn.git"
+  },
+  "author": {
+    "name": "eitan",
+    "url": "https://github.com/EitanWong"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "registry": "https://package.openupm.com"
+  }
+}
