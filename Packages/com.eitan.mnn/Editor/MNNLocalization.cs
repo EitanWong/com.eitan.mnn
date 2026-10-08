@@ -52,11 +52,27 @@ namespace MNN.Unity.Editor
         /// </summary>
         private static SystemLanguage DetectEditorLanguage()
         {
-            // Unity编辑器会根据系统语言自动设置
-            // 我们可以通过LocalizationDatabase来检测
-            var editorLanguage = LocalizationDatabase.currentEditorLanguage;
+            // 使用Application.systemLanguage作为基础
+            var systemLanguage = Application.systemLanguage;
 
-            return editorLanguage switch
+            // 尝试从EditorPrefs读取用户设置
+            try
+            {
+                if (EditorPrefs.HasKey("MNN.EditorLanguage"))
+                {
+                    var langString = EditorPrefs.GetString("MNN.EditorLanguage");
+                    if (System.Enum.TryParse<SystemLanguage>(langString, out var customLang))
+                    {
+                        return customLang;
+                    }
+                }
+            }
+            catch
+            {
+                // 继续使用系统语言
+            }
+
+            return systemLanguage switch
             {
                 SystemLanguage.Chinese or SystemLanguage.ChineseSimplified => SystemLanguage.Chinese,
                 SystemLanguage.ChineseTraditional => SystemLanguage.ChineseTraditional,
@@ -68,25 +84,6 @@ namespace MNN.Unity.Editor
                 SystemLanguage.Russian => SystemLanguage.Russian,
                 _ => SystemLanguage.English
             };
-        }
-
-        /// <summary>
-        /// 刷新语言设置（用于动态切换）
-        /// </summary>
-        public static void RefreshLanguage()
-        {
-            _initialized = false;
-            Initialize();
-        }
-
-        /// <summary>
-        /// 设置语言
-        /// </summary>
-        public static void SetLanguage(SystemLanguage language)
-        {
-            EditorPrefs.SetString("MNN.EditorLanguage", language.ToString());
-            _currentLanguage = language;
-            Debug.Log($"[MNN] Language changed to: {language}");
         }
 
         /// <summary>
@@ -239,6 +236,22 @@ namespace MNN.Unity.Editor
                 { SystemLanguage.Chinese, "定位" },
                 { SystemLanguage.Japanese, "場所を表示" },
                 { SystemLanguage.Korean, "찾기" }
+            });
+
+            AddTranslation("modelmanager.nomodels", new Dictionary<SystemLanguage, string>
+            {
+                { SystemLanguage.English, "No models found" },
+                { SystemLanguage.Chinese, "未找到模型" },
+                { SystemLanguage.Japanese, "モデルが見つかりません" },
+                { SystemLanguage.Korean, "모델을 찾을 수 없습니다" }
+            });
+
+            AddTranslation("common.error", new Dictionary<SystemLanguage, string>
+            {
+                { SystemLanguage.English, "Error" },
+                { SystemLanguage.Chinese, "错误" },
+                { SystemLanguage.Japanese, "エラー" },
+                { SystemLanguage.Korean, "오류" }
             });
 
             // 模型分类
