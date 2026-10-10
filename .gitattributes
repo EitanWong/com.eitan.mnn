@@ -22,7 +22,7 @@
 *.prefab merge=unityyamlmerge eol=lf
 *.physicsMaterial2D merge=unityyamlmerge eol=lf
 *.physicMaterial merge=unityyamlmerge eol=lf
-*.asset merge=unityyamlmerge eol=lf
 # Unity writes spaces after empty serialized values; preserve that format.
+*.asset merge=unityyamlmerge eol=lf whitespace=-blank-at-eol
 *.meta merge=unityyamlmerge eol=lf whitespace=-blank-at-eol
 *.controller merge=unityyamlmerge eol=lf
