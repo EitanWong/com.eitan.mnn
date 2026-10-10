@@ -6,7 +6,6 @@ using UnityEngine;
 #if UNITY_2018_1_OR_NEWER
 using UnityEngine.Networking;
 #endif
-
 namespace MNN.Unity
 {
     /// <summary>
@@ -19,32 +18,25 @@ namespace MNN.Unity
         [Header("Model Configuration")]
         [Tooltip("模型配置资源")]
         public MNNModelConfig modelConfig;
-
         [Header("Loading Options")]
         [Tooltip("启动时自动加载")]
         public bool loadOnStart = true;
-
         [Tooltip("优先使用本地缓存")]
         public bool preferLocalCache = true;
-
         [Tooltip("下载超时时间（秒）")]
         public int downloadTimeout = 300;
-
         [Header("Events")]
         public ModelLoadEvent onLoadStart;
         public ModelLoadProgressEvent onLoadProgress;
         public ModelLoadCompleteEvent onLoadComplete;
         public ModelLoadErrorEvent onLoadError;
-
         // 状态
         private bool _isLoading;
         private bool _isLoaded;
         private string _loadedModelPath;
         private MNNInterpreter _interpreter;
-
         // 功能检测
         private static bool? _hasUnityWebRequest;
-
         /// <summary>
         /// 检测UnityWebRequest是否可用
         /// </summary>
@@ -60,6 +52,7 @@ namespace MNN.Unity
                     _hasUnityWebRequest = false;
 #endif
                 }
+
                 return _hasUnityWebRequest.Value;
             }
         }
@@ -67,7 +60,6 @@ namespace MNN.Unity
         public bool IsLoaded => _isLoaded;
         public string LoadedModelPath => _loadedModelPath;
         public MNNInterpreter Interpreter => _interpreter;
-
         private void Start()
         {
             if (loadOnStart && modelConfig != null)
@@ -95,21 +87,19 @@ namespace MNN.Unity
 
             _isLoading = true;
             onLoadStart?.Invoke(modelConfig.displayName);
-
             // 1. 确定模型路径
             string modelPath = DetermineModelPath();
-
             // 2. 检查是否需要下载
             if (!File.Exists(modelPath))
             {
                 bool downloadSuccess = false;
-
                 // 尝试下载（如果支持）
-                if (modelConfig.enableHotUpdate && !string.IsNullOrEmpty(modelConfig.downloadUrl))
+                var downloadUrl = modelConfig.GetEffectiveDownloadUrl();
+                if (modelConfig.enableHotUpdate && !string.IsNullOrEmpty(downloadUrl))
                 {
                     if (HasUnityWebRequest)
                     {
-                        yield return DownloadModelAsync(modelConfig.downloadUrl, modelPath);
+                        yield return DownloadModelAsync(downloadUrl, modelPath);
                         downloadSuccess = File.Exists(modelPath);
                     }
                     else
@@ -119,7 +109,7 @@ namespace MNN.Unity
                 }
 
                 // 如果下载失败，尝试从StreamingAssets复制
-                if (!downloadSuccess && modelConfig.storageLocation == ModelStorageLocation.StreamingAssets)
+                if (!downloadSuccess && modelConfig.GetEffectiveStorageLocation() == ModelStorageLocation.StreamingAssets)
                 {
 #if UNITY_ANDROID && !UNITY_EDITOR
                     yield return CopyFromStreamingAssetsAsync(
@@ -140,7 +130,6 @@ namespace MNN.Unity
 
             // 3. 加载模型
             yield return LoadModelFromFile(modelPath);
-
             _isLoading = false;
         }
 
@@ -149,10 +138,11 @@ namespace MNN.Unity
         /// </summary>
         private string DetermineModelPath()
         {
+            var storageLocation = modelConfig.GetEffectiveStorageLocation();
+            var persistentPath = modelConfig.GetPersistentPath();
             // 优先使用缓存路径
             if (preferLocalCache)
             {
-                var persistentPath = modelConfig.GetPersistentPath();
                 if (File.Exists(persistentPath))
                 {
                     Log($"Using cached model: {persistentPath}");
@@ -160,6 +150,11 @@ namespace MNN.Unity
                 }
             }
 
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // Android StreamingAssets are inside the APK and must be copied before native file access.
+            if (storageLocation == ModelStorageLocation.StreamingAssets)
+                return persistentPath;
+#endif
             // 使用配置的路径
             var configPath = modelConfig.GetModelPath();
             if (File.Exists(configPath))
@@ -168,9 +163,9 @@ namespace MNN.Unity
             }
 
             // 如果启用热更新，返回持久化路径（准备下载）
-            if (modelConfig.enableHotUpdate)
+            if (modelConfig.enableHotUpdate || storageLocation == ModelStorageLocation.PersistentData)
             {
-                return modelConfig.GetPersistentPath();
+                return persistentPath;
             }
 
             // 默认返回配置路径
@@ -183,10 +178,8 @@ namespace MNN.Unity
         private IEnumerator LoadModelFromFile(string path)
         {
             Log($"Loading model from: {path}");
-
             MNNInterpreter interpreter = null;
             Exception loadException = null;
-
             // 使用ThreadPool异步加载
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
@@ -199,7 +192,6 @@ namespace MNN.Unity
                     loadException = e;
                 }
             });
-
             // 等待加载完成
             while (interpreter == null && loadException == null)
             {
@@ -215,7 +207,6 @@ namespace MNN.Unity
             _interpreter = interpreter;
             _loadedModelPath = path;
             _isLoaded = true;
-
             Log($"Model loaded successfully");
             onLoadComplete?.Invoke(path, _interpreter);
         }
@@ -230,6 +221,7 @@ namespace MNN.Unity
 
             MNNModelPathResolver.EnsureDirectory(savePath);
 
+            var downloadFailed = false;
             using (var request = UnityWebRequest.Get(url))
             {
                 request.timeout = downloadTimeout;
@@ -250,10 +242,26 @@ namespace MNN.Unity
 #endif
                 {
                     LogError($"Download failed: {request.error}");
-                    yield break;
+                    downloadFailed = true;
                 }
+                else
+                {
+                    Log($"Model downloaded successfully");
+                }
+            }
 
-                Log($"Model downloaded successfully");
+            if (downloadFailed)
+            {
+                try
+                {
+                    if (File.Exists(savePath))
+                        File.Delete(savePath);
+                }
+                catch (Exception e)
+                {
+                    LogWarning($"Failed to remove incomplete download: {e.Message}");
+                }
+                yield break;
             }
 #else
             LogError("UnityWebRequest not available, cannot download");
@@ -314,6 +322,7 @@ namespace MNN.Unity
             {
                 LogError($"Failed to copy file: {e.Message}");
             }
+
             yield break;
 #endif
         }
@@ -351,8 +360,7 @@ namespace MNN.Unity
             _loadedModelPath = null;
         }
 
-        #region Logging
-
+#region Logging
         private void Log(string message)
         {
             Debug.Log($"[MNN Loader] {message}");
@@ -374,27 +382,32 @@ namespace MNN.Unity
             onLoadError?.Invoke(message);
         }
 
-        #endregion
-
+#endregion
         private void OnDestroy()
         {
             UnloadModel();
         }
     }
 
-    #region Events
+#region Events
+    [Serializable]
+    public class ModelLoadEvent : UnityEngine.Events.UnityEvent<string>
+    {
+    }
 
     [Serializable]
-    public class ModelLoadEvent : UnityEngine.Events.UnityEvent<string> { }
+    public class ModelLoadProgressEvent : UnityEngine.Events.UnityEvent<float>
+    {
+    }
 
     [Serializable]
-    public class ModelLoadProgressEvent : UnityEngine.Events.UnityEvent<float> { }
+    public class ModelLoadCompleteEvent : UnityEngine.Events.UnityEvent<string, MNNInterpreter>
+    {
+    }
 
     [Serializable]
-    public class ModelLoadCompleteEvent : UnityEngine.Events.UnityEvent<string, MNNInterpreter> { }
-
-    [Serializable]
-    public class ModelLoadErrorEvent : UnityEngine.Events.UnityEvent<string> { }
-
-    #endregion
+    public class ModelLoadErrorEvent : UnityEngine.Events.UnityEvent<string>
+    {
+    }
+#endregion
 }

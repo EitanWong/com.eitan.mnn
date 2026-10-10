@@ -35,7 +35,9 @@ UIElementsSchema/
 # Certificates #
 # ============ #
 *.cert
+*.cert.meta
 *.privkey
+*.privkey.meta
 *.pfx
 *.pfx.meta
 
@@ -90,3 +92,72 @@ StreamingAssets.meta
 # Project Specific Links #
 # ====================== #
 .gstack/
+
+# Local model validation builds, logs and isolated Unity project
+/TestArtifacts~/
+
+# Local assistant state (not package source)
+/.claude/
+/.codex/
+
+# Python/tool caches and native build intermediates
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.o
+*.obj
+*.dSYM/
+*.dSYM.meta
+*.pdb
+
+# Downloaded model weights. Keep the tiny deterministic inference fixture.
+*.mnn
+*.mnn.meta
+*.mnn.weight
+*.mnn.weight.meta
+*.safetensors
+*.safetensors.meta
+*.onnx
+*.onnx.meta
+*.tflite
+*.tflite.meta
+*.gguf
+*.gguf.meta
+*.pt
+*.pt.meta
+*.pth
+*.pth.meta
+pytorch_model*.bin
+pytorch_model*.bin.meta
+# The package directory itself also ends in .mnn; keep it traversable.
+!/Packages/com.eitan.mnn/
+!/Packages/com.eitan.mnn.meta
+!Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn
+!Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn.meta
+
+# Interrupted downloads and local credentials
+*.part
+*.part.meta
+*.partial
+*.partial.meta
+*.download
+*.download.meta
+.env
+.env.*
+!.env.example
+!.env.template
+*.key
+*.key.meta
+*.pem
+*.pem.meta
+
+# Do not ignore native plugin binaries (.dll/.so/.dylib/.a) or Unity .meta
+# globally: Runtime/Plugins contains required distributable package assets.

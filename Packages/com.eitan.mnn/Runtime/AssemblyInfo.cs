@@ -1,1 +1,5 @@
-// Licensed under the MIT License. See LICENSE in the project root for license information.
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("MNN.Unity.Tests")]
+[assembly: InternalsVisibleTo("MNN.Unity.Runtime.Tests")]
+[assembly: InternalsVisibleTo("MNN.Unity.Editor")]

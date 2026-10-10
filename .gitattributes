@@ -1,6 +1,18 @@
-text=auto
+* text=auto
 *.sh text eol=lf
-*.cs diff=csharp text eol=crlf
+*.cs diff=csharp text eol=lf
+*.asmdef text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.mnn binary
+*.png binary
 ## Unity ##
 *.cginc text
 *.shader text
@@ -11,5 +23,6 @@ text=auto
 *.physicsMaterial2D merge=unityyamlmerge eol=lf
 *.physicMaterial merge=unityyamlmerge eol=lf
 *.asset merge=unityyamlmerge eol=lf
-*.meta merge=unityyamlmerge eol=lf
+# Unity writes spaces after empty serialized values; preserve that format.
+*.meta merge=unityyamlmerge eol=lf whitespace=-blank-at-eol
 *.controller merge=unityyamlmerge eol=lf

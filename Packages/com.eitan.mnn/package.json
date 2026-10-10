@@ -1,7 +1,7 @@
 {
   "name": "com.eitan.mnn",
   "displayName": "MNN for Unity",
-  "description": "轻量级深度学习端侧推理引擎：专为资源受限的设备设计，能在Unity构建出来的程序上高效运行神经网络模型。支持 iOS, Android, macOS, Windows, Linux, WebGL 全平台。",
+  "description": "MNN 3.6.1 的 Unity C# 直接 C++ API 绑定，支持文本、视觉、语音、Omni、Embedding 和重排序任务。当前实现 macOS 64 位 Mono ABI；其他平台与 IL2CPP 尚未实现推理绑定。",
   "keywords": [
     "MNN",
     "Machine Learning",
@@ -15,7 +15,7 @@
   ],
   "version": "3.6.1",
   "unity": "2021.3",
-  "documentationUrl": "https://github.com/EitanWong/com.eitan.mnn#documentation",
+  "documentationUrl": "https://github.com/EitanWong/com.eitan.mnn/tree/main/Packages/com.eitan.mnn/Documentation~",
   "changelogUrl": "https://github.com/EitanWong/com.eitan.mnn/releases",
   "license": "Apache-2.0",
   "repository": {
@@ -26,8 +26,20 @@
     "name": "eitan",
     "url": "https://github.com/EitanWong"
   },
-  "dependencies": {},
+  "dependencies": {
+    "com.unity.modules.unitywebrequest": "1.0.0",
+    "com.unity.modules.unitywebrequestaudio": "1.0.0",
+    "com.unity.modules.audio": "1.0.0",
+    "com.unity.modules.imageconversion": "1.0.0"
+  },
   "publishConfig": {
     "registry": "https://package.openupm.com"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Basic Inference",
+      "description": "Library status, tensor inference and texture input/output using the managed API. Supply your own compatible model.",
+      "path": "Samples~/BasicExample"
+    }
+  ]
 }
