@@ -1,0 +1,18 @@
+{
+  "name": "MNN.Unity.Editor",
+  "rootNamespace": "MNN.Unity.Editor",
+  "references": [
+    "MNN.Unity"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

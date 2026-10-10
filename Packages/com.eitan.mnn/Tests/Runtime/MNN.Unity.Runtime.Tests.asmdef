@@ -1,0 +1,20 @@
+{
+  "name": "MNN.Unity.Runtime.Tests",
+  "rootNamespace": "MNN.Unity.Tests",
+  "references": [
+    "MNN.Unity"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": false
+}

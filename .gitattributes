@@ -1,17 +1,28 @@
-# Unity Package Manager branch
-# Ensures proper line endings and Git LFS handling
-
-# Text files
-*.cs text eol=lf
+* text=auto
+*.sh text eol=lf
+*.cs diff=csharp text eol=lf
+*.asmdef text eol=lf
+*.py text eol=lf
 *.md text eol=lf
 *.json text eol=lf
-*.asmdef text eol=lf
-*.meta text eol=lf
-
-# Binary files
-*.so binary
+*.yml text eol=lf
+*.yaml text eol=lf
 *.dll binary
+*.so binary
 *.dylib binary
 *.a binary
-*.framework binary
-*.bundle binary
+*.mnn binary
+*.png binary
+## Unity ##
+*.cginc text
+*.shader text
+*.mat merge=unityyamlmerge eol=lf
+*.anim merge=unityyamlmerge eol=lf
+*.unity merge=unityyamlmerge eol=lf
+*.prefab merge=unityyamlmerge eol=lf
+*.physicsMaterial2D merge=unityyamlmerge eol=lf
+*.physicMaterial merge=unityyamlmerge eol=lf
+# Unity writes spaces after empty serialized values; preserve that format.
+*.asset merge=unityyamlmerge eol=lf whitespace=-blank-at-eol
+*.meta merge=unityyamlmerge eol=lf whitespace=-blank-at-eol
+*.controller merge=unityyamlmerge eol=lf

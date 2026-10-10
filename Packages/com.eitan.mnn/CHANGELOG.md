@@ -1,106 +1,55 @@
 # Changelog
 
-All notable changes to this package will be documented in this file.
+Notable package changes are recorded here using [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+The package version remains 3.6.1; the development snapshot below is not a new release or tag.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [Unreleased]
+
+### Added
+
+- Managed language, multimodal, conversation streaming, Omni speech output, Qwen3 embedding and reranking APIs.
+- SD 1.5 image generation; Supertonic, Bert-VITS2 Chinese and Piper English speech synthesis.
+  Piper uses upstream eSpeak-NG; Sana editing runs but has not met the semantic color-edit quality check.
+- Chat Studio with conversation history, folders, search, media, playback/export and 23 task entries.
+  Unimplemented dedicated pipelines provide model preparation guidance.
+- Complete ModelScope MNN repository catalog, background downloads, parallel transfers and pause/resume.
+- Editor/Player test assemblies, deterministic affine fixture, offline model runners and package layout CI.
+
+### Changed
+
+- Current managed interop calls official MNN C++ symbols under the bundled MNN 3.6.1,
+  Apple clang / libc++ ABI v1, macOS 11+, 64-bit Mono contract. No new C++ sources,
+  custom C exports or companion bridge are introduced. This is not an official portable MNN C# SDK.
+- Auto acceleration prefers available Metal with CPU fallback and task-specific compatibility policies.
+  Embedding, Piper, Sana and the Bert-VITS2 generator use CPU; Omni speech uses a High-precision
+  Metal main runtime with CPU media processors. CoreML/NPU support is not claimed.
+- Runtime/Core is organized by domain; editor features, safe handles, tests, tooling and samples
+  have explicit directory and assembly ownership while public namespaces remain stable.
+- Installation uses the repository package subdirectory; README, API, Studio, test and maintenance
+  documentation describe current behavior and limits.
+- Ignore rules exclude local models, caches, build/test artifacts and credentials while retaining
+  required native plugins, Unity metadata and the deterministic test fixture.
+
+### Fixed
+
+- Compiler ABI differences between arm64 and x86_64 Players for libc++ strings, callbacks and allocation.
+- Piper executable/data-directory discovery and invalid saved dictionary paths.
+- GPU quality regressions through precision retry, CPU compatibility policies and Omni speech runtime separation.
+
+### Validation scope
+
+- Recorded CPU evidence covers macOS arm64 Mono Editor/Player and x86_64 Mono Player under Rosetta.
+  Intel hardware and x86_64 GPU inference have not been verified.
+- Recorded arm64 Metal/CPU compatibility regressions cover 97 distinct Editor tests across two runs
+  and 116 Player tests. Counts include API/platform checks, not only model tests.
+- Other operating systems and IL2CPP reject inference. Conditional C# compilation and rejection-policy
+  tests do not establish inference support. See [test evidence](Documentation~/Testing.md).
 
 ## [3.6.1] - 2024-10-08
 
-### Added
-- 🎉 Initial release of MNN for Unity
-- ✅ Full platform support: iOS, Android, macOS, Windows, Linux, WebGL
-- 🚀 Optimized native libraries (79% size reduction vs official builds)
-- 📦 XCFramework for iOS (device + simulator)
-- ⚡ Hardware acceleration support:
-  - Metal (iOS/macOS)
-  - OpenCL (Android)
-  - CUDA (Windows/Linux)
-  - WebGL (WebAssembly)
-- 🔧 Pre-configured Unity .meta files for all platforms
-- 📚 Complete documentation and examples
+Initial package scaffolding and native plugins for multiple Unity platforms.
+Earlier release notes described broad platform and acceleration support. Those historical packaging
+claims do not establish support for the current managed C++ binding; use the current
+[package README](README.md), [ABI contract](Native~/README.md) and [tests](Documentation~/Testing.md).
 
-### Features
-- Based on MNN v3.6.1 from Alibaba
-- CNN / Transformer / LLM / Diffusion model support
-- Lightweight inference engine (~60 MB total)
-- Production-ready builds with strip optimization
-- Android: armeabi-v7a (4.1 MB) + arm64-v8a (5.4 MB)
-- iOS: Universal XCFramework (15.7 MB)
-- macOS: Universal Binary x86_64 + arm64 (8.3 MB)
-- Windows: x86_64 DLL (5.1 MB)
-- Linux: x86_64 SO (4.0 MB)
-- WebGL: WebAssembly static library (6.0 MB)
-
-### Optimizations
-- Strip symbols from all native libraries (-50+ MB)
-- Disabled training functionality (-15+ MB)
-- Disabled benchmark tools (-20+ MB)
-- Inference-only configuration
-- Low memory mode enabled
-
-### Platform Details
-
-#### iOS
-- XCFramework with arm64 device + simulator slices
-- Metal GPU acceleration
-- CoreML integration support
-- Minimum deployment target: iOS 11.0
-
-#### Android
-- Multi-ABI support (v7a + v8a)
-- OpenCL GPU acceleration
-- Minimum API level: 21 (Android 5.0)
-
-#### macOS
-- Universal binary (Intel + Apple Silicon)
-- Metal GPU acceleration
-- Minimum target: macOS 10.13
-
-#### Windows
-- x86_64 DLL
-- AVX/AVX2/AVX512 support
-- CUDA GPU acceleration support
-
-#### Linux
-- x86_64 shared library
-- AVX/AVX2/AVX512 support
-- CUDA GPU acceleration support
-
-#### WebGL
-- WebAssembly static library
-- Single-threaded mode
-- SIMD optimization
-
-### Documentation
-- Comprehensive README with quick start guide
-- Platform-specific build notes
-- Performance comparison with official builds
-- API usage examples
-
-### Known Limitations
-- Inference only (no training support)
-- No Python bindings
-- No benchmark tools included
-
----
-
-## Roadmap
-
-### Future Versions
-
-#### [3.7.0] - Planned
-- Additional model format support
-- Enhanced C# API wrapper
-- More code examples
-- Performance profiling tools
-
-#### [3.8.0] - Planned
-- Unity Editor integration tools
-- Visual model inspector
-- Drag-and-drop model import
-- Runtime model loading utilities
-
----
-
-For detailed MNN engine changes, see [MNN Official Releases](https://github.com/alibaba/MNN/releases)
+For upstream engine changes, see [MNN releases](https://github.com/alibaba/MNN/releases).

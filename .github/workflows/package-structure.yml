@@ -1,0 +1,35 @@
+name: Package Structure
+
+on:
+  pull_request:
+    paths:
+      - 'Packages/com.eitan.mnn/**'
+      - '.editorconfig'
+      - '.gitattributes'
+      - '.gitignore'
+      - 'README.md'
+      - 'AGENTS.md'
+      - '.github/workflows/package-structure.yml'
+  push:
+    branches: [dev, main]
+    paths:
+      - 'Packages/com.eitan.mnn/**'
+      - '.editorconfig'
+      - '.gitattributes'
+      - '.gitignore'
+      - 'README.md'
+      - 'AGENTS.md'
+      - '.github/workflows/package-structure.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python3 Packages/com.eitan.mnn/Tools~/Validation/validate_package.py
