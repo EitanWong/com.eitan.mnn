@@ -5,7 +5,7 @@ macOS Mono ABI. This is a project-maintained compiler-specific C# binding, not a
 official portable MNN C# SDK. Existing plugin files and task entries do not imply
 that every platform or model pipeline is implemented.
 
-- [OmniVoice on MNN](OmniVoice.md): 三图转换、托管迭代合成、Unity API、RTF 与质量边界。
+- [OmniVoice-MNN](OmniVoice.md): 三图转换、托管迭代合成、Unity API、RTF 与质量边界。
 - [Chat Studio](ChatStudio.md): conversations, model preparation, media and task limits.
 - [Automatic inference acceleration](Acceleration.md): backend selection, fallback and cache behavior.
 - [API reference](API.md): public C# API and inference workflow.

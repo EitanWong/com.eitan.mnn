@@ -1,4 +1,4 @@
-# OmniVoice on MNN
+# OmniVoice-MNN
 
 `MNNOmniVoice` runs the official OmniVoice backbone and Higgs audio codec through
 the package's existing, platform-gated MNN C++ Interpreter/Tensor bindings. The
@@ -18,7 +18,7 @@ tokenizer.json
 ```
 
 The converted files are installed locally in
-`Assets/StreamingAssets/MNN/Models/OmniVoice/`. The three MNN external weights
+`Assets/StreamingAssets/MNN/Models/OmniVoice-MNN/`. The three MNN external weights
 total about 3.0 GiB. The original safetensors in the same local model asset
 directory are conversion sources and are not needed by `MNNOmniVoice` at runtime.
 Model weights and test outputs are ignored by Git. For Android, copy or deliver
@@ -50,7 +50,7 @@ this report covers only the pinned local assets.
 ## Unity API
 
 ```csharp
-string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice");
+string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice-MNN");
 using (var model = MNNOmniVoice.Load(root, lmBackend: MNNBackendType.Metal))
 {
     var reference = MNNReferenceAudio.FromWaveFile(referenceWavPath);

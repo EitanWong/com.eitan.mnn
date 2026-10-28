@@ -9,9 +9,9 @@ namespace MNN.Unity.Tests
         [Test]
         public void EncodesPublishedChinesePromptLikeUpstreamTokenizer()
         {
-            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice");
+            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice-MNN");
             if (!File.Exists(Path.Combine(root, "tokenizer.json")))
-                Assert.Ignore("OmniVoice tokenizer asset is not installed.");
+                Assert.Ignore("OmniVoice-MNN tokenizer asset is not installed.");
 
             var text = new MNNOmniVoiceText(root);
             CollectionAssert.AreEqual(new[] {151670, 23815, 151671, 151672, 4064, 151673}, text.Style("zh", null, false));

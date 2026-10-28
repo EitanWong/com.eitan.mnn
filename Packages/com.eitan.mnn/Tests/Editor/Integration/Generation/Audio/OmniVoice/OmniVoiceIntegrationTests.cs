@@ -9,13 +9,15 @@ namespace MNN.Unity.Tests
 {
     public class OmniVoiceIntegrationTests
     {
+        private const string ModelFolder = "OmniVoice-MNN";
+
         [TestCase(MNNPrecisionMode.High)]
         [TestCase(MNNPrecisionMode.Low)]
         public void AutoVoiceProducesAudibleWaveform(MNNPrecisionMode precision)
         {
-            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice");
+            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", ModelFolder);
             if (!File.Exists(Path.Combine(root, "omnivoice_lm.mnn")))
-                Assert.Ignore("OmniVoice MNN assets are not installed.");
+                Assert.Ignore("OmniVoice-MNN assets are not installed.");
             using (var model = MNNOmniVoice.Load(root, lmBackend: MNNBackendType.Metal, precision: precision))
             {
                 Assert.That(model.UsesPackedCfg, Is.EqualTo(precision == MNNPrecisionMode.High));
@@ -30,10 +32,10 @@ namespace MNN.Unity.Tests
         [TestCase(MNNPrecisionMode.Low, 16)]
         public void ReferenceCloneProducesAudibleWaveform(MNNPrecisionMode precision, int steps)
         {
-            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice");
+            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", ModelFolder);
             string referencePath = Path.Combine(root, "zero_shot_prompt.wav");
             if (!File.Exists(Path.Combine(root, "omnivoice_lm.mnn")) || !File.Exists(referencePath))
-                Assert.Ignore("OmniVoice MNN assets are not installed.");
+                Assert.Ignore("OmniVoice-MNN assets are not installed.");
             var timer = Stopwatch.StartNew();
             using (var model = MNNOmniVoice.Load(root, lmBackend: MNNBackendType.Metal, precision: precision))
             {
@@ -66,10 +68,10 @@ namespace MNN.Unity.Tests
         [Test]
         public void PackedHighCfgMatchesLegacyWaveform()
         {
-            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice");
+            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", ModelFolder);
             if (!File.Exists(Path.Combine(root, "omnivoice_lm.mnn")) ||
                 !File.Exists(Path.Combine(root, "zero_shot_prompt.wav")))
-                Assert.Ignore("OmniVoice MNN assets are not installed.");
+                Assert.Ignore("OmniVoice-MNN assets are not installed.");
             MNNGeneratedAudio original;
             MNNOmniVoicePrompt voice;
             double legacySeconds;
@@ -107,11 +109,11 @@ namespace MNN.Unity.Tests
         [Test]
         public void PackedHighCfgKeepsSecondSeedTranscript()
         {
-            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "OmniVoice");
+            string root = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", ModelFolder);
             string asrRoot = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "hb-dev--Qwen3-ASR-0.6B-INT8-MNN");
             if (!File.Exists(Path.Combine(root, "omnivoice_lm.mnn")) ||
                 !File.Exists(Path.Combine(asrRoot, "llm.mnn")))
-                Assert.Ignore("OmniVoice and Qwen3-ASR MNN assets are required.");
+                Assert.Ignore("OmniVoice-MNN and Qwen3-ASR MNN assets are required.");
             const string text = "今天天气很好，我们一起出去走走。";
             MNNGeneratedAudio original, actual;
             MNNOmniVoicePrompt voice;
