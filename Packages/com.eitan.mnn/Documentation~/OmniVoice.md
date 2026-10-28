@@ -118,6 +118,15 @@ reduced size without improving pass time and changed token predictions. The
 installed model and High-precision default therefore remain unchanged. See the
 research report under `TestArtifacts~/OmniVoiceResearch/` for measurements.
 
+The official MNN 3.6.1 Metal Tensor matrix probe also fails to compile on the
+tested Apple M5 / macOS 27.0.1 setup, so MNN disables that path. Unity tests
+of all five official Metal tuning modes produced identical logits, but their
+timing order reversed when the run order was reversed. No tuning mode has a
+verified speed advantage over the current Wide default on this machine.
+
+An isolated macOS 26.2 deployment-target build could not run the dynamic
+OmniVoice graph, so it does not establish a usable faster matrix path.
+
 High / 32 with packed CFG is now the default. Low / 32 remains available as
 an explicit alternative. The 16-step sample changed a word, so step reduction
 is not enabled by default. Two ASR transcripts do not establish speaker
