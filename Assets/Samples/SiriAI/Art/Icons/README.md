@@ -7,6 +7,6 @@ https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/5e/b5/cc/5eb5ccfa-fd
 
 Cross-checked against the Siri app icon in [Apple's iOS 27 user guide](https://support.apple.com/en-gb/guide/iphone/p7ny364ngxlj/ios).
 
-`SiriAIAppIcon.png` preserves the official artwork at 1024×1024, composited onto white to remove its transparent corners for iOS. No new artwork was generated. Unity imports it without mipmaps or texture compression. PlayerSettings references this texture for the default app icon and all 19 iPhone/iPad/App Store slots; Unity resizes it for each slot.
+`SiriAIAppIcon.png` is the unchanged official 1024×1024 PNG, including its alpha channel and transparent area outside the rounded tile. The official white tile remains part of the artwork. No new artwork was generated. Unity imports source alpha with alpha-as-transparency enabled, without mipmaps or texture compression. PlayerSettings references this texture for the default app icon and all 19 iPhone/iPad/App Store slots; Unity resizes it for each slot.
 
 Artwork © Apple Inc. This source attribution does not grant a redistribution license.
