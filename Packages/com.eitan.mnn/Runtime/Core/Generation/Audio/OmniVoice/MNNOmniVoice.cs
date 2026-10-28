@@ -34,6 +34,7 @@ namespace MNN.Unity
         private readonly MNNBackendType _lmBackend;
         private readonly MNNPrecisionMode _precision;
         private readonly bool _packedCfg;
+        private readonly bool _compactSampling;
         private readonly MNNOmniVoiceText _text;
         private MNNGenerationGraph _lm, _encoder, _decoder;
         private bool _disposed;
@@ -41,19 +42,31 @@ namespace MNN.Unity
         /// <summary>Whether this instance packs both CFG branches into one input sequence.</summary>
         public bool UsesPackedCfg => _packedCfg;
 
-        private MNNOmniVoice(string root, int threads, MNNBackendType backend, MNNPrecisionMode precision, bool packedCfg)
+        /// <summary>Whether the optional graph returns predicted codes and confidence instead of full logits.</summary>
+        public bool UsesCompactSampling => _compactSampling;
+
+        private MNNOmniVoice(string root, int threads, MNNBackendType backend, MNNPrecisionMode precision, bool packedCfg, bool compactSampling)
         {
             _root = root;
             _threads = threads;
             _lmBackend = backend;
             _precision = precision;
             _packedCfg = packedCfg;
+            _compactSampling = compactSampling;
             _text = new MNNOmniVoiceText(root);
         }
 
         public static MNNOmniVoice Load(string directory, int threads = 4,
             MNNBackendType lmBackend = MNNBackendType.Auto, MNNPrecisionMode precision = MNNPrecisionMode.High,
             bool enablePackedCfg = true)
+            => LoadCore(directory, threads, lmBackend, precision, enablePackedCfg, false);
+
+        /// <summary>Use the optional compact graph with High precision and packed CFG; shares the original external weights.</summary>
+        public static MNNOmniVoice LoadCompact(string directory, int threads = 4, MNNBackendType lmBackend = MNNBackendType.Auto)
+            => LoadCore(directory, threads, lmBackend, MNNPrecisionMode.High, true, true);
+
+        private static MNNOmniVoice LoadCore(string directory, int threads, MNNBackendType lmBackend,
+            MNNPrecisionMode precision, bool enablePackedCfg, bool compactSampling)
         {
             MNNPlatformSupport.RequireSupported();
             if (threads < 1 || threads > 16) throw new ArgumentOutOfRangeException(nameof(threads));
@@ -66,8 +79,10 @@ namespace MNN.Unity
                 if (!File.Exists(Path.Combine(root, graph + ".mnn")) || !File.Exists(Path.Combine(root, graph + ".mnn.weight")))
                     throw new FileNotFoundException("OmniVoice needs all three MNN graphs and external weights in one directory.", root);
             }
+            if (compactSampling && !File.Exists(Path.Combine(root, "omnivoice_lm_compact.mnn")))
+                throw new FileNotFoundException("Install the optional OmniVoice compact graph first.", Path.Combine(root, "omnivoice_lm_compact.mnn"));
             return new MNNOmniVoice(root, threads, lmBackend, precision,
-                enablePackedCfg && precision == MNNPrecisionMode.High);
+                enablePackedCfg && precision == MNNPrecisionMode.High, compactSampling);
         }
 
         /// <summary>Encode a 0.5-15 second mono recording once. Supply its matching transcript; 3-10 seconds is recommended.</summary>
@@ -120,7 +135,9 @@ namespace MNN.Unity
                 int referenceFrames = voice?.Frames ?? 0;
                 int sequence = checked(style.Length + content.Length + referenceFrames + targetFrames);
                 if (sequence > 1024) throw new ArgumentException("OmniVoice sequence exceeds 1024 positions; use shorter text, reference or duration.", nameof(text));
-                if (_lm == null) _lm = Graph("omnivoice_lm", _lmBackend, _precision);
+                if (_lm == null)
+                    _lm = Graph(_compactSampling ? "omnivoice_lm_compact" : "omnivoice_lm", _lmBackend, _precision,
+                        _compactSampling ? Path.Combine(_root, "omnivoice_lm.mnn.weight") : null);
                 int referenceStart = style.Length + content.Length;
                 CfgInputs cfg = BuildCfgInputs(style, content, voice, referenceFrames, referenceStart, sequence, targetFrames);
                 int[] tokens = Generate(cfg, targetFrames, steps, seed, cancellationToken);
@@ -194,24 +211,14 @@ namespace MNN.Unity
             for (int step = 0; step < steps; ++step)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                float[] logits = _lm.Run("logits", new Input("input_ids", cfg.Ids, cfg.Batch, 8, cfg.InputSequence),
-                    new Input("audio_mask", cfg.AudioMask, cfg.Batch, cfg.InputSequence),
-                    new Input("attention_mask", cfg.Attention, cfg.Batch, 1, cfg.InputSequence, cfg.InputSequence),
-                    new Input("position_ids", cfg.Positions, cfg.Batch, cfg.InputSequence));
-                if (logits.Length != cfg.Batch * 8 * cfg.InputSequence * MNNOmniVoiceSampling.Vocabulary)
-                    throw new InvalidDataException("Unexpected OmniVoice logits shape.");
+                var predictions = Predict(cfg, tokens, frames);
                 var candidates = new List<Candidate>(tokens.Length);
-                for (int codebook = 0; codebook < 8; ++codebook)
-                    for (int frame = 0; frame < frames; ++frame)
-                    {
-                        int index = codebook * frames + frame;
-                        if (tokens[index] != MNNOmniVoiceSampling.Mask) continue;
-                        int c = (codebook * cfg.InputSequence + cfg.ConditionalStart + frame) * MNNOmniVoiceSampling.Vocabulary;
-                        int u = ((_packedCfg ? codebook : 8 + codebook) * cfg.InputSequence + cfg.UnconditionalStart + frame) * MNNOmniVoiceSampling.Vocabulary;
-                        int predicted = MNNOmniVoiceSampling.Predict(logits, c, logits, u, 2, out float confidence);
-                        double score = (confidence - codebook * 5.0) / 5.0 + MNNOmniVoiceSampling.Gumbel(random);
-                        candidates.Add(new Candidate(index, predicted, score));
-                    }
+                for (int index = 0; index < tokens.Length; ++index)
+                {
+                    if (tokens[index] != MNNOmniVoiceSampling.Mask) continue;
+                    double score = (predictions.Confidence[index] - index / frames * 5.0) / 5.0 + MNNOmniVoiceSampling.Gumbel(random);
+                    candidates.Add(new Candidate(index, predictions.Codes[index], score));
+                }
                 candidates.Sort((a, b) => b.Score.CompareTo(a.Score));
                 if (schedule[step] > candidates.Count) throw new InvalidDataException("OmniVoice mask schedule exceeds remaining tokens.");
                 for (int i = 0; i < schedule[step]; ++i)
@@ -226,6 +233,43 @@ namespace MNN.Unity
             }
             if (tokens.Any(code => code == MNNOmniVoiceSampling.Mask)) throw new InvalidDataException("OmniVoice left audio positions masked.");
             return tokens;
+        }
+
+        private (int[] Codes, float[] Confidence) Predict(CfgInputs cfg, int[] tokens, int frames)
+        {
+            var inputs = new[] {
+                new Input("input_ids", cfg.Ids, cfg.Batch, 8, cfg.InputSequence),
+                new Input("audio_mask", cfg.AudioMask, cfg.Batch, cfg.InputSequence),
+                new Input("attention_mask", cfg.Attention, cfg.Batch, 1, cfg.InputSequence, cfg.InputSequence),
+                new Input("position_ids", cfg.Positions, cfg.Batch, cfg.InputSequence)
+            };
+            if (_compactSampling)
+            {
+                int[] indices = Enumerable.Range(cfg.ConditionalStart, frames * 2).ToArray();
+                var outputs = _lm.RunOutputs(new[] {"codes", "confidence"},
+                    inputs.Concat(new[] {new Input("target_indices", indices, indices.Length)}).ToArray());
+                int[] predicted = Integers(outputs[0].Data);
+                float[] confidence = outputs[1].Values;
+                int[] shape = {1, 8, frames};
+                if (!outputs[0].Shape.SequenceEqual(shape) || !outputs[1].Shape.SequenceEqual(shape) ||
+                    predicted.Any(code => code < 0 || code >= MNNOmniVoiceSampling.Mask))
+                    throw new InvalidDataException("Unexpected OmniVoice compact predictions.");
+                return (predicted, confidence);
+            }
+            float[] logits = _lm.Run("logits", inputs);
+            if (logits.Length != cfg.Batch * 8 * cfg.InputSequence * MNNOmniVoiceSampling.Vocabulary)
+                throw new InvalidDataException("Unexpected OmniVoice logits shape.");
+            var codes = new int[tokens.Length];
+            var confidences = new float[tokens.Length];
+            for (int index = 0; index < tokens.Length; ++index)
+            {
+                if (tokens[index] != MNNOmniVoiceSampling.Mask) continue;
+                int codebook = index / frames, frame = index % frames;
+                int c = (codebook * cfg.InputSequence + cfg.ConditionalStart + frame) * MNNOmniVoiceSampling.Vocabulary;
+                int u = ((_packedCfg ? codebook : 8 + codebook) * cfg.InputSequence + cfg.UnconditionalStart + frame) * MNNOmniVoiceSampling.Vocabulary;
+                codes[index] = MNNOmniVoiceSampling.Predict(logits, c, logits, u, 2, out confidences[index]);
+            }
+            return (codes, confidences);
         }
 
         private readonly struct Candidate
@@ -263,8 +307,9 @@ namespace MNN.Unity
             throw new InvalidDataException("Expected integer Higgs audio codes.");
         }
 
-        private MNNGenerationGraph Graph(string name, MNNBackendType backend, MNNPrecisionMode precision)
-            => new MNNGenerationGraph(Path.Combine(_root, name + ".mnn"), _threads, backendType: backend, precisionMode: precision);
+        private MNNGenerationGraph Graph(string name, MNNBackendType backend, MNNPrecisionMode precision, string externalWeightsPath = null)
+            => new MNNGenerationGraph(Path.Combine(_root, name + ".mnn"), _threads, backendType: backend, precisionMode: precision,
+                externalWeightsPath: externalWeightsPath);
 
         private void ThrowIfDisposed()
         {

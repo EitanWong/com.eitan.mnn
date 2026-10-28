@@ -74,6 +74,25 @@ branch into one block-masked sequence by default. This uses the same
 original two-batch layout. Low precision retains that original layout because
 packing changed some token predictions in local Low-precision tests.
 
+An optional compact graph moves target projection, CFG, argmax and confidence
+calculation into MNN, reducing full-logit readback and managed sampling work:
+
+```csharp
+using (var model = MNNOmniVoice.LoadCompact(root, lmBackend: MNNBackendType.Metal))
+{
+    // Reuse this instance and its encoded voice prompt across requests.
+    MNNGeneratedAudio audio = model.Synthesize("你好，欢迎来到 OmniVoice。", 2.0f, voice);
+}
+```
+
+Build/install `omnivoice_lm_compact.mnn` with the
+[compact conversion tool](../Tools~/Models/OmniVoice/README.md). It adds only the
+graph, sharing `omnivoice_lm.mnn.weight` through official `setExternalFile`.
+`LoadCompact` fixes High precision and packed CFG; `UsesCompactSampling` reports
+this opt-in. The normal `Load` path remains available for comparison. Floating
+point graph reductions can differ from the managed double-precision sampler,
+so verify complete speech on each intended backend and checkpoint.
+
 The current API requires an explicit output duration of 0.4-15 seconds and
 defaults to 32 iterative steps, CFG 2 and the upstream position sampler.
 Long-form chunking, automatic reference transcription, and the upstream
@@ -139,3 +158,50 @@ The measured macOS result does not establish Android/iOS latency or quality.
 Mobile deployment uses the package's pinned compiler/platform ABI contract in
 [mobile interop](MobileInterop.md); test the actual Player and backend before
 promoting it.
+
+## CosyVoice3-MNN comparison and mobile scope
+
+Studied [CosyVoice3-MNN](https://github.com/Nian27/CosyVoice3-MNN/tree/b4c2fafde21d1f138bfcd0ccaf7ddd9dcca2511a).
+Its principal gains require CFG single-branch and 10-to-2-step distillation.
+OmniVoice uses iterative bidirectional masked-token prediction, so ordinary
+causal KV caching is invalid and flow trajectory distillation is not a drop-in
+conversion. Reducing steps or removing CFG without training changes the model.
+Persistent sessions, reusing reference encodings, per-stage backend selection,
+and avoiding unnecessary host readback are applicable without retraining.
+
+The compact graph was tested with official MNN 3.6.1 in the same Mac Unity
+Editor, 32 steps and a 2-second target (2.2 seconds including padding). Each row
+is a paired warm run, excluding model loading and reference encoding:
+
+| Case / seed | Normal packed | Compact | RTF normal → compact | Max PCM difference |
+| --- | ---: | ---: | ---: | ---: |
+| Chinese clone / 47 | 4.006 s | 3.814 s | 1.821 → 1.734 | 0 |
+| Second Chinese clone / 13, reversed order | 3.953 s | 3.734 s | 1.797 → 1.697 | 0 |
+| Automatic voice / 29 | 2.301 s | 2.142 s | 1.046 → 0.974 | 0 |
+
+An earlier two-case run also reduced time by 5.2–6.9%, with identical PCM.
+Three exact examples do not establish universal speech quality. A random
+200-position packed diagnostic reduced readback from 6,560,000 to 3,200 bytes,
+with all codes matching and maximum confidence difference below 1.83e-5;
+neural-pass time changed by less than 1%. The benefit is mostly reduced
+managed work, not a faster transformer.
+
+FP16 weight serialization reduced the combined backbone graph/weights from
+2.453 GB to 1.228 GB, but did not speed up either Mac Metal or the tested Android
+CPU pass, and changed about 1.5% of diagnostic argmax predictions. It is not
+installed as the quality-first default.
+
+On a connected PELM00 / MT6853 Android device, Python MNN Module with
+OpenCL requested measured 3.552 → 3.476 seconds per warm backbone pass with
+all diagnostic codes matching. That small single-run difference is not a
+verified stable speedup. CPU FP16 storage measured 10.309 → 10.352 seconds,
+also giving no speed benefit. These are single-pass diagnostics, without a full
+mobile synthesis or Unity Player ABI validation; they do not establish real-time
+mobile speech. The iPhone was offline.
+
+Mobile measurements and remaining limitations are recorded in the development
+project at `TestArtifacts~/OmniVoiceResearch/CosyVoice3Comparison/REPORT.md`.
+The compact path is an optional measured optimization, not a claim of smooth
+mobile playback or a mobile Unity Player validation. Reliable real-time mobile
+speech still needs target-device profiling and likely training-based reduction
+of repeated backbone computation, with separate quality evaluation.

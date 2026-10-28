@@ -18,10 +18,12 @@ namespace MNN.Unity
         private bool _cacheSaved;
         private readonly bool _prepared;
         internal MNNBackendType Backend => _express != null ? _express.Backend : _session.ActualBackend;
-        internal MNNGenerationGraph(string path, int threads, byte[] preparedGraph = null, bool express = false, MNNBackendType backendType = MNNBackendType.Auto)
+        internal MNNGenerationGraph(string path, int threads, byte[] preparedGraph = null, bool express = false, MNNBackendType backendType = MNNBackendType.Auto, string externalWeightsPath = null)
         {
             if (!File.Exists(path) || new FileInfo(path).Length < 16)
                 throw new FileNotFoundException("Missing MNN graph: " + path);
+            if (externalWeightsPath != null && (express || !File.Exists(externalWeightsPath)))
+                throw new ArgumentException("External weights require an existing file and an Interpreter graph.", nameof(externalWeightsPath));
             _path = path;
             _threads = threads;
             _prepared = preparedGraph != null;
@@ -43,8 +45,8 @@ namespace MNN.Unity
             _interpreter = preparedGraph == null ? MNNInterpreter.CreateFromFile(path) : MNNInterpreter.CreateFromBuffer(preparedGraph);
             try
             {
-                if (preparedGraph != null)
-                    _interpreter.SetExternalFile(path + ".weight");
+                if (preparedGraph != null || externalWeightsPath != null)
+                    _interpreter.SetExternalFile(externalWeightsPath ?? path + ".weight");
                 ConfigureCache(MNNAcceleration.Resolve(backendType), MNNPrecisionMode.Normal);
                 _session = _interpreter.CreateSession(new MNNSessionConfig{BackendType = backendType, ThreadCount = threads, PrecisionMode = MNNPrecisionMode.Normal});
             }
