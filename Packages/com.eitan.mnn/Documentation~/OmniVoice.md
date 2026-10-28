@@ -108,6 +108,16 @@ same original graph and packed inputs measured RTF 1.729 on the first sentence.
 These are individual measurements on this Mac, not a cross-platform latency
 or perceptual-quality guarantee.
 
+A Unity Metal System Trace of a further paired High / 32 run measured legacy
+RTF 2.643 and packed RTF 1.948 with identical PCM. During sustained synthesis,
+Unity's depth-zero Compute intervals occupied about 92-93% of wall time on this
+Mac. The trace does not identify individual MNN shaders. Official converter
+experiments with `--optimizePrefer 2` and `--transformerFuse` preserved logits
+but did not improve the 200-position warm Metal pass; 8-bit weight compression
+reduced size without improving pass time and changed token predictions. The
+installed model and High-precision default therefore remain unchanged. See the
+research report under `TestArtifacts~/OmniVoiceResearch/` for measurements.
+
 High / 32 with packed CFG is now the default. Low / 32 remains available as
 an explicit alternative. The 16-step sample changed a word, so step reduction
 is not enabled by default. Two ASR transcripts do not establish speaker
