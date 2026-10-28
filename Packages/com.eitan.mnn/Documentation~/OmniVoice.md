@@ -67,6 +67,13 @@ design prompt. The output is 24 kHz mono. `SynthesizeAsync` runs the same
 pipeline on a worker thread, and both APIs accept cancellation between model
 passes. Calls on one model instance are serialized.
 
+High precision packs the conditional prompt and the shorter unconditional CFG
+branch into one block-masked sequence by default. This uses the same
+`omnivoice_lm.mnn` graph and weights, with no extra model file. Check
+`UsesPackedCfg` after loading; pass `enablePackedCfg: false` to `Load` for the
+original two-batch layout. Low precision retains that original layout because
+packing changed some token predictions in local Low-precision tests.
+
 The current API requires an explicit output duration of 0.4-15 seconds and
 defaults to 32 iterative steps, CFG 2 and the upstream position sampler.
 Long-form chunking, automatic reference transcription, and the upstream
@@ -82,15 +89,28 @@ were faster than Metal; the backbone used Metal. RTF uses the resulting 2.2-seco
 waveform as its denominator. Each row is one run; warm timing repeats synthesis
 on the same loaded model and excludes reference encoding and ASR.
 
+The following earlier measurements used the original two-batch CFG layout:
+
 | Backbone precision / steps | First synthesis | Reused synthesis | Warm RTF | Independent Qwen3-ASR transcript |
 | --- | ---: | ---: | ---: | --- |
 | High / 32 | 6.104 s | 5.471 s | 2.487 | 你好，欢迎来到Only Voice。 |
 | Low / 32 | 4.714 s | 4.322 s | 1.965 | 你好，欢迎来到 Omni Voice。 |
 | Low / 16 | 3.262 s | 2.192 s | 0.996 | 您好，欢迎来到Only Voice。 |
 
-High / 32 is the default quality-first configuration. Low / 32 is available as
-an explicit faster option. The 16-step sample changed a word, so step reduction
-is not enabled by default. One ASR transcript does not establish speaker
+Two same-process Unity Editor comparisons measured High / 32 at 5.881 and
+6.152 s warm with the original layout (RTF 2.673 and 2.797), versus 4.255 and
+4.715 s with the default packed layout (RTF **1.934 and 2.143**). These are
+23-28% wall-time reductions in paired runs. The generated waveforms were
+sample-identical for seed 47. With seed 13 and a second Chinese
+sentence, both layouts gave the same independent ASR transcript, although
+Python PCM correlation was 0.964 rather than exact. Python MNN/Metal with the
+same original graph and packed inputs measured RTF 1.729 on the first sentence.
+These are individual measurements on this Mac, not a cross-platform latency
+or perceptual-quality guarantee.
+
+High / 32 with packed CFG is now the default. Low / 32 remains available as
+an explicit alternative. The 16-step sample changed a word, so step reduction
+is not enabled by default. Two ASR transcripts do not establish speaker
 similarity, prosody, multilingual quality, or artifact-free audio; listen to
 the saved WAV files and evaluate the intended languages and voices before
 changing production defaults. The original Python/MNN diagnostic and Unity XML

@@ -33,21 +33,27 @@ namespace MNN.Unity
         private readonly int _threads;
         private readonly MNNBackendType _lmBackend;
         private readonly MNNPrecisionMode _precision;
+        private readonly bool _packedCfg;
         private readonly MNNOmniVoiceText _text;
         private MNNGenerationGraph _lm, _encoder, _decoder;
         private bool _disposed;
 
-        private MNNOmniVoice(string root, int threads, MNNBackendType backend, MNNPrecisionMode precision)
+        /// <summary>Whether this instance packs both CFG branches into one input sequence.</summary>
+        public bool UsesPackedCfg => _packedCfg;
+
+        private MNNOmniVoice(string root, int threads, MNNBackendType backend, MNNPrecisionMode precision, bool packedCfg)
         {
             _root = root;
             _threads = threads;
             _lmBackend = backend;
             _precision = precision;
+            _packedCfg = packedCfg;
             _text = new MNNOmniVoiceText(root);
         }
 
         public static MNNOmniVoice Load(string directory, int threads = 4,
-            MNNBackendType lmBackend = MNNBackendType.Auto, MNNPrecisionMode precision = MNNPrecisionMode.High)
+            MNNBackendType lmBackend = MNNBackendType.Auto, MNNPrecisionMode precision = MNNPrecisionMode.High,
+            bool enablePackedCfg = true)
         {
             MNNPlatformSupport.RequireSupported();
             if (threads < 1 || threads > 16) throw new ArgumentOutOfRangeException(nameof(threads));
@@ -60,7 +66,8 @@ namespace MNN.Unity
                 if (!File.Exists(Path.Combine(root, graph + ".mnn")) || !File.Exists(Path.Combine(root, graph + ".mnn.weight")))
                     throw new FileNotFoundException("OmniVoice needs all three MNN graphs and external weights in one directory.", root);
             }
-            return new MNNOmniVoice(root, threads, lmBackend, precision);
+            return new MNNOmniVoice(root, threads, lmBackend, precision,
+                enablePackedCfg && precision == MNNPrecisionMode.High);
         }
 
         /// <summary>Encode a 0.5-15 second mono recording once. Supply its matching transcript; 3-10 seconds is recommended.</summary>
@@ -114,30 +121,9 @@ namespace MNN.Unity
                 int sequence = checked(style.Length + content.Length + referenceFrames + targetFrames);
                 if (sequence > 1024) throw new ArgumentException("OmniVoice sequence exceeds 1024 positions; use shorter text, reference or duration.", nameof(text));
                 if (_lm == null) _lm = Graph("omnivoice_lm", _lmBackend, _precision);
-                var ids = new int[2 * 8 * sequence];
-                for (int i = 0; i < ids.Length; ++i) ids[i] = MNNOmniVoiceSampling.Mask;
                 int referenceStart = style.Length + content.Length;
-                int targetStart = sequence - targetFrames;
-                for (int codebook = 0; codebook < 8; ++codebook)
-                {
-                    int offset = codebook * sequence;
-                    Array.Copy(style, 0, ids, offset, style.Length);
-                    Array.Copy(content, 0, ids, offset + style.Length, content.Length);
-                    if (voice != null) Array.Copy(voice.Codes, codebook * referenceFrames, ids, offset + referenceStart, referenceFrames);
-                }
-                var audioMask = new int[2 * sequence];
-                for (int i = referenceStart; i < sequence; ++i) audioMask[i] = 1;
-                for (int i = 0; i < targetFrames; ++i) audioMask[sequence + i] = 1;
-                var attention = new int[2 * sequence * sequence];
-                Array.Fill(attention, 1, 0, sequence * sequence);
-                int uncondOffset = sequence * sequence;
-                for (int row = 0; row < targetFrames; ++row)
-                    Array.Fill(attention, 1, uncondOffset + row * sequence, targetFrames);
-                for (int i = targetFrames; i < sequence; ++i) attention[uncondOffset + i * sequence + i] = 1;
-                var positions = new int[2 * sequence];
-                for (int batch = 0; batch < 2; ++batch)
-                    for (int i = 0; i < sequence; ++i) positions[batch * sequence + i] = i;
-                int[] tokens = Generate(ids, audioMask, attention, positions, sequence, targetFrames, targetStart, steps, seed, cancellationToken);
+                CfgInputs cfg = BuildCfgInputs(style, content, voice, referenceFrames, referenceStart, sequence, targetFrames);
+                int[] tokens = Generate(cfg, targetFrames, steps, seed, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (_decoder == null) _decoder = Graph("higgs_decoder", MNNBackendType.CPU, MNNPrecisionMode.High);
                 float[] wave = _decoder.Run("audio", new Input("audio_codes", tokens, 1, 8, targetFrames));
@@ -152,8 +138,55 @@ namespace MNN.Unity
             CancellationToken cancellationToken = default)
             => Task.Run(() => Synthesize(text, durationSeconds, voice, language, instruction, seed, steps, cancellationToken), cancellationToken);
 
-        private int[] Generate(int[] ids, int[] audioMask, int[] attention, int[] positions, int sequence,
-            int frames, int targetStart, int steps, int seed, CancellationToken cancellationToken)
+        private CfgInputs BuildCfgInputs(int[] style, int[] content, MNNOmniVoicePrompt voice,
+            int referenceFrames, int referenceStart, int sequence, int frames)
+        {
+            int inputSequence = _packedCfg ? sequence + frames : sequence;
+            int batch = _packedCfg ? 1 : 2;
+            var cfg = new CfgInputs(batch, inputSequence, sequence - frames, _packedCfg ? sequence : 0);
+            Array.Fill(cfg.Ids, MNNOmniVoiceSampling.Mask);
+            for (int codebook = 0; codebook < 8; ++codebook)
+            {
+                int offset = codebook * inputSequence;
+                Array.Copy(style, 0, cfg.Ids, offset, style.Length);
+                Array.Copy(content, 0, cfg.Ids, offset + style.Length, content.Length);
+                if (voice != null)
+                    Array.Copy(voice.Codes, codebook * referenceFrames, cfg.Ids, offset + referenceStart, referenceFrames);
+            }
+            for (int i = referenceStart; i < sequence; ++i) cfg.AudioMask[i] = 1;
+            int unconditionalMaskStart = _packedCfg ? sequence : inputSequence;
+            for (int i = 0; i < frames; ++i) cfg.AudioMask[unconditionalMaskStart + i] = 1;
+            for (int row = 0; row < sequence; ++row)
+                Array.Fill(cfg.Attention, 1, row * inputSequence, sequence);
+            int unconditionalAttentionStart = _packedCfg ? sequence * inputSequence + sequence : inputSequence * inputSequence;
+            for (int row = 0; row < frames; ++row)
+                Array.Fill(cfg.Attention, 1, unconditionalAttentionStart + row * inputSequence, frames);
+            if (!_packedCfg)
+                for (int i = frames; i < sequence; ++i)
+                    cfg.Attention[inputSequence * inputSequence + i * inputSequence + i] = 1;
+            for (int i = 0; i < sequence; ++i) cfg.Positions[i] = i;
+            for (int i = 0; i < (_packedCfg ? frames : sequence); ++i)
+                cfg.Positions[unconditionalMaskStart + i] = i;
+            return cfg;
+        }
+
+        private sealed class CfgInputs
+        {
+            internal readonly int Batch, InputSequence, ConditionalStart, UnconditionalStart;
+            internal readonly int[] Ids, AudioMask, Attention, Positions;
+
+            internal CfgInputs(int batch, int inputSequence, int conditionalStart, int unconditionalStart)
+            {
+                Batch = batch; InputSequence = inputSequence; ConditionalStart = conditionalStart;
+                UnconditionalStart = unconditionalStart;
+                Ids = new int[batch * 8 * inputSequence];
+                AudioMask = new int[batch * inputSequence];
+                Attention = new int[batch * inputSequence * inputSequence];
+                Positions = new int[batch * inputSequence];
+            }
+        }
+
+        private int[] Generate(CfgInputs cfg, int frames, int steps, int seed, CancellationToken cancellationToken)
         {
             int[] tokens = Enumerable.Repeat(MNNOmniVoiceSampling.Mask, 8 * frames).ToArray();
             int[] schedule = MNNOmniVoiceSampling.Schedule(tokens.Length, steps);
@@ -161,11 +194,11 @@ namespace MNN.Unity
             for (int step = 0; step < steps; ++step)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                float[] logits = _lm.Run("logits", new Input("input_ids", ids, 2, 8, sequence),
-                    new Input("audio_mask", audioMask, 2, sequence),
-                    new Input("attention_mask", attention, 2, 1, sequence, sequence),
-                    new Input("position_ids", positions, 2, sequence));
-                if (logits.Length != 2 * 8 * sequence * MNNOmniVoiceSampling.Vocabulary)
+                float[] logits = _lm.Run("logits", new Input("input_ids", cfg.Ids, cfg.Batch, 8, cfg.InputSequence),
+                    new Input("audio_mask", cfg.AudioMask, cfg.Batch, cfg.InputSequence),
+                    new Input("attention_mask", cfg.Attention, cfg.Batch, 1, cfg.InputSequence, cfg.InputSequence),
+                    new Input("position_ids", cfg.Positions, cfg.Batch, cfg.InputSequence));
+                if (logits.Length != cfg.Batch * 8 * cfg.InputSequence * MNNOmniVoiceSampling.Vocabulary)
                     throw new InvalidDataException("Unexpected OmniVoice logits shape.");
                 var candidates = new List<Candidate>(tokens.Length);
                 for (int codebook = 0; codebook < 8; ++codebook)
@@ -173,8 +206,8 @@ namespace MNN.Unity
                     {
                         int index = codebook * frames + frame;
                         if (tokens[index] != MNNOmniVoiceSampling.Mask) continue;
-                        int c = (codebook * sequence + targetStart + frame) * MNNOmniVoiceSampling.Vocabulary;
-                        int u = ((8 + codebook) * sequence + frame) * MNNOmniVoiceSampling.Vocabulary;
+                        int c = (codebook * cfg.InputSequence + cfg.ConditionalStart + frame) * MNNOmniVoiceSampling.Vocabulary;
+                        int u = ((_packedCfg ? codebook : 8 + codebook) * cfg.InputSequence + cfg.UnconditionalStart + frame) * MNNOmniVoiceSampling.Vocabulary;
                         int predicted = MNNOmniVoiceSampling.Predict(logits, c, logits, u, 2, out float confidence);
                         double score = (confidence - codebook * 5.0) / 5.0 + MNNOmniVoiceSampling.Gumbel(random);
                         candidates.Add(new Candidate(index, predicted, score));
@@ -186,8 +219,9 @@ namespace MNN.Unity
                     Candidate selected = candidates[i];
                     tokens[selected.Index] = selected.Code;
                     int codebook = selected.Index / frames, frame = selected.Index % frames;
-                    ids[codebook * sequence + targetStart + frame] = selected.Code;
-                    ids[(8 + codebook) * sequence + frame] = selected.Code;
+                    cfg.Ids[codebook * cfg.InputSequence + cfg.ConditionalStart + frame] = selected.Code;
+                    int unconditionalBatchOffset = _packedCfg ? 0 : 8 * cfg.InputSequence;
+                    cfg.Ids[unconditionalBatchOffset + codebook * cfg.InputSequence + cfg.UnconditionalStart + frame] = selected.Code;
                 }
             }
             if (tokens.Any(code => code == MNNOmniVoiceSampling.Mask)) throw new InvalidDataException("OmniVoice left audio positions masked.");
