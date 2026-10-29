@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a concrete workflow, API or platform improvement.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Workflow and current limitation
+      description: Describe what you are trying to do and where the current package falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include an example API or interaction if useful. For platform support, identify the compiler/ABI and intended validation environment.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

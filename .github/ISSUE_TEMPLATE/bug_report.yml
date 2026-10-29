@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible problem with the package or editor tools.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Check existing issues and the documented platform limits. Do not attach model weights, credentials or full crash memory dumps.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include package commit/version, Unity version, OS, CPU architecture and Mono/IL2CPP. For inference, include backend and precision.
+      placeholder: Unity 2021.3.45f2, package commit ..., macOS ..., ARM64, Mono, CPU/High
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Give the steps and smallest code sample needed. If a model is involved, identify its public repository and revision.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or test results
+      description: Paste the relevant excerpt, with credentials and private content removed. Include the last working commit for a regression.
+      render: text
