@@ -1,19 +1,74 @@
-name: UPM Release
+name: Package release
+
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version of an existing v-prefixed tag on main (for example 3.6.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-release
+  cancel-in-progress: false
+
 jobs:
   release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 10
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    env:
+      PACKAGE_VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-    - uses: RageAgainstThePixel/upm-release@v2
-      with:
-        organization-id: ${{ secrets.UNITY_ORG_ID }}
-        upm-service-account-key-id: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
-        upm-service-account-key-secret: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate version input
+        shell: bash
+        run: |
+          [[ "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo 'Use a semantic package version without a v prefix.'; exit 1; }
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Verify tag, package version and main ancestry
+        shell: bash
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          package = json.loads(Path('Packages/com.eitan.mnn/package.json').read_text())
+          assert package['version'] == os.environ['PACKAGE_VERSION'], 'Tag and package version differ'
+          PYCODE
+      - name: Validate release sources
+        run: |
+          python3 -B Packages/com.eitan.mnn/Tools~/Validation/validate_package.py
+          python3 -B Packages/com.eitan.mnn/Tools~/Validation/validate_repository.py
+      - name: Archive the package subdirectory
+        shell: bash
+        run: |
+          mkdir -p 'TestArtifacts~/Release'
+          git archive --format=tar --prefix=package/ --mtime="$(git show -s --format=%cI HEAD)" HEAD:Packages/com.eitan.mnn | gzip -n > 'TestArtifacts~/Release/com.eitan.mnn.tgz'
+          cd 'TestArtifacts~/Release'
+          sha256sum com.eitan.mnn.tgz > SHA256SUMS
+      - name: Create or update a draft release
+        shell: bash
+        run: |
+          tag="v$PACKAGE_VERSION"
+          state="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)" || state=missing
+          if [ "$state" = false ]; then echo 'Refusing to modify a published release.'; exit 1; fi
+          if [ "$state" = missing ]; then
+            gh release create "$tag" --verify-tag --draft --title "MNN for Unity $PACKAGE_VERSION" \
+              --notes-file Packages/com.eitan.mnn/CHANGELOG.md
+          fi
+          gh release upload "$tag" 'TestArtifacts~/Release/com.eitan.mnn.tgz' 'TestArtifacts~/Release/SHA256SUMS' --clobber

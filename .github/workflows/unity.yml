@@ -1,55 +1,55 @@
-name: Unity
+name: Unity native validation
+
 on:
-  schedule:
-    - cron: '0 0 * * 0' # Every Sunday at midnight
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
-    branches: ['**']
-  workflow_dispatch: # manual workflow trigger
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Validation scope (uses the committed affine fixture; no model downloads)
+        type: choice
+        options: [contract, affine]
+        default: affine
+
+permissions:
+  contents: read
+
+# This licensed runner executes trusted dev/main commits only, never fork PR code.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{(github.event_name == 'pull_request' || github.event.action == 'synchronize')}}
+  group: unity-native-validation
+  cancel-in-progress: false
+
 jobs:
-  setup:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+  unity:
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64, mnn-unity]
+    environment: unity-validation
+    timeout-minutes: 45
+    env:
+      UNITY_EDITOR: ${{ vars.MNN_UNITY_EXECUTABLE }}
+      VALIDATION_SCOPE: ${{ inputs.scope }}
+      UNITY_PROJECT: ${{ github.workspace }}/TestArtifacts~/CI/${{ github.run_id }}-${{ github.run_attempt }}/UnityProject
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          sparse-checkout: .github/
-      - uses: RageAgainstThePixel/job-builder@v1
-        id: setup-jobs
+          persist-credentials: false
+      - name: Check runner prerequisites
+        run: |
+          test -x "$UNITY_EDITOR" || { echo 'Set MNN_UNITY_EXECUTABLE to a licensed Unity 2021.3.45f2 executable.'; exit 1; }
+          python3 --version
+      - name: Create an isolated Unity project
+        run: python3 -B Packages/com.eitan.mnn/Tools~/Testing/prepare_ci_project.py --project "$UNITY_PROJECT"
+      - name: Run Mono PlayMode validation
+        shell: bash
+        run: |
+          extra=()
+          if [ "$VALIDATION_SCOPE" = contract ]; then extra+=(--contract-only); fi
+          python3 -B Packages/com.eitan.mnn/Tools~/Testing/run_platform_tests.py \
+            --unity "$UNITY_EDITOR" --project "$UNITY_PROJECT" \
+            --platform PlayMode --backend Mono2x "${extra[@]}"
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          build-options: ./.github/workflows/build-options.json
-          group-by: unity-version
-          job-name-prefix: Build and Test
-    outputs:
-      jobs: ${{ steps.setup-jobs.outputs.jobs }}
-  validate:
-    if: ${{ needs.setup.outputs.jobs }}
-    needs: setup
-    name: ${{ matrix.jobs.name }}
-    permissions:
-      contents: read
-      actions: write
-    strategy:
-      matrix: ${{ fromJSON(needs.setup.outputs.jobs) }}
-      fail-fast: false
-      max-parallel: 1
-    secrets: inherit
-    uses: RageAgainstThePixel/workflows/.github/workflows/build-and-test-unity-package.yml@main
-    with:
-      matrix: ${{ toJSON(matrix.jobs.matrix) }}
-  timeline:
-    needs: [setup, validate]
-    if: always()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: Kesin11/actions-timeline@44c9c178ffb2fb1d9859614a3ffa79ccfb77565e # v3.1.0
-        continue-on-error: true
+          name: unity-${{ github.run_id }}-${{ github.run_attempt }}
+          path: TestArtifacts~/MNNValidation/PlatformValidation/PlayMode-Mono2x*/
+          if-no-files-found: warn
+          retention-days: 14
