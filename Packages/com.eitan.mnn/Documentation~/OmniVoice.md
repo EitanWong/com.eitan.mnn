@@ -205,3 +205,30 @@ The compact path is an optional measured optimization, not a claim of smooth
 mobile playback or a mobile Unity Player validation. Reliable real-time mobile
 speech still needs target-device profiling and likely training-based reduction
 of repeated backbone computation, with separate quality evaluation.
+
+
+## CFG and step distillation research
+
+A local [training/evaluation toolchain](../Tools~/Models/OmniVoice/Distillation/README.md)
+now tests single-branch CFG KL distillation and discrete two-step endpoint
+imitation on the original PyTorch model. It preserves explicit bidirectional
+attention and uses grouped integer mask budgets for the 32-to-16 experiment.
+The production MNN graphs and inference defaults are unchanged.
+
+The first Chinese clone PoC trained the last two transformer layers, final norm
+and audio head for 128 updates per stage, using two train, two validation and
+two untouched test texts with a single reference speaker. CFG validation KL
+fell from 0.923 to 0.540. The two test texts were correctly transcribed in all
+six ablations, including untrained controls. Single-branch 16-step PyTorch LM
+runs took about 1.45–1.55 seconds versus 4.24–4.51 seconds for the original
+32-step two-call teacher. These exclude codec/loading, use MPS rather than MNN,
+and do not establish a mobile or complete-synthesis speedup.
+
+Speaker similarity was inconsistent: on the second held-out sentence,
+ERes2NetV2 reference cosine fell from 0.769 for the original teacher to 0.619
+for CFG32 and 0.615 for the endpoint-trained 16-step student. The first sentence
+improved, so average-only reporting would conceal the regression. The endpoint
+stage also scored below the simpler CFG16 control on both sentences. This is
+an experimental training result, not a quality-approved distilled model.
+Multi-speaker data, student-generated state coverage and independent free-running
+quality gates are needed before converting and integrating a student for mobile.
