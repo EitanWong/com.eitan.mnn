@@ -161,3 +161,23 @@ pytorch_model*.bin.meta
 
 # Do not ignore native plugin binaries (.dll/.so/.dylib/.a) or Unity .meta
 # globally: Runtime/Plugins contains required distributable package assets.
+
+/UserSettings/EasyMic/Apm/
+/Assets/EasyMic/_/r.g.cs
+/Assets/EasyMic/_/r.g.cs.meta
+
+# Local packages and imported project samples
+/Packages/com.eitan.easymic/
+/Packages/com.eitan.easymic.meta
+/Packages/com.eitan.easymic.apm/
+/Packages/com.eitan.easymic.apm.meta
+/Packages/com.eitan.easymic.apm-*/
+/Packages/com.eitan.easymic.apm-*.meta
+/Assets/Samples/
+/Assets/Samples.meta
+/Assets/StreamingAssets/MNN/Models/
+/Assets/StreamingAssets/MNN/Models.meta
+
+# Mono crash reports and memory dumps
+mono_cras*.json
+mono_cras*.blob
