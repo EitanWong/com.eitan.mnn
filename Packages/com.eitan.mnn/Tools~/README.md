@@ -6,6 +6,9 @@ Run commands from the development repository root. No tool automatically downloa
 | Tool | Purpose | Requirements |
 | --- | --- | --- |
 | `Validation/validate_package.py` | Layout, assembly ownership, meta/GUID and documentation checks | Python 3.9+ standard library |
+| `Validation/validate_repository.py` | Tracked assets, manifest exclusions and Markdown link membership | Python 3.11+ and Git |
+| `Validation/test_*.py` | Repository-policy and CI-preparation regression tests | Python 3.11+ and Git |
+| `Testing/prepare_ci_project.py` | Isolated Unity test project with the committed package | Python 3.11+; output under `TestArtifacts~/` |
 | `Testing/check_platform_compilation.py` | 13 conditional C# compilation/import configurations | Installed macOS Unity .NET/Roslyn and `monodis` |
 | `Testing/prepare_multimodal_fixtures.py` | Small local color images and WAV input | Python 3.9+, macOS `say`/`afconvert` and installed voice |
 | `Testing/run_model_tests.py` | Six representative models, strict offline EditMode run | Python 3.9+, existing isolated Unity project, downloaded models and local fixtures |
@@ -22,3 +25,6 @@ generation/Studio fixtures sharing `RepresentativeModel` do not silently expand 
 The helper class and assembly names remain stable when source files move.
 
 See [project structure](../Documentation~/ProjectStructure.md) and [test evidence and commands](../Documentation~/Testing.md).
+
+CI, runner setup and the distinction between static and native checks are documented in
+[CI and validation](../Documentation~/development/ContinuousIntegration.md).

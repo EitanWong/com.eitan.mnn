@@ -1,0 +1,15 @@
+{
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD024": { "siblings_only": true },
+    "MD033": false
+  },
+  "globs": [
+    "*.md",
+    ".github/*.md",
+    "Packages/com.eitan.mnn/README.md",
+    "Packages/com.eitan.mnn/CHANGELOG.md",
+    "Packages/com.eitan.mnn/Documentation~/**/*.md"
+  ]
+}

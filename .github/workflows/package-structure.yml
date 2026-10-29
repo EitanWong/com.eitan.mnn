@@ -1,35 +1,67 @@
-name: Package Structure
+name: Repository checks
 
 on:
   pull_request:
-    paths:
-      - 'Packages/com.eitan.mnn/**'
-      - '.editorconfig'
-      - '.gitattributes'
-      - '.gitignore'
-      - 'README.md'
-      - 'AGENTS.md'
-      - '.github/workflows/package-structure.yml'
+    branches: [dev, main]
   push:
     branches: [dev, main]
-    paths:
-      - 'Packages/com.eitan.mnn/**'
-      - '.editorconfig'
-      - '.gitattributes'
-      - '.gitignore'
-      - 'README.md'
-      - 'AGENTS.md'
-      - '.github/workflows/package-structure.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    name: Package and repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
-      - run: python3 Packages/com.eitan.mnn/Tools~/Validation/validate_package.py
+      - name: Test repository validation
+        run: python3 -B -m unittest discover -s Packages/com.eitan.mnn/Tools~/Validation -p 'test_*.py'
+      - name: Check package structure
+        run: python3 -B Packages/com.eitan.mnn/Tools~/Validation/validate_package.py
+      - name: Check tracked assets, manifests and document links
+        run: python3 -B Packages/com.eitan.mnn/Tools~/Validation/validate_repository.py
+      - name: Check whitespace
+        run: git -c core.whitespace=trailing-space,space-before-tab diff --check HEAD^ HEAD
+
+  documentation:
+    name: Markdown
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25
+        with:
+          config: .markdownlint-cli2.jsonc
+          globs: |
+            *.md
+            .github/*.md
+            Packages/com.eitan.mnn/README.md
+            Packages/com.eitan.mnn/CHANGELOG.md
+            Packages/com.eitan.mnn/Documentation~/**/*.md
+
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+        with:
+          version: '1.7.12'
