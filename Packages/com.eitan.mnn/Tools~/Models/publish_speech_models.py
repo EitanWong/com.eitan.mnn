@@ -32,6 +32,7 @@ MODEL_NAMES = (
     "FullSubNet-MNN",
     "FullSubNetPlus-MNN",
     "MossFormerGAN-SE-16K-MNN",
+    "MossFormer2-SE-48K-MNN",
     "ERes2NetV2-MNN",
     "CAMPlus-MNN",
     "ECAPA-TDNN-MNN",
