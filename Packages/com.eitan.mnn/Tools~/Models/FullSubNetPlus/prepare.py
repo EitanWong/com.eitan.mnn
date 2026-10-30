@@ -16,6 +16,8 @@ import subprocess
 import sys
 import tomllib
 
+sys.dont_write_bytecode = True
+
 REVISION = "b115416d6e2a983c3724fc77d0cdc3d8896a2855"
 CHECKPOINT_SHA256 = "cb628b2f3fcf8e078dd720ff04ae9fe14ef9b605ace349e9e8bf1bc1dee15032"
 INPUTS = ["magnitude", "real", "imag"]
