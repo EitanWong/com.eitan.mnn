@@ -1,7 +1,10 @@
 """MNN external storage compaction must preserve every logical weight record."""
 import importlib.util
+import base64
+import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.dont_write_bytecode = True
@@ -12,6 +15,29 @@ spec.loader.exec_module(deduplicate)
 
 
 class ExternalWeightCompactionTests(unittest.TestCase):
+    def test_official_scale_graph_compacts_without_losing_weights(self):
+        fixture = json.loads((Path(__file__).parent / 'Fixtures/external_scale.json').read_text())
+        artifacts = TOOL.parents[4] / 'TestArtifacts~/SpeechModels/ToolTests'
+        artifacts.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=artifacts) as temporary:
+            source = Path(temporary) / 'source.mnn'
+            target = Path(temporary) / 'compacted.mnn'
+            original = base64.b64decode(fixture['weights'])
+            source.write_bytes(base64.b64decode(fixture['graph']))
+            Path(str(source) + '.weight').write_bytes(original)
+            report = deduplicate.compact_model(source, target)
+            compacted = Path(str(target) + '.weight').read_bytes()
+            self.assertLess(report['weight_bytes'], report['source_weight_bytes'])
+            before = deduplicate.Model(source.read_bytes()).external_records()
+            after = deduplicate.Model(target.read_bytes()).external_records()
+            self.assertEqual(len(before), 2)
+            self.assertEqual(len(before), len(after))
+            self.assertEqual(after[0][0], after[1][0])
+            for (old_offset, old_sizes, _), (new_offset, new_sizes, _) in zip(before, after):
+                self.assertEqual(old_sizes, new_sizes)
+                self.assertEqual(original[old_offset:old_offset + sum(old_sizes)],
+                                 compacted[new_offset:new_offset + sum(new_sizes)])
+
     def test_every_record_retains_exact_weights_and_bias(self):
         data = b'ABCD1234ABCD1234WXYZ'
         records = [(0, (4, 4)), (8, (4, 4)), (16, (4,))]
