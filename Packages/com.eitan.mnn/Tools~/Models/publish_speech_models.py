@@ -53,6 +53,7 @@ MODEL_NAMES = (
     "DCCRNet-Libri1Mix-16K-MNN",
     "DCUNet-Libri1Mix-16K-MNN",
     "SepReformer-B-WSJ02Mix-8K-MNN",
+    "AV-DPRNN-VoxCeleb2-16K-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
 )
 EXCLUDES = (
