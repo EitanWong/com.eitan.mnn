@@ -35,6 +35,7 @@ MODEL_NAMES = (
     "ERes2NetV2-MNN",
     "CAMPlus-MNN",
     "ECAPA-TDNN-MNN",
+    "TitaNet-MNN",
     "FSMN-VAD-16K-MNN",
     "FRCRN-SE-16K-MNN",
     "DeepFilterNet3-MNN",
