@@ -21,8 +21,8 @@ from pathlib import Path
 
 
 MODEL_NAMES = (
-    "Silero-v5-MNN",
-    "SmartTurn-v3.2-MNN",
+    "Silero-v5.1-MNN",
+    "SmartTurn-v3.2-FP32-MNN",
     "MarbleNet-VAD-MNN",
     "DTLN-aec-128-MNN",
     "DTLN-aec-256-MNN",
@@ -31,8 +31,10 @@ MODEL_NAMES = (
     "GTCRN-MNN",
     "FullSubNet-MNN",
     "FullSubNetPlus-MNN",
+    "MossFormerGAN-SE-16K-MNN",
     "ERes2NetV2-MNN",
     "CAMPlus-MNN",
+    "ECAPA-TDNN-MNN",
     "FSMN-VAD-16K-MNN",
     "FRCRN-SE-16K-MNN",
     "DeepFilterNet3-MNN",
