@@ -22,7 +22,8 @@ is removed. The author overlap-add oracle has one unconditional CUDA transfer
 of an integer index; on a CPU host only that transfer is a no-op, preserving all
 index_add arithmetic and the unchanged source forward.
 
-An independent export clone expresses the depth5/one-channel Conv3d as five
+The independent clone uses the shared `../clearervoice_av_export.py` lowering.
+It expresses the depth5/one-channel Conv3d as five
 neighboring frames in one spatial Conv2d, retains temporal zero boundaries,
 normalization and the complete visual adaptor, and expresses linear-basis
 synthesis plus overlap-add as ConvTranspose1d. Visual features and whole outputs

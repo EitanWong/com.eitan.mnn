@@ -1,0 +1,6 @@
+{
+  "networks.py": "5263e43120d32b11dc701142e4708afcbcdb9fda44bc243418e11e040069fb46",
+  "models/av_convtasnet/av_convtasnet.py": "36924d664be5940a0f58da09dbee6fb62ae8b800c184a2c8ea59041f7aca54f8",
+  "models/visual_frontend/resnet18.py": "76233bf28ed23e330b7aed3a19a857d292ed7665247b90090ad7a45fcd842b6d",
+  "config/config_LRS2_lip_convtasnet_2spk.yaml": "6969d395440fb022d36aee9163cf22e1f911de5e838175a937848be217b2a2bf"
+}
