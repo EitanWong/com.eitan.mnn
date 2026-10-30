@@ -44,6 +44,7 @@ MODEL_NAMES = (
     "LiveKit-Turn-Detector-MNN",
     "MossFormer2-SS-16K-MNN",
     "SepFormer-WSJ02Mix-MNN",
+    "ConvTasNet-Libri2Mix-8K-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
 )
 EXCLUDES = (
