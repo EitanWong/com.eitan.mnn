@@ -43,6 +43,7 @@ MODEL_NAMES = (
     "WeSpeaker-ResNet34-LM-MNN",
     "LiveKit-Turn-Detector-MNN",
     "MossFormer2-SS-16K-MNN",
+    "SepFormer-WSJ02Mix-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
 )
 EXCLUDES = (
