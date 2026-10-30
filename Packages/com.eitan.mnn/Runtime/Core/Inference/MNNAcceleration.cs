@@ -64,11 +64,11 @@ namespace MNN.Unity
 
         internal static int NativeThreads(MNNSessionConfig config)
         {
-            // The GPU mode bitmask is documented for OpenCL/Vulkan only.
-            // Metal/CUDA/NN keep the CPU fallback thread budget separate.
+            // Official Schedule copies this field into Backend::Info's union.
+            // Metal, OpenCL and Vulkan consume it as GPU mode, not CPU threads.
             if (config.BackendType == MNNBackendType.OpenCL)
                 return (int)config.GpuTuningMode | (int)config.GpuMemoryMode;
-            if (config.BackendType == MNNBackendType.Vulkan)
+            if (config.BackendType == MNNBackendType.Vulkan || config.BackendType == MNNBackendType.Metal)
                 return (int)config.GpuTuningMode;
             return config.ThreadCount;
         }

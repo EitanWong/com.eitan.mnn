@@ -12,7 +12,7 @@ namespace MNN.Unity
         /// </summary>
         public MNNBackendType BackendType { get; set; } = MNNBackendType.Auto;
         /// <summary>
-        /// CPU线程预算；OpenCL/Vulkan 调优使用独立 GPU 配置
+        /// CPU线程数；Metal/OpenCL/Vulkan 使用独立 GPU 调优配置
         /// </summary>
         public int ThreadCount { get; set; } = 4;
         /// <summary>
@@ -32,7 +32,7 @@ namespace MNN.Unity
         /// </summary>
         public MNNPrecisionMode PrecisionMode { get; set; } = MNNPrecisionMode.Normal;
         /// <summary>
-        /// GPU调优模式（OpenCL/Vulkan）
+        /// GPU调优模式（Metal/OpenCL/Vulkan）
         /// </summary>
         public MNNGpuTuningMode GpuTuningMode { get; set; } = MNNGpuTuningMode.Wide;
         /// <summary>

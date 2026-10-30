@@ -65,6 +65,17 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void MetalTuningUsesGpuModeIndependentlyOfCpuThreadBudget()
+        {
+            var config = new MNNSessionConfig { BackendType = MNNBackendType.Metal, ThreadCount = 2, GpuTuningMode = MNNGpuTuningMode.None };
+            Assert.AreEqual(1, MNNAcceleration.NativeThreads(config), "Official MetalRuntime reads the Backend::Info union as gpuMode.");
+            config.ThreadCount = 32; config.GpuTuningMode = MNNGpuTuningMode.Fast;
+            Assert.AreEqual(16, MNNAcceleration.NativeThreads(config));
+            config.BackendType = MNNBackendType.CPU;
+            Assert.AreEqual(32, MNNAcceleration.NativeThreads(config));
+        }
+
+        [Test]
         public void ToString_ReturnsInformativeString()
         {
             var config = new MNNSessionConfig{BackendType = MNNBackendType.Metal, ThreadCount = 4};
