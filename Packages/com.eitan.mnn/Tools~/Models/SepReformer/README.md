@@ -23,7 +23,7 @@ boundaries. Lowered PyTorch, ONNX and CPU MNN must each satisfy per-speaker NRMS
 
 An independent export clone replaces integer-ratio adaptive average pooling with
 reshape/mean, makes separator modulo-16 padding unconditional, prunes unused
-training auxiliary outputs, and expresses exact GELU through a high-accuracy
+training auxiliary outputs, and approximates exact GELU through a high-accuracy
 absolute-value/exp/erfc polynomial. That polynomial is checked against exact
 PyTorch GELU on 400001 scalar inputs with maximum error below 2e-6. The observed
 maximum is 4.76837e-7. This avoids the official Metal GELU_STANDARD kernel's tanh

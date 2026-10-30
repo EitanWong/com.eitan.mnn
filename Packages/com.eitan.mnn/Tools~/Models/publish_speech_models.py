@@ -52,6 +52,7 @@ MODEL_NAMES = (
     "SudoRMRF-U16-WSJ02Mix-8K-MNN",
     "DCCRNet-Libri1Mix-16K-MNN",
     "DCUNet-Libri1Mix-16K-MNN",
+    "SepReformer-B-WSJ02Mix-8K-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
 )
 EXCLUDES = (
