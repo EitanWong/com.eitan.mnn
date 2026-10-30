@@ -24,11 +24,15 @@ class PublicationAuditTests(unittest.TestCase):
         self.model = Path(self.temporary.name) / 'Example-MNN'
         self.model.mkdir()
         (self.model / 'model.mnn').write_bytes(b'fixture-only graph')
+        (self.model / 'mnn_profile.json').write_text('{"graph":"model.mnn"}')
         for name in ('README.md', 'LICENSE'):
             (self.model / name).write_text('test fixture')
         graph_hash = hashlib.sha256((self.model / 'model.mnn').read_bytes()).hexdigest()
         self.optimization = {'player_validation': {'platform': 'test-only', 'unity': 'test-only', 'build_id': 'a'*32,
             'result_xml_sha256': 'b'*64, 'graphs': [{'path': 'model.mnn', 'sha256': graph_hash}]}}
+        self.optimization['player_validation']['runtime_files'] = [
+            {'path': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}
+            for p in (self.model / 'model.mnn', self.model / 'mnn_profile.json')]
         self.refresh()
 
     def refresh(self):
@@ -95,6 +99,26 @@ class PublicationAuditTests(unittest.TestCase):
         self.refresh()
         self.assertIn('Player graph hash', self.errors())
 
+    def test_rewritten_profile_with_fresh_manifest_needs_new_player_evidence(self):
+        (self.model / 'mnn_profile.json').write_text('{"graph":"legacy.mnn"}')
+        self.refresh()
+        self.assertIn('Player runtime file hash', self.errors())
+
+    def test_missing_runtime_snapshot_is_rejected(self):
+        del self.optimization['player_validation']['runtime_files']
+        self.refresh()
+        self.assertIn('Player runtime file coverage', self.errors())
+
+    def test_added_tokenizer_requires_player_coverage(self):
+        (self.model / 'vocab.txt').write_text('new tokens')
+        self.refresh()
+        self.assertIn('Player runtime file coverage', self.errors())
+
+    def test_documentation_update_does_not_invalidate_runtime_snapshot(self):
+        (self.model / 'README.md').write_text('updated validation explanation')
+        self.refresh()
+        self.assertEqual('', self.errors())
+
     def test_every_deployed_graph_needs_player_evidence(self):
         (self.model / 'extra.mnn').write_bytes(b'extra fixture')
         self.refresh()
@@ -113,6 +137,7 @@ class PublicationAuditTests(unittest.TestCase):
         data = b'fixture external MNN weights'
         (self.model / 'model.mnn.weight').write_bytes(data)
         self.optimization['player_validation']['graphs'].append({'path':'model.mnn.weight', 'sha256':hashlib.sha256(data).hexdigest()})
+        self.optimization['player_validation']['runtime_files'].append({'path':'model.mnn.weight', 'sha256':hashlib.sha256(data).hexdigest()})
         self.refresh()
         self.assertEqual('', self.errors())
 

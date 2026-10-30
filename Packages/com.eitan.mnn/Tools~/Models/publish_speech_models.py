@@ -105,7 +105,20 @@ def _audit_manifest(directory: Path, manifest: dict, errors: list[str]) -> dict[
     return declared
 
 
-def _audit_player(directory: Path, deployed: dict[str, str], errors: list[str]) -> None:
+def _audit_player_coverage(player: dict, field: str, deployed: dict[str, str], label: str, errors: list[str]) -> None:
+    rows = player.get(field)
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        errors.append(f"invalid Player {label} coverage")
+        return
+    covered = {row.get("path"): row.get("sha256") for row in rows if isinstance(row.get("path"), str)}
+    if len(covered) != len(rows) or set(covered) != set(deployed):
+        errors.append(f"Player {label} coverage must equal all deployed {label}s")
+    for name, checksum in deployed.items():
+        if covered.get(name) != checksum:
+            errors.append(f"Player {label} hash mismatch: {name}")
+
+
+def _audit_player(directory: Path, deployed: dict[str, str], runtime: dict[str, str], errors: list[str]) -> None:
     optimization = _read_json(directory / "mnn_optimization.json", errors)
     player = optimization.get("player_validation")
     if not isinstance(player, dict):
@@ -116,16 +129,8 @@ def _audit_player(directory: Path, deployed: dict[str, str], errors: list[str]) 
             errors.append(f"missing Player evidence field: {field}")
     if not re.fullmatch(r"[0-9a-f]{64}", str(player.get("result_xml_sha256", ""))):
         errors.append("invalid Player result XML hash")
-    rows = player.get("graphs")
-    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
-        errors.append("invalid Player graph coverage")
-        return
-    covered = {row.get("path"): row.get("sha256") for row in rows if isinstance(row.get("path"), str)}
-    if len(covered) != len(rows) or set(covered) != set(deployed):
-        errors.append("Player graph coverage must equal all deployed MNN graphs")
-    for name, checksum in deployed.items():
-        if covered.get(name) != checksum:
-            errors.append(f"Player graph hash mismatch: {name}")
+    _audit_player_coverage(player, "graphs", deployed, "graph", errors)
+    _audit_player_coverage(player, "runtime_files", runtime, "runtime file", errors)
 
 
 def audit_model(directory: Path) -> list[str]:
@@ -167,7 +172,10 @@ def audit_model(directory: Path) -> list[str]:
     for key, value in manifest.items():
         if key.startswith("preferred_graph") and value not in graphs:
             errors.append(f"{key} does not name a deployed graph")
-    _audit_player(directory, {**graphs, **weights}, errors)
+    runtime = {name: checksum for name, checksum in declared.items()
+               if name in actual and name not in ("manifest.json", "mnn_optimization.json") and
+               (name.endswith((".mnn", ".mnn.weight", ".json", ".txt")))}
+    _audit_player(directory, {**graphs, **weights}, runtime, errors)
     return errors
 
 
