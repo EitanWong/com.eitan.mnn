@@ -46,6 +46,7 @@ MODEL_NAMES = (
     "SepFormer-WSJ02Mix-MNN",
     "ConvTasNet-Libri2Mix-8K-MNN",
     "DPRNN-WHAM-8K-MNN",
+    "DPTNet-Libri1Mix-16K-MNN",
     "Sortformer-4spk-v2.1-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
 )
