@@ -109,6 +109,25 @@ class PublicationAuditTests(unittest.TestCase):
         (self.model / 'model.mnn').unlink()
         self.assertIn('missing', self.errors())
 
+    def test_verified_external_mnn_weights_are_deployment_files(self):
+        data = b'fixture external MNN weights'
+        (self.model / 'model.mnn.weight').write_bytes(data)
+        self.optimization['player_validation']['graphs'].append({'path':'model.mnn.weight', 'sha256':hashlib.sha256(data).hexdigest()})
+        self.refresh()
+        self.assertEqual('', self.errors())
+
+    def test_external_weights_require_current_player_hash(self):
+        (self.model / 'model.mnn.weight').write_bytes(b'external weights')
+        self.refresh()
+        self.assertIn('Player graph coverage', self.errors())
+
+    def test_orphan_external_weights_are_rejected(self):
+        data = b'orphan weights'
+        (self.model / 'missing.mnn.weight').write_bytes(data)
+        self.optimization['player_validation']['graphs'].append({'path':'missing.mnn.weight', 'sha256':hashlib.sha256(data).hexdigest()})
+        self.refresh()
+        self.assertIn('orphan', self.errors())
+
 
 if __name__ == '__main__':
     unittest.main()

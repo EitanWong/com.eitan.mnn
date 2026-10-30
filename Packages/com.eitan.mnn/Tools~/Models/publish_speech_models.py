@@ -29,6 +29,7 @@ MODEL_NAMES = (
     "DTLN-aec-512-MNN",
     "DTLN-MNN",
     "GTCRN-MNN",
+    "FullSubNet-MNN",
     "ERes2NetV2-MNN",
     "FSMN-VAD-16K-MNN",
     "FRCRN-SE-16K-MNN",
@@ -149,7 +150,7 @@ def audit_model(directory: Path) -> list[str]:
             errors.append(f"symlink: {name}")
         elif path.is_file() and not _ignored(path) and name != "manifest.json":
             actual.add(name)
-            if path.name != "LICENSE" and path.suffix.lower() not in (".mnn", ".json", ".md", ".txt"):
+            if path.name != "LICENSE" and path.suffix.lower() not in (".mnn", ".json", ".md", ".txt") and not name.endswith(".mnn.weight"):
                 errors.append(f"non-deployment file: {name}")
     for name in sorted(actual - set(declared)):
         errors.append(f"unlisted deployment file: {name}")
@@ -157,12 +158,16 @@ def audit_model(directory: Path) -> list[str]:
         if name not in actual:
             errors.append(f"missing required file: {name}")
     graphs = {name: checksum for name, checksum in declared.items() if name.endswith(".mnn") and name in actual}
+    weights = {name: checksum for name, checksum in declared.items() if name.endswith(".mnn.weight") and name in actual}
+    for name in weights:
+        if name[:-7] not in graphs:
+            errors.append(f"orphan external MNN weights: {name}")
     if not graphs:
         errors.append("missing MNN graphs")
     for key, value in manifest.items():
         if key.startswith("preferred_graph") and value not in graphs:
             errors.append(f"{key} does not name a deployed graph")
-    _audit_player(directory, graphs, errors)
+    _audit_player(directory, {**graphs, **weights}, errors)
     return errors
 
 
