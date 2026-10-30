@@ -1,0 +1,8 @@
+{
+  "models/SepReformer_Base_WSJ0/model.py": "f5252f8af147ee678cd3eadb27d08e62b46d78b1ff037d00eeb856437251c2e7",
+  "models/SepReformer_Base_WSJ0/modules/module.py": "850ed3a069f2c5c8830eda077dfbfc1db36a905a577fcaa70937fa5f55771dd7",
+  "models/SepReformer_Base_WSJ0/modules/network.py": "43807c72aea8d22e4c1438878fd501f47f2355123a76f5de60b8d5f8af027004",
+  "utils/decorators.py": "55a5ac366fd122e8b3f9afc0a0b338367c46e2a13fa4c3eb428ab39bbd10f9ad",
+  "models/SepReformer_Base_WSJ0/configs.yaml": "72ecc53981fd1fab9bd229a835ecd88e19027b5ebb234a530d9d94bf7ca773cf",
+  "models/SepReformer_Base_WSJ0/engine.py": "19fbc0777f42e0e98a0a8581e628fd846959a44db3bf1eb970a683d13d6c8403"
+}
