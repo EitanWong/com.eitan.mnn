@@ -48,6 +48,7 @@ MODEL_NAMES = (
     "DPRNN-WHAM-8K-MNN",
     "DPTNet-Libri1Mix-16K-MNN",
     "Sortformer-4spk-v2.1-MNN",
+    "NAMO-Turn-Detector-v1-Multilingual-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
 )
 EXCLUDES = (
