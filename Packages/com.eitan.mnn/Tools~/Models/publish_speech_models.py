@@ -45,6 +45,7 @@ MODEL_NAMES = (
     "MossFormer2-SS-16K-MNN",
     "SepFormer-WSJ02Mix-MNN",
     "ConvTasNet-Libri2Mix-8K-MNN",
+    "DPRNN-WHAM-8K-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
 )
 EXCLUDES = (
