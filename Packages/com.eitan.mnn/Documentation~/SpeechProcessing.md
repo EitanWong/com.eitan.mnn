@@ -115,12 +115,12 @@ Mayavoz DCCRN的原构造器将多个归一化buffer指向同一张量，默认c
 
 DAVE公开的 `real_avse_tiger_m.ckpt` 是双源音频TIGER-M主干，不包含完整视觉目标归属组件。25条原始Spectrum与导出改写在Torch2.8/CPU1逐位一致，但MNN CPU、Metal以及ONNX Runtime均在479–481样本边界未通过固定NRMSE<0.001门槛。原始Torch本身把CPU1改为CPU4时，480样本频谱NRMSE变为约0.12479；短输入对浮点归约和12次循环误差敏感。候选及诊断保留在 `TestArtifacts~/SpeechModels/DAVE-TIGER-M-16K`，尚未部署、接入或计入完成；没有放宽门槛或删去失败输入。
 
-AV-TFGridNet的静音均值条件仍未过源波形门槛；ISAM的eval随机门控需要明确可重现推理契约；Resemble完整CFM增强器正在完成独立整链、正式API与Player验收，尚未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
+AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说话人及六层门控的连续Python Random(777)参考流，26条source条件的完整PCM逐位一致；转换后的MNN静音PCM NRMSE约0.0025357，未过0.001门槛，尚未部署。该参考流是显式选择的推理契约，不能视为恢复训练或历史eval的RNG状态。Resemble完整CFM增强器的v92整链测试触发swap资源保护；隔离的既有Apple自动释放池生命周期候选通过6项关键测试，v107完整100次PCM验证仍在运行，正式API与Player尚未验收。上述候选均未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
 
 ## GPU/NPU验证边界
 
 所有默认策略只依据已记录主机、输入和整次PCM测量选择，不能代表任意设备的全局最优。CoreML独立官方CLI的有效输出与源数值门槛分开检查；exit0但没有输出属于失败。现有专项的ConvTasNet、Sortformer、DPTNet、NAMO等图仍因算子/spec/输入约束失败；TIGER与DCCRN也没有有效CoreML输出，未启用生产NPU或声称ANE算子放置成功。
 
-历史Android SM8550 CLI上WeSpeaker与DTLN通过CPU/OpenCL/Vulkan数值比较，NNAPI在SquaredDifference或Raster构图失败。该CLI记录不能代替Unity Android Player验收。当前ADB无设备；已配对iPhone的连接/tunnel不可用，未完成本轮移动真机或NPU验收。
+历史Android SM8550 CLI上WeSpeaker与DTLN通过CPU/OpenCL/Vulkan数值比较，NNAPI在SquaredDifference或Raster构图失败。该CLI记录不能代替Unity Android Player验收。2026-11-01只读检查发现一台已授权的PJA110／SM8550／API36／arm64 Android设备，Unity Android模块、SDK、NDK和IL2CPP已安装；当前连接与构建开关仍不能作为推理证据。已配对iPhone的连接/tunnel不可用，未完成本轮Unity移动真机或NPU验收。
 
 TIGER与Mayavoz DCCRN的独占完整PCM测量在Apple M5/Mac17,2、macOS27.2、10核/24GiB主机完成，三种交错顺序，每配置/输入15次稳定样本，并另测加载、首次和变长调用。TIGER MetalNone/High的1秒/3秒稳定中位数995.978/3296.022ms，CPU4/High为2447.827/6968.987ms；DCCRN CPU4/High为49.229/187.595ms，MetalNone/High为45.479/167.657ms，但变长1秒调用为70.788/106.852ms，故保留CPU默认与显式Metal选择。DCCRN分段CPU1/2/4/8均完成源波形资格与独占测量，各有取舍。加载/首次/变长的原始记录与校验值位于 `TestArtifacts~/SpeechModels/*exclusive*summary.json`，模型各自mnn_optimization.json保留对应摘要；这些结论不代表跨设备全局最优。
