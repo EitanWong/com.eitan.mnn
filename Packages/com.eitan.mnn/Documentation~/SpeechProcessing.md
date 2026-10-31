@@ -10,6 +10,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 |---|---|---|
 | TIGER16k双源分离 | `MNNTigerSeparation.Separate` / `SeparateWaveFile` | 单WAV，321–48000样本，保留两轨顺序；Studio预览第一轨 |
 | Mayavoz DCCRN16k增强 | `MNNDccrnEnhancement.Enhance` / `EnhanceWaveFile` | 单WAV，checkpoint-owned首次eval、补齐hop后裁回原长 |
+| Resemble44.1k完整CFM增强 | `MNNResembleEnhancer.Enhance` / `EnhanceWaveFile` | 单WAV，400–132300样本；固定seed0、32NFE midpoint、lambda/tau=.5 |
 | Resemble44.1k降噪 | `MNNResembleDenoiser.Enhance` / `EnhanceWaveFile` | 单WAV，400–132300样本；不包含CFM增强器 |
 | SEG音频参考目标提取 | `MNNSegExtraction.Extract` / `ExtractWaveFile` | 目标参考WAV与混合WAV，具体状态与长度见模型README |
 | SpEx+音频参考目标说话人提取 | `MNNSpExPlusExtraction.EncodeReference` / `Extract` / `ExtractWaveFile` | 单独目标WAV与混合WAV，参考35ms–8秒、混合2.5ms–4秒 |
@@ -36,12 +37,13 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 
 ## 已有较强的转换数值证据
 
-2026-10-31，在当前 Unity 2021.3.45f2 macOS 主机：
+2026-11-01，在当前 Unity 2021.3.45f2 macOS 主机：
 
 | 模型 | 独立参考 | CPU 输出误差 | Metal 输出误差 | 当前选择 |
 |---|---|---:|---:|---|
 | TIGER Speech16k | 原始25条件Spectrum与source-ordered pooling逐位一致；完整PCM、重复/变长/Studio | 波形NRMSE最大0.0007298644 | 0.0003042292 | FP32/High、source-float FFT640/hop160；AutoMetalNone/CPU4；完整PCM独占三轮测量、真实Player通过；FP16/Q8/Low/CoreML拒绝 |
 | Mayavoz DCCRN16k | 原始checkpoint独立buffer首次eval；22物理条件只读/四阶段改写逐位一致；Unity7/7 | 波形NRMSE最大8.27554e-6 | 混合6.97340e-6 | 一份共享FP32权重；AutoCPU4，显式MetalNone分析/循环在CPU、编码/解码在Metal；完整PCM独占测量、真实Player通过 |
+| Resemble Enhance44.1k CFM | 原始checkpoint/DSP；24原条件及形状返回；公共API/Studio9/9与独立真实Player51次完整PCM | Player波形NRMSE最大0.0005803067 | 0.0003343768 | 七图共享1,481,606,628字节；速度场卷积权重无损FP16存储/High；Auto全MetalNone/CPU4；独占48次完整PCM测量通过 |
 | Resemble Denoiser44.1k | 原始checkpoint/DSP、source-float FFT1680；25条件与真实Player | 波形NRMSE最大6.27169e-5 | 候选未过门槛 | FP32/High、CPU8；CPU/Auto实际Player通过；不包含CFM增强器 |
 | SudoRMRF U16 WSJ02Mix8k | 原作者checkpoint/mean+unbiased std/pad320/恢复幅度；15条件/重复/变长，13/13 Editor | 双路波形NRMSE最大1.64e-5 | 1.08e-5 | FP32/High，AutoMetalNone/CPU4，变形状重建GPU Session；FP16/Q8拒绝；CoreML三种等价图未生成输出 |
 | DCCRNet Libri1Mix16k | 原始复数Asteroid/14条件/重复/变长/Studio，13/13 Editor及真实Player | 波形NRMSE最大6.70e-5 | 混合2.81e-5 | FP32/High；AutoMetalNone编码/解码+CPU循环，变形状重建Session；FP16/Q8/整图Metal拒绝；CoreML整图/拆分无有效输出 |
@@ -91,7 +93,7 @@ Android CLI 结果与 Unity Android Player 结果分别记录，不能互相替�
 
 Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3Tests`、
 `AvMossFormer2StudioTests`、`WeSpeakerParityTests`、`DtlnTests`、`FsmnVadParityTests`、
-`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`。
+`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`、`ResembleEnhancerSourceParityTests`、`ResembleEnhancerStudioTests`；完整调用性能另由 `ResembleEnhancerPerformanceTests` 显式运行。
 显式真实权重测试不会自动下载；分别设置 `MNN_TEST_DEEPFILTERNET_REFERENCE`、
 `MNN_TEST_AV_REFERENCE`、`MNN_TEST_WESPEAKER_REFERENCE` 和 `MNN_TEST_DTLN_REFERENCE` 到已有参考目录。新增模型对应
 `MNN_TEST_FSMN_REFERENCE`、`MNN_TEST_FRCRN_REFERENCE`、`MNN_TEST_MOSS_REFERENCE`、
@@ -99,11 +101,13 @@ Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3T
 
 `SpeechProcessingPlayerTests` 使用真实构建的macOS arm64 Mono2x Player读取打包模型。原40模型联合构建通过193/193项测试，无失败或跳过，runner exit0；80项源比较为40 CPU、36 Metal和4 Auto。构建id `d7c63d6e03ec4997b2a4ad3a61c7b598`，XML SHA256 `3fbb308f8e56a90deaa639526665ba322a95ccc9ce5e43bbdc1141184bab9b76`；142项运行文件SHA与冻结快照、构建副本和部署匹配，其中86项为图与外置权重。证据在 `TestArtifacts~/SpeechModels/player-forty-verified.json`；TIGER与Mayavoz DCCRN已包含在本轮真实Player验收中。
 
-2026-11-01，VoxTurn v1通过独立Player构建的116/116项测试，其中3项源输出比较分别覆盖CPU、Metal与Auto，各31条原始条件和首条返回；15个运行文件SHA与正式目录一致。构建id `9e83f116923443b9b0a39673c7ced986`，XML SHA256 `a1f9bc5d3c4e97ea8c71b8204d0e04e3ed9d191c5d46847bcbb72829b130e2fb`，证据在 `TestArtifacts~/SpeechModels/VoxTurn/player-verified-v44.json`。因此独立验收模型共41个；两次Player构建分别保留证据，不构成一次41模型联合构建。Auto纯文本走CPU，带音频走可用Metal语言层，音频编码保持CPU；固定512位置、最多两组Metal图对，四线程High。原始LoRA与Qwen3-ASR骨干的加载顺序、许可和完整输出门槛见模型README。
+2026-11-01，VoxTurn v1通过独立Player构建的116/116项测试，其中3项源输出比较分别覆盖CPU、Metal与Auto，各31条原始条件和首条返回；15个运行文件SHA与正式目录一致。构建id `9e83f116923443b9b0a39673c7ced986`，XML SHA256 `a1f9bc5d3c4e97ea8c71b8204d0e04e3ed9d191c5d46847bcbb72829b130e2fb`，证据在 `TestArtifacts~/SpeechModels/VoxTurn/player-verified-v44.json`。当时独立验收模型共41个；两次Player构建分别保留证据。Auto纯文本走CPU，带音频走可用Metal语言层，音频编码保持CPU；固定512位置、最多两组Metal图对，四线程High。原始LoRA与Qwen3-ASR骨干的加载顺序、许可和完整输出门槛见模型README。
+
+2026-11-01，Resemble完整CFM增强器通过第三次独立Player构建的116/116项测试，无失败或跳过；其中3项模型测试覆盖CPU25、全Metal25及Auto1，共51次完整PCM调用。构建id `1cb2ed489ab0471c869a01dea6340d46`，XML SHA256 `1e2da4f3c8f2357194c8556349b3bcbeec214cf820866f820a7325a9708780cb`；图、共享权重和运行常量与冻结快照及构建副本SHA一致。证据在 `TestArtifacts~/SpeechModels/ResembleEnhance/cfm-lossless-player-v152-verified.json`。独立验收模型现共42个，保留原40、VoxTurn与Resemble三组实际构建证据，不能合称一次42模型联合构建。
 
 通过Editor fixture不等于通过Player，创建GPU会话也不等于所有算子在GPU执行。结构检查见[测试说明](Testing.md)，原生调用仅使用包现有、限定平台/编译器的官方C++符号ABI契约，未新增C++、桥接导出或修改官方MNN源码。
 
-发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前41模型发布预检和23项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-one-v46.log`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
+发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前42模型发布预检和23项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-two-v159.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-two-inventory.json`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
 
 ## 新模型的数值与存储约定
 
@@ -111,11 +115,13 @@ TIGER保留原始PCM幅度与speaker槽位，无跨片段身份保证。FFT640/h
 
 Mayavoz DCCRN的原构造器将多个归一化buffer指向同一张量，默认copy加载会覆盖checkpoint中的不同统计量并产生非有限输出。参考使用PyTorch官方严格 `load_state_dict(assign=True)` 保留独立张量，每条clip从新加载状态运行首次eval；导出将该次eval的归一化统计量折叠为只读运算，保留原E-mask算式、分支和输出clamp。运行契约为右补零至100样本倍数、原forward、裁回输入长度；作者2秒 `.enhance()` 分块/OLA属于另一条管线。5张图共享16,940,824字节FP32外置权重，各图通过官方SetExternalFile指定共享文件。整图Metal、CoreML、FP16/Q8和Metal Normal未通过门槛；显式Metal只用于已验证的编码/解码。可复现工具位于 `Tools~/Models/Dccrn`。
 
+Resemble完整增强器在本机两种后端顺序、real→maximum→real共48次完整调用中，源PCM最大NRMSE4.116614065911359e-5；六组CPU/Metal热调用中位耗时比均为2.4058–2.5875，因此Auto使用可用Metal，否则CPU4。real/maximum/返回real的CPU中位数为32646.594/101946.634/32575.509ms，Metal为13376.011/39414.312/13343.706ms。七张图与共享权重由2,035,366,849降至1,481,606,628字节，保留相同逻辑权重与语义指纹。CPU最大输入的一次vmmap约20.1GiB物理占用与当时peak、性能进程1Hz最大RSS12,020,285,440字节是不同指标，均不是部署内存上界；实际Player的单次Metal采样另报告physical footprint36.9G及当时peak37.5G，保留系统原始单位，不能与RSS混为一谈。最终七组CoreML阶段尝试CPU对照通过，但CoreML全部无有效输出，未验证ANE放置；详见模型README。
+
 ## 尚未通过的候选
 
 DAVE公开的 `real_avse_tiger_m.ckpt` 是双源音频TIGER-M主干，不包含完整视觉目标归属组件。25条原始Spectrum与导出改写在Torch2.8/CPU1逐位一致，但MNN CPU、Metal以及ONNX Runtime均在479–481样本边界未通过固定NRMSE<0.001门槛。原始Torch本身把CPU1改为CPU4时，480样本频谱NRMSE变为约0.12479；短输入对浮点归约和12次循环误差敏感。候选及诊断保留在 `TestArtifacts~/SpeechModels/DAVE-TIGER-M-16K`，尚未部署、接入或计入完成；没有放宽门槛或删去失败输入。
 
-AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说话人及六层门控的连续Python Random(777)参考流，26条source条件的完整PCM逐位一致；转换后的MNN静音PCM NRMSE约0.0025357，未过0.001门槛，尚未部署。该参考流是显式选择的推理契约，不能视为恢复训练或历史eval的RNG状态。Resemble完整CFM增强器复用既有Apple自动释放池作用域后，v107的CPU与混合Metal共100次完整PCM比较通过，最大NRMSE分别为0.00058031与0.00060751；独立v110全Metal的50次完整PCM比较也通过，最大0.00033438。两次测试均无跳过或资源保护退出，覆盖24条原始条件、重复与形状返回。最终共享七图与无损FP16速度场存储已通过CPU/全Metal关键6项检查，图加权重由2,035,366,849缩减至1,481,606,628字节；公共API/Studio已通过9/9，覆盖完整PCM、变形状、Auto、无效输入、取消/释放及Studio实际WAV执行。CPU/全Metal完整调用性能比较和最终Player仍在验证，尚未纳入交付。CPU最大输入期间一次vmmap观察到约20.1GiB进程物理占用及当时峰值，该采样不是部署内存上界。上述候选均未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
+AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说话人及六层门控的连续Python Random(777)参考流，26条source条件的完整PCM逐位一致；转换后的MNN静音PCM NRMSE约0.0025357，未过0.001门槛，尚未部署。该参考流是显式选择的推理契约，不能视为恢复训练或历史eval的RNG状态。上述候选均未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
 
 ## GPU/NPU验证边界
 

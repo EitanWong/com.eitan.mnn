@@ -62,6 +62,7 @@ MODEL_NAMES = (
     "AV-DPRNN-VoxCeleb2-16K-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
     "VoxTurn-v1-MNN",
+    "Resemble-Enhance-44K-MNN",
 )
 RUNTIME_BINARY_FILES = frozenset((
     "embeddings_bf16.bin", "mel-window.bin", "mel-filters.bin",
