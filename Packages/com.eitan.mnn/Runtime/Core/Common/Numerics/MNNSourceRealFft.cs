@@ -2,7 +2,7 @@ using System;
 
 namespace MNN.Unity
 {
-    // Managed source-ordered real FFT for the verified 400/1680-point audio frontends.
+    // Managed source-ordered real FFT for the verified 400/640/1680-point audio frontends.
     // Single precision and operation order preserve the upstream cancellation residuals.
     // Copyright (C) 2010-2024 Max-Planck-Society; 2019-2020 Peter Bell.
     // BSD-3-Clause notice: Documentation~/PocketFftLicense.md.
@@ -15,11 +15,13 @@ namespace MNN.Unity
 
         internal MNNSourceRealFft(int length)
         {
-            if (length != 400 && length != 1680) throw new ArgumentOutOfRangeException(nameof(length));
+            if (length != 400 && length != 640 && length != 1680) throw new ArgumentOutOfRangeException(nameof(length));
             _length = length; _scratch = new float[length];
             _twiddles = length == 400
                 ? new[] { Twiddles(4, 100, 1), Twiddles(4, 25, 4), Twiddles(5, 5, 16) }
-                : new[] { Twiddles(4, 420, 1), Twiddles(4, 105, 4), Twiddles(3, 35, 16), Twiddles(5, 7, 48) };
+                : length == 640
+                    ? new[] { Twiddles(2, 320, 1), Twiddles(4, 80, 2), Twiddles(4, 20, 8), Twiddles(4, 5, 32) }
+                    : new[] { Twiddles(4, 420, 1), Twiddles(4, 105, 4), Twiddles(3, 35, 16), Twiddles(5, 7, 48) };
             if (length == 1680)
             {
                 _seventhRoots = new float[14]; _seventhRoots[0] = 1;
@@ -44,6 +46,15 @@ namespace MNN.Unity
                 Radix5(5, 16, _scratch, input, _twiddles[2]);
                 Radix4(25, 4, input, _scratch, _twiddles[1]);
                 Radix4(100, 1, _scratch, input, _twiddles[0]);
+            }
+            else if (_length == 640)
+            {
+                Radix5(1, 128, input, _scratch, Array.Empty<float>());
+                Radix4(5, 32, _scratch, input, _twiddles[3]);
+                Radix4(20, 8, input, _scratch, _twiddles[2]);
+                Radix4(80, 2, _scratch, input, _twiddles[1]);
+                Radix2(320, 1, input, _scratch, _twiddles[0]);
+                Array.Copy(_scratch, input, _length);
             }
             else
             {
@@ -154,6 +165,33 @@ namespace MNN.Unity
         {
             float a = rx + ry, b = ry - rx, c = ix + iy, d = ix - iy;
             rx = a; ix = c; ry = d; iy = b;
+        }
+
+        private static void Radix2(int width, int groups, float[] input, float[] output, float[] w)
+        {
+            float C(int a, int b, int c) => input[a + width * (b + groups * c)];
+            void H(int a, int b, int c, float value) => output[a + width * (b + 2 * c)] = value;
+            for (int k = 0; k < groups; ++k)
+            {
+                H(0, 0, k, C(0, k, 0) + C(0, k, 1));
+                H(width - 1, 1, k, C(0, k, 0) - C(0, k, 1));
+            }
+            if ((width & 1) == 0)
+            for (int k = 0; k < groups; ++k)
+            {
+                H(0, 1, k, -C(width - 1, k, 1));
+                H(width - 1, 0, k, C(width - 1, k, 0));
+            }
+            for (int k = 0; k < groups; ++k)
+            for (int i = 2; i < width; i += 2)
+            {
+                int opposite = width - i;
+                Multiply(w, i - 2, C(i - 1, k, 1), C(i, k, 1), out float real, out float imaginary);
+                H(i - 1, 0, k, C(i - 1, k, 0) + real);
+                H(opposite - 1, 1, k, C(i - 1, k, 0) - real);
+                H(i, 0, k, imaginary + C(i, k, 0));
+                H(opposite, 1, k, imaginary - C(i, k, 0));
+            }
         }
 
         private static void Radix4(int width, int groups, float[] input, float[] output, float[] w)
