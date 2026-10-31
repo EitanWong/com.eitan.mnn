@@ -125,6 +125,8 @@ AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说�
 
 2026-11-01补充：ISAM按固定PyTorch2.8公开Welford/cascade统计与标量融合乘加顺序复现后，原26条source条件、失败条件预检与首条返回共28次完整PCM逐位一致。但实际MNN视觉/卷积输出经该归一化及MNN后段图后，silence_mean波形NRMSE仍为0.00504893，未过0.001门槛。交叉诊断中，原Torch后段接收MNN前段输出时误差0.00606760；MNN后段接收原始source输入时误差0.00487150。因此两段数值差异都能独立导致失败；注入source输入仅用于定位，不能当作完整转换通过。证据在 `TestArtifacts~/SpeechModels/AV-TFGridNet-ISAM-VoxCeleb2-16K/cascade-source-v177/verified.json` 与 `split-crossing-v179/result.json`，未部署或计入42个验收模型。
 
+2026-11-01补充：ConVoiFilter已严格加载作者221键权重，并完成原19条件加首条返回的分段源PCM比较（最大NRMSE约2.04e-6）、52项当前输入InstanceNorm逐位比较及92项Addmm卷积阶段逐位比较。实际MNN仍在80001样本参考的单样本补零尾块失败：原整图PCM约0.029425，分段精确归一化约0.00336113，Addmm分段约0.00178426，均未过0.001。两层中间卷积误差可独立放大；官方Gemm转换后的MatMul加偏置不能继承源Addmm逐位性质。三种CPU/Metal Addmm分配输出相同，不代表GPU放置成功。完整候选使用实际MNN神经输出，源FFT/iFFT仍保留；未部署、未接入或计入42项，证据见 `TestArtifacts~/SpeechModels/ConVoiFilter/candidate-status-v200.json`。
+
 ## GPU/NPU验证边界
 
 所有默认策略只依据已记录主机、输入和整次PCM测量选择，不能代表任意设备的全局最优。CoreML独立官方CLI的有效输出与源数值门槛分开检查；exit0但没有输出属于失败。现有专项的ConvTasNet、Sortformer、DPTNet、NAMO等图仍因算子/spec/输入约束失败；TIGER与DCCRN也没有有效CoreML输出，未启用生产NPU或声称ANE算子放置成功。
