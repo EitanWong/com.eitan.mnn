@@ -110,6 +110,47 @@ def compact_model(source: Path, output: Path) -> dict:
             'weight_sha256': hashlib.sha256(compact).hexdigest()}
 
 
+def compact_models(sources: list[Path], output_directory: Path, weight_name: str = 'shared.mnn.weight') -> dict:
+    """Share exact records across graphs; consumers explicitly select this external file."""
+    names = [source.name for source in sources]
+    if not sources or len(set(names)) != len(names):
+        raise ValueError('provide nonempty graph sources with distinct file names')
+    if Path(weight_name).name != weight_name or not weight_name.endswith('.weight'):
+        raise ValueError('provide a plain external weight file name')
+    outputs = {str((output_directory / name).resolve()) for name in [*names, weight_name]}
+    if any(str(path.resolve()) in outputs for source in sources for path in [source, Path(str(source) + '.weight')]):
+        raise ValueError('use separate output paths')
+    models, combined, records = [], bytearray(), []
+    source_bytes = 0
+    for source in sources:
+        model = Model(source.read_bytes())
+        entries = model.external_records()
+        data = Path(str(source) + '.weight').read_bytes()
+        # Validate each file independently so a bad record cannot reach into the next file.
+        part, offsets = compact_records(data, [(offset, sizes) for offset, sizes, _ in entries])
+        records.extend((len(combined) + offset, sizes) for (_, sizes, _), offset in zip(entries, offsets))
+        combined.extend(part)
+        source_bytes += len(data)
+        models.append((source.name, model, entries))
+    shared, offsets = compact_records(bytes(combined), records)
+    cursor, graphs = 0, []
+    for name, model, entries in models:
+        for _, _, field in entries:
+            struct.pack_into('<q', model.data, field, offsets[cursor])
+            cursor += 1
+        graphs.append(dict(path=name, records=len(entries), graph_bytes=len(model.data),
+                           sha256=hashlib.sha256(model.data).hexdigest()))
+    output_directory.mkdir(parents=True, exist_ok=True)
+    pending = [(output_directory / weight_name, shared)]
+    pending.extend((output_directory / name, model.data) for name, model, _ in models)
+    for path, data in pending:
+        temporary = path.with_name(path.name + '.tmp')
+        temporary.write_bytes(data)
+        temporary.replace(path)
+    return dict(source_weight_bytes=source_bytes, weight_file=weight_name, weight_bytes=len(shared),
+                weight_sha256=hashlib.sha256(shared).hexdigest(), graphs=graphs)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
