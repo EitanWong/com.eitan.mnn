@@ -115,7 +115,7 @@ Mayavoz DCCRN的原构造器将多个归一化buffer指向同一张量，默认c
 
 DAVE公开的 `real_avse_tiger_m.ckpt` 是双源音频TIGER-M主干，不包含完整视觉目标归属组件。25条原始Spectrum与导出改写在Torch2.8/CPU1逐位一致，但MNN CPU、Metal以及ONNX Runtime均在479–481样本边界未通过固定NRMSE<0.001门槛。原始Torch本身把CPU1改为CPU4时，480样本频谱NRMSE变为约0.12479；短输入对浮点归约和12次循环误差敏感。候选及诊断保留在 `TestArtifacts~/SpeechModels/DAVE-TIGER-M-16K`，尚未部署、接入或计入完成；没有放宽门槛或删去失败输入。
 
-AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说话人及六层门控的连续Python Random(777)参考流，26条source条件的完整PCM逐位一致；转换后的MNN静音PCM NRMSE约0.0025357，未过0.001门槛，尚未部署。该参考流是显式选择的推理契约，不能视为恢复训练或历史eval的RNG状态。Resemble完整CFM增强器复用既有Apple自动释放池作用域后，v107的CPU与混合Metal共100次完整PCM比较通过，最大NRMSE分别为0.00058031与0.00060751；独立v110全Metal的50次完整PCM比较也通过，最大0.00033438。两次测试均无跳过或资源保护退出，覆盖24条原始条件、重复与形状返回。共享权重、正式API/Studio和Player仍在验证，尚未纳入交付。上述候选均未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
+AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说话人及六层门控的连续Python Random(777)参考流，26条source条件的完整PCM逐位一致；转换后的MNN静音PCM NRMSE约0.0025357，未过0.001门槛，尚未部署。该参考流是显式选择的推理契约，不能视为恢复训练或历史eval的RNG状态。Resemble完整CFM增强器复用既有Apple自动释放池作用域后，v107的CPU与混合Metal共100次完整PCM比较通过，最大NRMSE分别为0.00058031与0.00060751；独立v110全Metal的50次完整PCM比较也通过，最大0.00033438。两次测试均无跳过或资源保护退出，覆盖24条原始条件、重复与形状返回。最终共享七图与无损FP16速度场存储已通过CPU/全Metal关键6项检查，图加权重由2,035,366,849缩减至1,481,606,628字节；公共API/Studio已通过9/9，覆盖完整PCM、变形状、Auto、无效输入、取消/释放及Studio实际WAV执行。CPU/全Metal完整调用性能比较和最终Player仍在验证，尚未纳入交付。CPU最大输入期间一次vmmap观察到约20.1GiB进程物理占用及当时峰值，该采样不是部署内存上界。上述候选均未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
 
 ## GPU/NPU验证边界
 
