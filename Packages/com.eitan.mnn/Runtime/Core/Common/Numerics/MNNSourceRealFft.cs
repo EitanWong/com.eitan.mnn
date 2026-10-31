@@ -2,7 +2,7 @@ using System;
 
 namespace MNN.Unity
 {
-    // Managed source-ordered real FFT for the verified 400/640/1680-point audio frontends.
+    // Managed source-ordered real FFT for the verified 400/640/1680/2048-point audio frontends.
     // Single precision and operation order preserve the upstream cancellation residuals.
     // Copyright (C) 2010-2024 Max-Planck-Society; 2019-2020 Peter Bell.
     // BSD-3-Clause notice: Documentation~/PocketFftLicense.md.
@@ -15,13 +15,15 @@ namespace MNN.Unity
 
         internal MNNSourceRealFft(int length)
         {
-            if (length != 400 && length != 640 && length != 1680) throw new ArgumentOutOfRangeException(nameof(length));
+            if (length != 400 && length != 640 && length != 1680 && length != 2048) throw new ArgumentOutOfRangeException(nameof(length));
             _length = length; _scratch = new float[length];
             _twiddles = length == 400
                 ? new[] { Twiddles(4, 100, 1), Twiddles(4, 25, 4), Twiddles(5, 5, 16) }
                 : length == 640
                     ? new[] { Twiddles(2, 320, 1), Twiddles(4, 80, 2), Twiddles(4, 20, 8), Twiddles(4, 5, 32) }
-                    : new[] { Twiddles(4, 420, 1), Twiddles(4, 105, 4), Twiddles(3, 35, 16), Twiddles(5, 7, 48) };
+                    : length == 1680
+                        ? new[] { Twiddles(4, 420, 1), Twiddles(4, 105, 4), Twiddles(3, 35, 16), Twiddles(5, 7, 48) }
+                        : new[] { Twiddles(2, 1024, 1), Twiddles(4, 256, 2), Twiddles(4, 64, 8), Twiddles(4, 16, 32), Twiddles(4, 4, 128) };
             if (length == 1680)
             {
                 _seventhRoots = new float[14]; _seventhRoots[0] = 1;
@@ -56,13 +58,22 @@ namespace MNN.Unity
                 Radix2(320, 1, input, _scratch, _twiddles[0]);
                 Array.Copy(_scratch, input, _length);
             }
-            else
+            else if (_length == 1680)
             {
                 Radix7First(input, _scratch);
                 Radix5(7, 48, input, _scratch, _twiddles[3]);
                 Radix3(35, 16, _scratch, input, _twiddles[2]);
                 Radix4(105, 4, input, _scratch, _twiddles[1]);
                 Radix4(420, 1, _scratch, input, _twiddles[0]);
+            }
+            else
+            {
+                Radix4(1, 512, input, _scratch, Array.Empty<float>());
+                Radix4(4, 128, _scratch, input, _twiddles[4]);
+                Radix4(16, 32, input, _scratch, _twiddles[3]);
+                Radix4(64, 8, _scratch, input, _twiddles[2]);
+                Radix4(256, 2, input, _scratch, _twiddles[1]);
+                Radix2(1024, 1, _scratch, input, _twiddles[0]);
             }
             real[0] = input[0]; imaginary[0] = 0;
             for (int i = 1; i < bins - 1; ++i) { real[i] = input[2 * i - 1]; imaginary[i] = input[2 * i]; }
