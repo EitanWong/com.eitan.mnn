@@ -121,7 +121,9 @@ Resemble完整增强器在本机两种后端顺序、real→maximum→real共48�
 
 DAVE公开的 `real_avse_tiger_m.ckpt` 是双源音频TIGER-M主干，不包含完整视觉目标归属组件。25条原始Spectrum与导出改写在Torch2.8/CPU1逐位一致，但MNN CPU、Metal以及ONNX Runtime均在479–481样本边界未通过固定NRMSE<0.001门槛。原始Torch本身把CPU1改为CPU4时，480样本频谱NRMSE变为约0.12479；短输入对浮点归约和12次循环误差敏感。候选及诊断保留在 `TestArtifacts~/SpeechModels/DAVE-TIGER-M-16K`，尚未部署、接入或计入完成；没有放宽门槛或删去失败输入。
 
-AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说话人及六层门控的连续Python Random(777)参考流，26条source条件的完整PCM逐位一致；转换后的MNN静音PCM NRMSE约0.0025357，未过0.001门槛，尚未部署。该参考流是显式选择的推理契约，不能视为恢复训练或历史eval的RNG状态。上述候选均未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
+AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说话人及六层门控的连续Python Random(777)参考流，26条source条件的完整PCM逐位一致；转换后的MNN静音PCM NRMSE约0.0025357，未过0.001门槛，尚未部署。该参考流是显式选择的推理契约，不能视为恢复训练或历史eval的RNG状态。首GroupNorm中心化方差改写虽在两个相同输入单元中降至约3e-6并通过1e-5门槛，但完整原始source在silence_mean条件的PCM误差约0.005975，仍未过0.001；全图转换前即停止，未替换原参考或部署。上述候选均未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
+
+2026-11-01补充：ISAM按固定PyTorch2.8公开Welford/cascade统计与标量融合乘加顺序复现后，原26条source条件、失败条件预检与首条返回共28次完整PCM逐位一致。但实际MNN视觉/卷积输出经该归一化及MNN后段图后，silence_mean波形NRMSE仍为0.00504893，未过0.001门槛。交叉诊断中，原Torch后段接收MNN前段输出时误差0.00606760；MNN后段接收原始source输入时误差0.00487150。因此两段数值差异都能独立导致失败；注入source输入仅用于定位，不能当作完整转换通过。证据在 `TestArtifacts~/SpeechModels/AV-TFGridNet-ISAM-VoxCeleb2-16K/cascade-source-v177/verified.json` 与 `split-crossing-v179/result.json`，未部署或计入42个验收模型。
 
 ## GPU/NPU验证边界
 
