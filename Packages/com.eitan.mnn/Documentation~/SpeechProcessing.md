@@ -28,6 +28,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 | VAD | `MNNSileroVad` / `MNNFsmnVad` / `MNNMarbleNetVad` | Audio processing |
 | 音频轮次结束 | `MNNSmartTurn.Predict` | Audio processing |
 | 文本轮次结束 | `MNNLiveKitTurnDetector.Predict` / `MNNNamoTurnDetector.Predict` | Audio processing，ASR 转写文本 |
+| 音频／文本多任务轮次判断 | `MNNVoxTurn.Predict` / `PredictBatch` / `EndOfTurn` | VoxTurn v1，六类判断；纯文本、音频或两者组合；保留非商业许可 |
 | 带播放参考的回声消除 | `MNNDtlnAec.Process` / `ProcessHop` | Echo cancellation，双 WAV |
 
 声纹向量并不是完整 diarization 时间线；聚类、重叠说话处理和 DER/JER 仍需要独立实现及验证。
@@ -96,11 +97,13 @@ Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3T
 `MNN_TEST_FSMN_REFERENCE`、`MNN_TEST_FRCRN_REFERENCE`、`MNN_TEST_MOSS_REFERENCE`、
 `MNN_TEST_LIVEKIT_REFERENCE`、`MNN_TEST_GTCRN_REFERENCE`、`MNN_TEST_MARBLENET_REFERENCE`、`MNN_TEST_FULLSUBNET_REFERENCE`、`MNN_TEST_FULLSUBNETPLUS_REFERENCE`。
 
-`SpeechProcessingPlayerTests` 使用真实构建的macOS arm64 Mono2x Player读取打包模型。当前已验收40个模型、193/193项测试，无失败或跳过，runner exit0；80项源比较为40 CPU、36 Metal和4 Auto。构建id `d7c63d6e03ec4997b2a4ad3a61c7b598`，XML SHA256 `3fbb308f8e56a90deaa639526665ba322a95ccc9ce5e43bbdc1141184bab9b76`；142项运行文件SHA与冻结快照、构建副本和部署匹配，其中86项为图与外置权重。证据在 `TestArtifacts~/SpeechModels/player-forty-verified.json`；TIGER与Mayavoz DCCRN已包含在本轮真实Player验收中。
+`SpeechProcessingPlayerTests` 使用真实构建的macOS arm64 Mono2x Player读取打包模型。原40模型联合构建通过193/193项测试，无失败或跳过，runner exit0；80项源比较为40 CPU、36 Metal和4 Auto。构建id `d7c63d6e03ec4997b2a4ad3a61c7b598`，XML SHA256 `3fbb308f8e56a90deaa639526665ba322a95ccc9ce5e43bbdc1141184bab9b76`；142项运行文件SHA与冻结快照、构建副本和部署匹配，其中86项为图与外置权重。证据在 `TestArtifacts~/SpeechModels/player-forty-verified.json`；TIGER与Mayavoz DCCRN已包含在本轮真实Player验收中。
+
+2026-11-01，VoxTurn v1通过独立Player构建的116/116项测试，其中3项源输出比较分别覆盖CPU、Metal与Auto，各31条原始条件和首条返回；15个运行文件SHA与正式目录一致。构建id `9e83f116923443b9b0a39673c7ced986`，XML SHA256 `a1f9bc5d3c4e97ea8c71b8204d0e04e3ed9d191c5d46847bcbb72829b130e2fb`，证据在 `TestArtifacts~/SpeechModels/VoxTurn/player-verified-v44.json`。因此独立验收模型共41个；两次Player构建分别保留证据，不构成一次41模型联合构建。Auto纯文本走CPU，带音频走可用Metal语言层，音频编码保持CPU；固定512位置、最多两组Metal图对，四线程High。原始LoRA与Qwen3-ASR骨干的加载顺序、许可和完整输出门槛见模型README。
 
 通过Editor fixture不等于通过Player，创建GPU会话也不等于所有算子在GPU执行。结构检查见[测试说明](Testing.md)，原生调用仅使用包现有、限定平台/编译器的官方C++符号ABI契约，未新增C++、桥接导出或修改官方MNN源码。
 
-发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer覆盖。预检不会重新推理。当前40模型的发布预检和20项发布工具行为测试已通过。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
+发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前41模型发布预检和23项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-one-v46.log`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
 
 ## 新模型的数值与存储约定
 
@@ -112,7 +115,7 @@ Mayavoz DCCRN的原构造器将多个归一化buffer指向同一张量，默认c
 
 DAVE公开的 `real_avse_tiger_m.ckpt` 是双源音频TIGER-M主干，不包含完整视觉目标归属组件。25条原始Spectrum与导出改写在Torch2.8/CPU1逐位一致，但MNN CPU、Metal以及ONNX Runtime均在479–481样本边界未通过固定NRMSE<0.001门槛。原始Torch本身把CPU1改为CPU4时，480样本频谱NRMSE变为约0.12479；短输入对浮点归约和12次循环误差敏感。候选及诊断保留在 `TestArtifacts~/SpeechModels/DAVE-TIGER-M-16K`，尚未部署、接入或计入完成；没有放宽门槛或删去失败输入。
 
-AV-TFGridNet的静音均值条件仍未过源波形门槛；ISAM的eval随机门控需要明确可重现推理契约；Resemble完整CFM增强器仍待完成。VoxTurn已审计公开源码与许可，adapter依赖约1.56GB的Qwen3-ASR骨干，尚未下载权重或导出，并需保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
+AV-TFGridNet的静音均值条件仍未过源波形门槛；ISAM的eval随机门控需要明确可重现推理契约；Resemble完整CFM增强器正在完成独立整链、正式API与Player验收，尚未计入已验收模型。VoxTurn已单独完成验收，保留CC-BY-NC4.0非商业限制。RNNoise/WebRTC等DSP/native实现不能冒充已转换MNN图。已验收模型列表不等于调研清单全部条目。
 
 ## GPU/NPU验证边界
 
