@@ -55,6 +55,7 @@ MODEL_NAMES = (
     "SepReformer-B-WSJ02Mix-8K-MNN",
     "SpExPlus-WSJ02Mix-8K-MNN",
     "SEG-YGD-16K-MNN",
+    "Resemble-Denoiser-44K-MNN",
     "AV-ConvTasNet-LRS2-16K-MNN",
     "AV-DPRNN-VoxCeleb2-16K-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
