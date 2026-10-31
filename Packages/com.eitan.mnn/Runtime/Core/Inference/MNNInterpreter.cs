@@ -192,6 +192,14 @@ namespace MNN.Unity
             Debug.Log($"[MNN] Cache file set to: {cacheFilePath}");
         }
 
+        internal void SetWinogradMemoryLevel(int level)
+        {
+            ThrowIfDisposed();
+            if (level < 0 || level > 3) throw new ArgumentOutOfRangeException(nameof(level));
+            if (_sessions.Count != 0) throw new InvalidOperationException("Set convolution hints before creating a session.");
+            MNNInterop.MNN_Interpreter_setWinogradMemoryLevel(_handle, level);
+        }
+
         /// <summary>
         /// 更新GPU缓存文件（在resizeSession后调用）
         /// </summary>

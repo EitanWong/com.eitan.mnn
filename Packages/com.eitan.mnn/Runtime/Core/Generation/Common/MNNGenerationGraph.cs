@@ -18,8 +18,10 @@ namespace MNN.Unity
         private bool _cacheSaved;
         private readonly bool _prepared;
         internal MNNBackendType Backend => _express != null ? _express.Backend : _session.ActualBackend;
-        internal MNNGenerationGraph(string path, int threads, byte[] preparedGraph = null, bool express = false, MNNBackendType backendType = MNNBackendType.Auto, string externalWeightsPath = null)
+        internal MNNGenerationGraph(string path, int threads, byte[] preparedGraph = null, bool express = false, MNNBackendType backendType = MNNBackendType.Auto, string externalWeightsPath = null, int? cpuWinogradMemoryLevel = null)
         {
+            if (cpuWinogradMemoryLevel.HasValue && (express || backendType != MNNBackendType.CPU || cpuWinogradMemoryLevel.Value < 0 || cpuWinogradMemoryLevel.Value > 3))
+                throw new ArgumentOutOfRangeException(nameof(cpuWinogradMemoryLevel), "Convolution hints require an explicit CPU Interpreter graph and a level from zero to three.");
             if (!File.Exists(path) || new FileInfo(path).Length < 16)
                 throw new FileNotFoundException("Missing MNN graph: " + path);
             if (externalWeightsPath != null && (express || !File.Exists(externalWeightsPath)))
@@ -47,6 +49,8 @@ namespace MNN.Unity
             {
                 if (preparedGraph != null || externalWeightsPath != null)
                     _interpreter.SetExternalFile(externalWeightsPath ?? path + ".weight");
+                if (cpuWinogradMemoryLevel.HasValue)
+                    _interpreter.SetWinogradMemoryLevel(cpuWinogradMemoryLevel.Value);
                 ConfigureCache(MNNAcceleration.Resolve(backendType), MNNPrecisionMode.Normal);
                 _session = _interpreter.CreateSession(new MNNSessionConfig{BackendType = backendType, ThreadCount = threads, PrecisionMode = MNNPrecisionMode.Normal});
             }
