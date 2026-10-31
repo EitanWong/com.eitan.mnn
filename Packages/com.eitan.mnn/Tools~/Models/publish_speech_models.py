@@ -61,7 +61,12 @@ MODEL_NAMES = (
     "AV-ConvTasNet-LRS2-16K-MNN",
     "AV-DPRNN-VoxCeleb2-16K-MNN",
     "AV-MossFormer2-TSE-16K-MNN",
+    "VoxTurn-v1-MNN",
 )
+RUNTIME_BINARY_FILES = frozenset((
+    "embeddings_bf16.bin", "mel-window.bin", "mel-filters.bin",
+    "rotary-cos.bin", "rotary-sin.bin", "head-weight.bin", "head-bias.bin",
+))
 EXCLUDES = (
     "*.meta",
     ".DS_Store",
@@ -178,7 +183,7 @@ def audit_model(directory: Path) -> list[str]:
             errors.append(f"symlink: {name}")
         elif path.is_file() and not _ignored(path) and name != "manifest.json":
             actual.add(name)
-            if path.name != "LICENSE" and path.suffix.lower() not in (".mnn", ".json", ".md", ".txt") and not name.endswith(".mnn.weight"):
+            if path.name != "LICENSE" and path.suffix.lower() not in (".mnn", ".json", ".md", ".txt") and not name.endswith(".mnn.weight") and name not in RUNTIME_BINARY_FILES:
                 errors.append(f"non-deployment file: {name}")
     for name in sorted(actual - set(declared)):
         errors.append(f"unlisted deployment file: {name}")
@@ -197,7 +202,7 @@ def audit_model(directory: Path) -> list[str]:
             errors.append(f"{key} does not name a deployed graph")
     runtime = {name: checksum for name, checksum in declared.items()
                if name in actual and name not in ("manifest.json", "mnn_optimization.json") and
-               (name.endswith((".mnn", ".mnn.weight", ".json", ".txt")))}
+               (name.endswith((".mnn", ".mnn.weight", ".json", ".txt")) or name in RUNTIME_BINARY_FILES)}
     _audit_player(directory, {**graphs, **weights}, runtime, errors)
     return errors
 

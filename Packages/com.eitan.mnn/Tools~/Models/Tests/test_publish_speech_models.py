@@ -153,6 +153,27 @@ class PublicationAuditTests(unittest.TestCase):
         self.refresh()
         self.assertIn('orphan', self.errors())
 
+    def test_verified_derived_binary_constants_are_deployment_files(self):
+        data = b'fixture derived FP32 head, not source checkpoint'
+        (self.model / 'head-weight.bin').write_bytes(data)
+        self.optimization['player_validation']['runtime_files'].append(
+            {'path': 'head-weight.bin', 'sha256': hashlib.sha256(data).hexdigest()})
+        self.refresh()
+        self.assertEqual('', self.errors())
+
+    def test_derived_binary_constants_require_current_player_coverage(self):
+        (self.model / 'head-weight.bin').write_bytes(b'new derived head')
+        self.refresh()
+        self.assertIn('Player runtime file coverage', self.errors())
+
+    def test_original_checkpoint_bin_is_rejected_even_when_covered(self):
+        data = b'original weights'
+        (self.model / 'pytorch_model.bin').write_bytes(data)
+        self.optimization['player_validation']['runtime_files'].append(
+            {'path': 'pytorch_model.bin', 'sha256': hashlib.sha256(data).hexdigest()})
+        self.refresh()
+        self.assertIn('non-deployment', self.errors())
+
 
 if __name__ == '__main__':
     unittest.main()
