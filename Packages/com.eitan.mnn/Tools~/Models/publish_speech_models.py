@@ -63,8 +63,10 @@ MODEL_NAMES = (
     "AV-MossFormer2-TSE-16K-MNN",
     "VoxTurn-v1-MNN",
     "Resemble-Enhance-44K-MNN",
+    "LS-EEND-Simu-8K-MNN",
 )
 RUNTIME_BINARY_FILES = frozenset((
+    "ls_eend_coefficients.bin",
     "embeddings_bf16.bin", "mel-window.bin", "mel-filters.bin",
     "rotary-cos.bin", "rotary-sin.bin", "head-weight.bin", "head-bias.bin",
 ))

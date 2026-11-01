@@ -25,6 +25,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 | 双说话人波形分离 | `MNNMossFormer2Separation.Separate` / `MNNSepFormerSeparation.Separate` / `MNNConvTasNetSeparation.Separate` / `MNNDprnnSeparation.Separate` / `MNNSudoRmRfSeparation.Separate` | Audio processing，预览第一个音轨 |
 | 音视频目标说话人提取 | `MNNAvMossFormer2Tse.Extract` | 混合 WAV + 有序 PNG/JPEG 人脸帧文件夹 |
 | 四说话人活动时间线 | `MNNSortformerDiarization.Analyze` / `AnalyzeWaveFile` | Audio processing，10ms–60秒完整WAV；内部原同步缓存策略 |
+| LS-EEND说话人活动时间线 | `MNNLsEendDiarization.Analyze` / `AnalyzeWaveFile` / `MNNLsEendActivity.ToRttm` | Audio processing，8kHz mono、1–480000样本；保留9个posterior列、严格0.5阈值和11帧median |
 | 声纹向量 | `MNNSpeakerEmbedding` / `MNNWeSpeakerEmbedding` | Speaker recognition |
 | VAD | `MNNSileroVad` / `MNNFsmnVad` / `MNNMarbleNetVad` | Audio processing |
 | 音频轮次结束 | `MNNSmartTurn.Predict` | Audio processing |
@@ -41,6 +42,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 
 | 模型 | 独立参考 | CPU 输出误差 | Metal 输出误差 | 当前选择 |
 |---|---|---:|---:|---|
+| LS-EEND Simu8k | 原始严格229键checkpoint、原fbank/streaming helper；20条件含60秒，最终Editor9/9及独立Player | Player posterior最大绝对误差1.0252e-5 | 8.6427e-7 | 两张FP32图/High、AutoCPU2；完整60秒三轮线程测量选择；显式Metal通过但较慢；FP16/Q8/Low/CoreML拒绝 |
 | TIGER Speech16k | 原始25条件Spectrum与source-ordered pooling逐位一致；完整PCM、重复/变长/Studio | 波形NRMSE最大0.0007298644 | 0.0003042292 | FP32/High、source-float FFT640/hop160；AutoMetalNone/CPU4；完整PCM独占三轮测量、真实Player通过；FP16/Q8/Low/CoreML拒绝 |
 | Mayavoz DCCRN16k | 原始checkpoint独立buffer首次eval；22物理条件只读/四阶段改写逐位一致；Unity7/7 | 波形NRMSE最大8.27554e-6 | 混合6.97340e-6 | 一份共享FP32权重；AutoCPU4，显式MetalNone分析/循环在CPU、编码/解码在Metal；完整PCM独占测量、真实Player通过 |
 | Resemble Enhance44.1k CFM | 原始checkpoint/DSP；24原条件及形状返回；公共API/Studio9/9与独立真实Player51次完整PCM | Player波形NRMSE最大0.0005803067 | 0.0003343768 | 七图共享1,481,606,628字节；速度场卷积权重无损FP16存储/High；Auto全MetalNone/CPU4；独占48次完整PCM测量通过 |
@@ -93,7 +95,7 @@ Android CLI 结果与 Unity Android Player 结果分别记录，不能互相替�
 
 Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3Tests`、
 `AvMossFormer2StudioTests`、`WeSpeakerParityTests`、`DtlnTests`、`FsmnVadParityTests`、
-`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`、`ResembleEnhancerSourceParityTests`、`ResembleEnhancerStudioTests`；完整调用性能另由 `ResembleEnhancerPerformanceTests` 显式运行。
+`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`、`ResembleEnhancerSourceParityTests`、`ResembleEnhancerStudioTests`、`LsEendSourceParityTests`、`LsEendStudioTests`；完整调用性能另由 `ResembleEnhancerPerformanceTests` / `LsEendPerformanceTests` 显式运行。LS-EEND参考根目录通过 `MNN_TEST_LS_EEND` 指定。
 显式真实权重测试不会自动下载；分别设置 `MNN_TEST_DEEPFILTERNET_REFERENCE`、
 `MNN_TEST_AV_REFERENCE`、`MNN_TEST_WESPEAKER_REFERENCE` 和 `MNN_TEST_DTLN_REFERENCE` 到已有参考目录。新增模型对应
 `MNN_TEST_FSMN_REFERENCE`、`MNN_TEST_FRCRN_REFERENCE`、`MNN_TEST_MOSS_REFERENCE`、
@@ -103,11 +105,15 @@ Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3T
 
 2026-11-01，VoxTurn v1通过独立Player构建的116/116项测试，其中3项源输出比较分别覆盖CPU、Metal与Auto，各31条原始条件和首条返回；15个运行文件SHA与正式目录一致。构建id `9e83f116923443b9b0a39673c7ced986`，XML SHA256 `a1f9bc5d3c4e97ea8c71b8204d0e04e3ed9d191c5d46847bcbb72829b130e2fb`，证据在 `TestArtifacts~/SpeechModels/VoxTurn/player-verified-v44.json`。当时独立验收模型共41个；两次Player构建分别保留证据。Auto纯文本走CPU，带音频走可用Metal语言层，音频编码保持CPU；固定512位置、最多两组Metal图对，四线程High。原始LoRA与Qwen3-ASR骨干的加载顺序、许可和完整输出门槛见模型README。
 
-2026-11-01，Resemble完整CFM增强器通过第三次独立Player构建的116/116项测试，无失败或跳过；其中3项模型测试覆盖CPU25、全Metal25及Auto1，共51次完整PCM调用。构建id `1cb2ed489ab0471c869a01dea6340d46`，XML SHA256 `1e2da4f3c8f2357194c8556349b3bcbeec214cf820866f820a7325a9708780cb`；图、共享权重和运行常量与冻结快照及构建副本SHA一致。证据在 `TestArtifacts~/SpeechModels/ResembleEnhance/cfm-lossless-player-v152-verified.json`。独立验收模型现共42个，保留原40、VoxTurn与Resemble三组实际构建证据，不能合称一次42模型联合构建。
+2026-11-01，Resemble完整CFM增强器通过第三次独立Player构建的116/116项测试，无失败或跳过；其中3项模型测试覆盖CPU25、全Metal25及Auto1，共51次完整PCM调用。构建id `1cb2ed489ab0471c869a01dea6340d46`，XML SHA256 `1e2da4f3c8f2357194c8556349b3bcbeec214cf820866f820a7325a9708780cb`；图、共享权重和运行常量与冻结快照及构建副本SHA一致。证据在 `TestArtifacts~/SpeechModels/ResembleEnhance/cfm-lossless-player-v152-verified.json`。独立验收模型当时共42个，保留原40、VoxTurn与Resemble三组实际构建证据，不能合称一次42模型联合构建。
+
+2026-11-01，`LS-EEND-Simu-8K-MNN`通过第四组独立Player构建116/116项测试，无失败或跳过；CPU2、Metal2、Auto2各20条原始条件加首条返回，每条两次，共126次完整PCM调用。构建id `af4631d85b794332a494e82130a45e59`，XML SHA256 `0721e4886927d12778ab575453a3e06935e1a7ca4bcbf853a83e7782a601afa4`。两张FP32图、配置、精确二进制前端系数及通知文件六项SHA与冻结/构建副本一致；证据在 `TestArtifacts~/SpeechModels/LS-EEND-Simu-8K/player-verified-v230.json`。独立验收项目现共43个，四组构建分别保留，不是一次43模型联合构建。
+
+LS-EEND主许可MIT，同时保留Conformer的Apache2与Microsoft/Hitachi的MIT通知。原作者训练最多8个说话人，部署保留删除dummy后的9列；完整录音API内部逐帧状态推理，保留左右7帧特征上下文及9帧神经延迟。实际FFT为256，配置中未使用的1024未照搬；原Retention旋转被作者注释，因此转换器移除未使用的position输入。60秒完整PCM的CPU1/2/4/8三轮中位数为1303.828/1223.1767/1245.7538/1235.98ms，选择CPU2；Metal完整4秒约230ms，比CPU约79–87ms慢，保留显式选项。无本模型Android/iOS或NPU/ANE放置证据，数值比较不代替DER/JER质量评测。
 
 通过Editor fixture不等于通过Player，创建GPU会话也不等于所有算子在GPU执行。结构检查见[测试说明](Testing.md)，原生调用仅使用包现有、限定平台/编译器的官方C++符号ABI契约，未新增C++、桥接导出或修改官方MNN源码。
 
-发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前42模型发布预检和23项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-two-v159.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-two-inventory.json`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
+发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前43模型发布预检和24项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-three-v231.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-three-inventory.json`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
 
 ## 新模型的数值与存储约定
 
