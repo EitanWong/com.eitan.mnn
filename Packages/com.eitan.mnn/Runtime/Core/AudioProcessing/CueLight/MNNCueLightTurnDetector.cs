@@ -5,12 +5,13 @@ using System.Threading;
 
 namespace MNN.Unity
 {
-    /// <summary>CueLight-Nano causal 20 ms speech and turn detection, including author onset replay and endpoint policies.</summary>
+    /// <summary>CueLight Nano and Nano-SSM causal 20 ms speech and turn detection with author replay and endpoint policies.</summary>
     public sealed class MNNCueLightTurnDetector : IDisposable
     {
         public const int SampleRate = 16000, FrameSamples = 320, DefaultThreadCount = 1;
         private readonly object _gate = new object();
         private readonly MNNGenerationGraph _graph;
+        private readonly MNNCueLightProfile _profile;
         private readonly MNNCueLightFeatures _features;
         private readonly Queue<float[]> _history = new Queue<float[]>();
         private float[][] _state;
@@ -19,10 +20,13 @@ namespace MNN.Unity
         private int _resets;
         private bool _disposed;
         public MNNBackendType Backend => _graph.Backend;
+        public string ModelName => _profile.Name;
 
         private MNNCueLightTurnDetector(string directory, int threads, MNNBackendType backend)
         {
-            if (!MNNCueLightModel.IsComplete(directory)) throw new InvalidDataException("CueLight profile or runtime file verification failed.");
+            _profile = MNNCueLightModel.ReadVerified(directory) ?? throw new InvalidDataException("CueLight profile or runtime file verification failed.");
+            if (backend == MNNBackendType.Metal && !_profile.SupportsMetal)
+                throw new NotSupportedException("CueLight Nano-SSM Metal execution has not passed source parity and repeatability checks.");
             _features = new MNNCueLightFeatures(directory);
             if (backend == MNNBackendType.Auto) backend = MNNBackendType.CPU;
             string file = backend == MNNBackendType.Metal ? MNNCueLightModel.MetalGraph : MNNCueLightModel.CpuGraph;
@@ -91,13 +95,13 @@ namespace MNN.Unity
             var result = _graph.RunOutputs(new[] { "logits", "next_conv1", "next_conv2", "next_hidden0", "next_hidden1", "next_hidden2" },
                 new MNNGenerationGraph.Input("feature", feature, 1, 128),
                 new MNNGenerationGraph.Input("conv1", _state[0], 1, 128, 2),
-                new MNNGenerationGraph.Input("conv2", _state[1], 1, 112, 2),
-                new MNNGenerationGraph.Input("hidden0", _state[2], 1, 112),
-                new MNNGenerationGraph.Input("hidden1", _state[3], 1, 112),
-                new MNNGenerationGraph.Input("hidden2", _state[4], 1, 112));
+                new MNNGenerationGraph.Input("conv2", _state[1], 1, _profile.HiddenDimension, 2),
+                new MNNGenerationGraph.Input("hidden0", _state[2], 1, _profile.StateSize),
+                new MNNGenerationGraph.Input("hidden1", _state[3], 1, _profile.StateSize),
+                new MNNGenerationGraph.Input("hidden2", _state[4], 1, _profile.StateSize));
             var logits = Require(result[0], 1, 6); var probability = new float[6];
-            _state[0] = Require(result[1], 1, 128, 2); _state[1] = Require(result[2], 1, 112, 2);
-            for (int i = 0; i < 3; ++i) _state[i + 2] = Require(result[i + 3], 1, 112);
+            _state[0] = Require(result[1], 1, 128, 2); _state[1] = Require(result[2], 1, _profile.HiddenDimension, 2);
+            for (int i = 0; i < 3; ++i) _state[i + 2] = Require(result[i + 3], 1, _profile.StateSize);
             for (int i = 0; i < 6; ++i)
             {
                 if (float.IsNaN(logits[i]) || float.IsInfinity(logits[i])) throw new InvalidDataException("Nonfinite CueLight output.");
@@ -112,11 +116,14 @@ namespace MNN.Unity
                 if (output.Shape[i] != shape[i]) throw new InvalidDataException("Unexpected CueLight tensor shape.");
             return output.Values;
         }
-        private static float[][] InitialState() => new[] { new float[256], new float[224], new float[112], new float[112], new float[112] };
+        private float[][] InitialState() => new[] { new float[256], new float[_profile.HiddenDimension * 2],
+            new float[_profile.StateSize], new float[_profile.StateSize], new float[_profile.StateSize] };
         private void ResetCore()
         {
             _features.Reset(); _state = InitialState(); _history.Clear(); _resets = 0;
-            _onset = new MNNCueLightOnset(); _snappy = new MNNCueLightEndpoint(.73, .5, 1.5); _careful = new MNNCueLightEndpoint(.76, .7, 2);
+            _onset = new MNNCueLightOnset();
+            _snappy = new MNNCueLightEndpoint(_profile.SnappyThreshold, .5, 1.5);
+            _careful = new MNNCueLightEndpoint(_profile.CarefulThreshold, .7, 2);
         }
         public void Reset() { lock (_gate) { RequireAlive(); ResetCore(); } }
         private static void Validate(float[] samples, int maximum, CancellationToken token)

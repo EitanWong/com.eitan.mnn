@@ -65,6 +65,7 @@ MODEL_NAMES = (
     "Resemble-Enhance-44K-MNN",
     "LS-EEND-Simu-8K-MNN",
     "CueLight-Nano-MNN",
+    "CueLight-Nano-SSM-MNN",
 )
 RUNTIME_BINARY_FILES = frozenset((
     "ls_eend_coefficients.bin",

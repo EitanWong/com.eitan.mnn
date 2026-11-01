@@ -25,7 +25,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 | 双说话人波形分离 | `MNNMossFormer2Separation.Separate` / `MNNSepFormerSeparation.Separate` / `MNNConvTasNetSeparation.Separate` / `MNNDprnnSeparation.Separate` / `MNNSudoRmRfSeparation.Separate` | Audio processing，预览第一个音轨 |
 | 音视频目标说话人提取 | `MNNAvMossFormer2Tse.Extract` | 混合 WAV + 有序 PNG/JPEG 人脸帧文件夹 |
 | 四说话人活动时间线 | `MNNSortformerDiarization.Analyze` / `AnalyzeWaveFile` | Audio processing，10ms–60秒完整WAV；内部原同步缓存策略 |
-| 流式语音活动/轮次结束 | `MNNCueLightTurnDetector.Push` / `Analyze` / `AnalyzeWaveFile` | Audio processing，16kHz mono；20ms逐帧、自动重置/18帧replay、snappy/careful端点时间线 |
+| CueLight Nano/SSM流式语音活动/轮次结束 | `MNNCueLightTurnDetector.Push` / `Analyze` / `AnalyzeWaveFile` | Audio processing，16kHz mono；20ms逐帧、自动重置/18帧replay、snappy/careful端点时间线 |
 | LS-EEND说话人活动时间线 | `MNNLsEendDiarization.Analyze` / `AnalyzeWaveFile` / `MNNLsEendActivity.ToRttm` | Audio processing，8kHz mono、1–480000样本；保留9个posterior列、严格0.5阈值和11帧median |
 | 声纹向量 | `MNNSpeakerEmbedding` / `MNNWeSpeakerEmbedding` | Speaker recognition |
 | VAD | `MNNSileroVad` / `MNNFsmnVad` / `MNNMarbleNetVad` | Audio processing |
@@ -43,6 +43,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 
 | 模型 | 独立参考 | CPU 输出误差 | Metal 输出误差 | 当前选择 |
 |---|---|---:|---:|---|
+| CueLight Nano-SSM | 原始严格65键/483688参数、22条件加首条返回；联合Editor15/15（含GRU8）、双模型Player118/118 | 完整PCM最大9.07183e-5，全部reset/端点事件一致 | Module和实际Interpreter重复一致性失败，拒绝 | 单CPU图/High、AutoCPU1；60秒约740.93ms，CPU2/4/8较慢；FP16/Q8/Low/CoreML拒绝；SSM两端点阈值均0.8 |
 | CueLight Nano | 原始严格50键/485590参数、22条件加首条返回；Editor8/8与独立Player116/116 | 全六冷状态/默认概率最大3.18289e-5，reset/端点事件全相同 | 准确激活图5.18560e-6，事件全相同 | 两张FP32图/High；AutoCPU1，60秒调用335.14ms，Metal2529.41ms；FP16/Q8/Low/原Metal GELU拒绝，CoreML无输出 |
 | LS-EEND Simu8k | 原始严格229键checkpoint、原fbank/streaming helper；20条件含60秒，最终Editor9/9及独立Player | Player posterior最大绝对误差1.0252e-5 | 8.6427e-7 | 两张FP32图/High、AutoCPU2；完整60秒三轮线程测量选择；显式Metal通过但较慢；FP16/Q8/Low/CoreML拒绝 |
 | TIGER Speech16k | 原始25条件Spectrum与source-ordered pooling逐位一致；完整PCM、重复/变长/Studio | 波形NRMSE最大0.0007298644 | 0.0003042292 | FP32/High、source-float FFT640/hop160；AutoMetalNone/CPU4；完整PCM独占三轮测量、真实Player通过；FP16/Q8/Low/CoreML拒绝 |
@@ -97,7 +98,7 @@ Android CLI 结果与 Unity Android Player 结果分别记录，不能互相替�
 
 Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3Tests`、
 `AvMossFormer2StudioTests`、`WeSpeakerParityTests`、`DtlnTests`、`FsmnVadParityTests`、
-`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`、`ResembleEnhancerSourceParityTests`、`ResembleEnhancerStudioTests`、`LsEendSourceParityTests`、`LsEendStudioTests`、`CueLightSourceParityTests`、`CueLightStudioTests`；完整调用性能另由 `ResembleEnhancerPerformanceTests` / `LsEendPerformanceTests` / `CueLightPerformanceTests` 显式运行。LS-EEND参考根目录通过 `MNN_TEST_LS_EEND`、CueLight通过 `MNN_TEST_CUELIGHT` 指定。
+`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`、`ResembleEnhancerSourceParityTests`、`ResembleEnhancerStudioTests`、`LsEendSourceParityTests`、`LsEendStudioTests`、`CueLightSourceParityTests`、`CueLightStudioTests`、`CueLightSsmSourceTests`；完整调用性能另由 `ResembleEnhancerPerformanceTests` / `LsEendPerformanceTests` / `CueLightPerformanceTests` / `CueLightSsmPerformanceTests` 显式运行。LS-EEND参考根目录通过 `MNN_TEST_LS_EEND`、CueLight Nano通过 `MNN_TEST_CUELIGHT`、SSM通过 `MNN_TEST_CUELIGHT_SSM` 指定。
 显式真实权重测试不会自动下载；分别设置 `MNN_TEST_DEEPFILTERNET_REFERENCE`、
 `MNN_TEST_AV_REFERENCE`、`MNN_TEST_WESPEAKER_REFERENCE` 和 `MNN_TEST_DTLN_REFERENCE` 到已有参考目录。新增模型对应
 `MNN_TEST_FSMN_REFERENCE`、`MNN_TEST_FRCRN_REFERENCE`、`MNN_TEST_MOSS_REFERENCE`、
@@ -117,7 +118,7 @@ LS-EEND主许可MIT，同时保留Conformer的Apache2与Microsoft/Hitachi的MIT�
 
 通过Editor fixture不等于通过Player，创建GPU会话也不等于所有算子在GPU执行。结构检查见[测试说明](Testing.md)，原生调用仅使用包现有、限定平台/编译器的官方C++符号ABI契约，未新增C++、桥接导出或修改官方MNN源码。
 
-发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前44模型发布预检和25项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-four-v264.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-four-inventory.json`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
+发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前45模型发布预检和25项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-five-v287.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-five-inventory.json`（SHA256 `620936d538358e5d3bd9558d9f1b934ec5da085708d0c6b5ad4f0418a4d638c6`）。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
 
 ## 新模型的数值与存储约定
 
@@ -144,3 +145,5 @@ AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说�
 历史Android SM8550 CLI上WeSpeaker与DTLN通过CPU/OpenCL/Vulkan数值比较，NNAPI在SquaredDifference或Raster构图失败。该CLI记录不能代替Unity Android Player验收。2026-11-01只读检查发现一台已授权的PJA110／SM8550／API36／arm64 Android设备，Unity Android模块、SDK、NDK和IL2CPP已安装；当前连接与构建开关仍不能作为推理证据。已配对iPhone的连接/tunnel不可用，未完成本轮Unity移动真机或NPU验收。
 
 TIGER与Mayavoz DCCRN的独占完整PCM测量在Apple M5/Mac17,2、macOS27.2、10核/24GiB主机完成，三种交错顺序，每配置/输入15次稳定样本，并另测加载、首次和变长调用。TIGER MetalNone/High的1秒/3秒稳定中位数995.978/3296.022ms，CPU4/High为2447.827/6968.987ms；DCCRN CPU4/High为49.229/187.595ms，MetalNone/High为45.479/167.657ms，但变长1秒调用为70.788/106.852ms，故保留CPU默认与显式Metal选择。DCCRN分段CPU1/2/4/8均完成源波形资格与独占测量，各有取舍。加载/首次/变长的原始记录与校验值位于 `TestArtifacts~/SpeechModels/*exclusive*summary.json`，模型各自mnn_optimization.json保留对应摘要；这些结论不代表跨设备全局最优。
+
+2026-11-01，`CueLight-Nano-SSM-MNN`完成第六组独立Player118/118（SSM CPU/Auto共184次完整PCM，原GRU CPU/Metal/Auto回归276次，全构建460次）；构建id `e22ed42a4088492b8aecfe5ea4475d06`、XML SHA256 `ba272595e41c9c50b70c601fec6e6436697ec61a4c2a61f5a21b41bc6cdacb7e`。六项SSM运行/通知文件SHA与冻结、部署和built副本一致，证据见 `TestArtifacts~/SpeechModels/CueLight-Nano-SSM/player-verified-v283.json`。当前45个独立项目保留六组实际构建，不能称45模型联合Player验收。SSM使用三组[1,13886]状态，实际inner n32，原ssm_n320配置未被构造函数采用；没有改成GRU状态或阈值。完整PCM CPU误差9.07183e-5低于固定1e-4；Studio与流式API已验证。Module与实际Interpreter Metal均出现重复不一致；CoreML无有效输出，只验收CPU1/High，没有GPU/NPU或移动Player资格。

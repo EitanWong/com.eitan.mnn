@@ -19,17 +19,8 @@ namespace MNN.Unity.Tests
             var bytes = File.ReadAllBytes(Path.Combine(Root, "source-graph-v237/reference", name + ".f32"));
             var values = new float[bytes.Length / 4]; Buffer.BlockCopy(bytes, 0, values, 0, bytes.Length); return values;
         }
-        internal static void Check(float[] expected, float[] actual, double gate, string label)
-        {
-            Assert.AreEqual(expected.Length, actual.Length, label); double maximum = 0;
-            for (int i = 0; i < actual.Length; ++i)
-            {
-                Assert.False(float.IsNaN(actual[i]) || float.IsInfinity(actual[i]), label);
-                maximum = Math.Max(maximum, Math.Abs((double)actual[i] - expected[i]));
-            }
-            TestContext.WriteLine(label + ";maximum_absolute=" + maximum.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
-            Assert.Less(maximum, gate, label);
-        }
+        internal static void Check(float[] expected, float[] actual, double gate, string label) =>
+            CueLightPcmReference.Check(expected, actual, gate, label);
         [Test]
         public void ManagedCausalFeaturesMatchOriginalCompletePcm()
         {
@@ -48,31 +39,7 @@ namespace MNN.Unity.Tests
         [TestCase(MNNBackendType.CPU), TestCase(MNNBackendType.Metal), TestCase(MNNBackendType.Auto)]
         public void OriginalSixOutputsResetReplayAndEndpointsMatchFullPcm(MNNBackendType backend)
         {
-            using (var model = MNNCueLightTurnDetector.Load(Candidate, MNNCueLightTurnDetector.DefaultThreadCount, backend))
-            {
-                foreach (string name in Cases.Concat(new[] { Cases[0] }))
-                {
-                    var pcm = Read(name + "-input"); var cold = model.Analyze(pcm, resetOnTurnStart: false);
-                    Check(Read(name + "-cold_probabilities"), cold.Probabilities, .0001, backend + ";" + name + ";cold");
-                    CollectionAssert.AreEqual(cold.Probabilities, model.Analyze(pcm, resetOnTurnStart: false).Probabilities, name + " cold repeat");
-                    var expected = Read(name + "-events"); var result = model.Analyze(pcm); var repeat = model.Analyze(pcm);
-                    Assert.AreEqual((pcm.Length + 319) / 320, result.FrameCount); Assert.AreEqual((double)pcm.Length / 16000, result.DurationSeconds);
-                    var actual = new float[result.FrameCount * 2]; var probabilities = new float[result.FrameCount * 2];
-                    for (int i = 0; i < result.FrameCount; ++i)
-                    {
-                        var f = result.Frames[i]; var r = repeat.Frames[i];
-                        probabilities[i * 2] = expected[i * 5]; probabilities[i * 2 + 1] = expected[i * 5 + 1];
-                        actual[i * 2] = f.SpeechProbability; actual[i * 2 + 1] = f.EndOfTurnProbability;
-                        Assert.AreEqual((int)expected[i * 5 + 2], f.ResetCount, name + " reset " + i);
-                        Assert.AreEqual(expected[i * 5 + 3] == 1, f.SnappyEndpoint, name + " snappy " + i);
-                        Assert.AreEqual(expected[i * 5 + 4] == 1, f.CarefulEndpoint, name + " careful " + i);
-                        Assert.AreEqual(f.ResetCount, r.ResetCount); Assert.AreEqual(f.SnappyEndpoint, r.SnappyEndpoint); Assert.AreEqual(f.CarefulEndpoint, r.CarefulEndpoint);
-                    }
-                    CollectionAssert.AreEqual(result.Probabilities, repeat.Probabilities, name + " default repeat");
-                    Check(probabilities, actual, .0001, backend + ";" + name + ";default");
-                }
-                Assert.AreEqual(backend == MNNBackendType.Auto ? MNNBackendType.CPU : backend, model.Backend);
-            }
+            CueLightPcmReference.Verify(Candidate, Read, Cases, backend);
         }
         [Test]
         public void PushResetInputCancellationAndDisposalPreserveContract()
