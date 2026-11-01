@@ -15,9 +15,17 @@ from urllib.parse import unquote, urlsplit
 
 ASSEMBLIES = {
     "MNN.Unity": ("Runtime/MNN.Unity.asmdef", set()),
+    "MNN.Unity.Burst": ("Runtime/Core/Performance/Burst/MNN.Unity.Burst.asmdef", {"MNN.Unity"}),
     "MNN.Unity.Editor": ("Editor/MNN.Unity.Editor.asmdef", {"MNN.Unity"}),
     "MNN.Unity.Tests": (
-        "Tests/Editor/MNN.Unity.Tests.asmdef", {"MNN.Unity", "MNN.Unity.Editor"}
+        "Tests/Editor/MNN.Unity.Tests.asmdef", {"MNN.Unity", "MNN.Unity.Editor", "MNN.Unity.Tests.Fixtures"}
+    ),
+    "MNN.Unity.Integration.Tests": (
+        "Tests/Editor/Integration/MNN.Unity.Integration.Tests.asmdef",
+        {"MNN.Unity", "MNN.Unity.Editor", "MNN.Unity.Tests.Fixtures"}
+    ),
+    "MNN.Unity.Tests.Fixtures": (
+        "Tests/Editor/Fixtures/MNN.Unity.Tests.Fixtures.asmdef", {"MNN.Unity"}
     ),
     "MNN.Unity.Runtime.Tests": (
         "Tests/Runtime/MNN.Unity.Runtime.Tests.asmdef", {"MNN.Unity"}
@@ -25,17 +33,56 @@ ASSEMBLIES = {
     "MNN.Unity.Samples.BasicExample": (
         "Samples~/BasicExample/MNN.Unity.Samples.BasicExample.asmdef", {"MNN.Unity"}
     ),
+    "MNN.Unity.Samples.BasicExample.Editor": (
+        "Samples~/BasicExample/Editor/MNN.Unity.Samples.BasicExample.Editor.asmdef",
+        {"MNN.Unity", "MNN.Unity.Editor", "MNN.Unity.Samples.BasicExample"}
+    ),
 }
 ROOT_DIRECTORIES = {
     "Runtime", "Editor", "Tests", "Samples~", "Documentation~", "Native~", "Tools~"
 }
 ROOT_FILES = {"package.json", "README.md", "CHANGELOG.md", "LICENSE.md"}
 CORE_DOMAINS = {
-    "Common", "Inference", "Models", "Language", "Retrieval", "Generation", "Performance"
+    "Common", "Inference", "Models", "Language", "Retrieval", "Vision", "SpeechRecognition", "AudioProcessing", "Generation", "Performance"
 }
 OPAQUE_SUFFIXES = (".framework", ".xcframework", ".bundle")
 GENERATED_DIRECTORIES = {
     "Library", "Temp", "Logs", "obj", "bin", "__pycache__", "TestArtifacts~"
+}
+EDITOR_ASSEMBLIES = {
+    "MNN.Unity.Editor", "MNN.Unity.Tests", "MNN.Unity.Integration.Tests",
+    "MNN.Unity.Tests.Fixtures", "MNN.Unity.Samples.BasicExample.Editor"
+}
+TEST_ASSEMBLIES = {
+    "MNN.Unity.Tests", "MNN.Unity.Integration.Tests", "MNN.Unity.Tests.Fixtures",
+    "MNN.Unity.Runtime.Tests"
+}
+MODEL_DOMAINS = {
+    ("Runtime", "Core", "SpeechRecognition"),
+    ("Runtime", "Core", "AudioProcessing"),
+    ("Runtime", "Core", "Vision"),
+    ("Runtime", "Core", "Retrieval"),
+    ("Runtime", "Core", "Language"),
+    ("Runtime", "Core", "Models"),
+    ("Runtime", "Core", "Generation", "Audio"),
+    ("Runtime", "Core", "Generation", "Image"),
+}
+AUDIO_TASK_MODELS = {
+    "Enhancement": {"Dccrn", "Dccrnet", "Dcunet", "DeepFilterNet3", "Dptnet", "Dtln", "FrcrnSe", "FullSubNet", "Gtcrn", "MossFormer2Se", "MossFormerGan", "ResembleDenoiser", "ResembleEnhancer"},
+    "EchoCancellation": {"DtlnAec"},
+    "Separation": {"ConvTasNet", "Dprnn", "SepFormer", "SepReformer", "SpeechSeparation", "SudoRmRf", "Tiger"},
+    "TargetSpeakerExtraction": {"AvConvTasNet", "AvDprnn", "AvMossFormer2Tse", "AvTfGridNet", "Seg", "SpExPlus"},
+    "SpeakerDiarization": {"FsEend", "LsEend", "Sortformer"},
+    "SpeakerEmbedding": {"Vbx"},
+    "VoiceActivityDetection": {"FsmnVad", "MarbleNetVad", "SileroVad"},
+    "TurnDetection": {"CueLight", "DualTurn", "LiveKitTurnDetector", "Namo", "SmartTurn", "TurnSense", "VoxTurn"},
+}
+INFERENCE_RESPONSIBILITIES = {
+    "Backend": {"MNNAcceleration.cs", "MNNNeuralDevice.cs"},
+    "Loading": {"MNNModelLoading.cs", "MNNInferenceCache.cs"},
+    "Interpreter": {"MNNInterpreter.cs"},
+    "Session": {"MNNSession.cs", "MNNSessionConfig.cs", "MNNSingleInputModule.cs"},
+    "Tensor": {"MNNTensor.cs", "MNNTensorExtensions.cs"},
 }
 
 
@@ -51,6 +98,20 @@ def inspect(package):
         return errors, 0
     metadata = json.loads((package / "package.json").read_text(encoding="utf-8"))
     require(metadata.get("name") == "com.eitan.mnn", "Unexpected package name")
+    audio = package / "Runtime/Core/AudioProcessing"
+    for task, models in AUDIO_TASK_MODELS.items():
+        for model in models:
+            require((audio / task / model).is_dir(),
+                    "Audio model belongs in task folder: " + task + "/" + model)
+    audio_folders = set(AUDIO_TASK_MODELS) | {"Analysis", "Common", "KeywordSpotting", "Realtime", "SpeakerEmbedding"}
+    for folder in audio.iterdir():
+        if folder.is_dir():
+            require(folder.name in audio_folders, "Unclassified audio task or model: " + folder.name)
+    inference = package / "Runtime/Core/Inference"
+    for responsibility, files in INFERENCE_RESPONSIBILITIES.items():
+        for filename in files:
+            require((inference / responsibility / filename).is_file(),
+                    "Inference source belongs in responsibility folder: " + responsibility + "/" + filename)
     for path in package.iterdir():
         if path.suffix == ".meta":
             continue
@@ -99,18 +160,59 @@ def inspect(package):
         path, definition = definitions[name]
         require(path == package / relative, "Assembly in wrong folder: " + name)
         references = set(definition.get("references", []))
+        if name == "MNN.Unity.Burst":
+            require("MNN_HAS_BURST" in definition.get("defineConstraints", []), "Burst adapter must be optional")
+            require(definition.get("versionDefines") == [{"name": "com.unity.burst", "expression": "1.8.0", "define": "MNN_HAS_BURST"}], "Burst adapter needs automatic package detection")
+            require(references == {"MNN.Unity", "Unity.Burst"}, "Burst FFT must not require Collections or Mathematics")
+        require(len(references) == len(definition.get("references", [])),
+                "Duplicate assembly reference: " + name)
         require({ref for ref in references if ref.startswith("MNN.Unity")} == dependencies,
                 "Incorrect package assembly dependencies: " + name)
-        if name in {"MNN.Unity.Editor", "MNN.Unity.Tests"}:
+        if name in EDITOR_ASSEMBLIES:
             require(definition.get("includePlatforms") == ["Editor"], "Assembly must be Editor-only: " + name)
         else:
             require(not definition.get("includePlatforms"), "Assembly must allow Player compilation: " + name)
             require(not any("Editor" in ref for ref in references), "Editor dependency in Player assembly: " + name)
-        if name.endswith("Tests"):
+        if name in TEST_ASSEMBLIES:
             require("UNITY_INCLUDE_TESTS" in definition.get("defineConstraints", []),
                     "Missing test constraint: " + name)
             require(definition.get("autoReferenced") is False, "Test assembly is auto-referenced: " + name)
+        else:
+            require(not references.intersection(TEST_ASSEMBLIES),
+                    "Production assembly depends on tests: " + name)
 
+    # Check the actual graph, including references written with Unity GUID syntax.
+    assembly_guids = {}
+    for name, (path, _) in definitions.items():
+        match = re.search(r"^guid: ([0-9a-f]{32})$", Path(str(path) + ".meta").read_text(), re.M)
+        if match:
+            assembly_guids[match.group(1)] = name
+    graph = {}
+    for name, (_, definition) in definitions.items():
+        references = definition.get("references", [])
+        resolved = [assembly_guids.get(ref[5:], ref) if ref.startswith("GUID:") else ref for ref in references]
+        graph[name] = {ref for ref in resolved if ref in definitions}
+        for ref in resolved:
+            require(not ref.startswith(("MNN.Unity", "GUID:")) or ref in definitions,
+                    "Unknown package assembly reference: " + name + " -> " + ref)
+    visited, active = set(), set()
+
+    def visit(name):
+        if name in active:
+            errors.append("Circular assembly dependency: " + name)
+            return
+        if name in visited:
+            return
+        active.add(name)
+        for dependency in graph[name]:
+            visit(dependency)
+        active.remove(name)
+        visited.add(name)
+
+    for name in graph:
+        visit(name)
+
+    partials = {}
     for path in paths:
         if path.suffix != ".cs":
             continue
@@ -134,6 +236,14 @@ def inspect(package):
                     "Managed source lacks a Core domain: " + str(relative))
             require(not re.search(r"\bclass\s+\w+\s*:\s*MonoBehaviour\b", text),
                     "MonoBehaviour belongs in Runtime/Components: " + str(relative))
+            for domain in MODEL_DOMAINS:
+                if relative.parts[:len(domain)] == domain:
+                    require(len(relative.parts) > len(domain) + 1,
+                            "Source needs a model or shared responsibility folder: " + str(relative))
+        namespace = re.search(r"^namespace\s+([\w.]+)", text, re.M)
+        for type_name in re.findall(r"\bpartial\s+(?:class|struct)\s+(\w+)", text):
+            key = (namespace.group(1) if namespace else "", type_name)
+            partials.setdefault(key, set()).add(path.parent)
         if relative.parts[0] == "Runtime":
             require(not re.search(r"^using\s+(?:NUnit|UnityEditor)\b", text, re.M),
                     "Editor/test dependency in Runtime: " + str(relative))
@@ -143,6 +253,8 @@ def inspect(package):
         if relative.parts[:3] == ("Runtime", "Interop", "Handles"):
             require("namespace MNN.Unity.Interop.Handles" in text,
                     "Handle namespace differs from its folder: " + str(relative))
+    for (_, type_name), directories in partials.items():
+        require(len(directories) == 1, "Partial type spans responsibility folders: " + type_name)
 
     for sample in metadata.get("samples", []):
         directory = package / sample["path"]

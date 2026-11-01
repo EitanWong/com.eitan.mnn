@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Win32.SafeHandles;
 
 namespace MNN.Unity.Interop.Handles
@@ -9,6 +10,11 @@ namespace MNN.Unity.Interop.Handles
     {
         private InterpreterHandle() : base(true)
         {
+        }
+
+        internal InterpreterHandle(IntPtr pointer) : base(true)
+        {
+            SetHandle(pointer);
         }
 
         protected override bool ReleaseHandle()

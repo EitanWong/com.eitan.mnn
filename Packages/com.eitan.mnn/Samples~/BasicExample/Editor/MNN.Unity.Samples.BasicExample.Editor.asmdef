@@ -1,0 +1,13 @@
+{
+  "name": "MNN.Unity.Samples.BasicExample.Editor",
+  "rootNamespace": "MNN.Examples.Editor",
+  "references": [
+    "MNN.Unity",
+    "MNN.Unity.Editor",
+    "MNN.Unity.Samples.BasicExample"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "autoReferenced": true
+}

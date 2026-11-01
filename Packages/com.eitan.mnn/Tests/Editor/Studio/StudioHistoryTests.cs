@@ -184,8 +184,18 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(MNNChatRole.System, prompt[0].Role);
             Assert.Less(prompt[1].Content.Length, 1800);
             Assert.AreEqual("彩虹的形成", MNNStudioNaming.CleanTitle("<think>private reasoning</think>\n标题：彩虹的形成\nExtra explanation"));
+            Assert.AreEqual("彩虹的形成", MNNStudioNaming.CleanTitle("<answer>\n彩虹的形成\n</answer>"));
             Assert.AreEqual("", MNNStudioNaming.CleanTitle("<think>unfinished reasoning"));
             Assert.AreEqual("A useful title", MNNStudioNaming.CleanTitle("\"A useful title\""));
+        }
+
+        [Test]
+        public void RestoreMessages_CleansPersistedAnswerEnvelope()
+        {
+            var chat = MNNStudioConversation.Capture("id", "model", new[]{new MNNStudioMessage(false, "<answer>\nold reply\n</answer>", result: new MNNStudioResult{Text = "<answer>\nold reply\n</answer>"})}, "", null, null);
+            var restored = new List<MNNStudioMessage>(chat.RestoreMessages());
+            Assert.AreEqual("old reply", restored[0].Text);
+            Assert.AreEqual("old reply", restored[0].Result.Text);
         }
 
         [Test]
@@ -195,7 +205,7 @@ namespace MNN.Unity.Tests
             string path = Path.Combine(root, "history.json");
             try
             {
-                var messages = new List<MNNStudioMessage>{new MNNStudioMessage(true, "你好\nExplain this image", "image.png"), new MNNStudioMessage(false, "An answer", result: new MNNStudioResult{Text = "An answer", Tokens = 7, Seconds = 1.25, Waveform = new[]{.1234567f}, SampleRate = 24000})};
+                var messages = new List<MNNStudioMessage>{new MNNStudioMessage(true, "你好\nExplain this image", "image.png"), new MNNStudioMessage(false, "An answer", result: new MNNStudioResult{Text = "An answer", Tokens = 7, Seconds = 1.25, AudioSeconds = 2.5, BackendDescription = "Flow: Metal", Waveform = new[]{.1234567f}, SampleRate = 24000})};
                 var history = new MNNStudioHistory();
                 history.Remember(MNNStudioConversation.Capture("one", "model-a", messages, "Follow up", "draft.png", "draft.wav", "User is Alice."));
                 history.Save(path);
@@ -214,6 +224,9 @@ namespace MNN.Unity.Tests
                 Assert.AreEqual("image.png", turns[0].ImagePath);
                 Assert.AreEqual(7, turns[1].Result.Tokens);
                 Assert.AreEqual(1.25, turns[1].Result.Seconds);
+                Assert.AreEqual(2.5, turns[1].Result.AudioSeconds);
+                Assert.AreEqual(.5, turns[1].Result.RealTimeFactor);
+                Assert.AreEqual("Flow: Metal", turns[1].Result.BackendDescription);
                 Assert.IsEmpty(turns[1].Result.Waveform);
                 StringAssert.DoesNotContain("0.1234567", File.ReadAllText(path));
                 Assert.IsFalse(File.Exists(path + ".tmp"));

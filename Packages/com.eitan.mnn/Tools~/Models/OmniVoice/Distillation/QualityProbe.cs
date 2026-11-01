@@ -13,7 +13,7 @@ public static class QualityProbe
         string root = Environment.GetEnvironmentVariable("MNN_MODELS_DIRECTORY");
         string folder = Environment.GetEnvironmentVariable("OMNIVOICE_DISTILLATION_QUALITY_DIRECTORY");
         using (var asr = MNNQwen3AsrRecognizer.Load(Path.Combine(root, "hb-dev--Qwen3-ASR-0.6B-INT8-MNN")))
-        using (var speaker = MNNSpeakerEmbedding.Load(Path.Combine(root, "Jeryuk--ERes2NetV2"), backendType: MNNBackendType.CPU))
+        using (var speaker = MNNSpeakerEmbedding.Load(Path.Combine(root, "ERes2NetV2-MNN"), backendType: MNNBackendType.CPU))
         {
             var reference = speaker.EncodeWaveFile(Path.Combine(root, "OmniVoice-MNN", "zero_shot_prompt.wav"));
             var rows = Directory.GetFiles(folder, "*.wav").OrderBy(x => x).Select(path =>

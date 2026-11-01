@@ -1,0 +1,27 @@
+{
+  "name": "MNN.Unity.Integration.Tests",
+  "rootNamespace": "MNN.Unity.Tests",
+  "references": [
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner",
+    "MNN.Unity",
+    "MNN.Unity.Editor",
+    "MNN.Unity.Tests.Fixtures"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "System.Net.Http.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,5 +1,5 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP)
-#define MNN_APPLE_CPP_ABI
+#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#define MNN_INFERENCE_CPP_ABI
 #endif
 using System;
 using System.Runtime.InteropServices;
@@ -10,8 +10,8 @@ namespace MNN.Unity.Interop
     internal static partial class MNNInterop
     {
         // Official public pointer/scalar APIs. Uses the existing bundled
-        // MNN 3.6.1 Apple clang/libc++ ScheduleConfig ABI; no new STL returns.
-#if MNN_APPLE_CPP_ABI
+        // MNN 3.6.2 platform-specific ScheduleConfig ABI; no STL returns.
+#if MNN_INFERENCE_CPP_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Interpreter14getSessionInfoEPKNS_7SessionENS0_15SessionInfoCodeEPv")]
         [return: MarshalAs(UnmanagedType.I1)]
         private static extern bool GetSessionBackendInfo(InterpreterHandle interpreter, IntPtr session, int code, [Out] int[] values);
@@ -43,13 +43,23 @@ namespace MNN.Unity.Interop
                 IntPtr session = MNN_Interpreter_createSession(interpreter, ref config);
                 if (session == IntPtr.Zero)
                     return false;
-                try
+                using (var owner = new SessionHandle(interpreter, session))
                 {
-                    return SessionBackend(interpreter, session) == type;
-                }
-                finally
-                {
-                    MNN_Interpreter_releaseSession(interpreter.DangerousGetHandle(), session);
+                    if (SessionBackend(interpreter, session) != type) return false;
+                    IntPtr input = MNN_Interpreter_getSessionInput(interpreter, owner, "input");
+                    IntPtr output = MNN_Interpreter_getSessionOutput(interpreter, owner, "output");
+                    if (input == IntPtr.Zero || output == IntPtr.Zero) return false;
+                    var values = new[] { 0f, 1f, -2f, 3f };
+                    IntPtr data = MNN_Tensor_map(input, MNNTensorMapType.Write, MNNDimensionType.Caffe);
+                    if (data == IntPtr.Zero) return false;
+                    try { Marshal.Copy(values, 0, data, values.Length); }
+                    finally { MNN_Tensor_unmap(input, MNNTensorMapType.Write, MNNDimensionType.Caffe, data); }
+                    if (MNN_Interpreter_runSession(interpreter, owner) != 0) return false;
+                    data = MNN_Tensor_map(output, MNNTensorMapType.Read, MNNDimensionType.Caffe);
+                    if (data == IntPtr.Zero) return false;
+                    try { Marshal.Copy(data, values, 0, values.Length); }
+                    finally { MNN_Tensor_unmap(output, MNNTensorMapType.Read, MNNDimensionType.Caffe, data); }
+                    return values[0] == 1f && values[1] == 3f && values[2] == -3f && values[3] == 7f;
                 }
             }
         }

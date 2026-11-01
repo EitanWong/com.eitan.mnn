@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using MNN.Unity.Editor;
 using NUnit.Framework;
 using UnityEngine;
@@ -33,6 +34,7 @@ namespace MNN.Unity.Tests
                 Set(window, "_imagePath", imagePath);
                 Set(window, "_audioPath", audioPath);
                 Set(window, "_tokenLimit", 64);
+                LogAssert.Expect(LogType.Log, new Regex(@"^\[MNN\] Loaded " + Regex.Escape(System.IO.Path.Combine(model.Directory, "config.json")) + @": requested=Auto, configured=\w+$"));
                 Invoke(window, "RunTask");
                 var session = (MNNStudioSession)Get(window, "_session");
                 Assert.IsNotNull(session, (string)Get(window, "_error"));

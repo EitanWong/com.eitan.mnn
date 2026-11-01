@@ -1,8 +1,9 @@
 # MNN for Unity
 
-Unity bindings and editor tools for [MNN](https://github.com/alibaba/MNN) 3.6.1.
-The package includes tensor inference, language and multimodal APIs, model management,
-and Chat Studio. It requires Unity 2021.3 or later.
+Unity bindings and editor tools for [MNN](https://github.com/alibaba/MNN) 3.6.2.
+The package includes tensor inference, language and multimodal APIs, retrieval,
+speech and image generation, model management, and Chat Studio. It requires Unity
+2021.3 or later.
 
 [简体中文](docs/README.zh-CN.md) | [Documentation](Packages/com.eitan.mnn/Documentation~/README.md) | [Changelog](CHANGELOG.md)
 
@@ -26,6 +27,8 @@ contracts. They are maintained by this project and are not an official portable
 MNN C# API. Support and validation vary by platform and task; consult the
 [native ABI notes](Packages/com.eitan.mnn/Native~/README.md) and
 [test evidence](Packages/com.eitan.mnn/Documentation~/Testing.md) before deployment.
+The package README describes the supported macOS, Android and iOS configurations
+and their current limitations.
 
 ## Documentation
 

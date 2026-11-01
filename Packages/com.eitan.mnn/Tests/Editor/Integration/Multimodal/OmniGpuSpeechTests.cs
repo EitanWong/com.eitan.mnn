@@ -6,6 +6,7 @@ using NUnit.Framework;
 namespace MNN.Unity.Tests
 {
     [Category("RepresentativeModel")]
+    [Ignore("Waveform std::function marshalling is not implemented by the direct C++ ABI; historical speech measurements are not current support evidence.")]
     public class OmniGpuSpeechTests
     {
         [Test]

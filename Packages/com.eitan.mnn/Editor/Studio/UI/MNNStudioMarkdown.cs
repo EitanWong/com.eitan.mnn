@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,77 +11,58 @@ namespace MNN.Unity.Editor.UI
     {
         internal sealed class Block
         {
-            internal string Text, Language;
+            internal string Text, Language, RichText;
             internal int Heading;
             internal bool Code;
         }
 
         internal readonly List<Block> Blocks;
+        private readonly MNNMarkdownDocument _document;
+        private MNNMarkdownTheme _theme;
+
         internal MNNStudioMarkdown(string text)
         {
-            Blocks = Parse(text);
+            _document = MNNMarkdownDocument.Parse(text);
+            _theme = EditorGUIUtility.isProSkin ? MNNMarkdownTheme.Dark : MNNMarkdownTheme.Light;
+            Blocks = RenderBlocks(_document, _theme);
         }
 
-        internal static List<Block> Parse(string text)
+        internal static List<Block> Parse(string text) => RenderBlocks(MNNMarkdownDocument.Parse(text),
+            EditorGUIUtility.isProSkin ? MNNMarkdownTheme.Dark : MNNMarkdownTheme.Light);
+
+        internal void SetTheme(MNNMarkdownTheme theme)
+        {
+            if (_theme == theme) return;
+            List<Block> blocks = RenderBlocks(_document, theme);
+            Blocks.Clear();
+            Blocks.AddRange(blocks);
+            _theme = theme;
+        }
+
+        private static List<Block> RenderBlocks(MNNMarkdownDocument document, MNNMarkdownTheme theme)
         {
             var blocks = new List<Block>();
-            var paragraph = new StringBuilder();
-            bool code = false;
-            string language = null, fence = null;
-            Action flush = () =>
+            foreach (var source in document.Blocks)
             {
-                if (paragraph.Length == 0)
-                    return;
-                blocks.Add(new Block{Text = paragraph.ToString().TrimEnd('\n'), Code = code, Language = language});
-                paragraph.Clear();
-            };
-            foreach (string line in (text ?? "").Replace("\r\n", "\n").Split('\n'))
-            {
-                string trimmed = line.TrimStart();
-                string marker = trimmed.StartsWith("```") ? "```" : trimmed.StartsWith("~~~") ? "~~~" : null;
-                if ((!code && marker != null) || (code && marker == fence && trimmed.Substring(3).Trim().Length == 0))
+                if (source.Type == MNNMarkdownBlockType.Code)
                 {
-                    flush();
-                    code = !code;
-                    if (code)
-                    {
-                        fence = marker;
-                        language = trimmed.Substring(3).Trim();
-                    }
-                    else
-                    {
-                        language = fence = null;
-                    }
-
+                    blocks.Add(new Block { Text = source.Text, Code = true, Language = source.Language,
+                        RichText = MNNMarkdownRenderer.ToCodeRichText(source.Text, source.Language, theme) });
                     continue;
                 }
-
-                int heading = 0;
-                if (!code)
-                    while (heading < trimmed.Length && heading < 6 && trimmed[heading] == '#')
-                        ++heading;
-                if (!code && heading > 0 && trimmed.Length > heading && trimmed[heading] == ' ')
+                if (source.Type == MNNMarkdownBlockType.Heading)
                 {
-                    flush();
-                    blocks.Add(new Block{Text = trimmed.Substring(heading + 1), Heading = heading});
+                    blocks.Add(new Block { Text = MNNMarkdownRenderer.ToRichText(source, theme), Heading = source.HeadingLevel });
                     continue;
                 }
-
-                if (!code && line.Length == 0)
-                {
-                    flush();
-                    continue;
-                }
-
-                paragraph.Append(line).Append('\n');
+                blocks.Add(new Block { Text = MNNMarkdownRenderer.ToRichText(source, theme) });
             }
-
-            flush();
             return blocks;
         }
 
         internal void Draw(float width)
         {
+            SetTheme(EditorGUIUtility.isProSkin ? MNNMarkdownTheme.Dark : MNNMarkdownTheme.Light);
             foreach (var block in Blocks)
             {
                 if (block.Code)
@@ -98,13 +78,15 @@ namespace MNN.Unity.Editor.UI
                         }
 
                         GUILayout.Space(8);
-                        EditorGUILayout.SelectableLabel(block.Text, MNNStudioUI.Code, GUILayout.Height(Mathf.Max(20, MNNStudioUI.Code.CalcHeight(new GUIContent(block.Text), width - 32) + 2)));
+                        EditorGUILayout.SelectableLabel(block.RichText, MNNStudioUI.MarkdownCode,
+                            GUILayout.Height(Mathf.Max(20, MNNStudioUI.MarkdownCode.CalcHeight(new GUIContent(block.RichText), width - 32) + 2)));
                     }
                 }
                 else
                 {
-                    var style = block.Heading > 0 ? MNNStudioUI.MarkdownHeading : MNNStudioUI.Body;
-                    EditorGUILayout.SelectableLabel(block.Text, style, GUILayout.Height(Mathf.Max(20, style.CalcHeight(new GUIContent(block.Text), width) + 2)));
+                    var richStyle = block.Heading > 0 ? MNNStudioUI.MarkdownHeading : MNNStudioUI.MarkdownBody;
+                    EditorGUILayout.SelectableLabel(block.Text, richStyle,
+                        GUILayout.Height(Mathf.Max(20, richStyle.CalcHeight(new GUIContent(block.Text), width) + 2)));
                 }
 
                 GUILayout.Space(block.Heading > 0 ? 8 : 12);

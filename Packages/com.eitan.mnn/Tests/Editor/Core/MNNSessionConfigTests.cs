@@ -65,6 +65,16 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void CloneOwnsItsSavedTensorSelection()
+        {
+            var original = new MNNSessionConfig {SavedTensors = new[]{"logits", "next_key_0"}};
+            var clone = original.Clone();
+            clone.SavedTensors[1] = "other";
+            Assert.AreEqual("next_key_0", original.SavedTensors[1]);
+            Assert.AreEqual("other", clone.SavedTensors[1]);
+        }
+
+        [Test]
         public void MetalTuningUsesGpuModeIndependentlyOfCpuThreadBudget()
         {
             var config = new MNNSessionConfig { BackendType = MNNBackendType.Metal, ThreadCount = 2, GpuTuningMode = MNNGpuTuningMode.None };

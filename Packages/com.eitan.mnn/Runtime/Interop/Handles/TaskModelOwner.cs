@@ -39,7 +39,8 @@ namespace MNN.Unity.Interop.Handles
                 options.UseCpuForCompatibility(cpuCompatibilityReason);
             try
             {
-                return new TaskModelOwner<T>(options.Load(create), options, create);
+                using (MNNInterop.BeginNativeCall())
+                    return new TaskModelOwner<T>(options.Load(create), options, create);
             }
             catch
             {
@@ -54,6 +55,8 @@ namespace MNN.Unity.Interop.Handles
             {
                 if (_handle == null)
                     throw new ObjectDisposedException(typeof(T).Name);
+                using (MNNInterop.BeginNativeCall())
+                {
                 try
                 {
                     return operation(_handle);
@@ -66,6 +69,7 @@ namespace MNN.Unity.Interop.Handles
                     _handle = _options.Load(_create);
                     return operation(_handle);
                 }
+                }
             }
         }
 
@@ -73,7 +77,8 @@ namespace MNN.Unity.Interop.Handles
         {
             lock (_gate)
             {
-                _handle?.Dispose();
+                using (MNNInterop.BeginNativeCall())
+                    _handle?.Dispose();
                 _handle = null;
                 MNNModelOptions.RemoveOwnedCache(_cache);
             }

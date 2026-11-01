@@ -23,7 +23,7 @@ namespace MNN.Unity.Tests
                 {
                     foreach (bool il2cpp in new[]{false, true})
                     {
-                        bool supported = !il2cpp && (platform == RuntimePlatform.OSXEditor || platform == RuntimePlatform.OSXPlayer);
+                        bool supported = (!il2cpp && (platform == RuntimePlatform.OSXEditor || platform == RuntimePlatform.OSXPlayer)) || (il2cpp && (platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer));
                         yield return new TestCaseData(platform, il2cpp, supported).SetName($"AbiContract_{platform}_{(il2cpp ? "IL2CPP" : "Mono")}");
                     }
                 }
@@ -38,6 +38,13 @@ namespace MNN.Unity.Tests
                 Assert.IsNull(reason);
             else
                 Assert.That(reason, Is.Not.Null.And.Not.Empty);
+        }
+
+        [TestCase(RuntimePlatform.Android), TestCase(RuntimePlatform.IPhonePlayer)]
+        public void Mobile_RejectsNonArm64(RuntimePlatform platform)
+        {
+            Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 8, true, Architecture.X64));
+            Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 4, true, Architecture.Arm));
         }
 
         [TestCase(4, true), TestCase(8, false), TestCase(4, false)]
@@ -72,6 +79,14 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void WaveformAbi_RejectsBeforeDereferencingModelHandles()
+        {
+            Assert.Throws<PlatformNotSupportedException>(() => MNNInterop.GenerateMedia(null, "hello", null, null, true, 32, 16));
+            Assert.Throws<PlatformNotSupportedException>(() => MNNInterop.GenerateChat(null, null, null, null, true, 32, 16));
+            Assert.Throws<PlatformNotSupportedException>(() => MNNInterop.GenerateQwen3Tts(null, "hello", "english", 32, null));
+        }
+
+        [Test]
         public void PlatformGuard_DoesNotInitializeNativeCallbackPointers() => Assert.IsNull(typeof(MNNInterop).TypeInitializer, "Native callback initialization must be deferred until a supported inference call.");
         [Test]
         public void AppleAbi_PublicLayoutsMatchNativeContract()
@@ -86,8 +101,9 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(6, Marshal.OffsetOf<MNNInterop.HalideType>("Lanes").ToInt32());
             Assert.AreEqual(24, Marshal.SizeOf<BackendConfig>());
             Assert.AreEqual(16, Marshal.OffsetOf<BackendConfig>("sharedContext").ToInt32());
-            Assert.AreEqual(96, Marshal.SizeOf<ScheduleConfig>());
-            Assert.AreEqual(88, Marshal.OffsetOf<ScheduleConfig>("backendConfig").ToInt32());
+            Assert.AreEqual(104, Marshal.SizeOf<ScheduleConfig>());
+            Assert.AreEqual(88, Marshal.OffsetOf<ScheduleConfig>("backupType").ToInt32());
+            Assert.AreEqual(96, Marshal.OffsetOf<ScheduleConfig>("backendConfig").ToInt32());
         }
     }
 }

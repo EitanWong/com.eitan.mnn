@@ -1,0 +1,106 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+
+namespace MNN.Unity.Editor
+{
+    internal sealed partial class MNNStudioModel
+    {
+        internal string SupertonicPrecision => new[]{"fp16", "fp32", "int8"}.FirstOrDefault(precision => new[]{"duration_predictor", "text_encoder", "vector_estimator", "vocoder"}.All(stage => File.Exists(Path.Combine(Directory, "mnn_models", precision, stage + ".mnn"))));
+        internal string MmsTamilPrecision = "int8";
+        internal bool IsSana
+        {
+            get
+            {
+                string path = Path.Combine(Directory, "config.json");
+                try
+                {
+                    return File.Exists(path) && JsonUtility.FromJson<Config>(File.ReadAllText(path))?.model_name == "Sana-Distill-v2";
+                }
+                catch (Exception error)when (error is IOException || error is ArgumentException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        internal bool IsPiper
+        {
+            get
+            {
+                try
+                {
+                    return File.Exists(Path.Combine(Directory, "config.json")) && JsonUtility.FromJson<Config>(File.ReadAllText(Path.Combine(Directory, "config.json")))?.model_type == "piper";
+                }
+                catch (Exception error)when (error is IOException || error is ArgumentException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        internal string PiperDataDirectory => MNNPiper.ResolveDataDirectory(Directory, ReadTaskConfig()?.asset_folder);
+        internal bool IsBertVits2 => ReadTaskConfig()?.model_type == "bertvits";
+        internal bool IsCosyVoice300M => TtsProfile == MNNTtsModelProfile.CosyVoice300M;
+        internal bool IsCosyVoice => !IsCosyVoice300M && (File.Exists(Path.Combine(MNNCosyVoiceModel.ResolveDirectory(Directory), "config-cpu-cosyvoice-ras.json")) || string.Equals(Name, "Cosy-Voice-MNN", StringComparison.OrdinalIgnoreCase) || Category == MNNModelCategory.SpeechSynthesis.ToString() && Name.IndexOf("cosyvoice", StringComparison.OrdinalIgnoreCase) >= 0);
+        internal bool IsIndexTts => File.Exists(Path.Combine(Directory, "gpt_prefill_fp16.mnn")) || Name.Equals("IndexTTS-2.5-mnn", StringComparison.OrdinalIgnoreCase);
+        internal bool IsFireRedTts => File.Exists(Path.Combine(Directory, "redae_encoder.mnn")) || Name.Equals("fireredtts3-mnn", StringComparison.OrdinalIgnoreCase);
+        internal bool IsQwen3Explicit => TtsProfile == MNNTtsModelProfile.Qwen3Explicit;
+        internal bool IsIndicF5 => TtsProfile == MNNTtsModelProfile.IndicF5;
+        internal bool IsPocket => TtsProfile == MNNTtsModelProfile.Pocket;
+        internal bool IsDhVaani => TtsProfile == MNNTtsModelProfile.DhVaani;
+        internal bool RequiresReferenceTranscript => IsFireRedTts || IsDhVaani || IsIndicF5;
+        internal bool RequiresReferenceAudio => IsIndexTts || IsFireRedTts || IsDhVaani || IsPocket || IsIndicF5;
+        internal MNNTtsModelProfile TtsProfile
+        {
+            get
+            {
+                if (!_ttsProfile.HasValue)
+                    _ttsProfile = MNNTtsModelProfiles.Detect(Directory, Name);
+                return _ttsProfile.Value;
+            }
+        }
+
+        internal string[] SpeechLanguages
+        {
+            get
+            {
+                if (_speechLanguages != null)
+                    return _speechLanguages;
+                if (IsIndicF5)
+                    return _speechLanguages = new[]{"hi", "ta"};
+                if (IsPocket)
+                    return _speechLanguages = new[]{"en"};
+                if (TtsProfile != MNNTtsModelProfile.Supertonic)
+                    return _speechLanguages = new[]{"zh", "en"};
+                try
+                {
+                    string version = (string)MNNModelData.Get(MNNModelData.Read(Path.Combine(Directory, "mnn_models", "tts.json")), "tts_version");
+                    return _speechLanguages = MNNSupertonic.LanguagesForVersion(version);
+                }
+                catch (Exception error)when (error is IOException || error is ArgumentException || error is UnauthorizedAccessException)
+                {
+                    return _speechLanguages = new[]{"en"};
+                }
+            }
+        }
+
+        private Config ReadTaskConfig()
+        {
+            try
+            {
+                string path = Path.Combine(Directory, "config.json");
+                return File.Exists(path) ? JsonUtility.FromJson<Config>(File.ReadAllText(path)) : null;
+            }
+            catch (Exception error)when (error is IOException || error is ArgumentException)
+            {
+                return null;
+            }
+        }
+
+        internal string[] TtsVoices => (string[])(_ttsVoices ?? (_ttsVoices = ReadTtsVoices())).Clone();
+        private string[] ReadTtsVoices() => IsQwen3Explicit ? MNNQwen3ExplicitTts.InstalledVoices(Directory) : TtsProfile == MNNTtsModelProfile.MossNano ? MNNMossNano.InstalledVoices(Directory) : TtsProfile == MNNTtsModelProfile.SherpaVitsChinese ? MNNSherpaVitsChinese.InstalledVoices(Directory) : TtsProfile == MNNTtsModelProfile.MmsTamil ? new[]{"Tamil"} : TtsProfile == MNNTtsModelProfile.IndicVits ? (string[])MNNIndicVits.SpeakerNames.Clone() : TtsProfile == MNNTtsModelProfile.Kokoro ? MNNKokoro.InstalledVoices(Directory) : RequiresReferenceAudio ? new[]{"Reference audio"} : IsCosyVoice300M || IsCosyVoice ? new[]{"Default"} : IsPiper ? MNNPiper.InstalledVoices(Directory) : IsBertVits2 ? new[]{"Chenxi"} : MNNSupertonic.InstalledVoices(Directory);
+    }
+}

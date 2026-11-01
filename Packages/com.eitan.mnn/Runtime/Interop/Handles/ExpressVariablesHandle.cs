@@ -2,7 +2,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace MNN.Unity.Interop.Handles
 {
-    // Owns the returned vector<VARP> and executor for the explicitly supported Apple ABI.
+    // Owns the returned vector<VARP> and executor for the pinned compiler ABI.
     internal sealed class ExpressVariablesHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         private MNNInterop.CppVector _variables;
@@ -16,17 +16,22 @@ namespace MNN.Unity.Interop.Handles
 
         protected override bool ReleaseHandle()
         {
+            bool released = true;
             try
             {
                 using (_executor.Enter())
                     MNNInterop.DestroyVariables(ref _variables);
-                _executor.Dispose();
-                return true;
             }
             catch
             {
-                return false;
+                released = false;
             }
+            finally
+            {
+                try { _executor.Dispose(); }
+                catch { released = false; }
+            }
+            return released;
         }
     }
 }

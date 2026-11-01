@@ -1,5 +1,5 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP)
-#define MNN_APPLE_CPP_ABI
+#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#define MNN_INFERENCE_CPP_ABI
 #endif
 using System;
 using System.Runtime.InteropServices;
@@ -8,7 +8,7 @@ namespace MNN.Unity.Interop
 {
     internal static partial class MNNInterop
     {
-#if MNN_APPLE_CPP_ABI
+#if MNN_INFERENCE_CPP_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN10getVersionEv")]
         private static extern IntPtr NativeGetVersion();
 #else

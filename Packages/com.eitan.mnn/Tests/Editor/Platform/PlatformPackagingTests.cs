@@ -16,14 +16,14 @@ namespace MNN.Unity.Tests
         [Test]
         public void NativeImports_UseOnlyOfficialCppAndSystemSymbols()
         {
-            var imports = typeof(MNNInterop).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).Select(method => method.GetCustomAttribute<DllImportAttribute>()).Where(import => import != null).ToArray();
+            var imports = typeof(MNNInterop).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).Select(method => method.GetCustomAttribute<DllImportAttribute>()).Where(import => import != null && (import.Value == "MNN" || import.Value == "/usr/lib/libc++.1.dylib")).ToArray();
             if (!MNNPlatformSupport.IsSupported)
             {
                 Assert.IsEmpty(imports, "Unsupported targets must not import Apple C++ symbols.");
                 return;
             }
 
-            Assert.AreEqual(60, imports.Length, "56 bundled MNN/STL and 4 system libc++ imports, including public Express Variable and single-input Module calls.");
+            Assert.AreEqual(70, imports.Length, "66 bundled MNN/STL and 4 system libc++ imports, including direct model loads and Express graph operations.");
             foreach (var import in imports)
             {
                 Assert.AreEqual(CallingConvention.Cdecl, import.CallingConvention, import.EntryPoint);
@@ -53,6 +53,14 @@ namespace MNN.Unity.Tests
                 StringAssert.IsMatch(@"Standalone: Linux64\s+second:\s+enabled: 0", meta);
                 Assert.IsFalse(Regex.IsMatch(meta, @"enabled: 1"), "Wrong-architecture library is enabled.");
             }
+        }
+
+        [TestCase("Windows/x86_64/MNN.dll")]
+        [TestCase("Android/libs/armeabi-v7a/libMNN.so")]
+        public void UnsupportedAbi_PluginImporterIsDisabled(string relativePath)
+        {
+            string meta = File.ReadAllText(Path.Combine(Root, "Runtime/Plugins", relativePath) + ".meta");
+            Assert.IsFalse(Regex.IsMatch(meta, @"enabled: 1"), "No managed ABI is implemented for " + relativePath);
         }
 
         [Test]

@@ -5,7 +5,8 @@
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner",
     "MNN.Unity",
-    "MNN.Unity.Editor"
+    "MNN.Unity.Editor",
+    "MNN.Unity.Tests.Fixtures"
   ],
   "includePlatforms": [
     "Editor"

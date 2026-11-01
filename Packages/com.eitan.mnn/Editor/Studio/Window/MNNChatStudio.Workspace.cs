@@ -84,7 +84,7 @@ namespace MNN.Unity.Editor
 
         private void SelectTask(int task)
         {
-            if (Busy || task == _taskIndex || task < 0 || task >= TaskNames.Length)
+            if (Busy || _audio != null && _audio.IsRecording || task == _taskIndex || task < 0 || task >= TaskNames.Length)
                 return;
             RememberConversation();
             ResetWorkspaceForModelChange();

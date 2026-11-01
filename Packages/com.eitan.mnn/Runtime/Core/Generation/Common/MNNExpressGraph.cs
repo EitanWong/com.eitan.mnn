@@ -9,7 +9,7 @@ using MNN.Unity.Interop.Handles;
 namespace MNN.Unity
 {
     // Public Express Variable APIs for data-dependent graphs without control-flow subgraphs.
-    // STL ownership follows the existing MNN 3.6.1 / Apple libc++ 64-bit ABI contract.
+    // STL ownership follows the existing MNN 3.6.2 / Apple libc++ 64-bit ABI contract.
     internal sealed class MNNExpressGraph : IDisposable
     {
         private readonly Dictionary<string, MNNInterop.CppShared> _byName = new Dictionary<string, MNNInterop.CppShared>(StringComparer.Ordinal);
@@ -17,14 +17,15 @@ namespace MNN.Unity
         private ExpressVariablesHandle _owner;
         private bool _disposed;
         internal MNNBackendType Backend => _executor.Backend;
-        internal MNNExpressGraph(string path, int threads, MNNBackendType backendType = MNNBackendType.Auto)
+        internal MNNExpressGraph(string path, int threads, MNNBackendType backendType = MNNBackendType.Auto, byte[] preparedGraph = null, MNNPrecisionMode precision = MNNPrecisionMode.Normal)
         {
-            _executor = new MNNInterop.ExpressExecutor(threads, backendType);
+            _executor = new MNNInterop.ExpressExecutor(threads, backendType, precision);
             try
             {
                 using (_executor.Enter())
                 {
-                    var variables = MNNInterop.LoadVariables(path);
+                    var variables = preparedGraph == null ? MNNInterop.LoadVariables(path)
+                        : MNNInterop.LoadVariables(preparedGraph, (UIntPtr)(uint)preparedGraph.Length);
                     _owner = new ExpressVariablesHandle(variables, _executor);
                     int count = MNNInterop.VectorCount(variables, 16);
                     for (int i = 0; i < count; ++i)
@@ -51,6 +52,11 @@ namespace MNN.Unity
 
         internal float[] Run(string output, MNNGenerationGraph.Input[] inputs)
         {
+            return RunOutputs(new[] {output}, inputs)[0].Values;
+        }
+
+        internal MNNGenerationGraph.Output[] RunOutputs(string[] outputs, MNNGenerationGraph.Input[] inputs)
+        {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(MNNExpressGraph));
             using (_executor.Enter())
@@ -67,25 +73,32 @@ namespace MNN.Unity
                     }
                     finally
                     {
-                        MNNInterop.ReleaseShared(ref source);
+                        MNNInterop.DestroyVariable(ref source);
                     }
                 }
 
-                if (!_byName.TryGetValue(output, out var result))
-                    throw new InvalidDataException("Missing Express output: " + output);
-                var values = new[]{result};
+                var values = new MNNInterop.CppShared[outputs.Length];
+                for (int i = 0; i < outputs.Length; ++i)
+                    if (!_byName.TryGetValue(outputs[i], out values[i]))
+                        throw new InvalidDataException("Missing Express output: " + outputs[i]);
                 var pin = GCHandle.Alloc(values, GCHandleType.Pinned);
                 try
                 {
                     var address = pin.AddrOfPinnedObject();
-                    MNNInterop.Compute(new MNNInterop.CppVector{Begin = address, End = IntPtr.Add(address, 16), Capacity = IntPtr.Add(address, 16)});
+                    MNNInterop.Compute(new MNNInterop.CppVector{Begin = address, End = IntPtr.Add(address, values.Length * 16), Capacity = IntPtr.Add(address, values.Length * 16)});
                 }
                 finally
                 {
                     pin.Free();
                 }
 
-                return MNNInterop.ReadFloat(result);
+                var results = new MNNGenerationGraph.Output[values.Length];
+                for (int i = 0; i < values.Length; ++i)
+                {
+                    var data = MNNInterop.ReadFloat(values[i], out var shape);
+                    results[i] = new MNNGenerationGraph.Output(data, shape);
+                }
+                return results;
             }
         }
 
@@ -94,6 +107,13 @@ namespace MNN.Unity
             if (_disposed)
                 throw new ObjectDisposedException(nameof(MNNExpressGraph));
             return _byName.Keys.ToArray();
+        }
+
+        internal bool ContainsVariable(string name)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(MNNExpressGraph));
+            return _byName.ContainsKey(name);
         }
 
         private static MNNInterop.CppShared MakeConstant(Array values, int[] shape)

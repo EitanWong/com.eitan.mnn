@@ -7,38 +7,7 @@ namespace MNN.Unity.Editor
     internal static class MNNStudioPiperSettings
     {
         internal const string ExecutablePreference = "MNN.Studio.EspeakPath";
-        internal static string FindExecutable(string modelDirectory)
-        {
-            string installed = MNNPiper.FindEspeak(modelDirectory);
-            if (installed != null)
-                return installed;
-            // Reuse a previously downloaded project dependency, without downloading
-            // or copying tools into Assets/StreamingAssets.
-            for (var current = new DirectoryInfo(modelDirectory); current != null; current = current.Parent)
-                if (current.Name == "Assets" || current.Name == "TestArtifacts~")
-                {
-                    string local = FindProjectExecutable(current.Parent?.FullName);
-                    if (local != null)
-                        return local;
-                    break;
-                }
-
-            return FindProjectExecutable(Path.GetDirectoryName(Application.dataPath));
-        }
-
-        private static string FindProjectExecutable(string projectRoot)
-        {
-            if (string.IsNullOrWhiteSpace(projectRoot))
-                return null;
-            foreach (string relative in new[]{"TestArtifacts~/Dependencies/espeak-ng/run-espeak-ng.sh", "TestArtifacts~/GenerationImplementation/Dependencies/espeak-ng/run-espeak-ng.sh"})
-            {
-                string path = Path.Combine(projectRoot, relative);
-                if (MNNPiper.IsEspeakExecutable(path))
-                    return Path.GetFullPath(path);
-            }
-
-            return null;
-        }
+        internal static string FindExecutable(string modelDirectory) => MNNPiper.FindEspeak(modelDirectory);
 
         internal static string ResolveExecutable(string modelDirectory)
         {
