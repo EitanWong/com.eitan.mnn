@@ -6,6 +6,7 @@ namespace MNN.Examples
     /// <summary>
     /// MNN推理示例
     /// </summary>
+    [AddComponentMenu("MNN/Examples/Inference Example")]
     public class MNNInferenceExample : MonoBehaviour
     {
         [Header("Model Configuration")]

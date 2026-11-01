@@ -13,7 +13,7 @@ namespace MNN.Unity.Editor.UI
         private static bool _dark;
         private static readonly List<Texture2D> Textures = new List<Texture2D>();
         private static GUIStyle _card, _user, _body, _userBody, _userCaption, _caption, _title, _heading, _input;
-        private static GUIStyle _code, _markdownHeading;
+        private static GUIStyle _code, _markdownHeading, _markdownBody, _markdownCode;
         private static Font _codeFont;
         private static GUIStyle _button, _primary, _quiet, _icon, _segment, _selectedSegment, _chip, _placeholder, _navigation, _selectedNavigation, _model;
         internal static Color Background => EditorGUIUtility.isProSkin ? new Color(.13f, .13f, .13f) : Color.white;
@@ -135,6 +135,24 @@ namespace MNN.Unity.Editor.UI
             }
         }
 
+        internal static GUIStyle MarkdownBody
+        {
+            get
+            {
+                Ensure();
+                return _markdownBody;
+            }
+        }
+
+        internal static GUIStyle MarkdownCode
+        {
+            get
+            {
+                Ensure();
+                return _markdownCode;
+            }
+        }
+
         internal static float ContentWidth(float windowWidth) => Mathf.Max(160, Mathf.Min(MaximumContentWidth, windowWidth - 2 * PageInset - 16));
         static MNNStudioUI()
         {
@@ -185,8 +203,10 @@ namespace MNN.Unity.Editor.UI
 
             _code = new GUIStyle(_body)
             {font = _codeFont ?? _body.font, fontSize = 12};
+            _markdownCode = new GUIStyle(_code) {richText = true};
+            _markdownBody = new GUIStyle(_body) {richText = true};
             _markdownHeading = new GUIStyle(_body)
-            {fontSize = 18, fontStyle = FontStyle.Bold};
+            {fontSize = 18, fontStyle = FontStyle.Bold, richText = true};
             _input = new GUIStyle{font = EditorStyles.textArea.font, fontSize = 13, wordWrap = true, padding = new RectOffset(2, 2, 4, 4), margin = new RectOffset(), border = new RectOffset(), normal = {background = null, textColor = Text}, focused = {background = null, textColor = Text}, hover = {background = null, textColor = Text}, active = {background = null, textColor = Text}};
             _placeholder = new GUIStyle(_input)
             {normal = {textColor = SecondaryText}};
@@ -378,26 +398,6 @@ namespace MNN.Unity.Editor.UI
             }
 
             GUILayout.Space(8);
-        }
-    }
-
-    /// <summary>Reusable anchored settings surface; native popup dismissal and Escape behavior.</summary>
-    internal sealed class MNNStudioPopover : PopupWindowContent
-    {
-        private readonly Action _draw;
-        private readonly Vector2 _size;
-        internal MNNStudioPopover(Vector2 size, Action draw)
-        {
-            _size = size;
-            _draw = draw;
-        }
-
-        public override Vector2 GetWindowSize() => _size;
-        public override void OnGUI(Rect rect)
-        {
-            EditorGUI.DrawRect(rect, MNNStudioUI.Background);
-            using (new EditorGUILayout.VerticalScope(MNNStudioUI.Card))
-                _draw();
         }
     }
 }

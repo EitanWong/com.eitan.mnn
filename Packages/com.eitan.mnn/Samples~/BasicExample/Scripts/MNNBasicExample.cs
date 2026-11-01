@@ -6,6 +6,7 @@ namespace MNN.Examples
     /// <summary>
     /// MNN 基础示例：检测 MNN 库是否正确加载
     /// </summary>
+    [AddComponentMenu("MNN/Examples/Basic Status Example")]
     public class MNNBasicExample : MonoBehaviour
     {
         private void Start()

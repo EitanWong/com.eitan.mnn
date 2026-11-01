@@ -26,12 +26,20 @@ def main():
         parser.error("Requires an installed macOS Unity with bundled .NET/Roslyn, monodis and .NET Standard 2.1 references.")
     output = root / "TestArtifacts~/MNNValidation/PlatformValidation/CompileMatrix"
     output.mkdir(parents=True, exist_ok=True)
-    sources = sorted((root / "Packages/com.eitan.mnn/Runtime").rglob("*.cs"))
+    runtime_root = root / "Packages/com.eitan.mnn/Runtime"
+    # Match Unity assembly ownership. Optional nested asmdefs (for example
+    # Burst) compile separately with their declared dependencies/version gates.
+    nested_assemblies = {path.parent for path in runtime_root.rglob("*.asmdef")
+                         if path.parent != runtime_root}
+    sources = sorted(path for path in runtime_root.rglob("*.cs")
+                     if not any(folder in path.parents for folder in nested_assemblies))
     references = sorted(reference_dir.glob("*.dll")) + sorted(
         (contents / "NetStandard/compat/2.1.0/shims/netfx").glob("*.dll")) + sorted(
         (contents / "Managed/UnityEngine").glob("UnityEngine*.dll"))
     common = ["UNITY_2021_3", "UNITY_2021_3_OR_NEWER", "UNITY_2020_1_OR_NEWER",
               "UNITY_2019_1_OR_NEWER", "UNITY_2018_1_OR_NEWER", "NET_STANDARD_2_1"]
+    # Includes the three existing PromptCache official C++ imports (chat
+    # rendering, response(ids), current history). Counts are not a symbol audit.
     cases = []
     for platform, symbol in [("macOS", "UNITY_STANDALONE_OSX"), ("Windows", "UNITY_STANDALONE_WIN"),
                              ("Linux", "UNITY_STANDALONE_LINUX"), ("Android", "UNITY_ANDROID"),
@@ -39,11 +47,11 @@ def main():
         backends = ["IL2CPP"] if platform in ("iOS", "WebGL") else ["Mono", "IL2CPP"]
         for backend in backends:
             cases.append((platform + "-" + backend, [symbol, "ENABLE_" + backend.upper()],
-                          60 if platform == "macOS" and backend == "Mono" else 0))
+                          69 if platform == "macOS" and backend == "Mono" else (72 if platform == "Android" and backend == "IL2CPP" else 71 if platform == "iOS" else 0)))
     # A macOS Editor may target an IL2CPP Player while running Mono itself.
     for platform in ("OSX", "WIN", "LINUX"):
         cases.append(("Editor-" + platform, ["UNITY_EDITOR", "UNITY_EDITOR_" + platform,
-                                            "ENABLE_IL2CPP"], 60 if platform == "OSX" else 0))
+                                            "ENABLE_IL2CPP"], 69 if platform == "OSX" else 0))
     summary = []
     for label, symbols, expected in cases:
         assembly = output / (label + ".dll")
@@ -59,13 +67,20 @@ def main():
             metadata = subprocess.run([str(monodis), "--implmap", str(assembly)],
                                       capture_output=True, text=True, check=True, timeout=30).stdout
             (output / (label + "-imports.txt")).write_text(metadata, encoding="utf-8")
-            match = re.search(r"ImplMap Table \(1\.\.(\d+)\)", metadata)
-            if match:
-                imports = int(match.group(1))
+            platform_api_names = (
+                "SecItemCopyMatching", "SecItemUpdate", "SecItemAdd", "SecItemDelete",
+                "CFDictionaryCreateMutable", "CFDictionarySetValue", "CFStringCreateWithCString",
+                "CFDataCreate", "CFDataGetLength", "CFDataGetBytePtr", "CFRelease",
+                "AppleDlopen", "AppleDlsym", "AppleDlclose", "NNDeviceCount", "NNGetDevice", "NNDeviceName", "NNDeviceType", "NNDeviceFeatureLevel", "CryptProtectData",
+                "CryptUnprotectData", "LocalFree",
+            )
+            imports = sum(1 for line in metadata.splitlines()
+                          if re.match(r"\d+:", line)
+                          and not any(name + "(" in line for name in platform_api_names))
         success = compiled.returncode == 0 and imports == expected
         summary.append({"case": label, "compiled": compiled.returncode == 0,
-                        "native_imports": imports, "expected_imports": expected, "passed": success})
-        print(label + ": " + ("PASS" if success else "FAIL") + "; native imports=" + str(imports))
+                        "mnn_imports": imports, "expected_mnn_imports": expected, "passed": success})
+        print(label + ": " + ("PASS" if success else "FAIL") + "; MNN imports=" + str(imports))
     report = {"kind": "conditional_csharp_compilation_only", "target_player_built": False,
               "device_inference_verified": False, "cases": summary}
     (output / "summary.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

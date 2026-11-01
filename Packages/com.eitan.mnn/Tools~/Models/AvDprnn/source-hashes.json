@@ -1,0 +1,7 @@
+{
+  "networks.py": "5263e43120d32b11dc701142e4708afcbcdb9fda44bc243418e11e040069fb46",
+  "models/av_dprnn/av_dprnn.py": "01ff9f73983a9ef6e9ad814b98123a9e4c68b67fab0055123cc2ae4eb1c87afa",
+  "models/visual_frontend/resnet18.py": "76233bf28ed23e330b7aed3a19a857d292ed7665247b90090ad7a45fcd842b6d",
+  "config/config_VoxCeleb2_lip_dprnn_2spk.yaml": "24a9f4971cd3d3463384b74661829a3da8138e2696b636655e7c9d1a62238a5b",
+  "dataloader/dataset_lip.py": "5e938c9a9db0b8c78a589a017ecdfacc3813696c15388999d9e59d4fe91ec9d4"
+}

@@ -1,0 +1,6 @@
+torch==2.14.0
+onnx==1.16.2
+onnxruntime==1.30.0
+numpy==2.5.3
+rotary-embedding-torch==0.9.1
+einops==0.8.2

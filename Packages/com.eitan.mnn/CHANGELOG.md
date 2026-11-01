@@ -1,7 +1,13 @@
 # Changelog
 
 Notable package changes are recorded here using [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-The package version remains 3.6.1; the development snapshot below is not a new release or tag.
+The package version is 3.6.2.
+
+## [3.6.2] - 2026-11-01
+
+- Updated the bundled official MNN native libraries and compiler ABI contract to upstream tag 3.6.2.
+- Added owned graph adaptation for legacy Qwen3 Embedding causal Attention exports and Apple Qwen3.5 CPU precision defaults.
+- Revalidated macOS arm64/x86_64, Android ARM64 and iOS ARM64 Players; mobile and desktop model evidence is recorded under `TestArtifacts~/` and `Documentation~/MNN362Upgrade.md`.
 
 ## [Unreleased]
 
@@ -17,7 +23,7 @@ The package version remains 3.6.1; the development snapshot below is not a new r
 
 ### Changed
 
-- Current managed interop calls official MNN C++ symbols under the bundled MNN 3.6.1,
+- Current managed interop calls official MNN C++ symbols under the bundled MNN 3.6.2,
   Apple clang / libc++ ABI v1, macOS 11+, 64-bit Mono contract. No new C++ sources,
   custom C exports or companion bridge are introduced. This is not an official portable MNN C# SDK.
 - Auto acceleration prefers available Metal with CPU fallback and task-specific compatibility policies.

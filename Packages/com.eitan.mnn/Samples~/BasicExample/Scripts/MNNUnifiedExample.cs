@@ -7,6 +7,7 @@ namespace MNN.Examples
     /// MNN推理示例 - 统一API，自动优化
     /// 无需关心底层是否有Burst/Collections，自动选择最优实现
     /// </summary>
+    [AddComponentMenu("MNN/Examples/Unified Inference Example")]
     public class MNNUnifiedExample : MonoBehaviour
     {
         [Header("Model Configuration")]

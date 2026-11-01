@@ -56,6 +56,29 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void StreamingTimingsIdentifySlowApplicationCallbacks()
+        {
+            using (var model = MNNLlm.Load(MultimodalTestData.Model("Qwen3.5-0.8B-MNN"),
+                new MNNLlmPerformanceOptions { BackendType = MNNBackendType.CPU, ThreadCount = 4 }))
+            {
+                int updates = 0;
+                var result = model.GenerateConversationStreaming(new[] { new MNNChatMessage(MNNChatRole.User,
+                    "Count from 1 to 5. Output only the numbers.") }, update =>
+                {
+                    ++updates;
+                    Thread.Sleep(20); // A deliberately slow UI/TTS consumer must be visible in diagnostics.
+                }, 24);
+                StringAssert.Contains("5", result.Text);
+                Assert.Greater(updates, 1);
+                Assert.Greater(result.FirstTextMicroseconds, 0);
+                Assert.GreaterOrEqual(result.ProgressCallbackMicroseconds, updates * 18000L);
+                Assert.GreaterOrEqual(result.TextGenerationMicroseconds,
+                    result.FirstTextMicroseconds + result.ProgressCallbackMicroseconds);
+                TestContext.WriteLine($"first_text_us={result.FirstTextMicroseconds}; callback_us={result.ProgressCallbackMicroseconds}; prefill_us={result.PrefillMicroseconds}; decode_us={result.DecodeMicroseconds}; updates={updates}");
+            }
+        }
+
+        [Test]
         public void Stop_PreservesPartialReplyAndAllowsNextInference()
         {
             using (var model = MNNLlm.Load(MultimodalTestData.Model("Qwen3.5-0.8B-MNN")))
@@ -98,6 +121,8 @@ namespace MNN.Unity.Tests
                 {
                     Assert.AreEqual(24000, result.SampleRate);
                     Assert.Greater(result.Waveform.Length, 1000);
+                    Assert.Greater(result.TextGenerationMicroseconds, 0);
+                    Assert.Greater(result.WaveformGenerationMicroseconds, 0);
                 }
             }
         }

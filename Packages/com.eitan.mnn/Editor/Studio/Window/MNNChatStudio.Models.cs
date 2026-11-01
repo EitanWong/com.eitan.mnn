@@ -32,7 +32,7 @@ namespace MNN.Unity.Editor
 
         private void SelectModel(int index)
         {
-            if (Busy || index < 0 || index >= _available.Count || index == _modelIndex)
+            if (Busy || _audio != null && _audio.IsRecording || index < 0 || index >= _available.Count || index == _modelIndex)
                 return;
             string previousExample = TaskExample;
             StopVoiceLoop();
@@ -47,7 +47,7 @@ namespace MNN.Unity.Editor
             ClearGeneratedImage();
             if (!Selected.Supports(MNNModelCapabilities.Vision))
                 _imagePath = null;
-            if (!Selected.Supports(MNNModelCapabilities.AudioInput))
+            if (!Selected.Supports(MNNModelCapabilities.AudioInput) && !Selected.RequiresReferenceAudio)
                 _audioPath = null;
             _error = null;
             _focusComposer = true;

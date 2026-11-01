@@ -1,0 +1,61 @@
+{
+  "tiger": {
+    "repository": "JusperLee/TIGER-speech",
+    "revision": "f0340340b2d9bbf72074edf8c076dcab59a10ba2",
+    "source_revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",
+    "checkpoint_sha256": "7e5fac7a9083c94b3a00c524f323188d4dd19ef09a54c29d1fec12ac114922db",
+    "configuration": {
+      "att_hid_chan": 4,
+      "att_kernel_size": 8,
+      "att_n_head": 4,
+      "att_stride": 1,
+      "in_channels": 256,
+      "num_blocks": 8,
+      "num_sources": 2,
+      "out_channels": 128,
+      "sample_rate": 16000,
+      "stride": 160,
+      "upsampling_depth": 5,
+      "win": 640
+    },
+    "source_sha256": {
+      "LICENSE": "edc64d62aa021be7612337d2ced140375f52e4fd064b2f9cf6e656913d01bfa6",
+      "requirements.txt": "d204741d451b3a1d15af07ab768d250e6c9008b66b579e96c5979569425675f5",
+      "inference_speech.py": "e92c0a09a737a2a359835801a4c5500a2314add524110fb40159d1dfa118799a",
+      "README.md": "200f5d7e7496079b68aeb6b3e1b44d351db001a2c1faaaf8da202bc7d7716a3c",
+      "look2hear/layers/activations.py": "bc3707fd81e8783007b1dfe7fd23f9cdde5fc5c087028a62e7c1415e70d3cfc1",
+      "look2hear/layers/normalizations.py": "5d8305d3b45afde0ff635fd7ebd3fa31a92ff6047ed610a19b9090896cba73b9",
+      "look2hear/models/tiger.py": "a90ec403c5c024a1c6722a5143e0bd37bb642edec0e1506787ea212a65b287fe",
+      "look2hear/models/__init__.py": "937b18b0b30f8a39f0977e5469f401852ea09c94704adabf46c6c1aa2e6e1abb",
+      "look2hear/models/base_model.py": "bbdcdb2ba7c398f9bbbd17caffd7b9f5c3b5f2c6443ddb350b3e3162722a9945"
+    }
+  },
+  "dave": {
+    "repository": "TaurenMountain/DAVE",
+    "revision": "5b7374d735f2fd0353d6d4a6fd8d5051698a26ef",
+    "source_revision": "f0d8fca363d01205912f0c0e68f38821550f9161",
+    "checkpoint_sha256": "131a3b264f283c5d3107042846c4a96bf8c821ca9905cd8fd324a12792a0ed18",
+    "configuration": {
+      "sample_rate": 16000,
+      "in_channels": 512,
+      "out_channels": 256,
+      "num_blocks": 12,
+      "upsampling_depth": 5,
+      "win": 640,
+      "stride": 160,
+      "num_sources": 2
+    },
+    "source_sha256": {
+      "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "DATA_LICENSE.md": "66478b35e853398929ce4f69e37dfc17921e65e3bdbe7891f75727c5d5eb182b",
+      "NOTICE": "9e05d39c0bfb8750db67912c47f40c912de36f2704768751630098160619ab6b",
+      "README.md": "d71cd64f216b013344a3503bdecf9014ba100217ed5d327ddfd546b451b5f9fb",
+      "inference.py": "6fc41cb3cebf2df9d51b62b6ece9b84ba54d22ed53b2e20fb6d920c189c53de5",
+      "reference/README.md": "bd933c549a7c463fd6fb804baba7e575c395c091251396379225b46e615dbc11",
+      "src/models/tiger.py": "fdefd4e27450d2f959a3b76c699899bb778772fdce095169140e3d1320c5838b",
+      "src/models/base_model.py": "ee4bcceecf37603c7984901481363447d3b139f7c4fff150330a188a5bc1a2a9",
+      "src/models/layers/activations.py": "bc3707fd81e8783007b1dfe7fd23f9cdde5fc5c087028a62e7c1415e70d3cfc1",
+      "src/models/layers/normalizations.py": "5d8305d3b45afde0ff635fd7ebd3fa31a92ff6047ed610a19b9090896cba73b9"
+    }
+  }
+}

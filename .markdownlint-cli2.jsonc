@@ -5,6 +5,10 @@
     "MD024": { "siblings_only": true },
     "MD033": false
   },
+  "ignores": [
+    "Packages/com.eitan.mnn/Documentation~/Mt19937License.md",
+    "Packages/com.eitan.mnn/Documentation~/SleefLicense.md"
+  ],
   "globs": [
     "*.md",
     ".github/*.md",

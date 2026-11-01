@@ -179,9 +179,28 @@ namespace MNN.Unity.Editor
             AddFilterTranslation("category.imagegenerationmodel", "Image generation models", "图像生成模型", "画像生成モデル", "이미지 생성 모델");
             AddFilterTranslation("category.textgeneration", "Text generation", "文本生成", "テキスト生成", "텍스트 생성");
             AddFilterTranslation("category.nlp", "Natural language processing", "自然语言处理", "自然言語処理", "자연어 처리");
+            AddFilterTranslation("category.keywordspotting", "Keyword spotting (KWS)", "唤醒词检测（KWS）", "ウェイクワード検出（KWS）", "웨이크 워드 감지 (KWS)");
             AddFilterTranslation("category.audioprocessing", "Audio processing", "音频处理", "音声処理", "오디오 처리");
+            AddFilterTranslation("category.echocancellation", "Echo cancellation (AEC)", "回声消除（AEC）", "エコー除去（AEC）", "에코 제거 (AEC)");
             AddFilterTranslation("category.ocr", "OCR", "OCR", "OCR", "OCR");
             AddFilterTranslation("category.other", "Other models", "其他模型", "その他のモデル", "기타 모델");
+            AddFilterTranslation("category.imagematting", "Image matting", "图像抠图", "画像マッティング", "이미지 매팅");
+            AddFilterTranslation("category.imagerestoration", "Image restoration", "图像复原", "画像復元", "이미지 복원");
+            AddFilterTranslation("category.reconstruction3d", "3D reconstruction", "三维重建", "3D 再構築", "3D 재구성");
+            AddFilterTranslation("category.avataranimation", "Avatar animation", "数字人动画", "アバターアニメーション", "아바타 애니메이션");
+            AddFilterTranslation("category.facelandmarks", "Face landmarks", "人脸关键点", "顔ランドマーク", "얼굴 랜드마크");
+            AddFilterTranslation("category.documentlayout", "Document layout and tables", "文档版面与表格", "文書レイアウト・表", "문서 레이아웃 및 표");
+            AddFilterTranslation("category.imageembedding", "Image and multimodal embeddings", "图像与多模态向量", "画像・マルチモーダル埋め込み", "이미지 및 멀티모달 임베딩");
+            AddFilterTranslation("category.videogeneration", "Video generation", "视频生成", "動画生成", "동영상 생성");
+            AddFilterTranslation("category.modelcollection", "Model collections", "模型合集", "モデルコレクション", "모델 모음");
+            AddFilterTranslation("category.runtimeresources", "Runtime resources", "运行库资源", "ランタイムリソース", "런타임 리소스");
+            AddFilterTranslation("category.modeldiagnostics", "Model diagnostics", "模型诊断样本", "モデル診断", "모델 진단");
+            AddFilterTranslation("category.translation", "Translation", "机器翻译", "翻訳", "번역");
+            AddFilterTranslation("category.depthestimation", "Depth estimation", "深度估计", "深度推定", "깊이 추정");
+            AddFilterTranslation("category.robotics", "Robotics", "机器人", "ロボティクス", "로보틱스");
+            AddFilterTranslation("category.audiogeneration", "Audio generation", "音频生成", "音声生成", "오디오 생성");
+            AddFilterTranslation("category.speakerrecognition", "Speaker recognition", "说话人识别", "話者認識", "화자 인식");
+            AddFilterTranslation("category.documentrectification", "Document rectification", "文档矫正", "文書の歪み補正", "문서 보정");
             // 模型详情字段
             AddTranslation("detail.name", new Dictionary<SystemLanguage, string>{{SystemLanguage.English, "Name:"}, {SystemLanguage.Chinese, "名称："}, {SystemLanguage.Japanese, "名前："}, {SystemLanguage.Korean, "이름:"}});
             AddTranslation("detail.category", new Dictionary<SystemLanguage, string>{{SystemLanguage.English, "Category:"}, {SystemLanguage.Chinese, "类别："}, {SystemLanguage.Japanese, "カテゴリー："}, {SystemLanguage.Korean, "카테고리:"}});

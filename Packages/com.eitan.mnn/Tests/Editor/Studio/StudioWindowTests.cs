@@ -343,6 +343,7 @@ namespace MNN.Unity.Tests
             Field("_autoTitle").SetValue(window, false);
             try
             {
+                Field("_taskIndex").SetValue(window, (int)MNNStudioTask.Chat);
                 Field("_available").SetValue(window, new List<MNNStudioModel>{new MNNStudioModel("Text-MNN", ".", MNNStudioTask.Chat, MNNModelCapabilities.Text)});
                 Field("_modelNames").SetValue(window, new[]{"Text"});
                 Field("_session").SetValue(window, session);

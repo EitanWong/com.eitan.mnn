@@ -24,7 +24,17 @@ if any(symbol.startswith("_MNN_") for symbol in current):
     raise SystemExit("Custom C exports found: rebuild from official MNN sources in a clean directory.")
 listing = root / "official-symbols.txt"
 listing.write_text("\n".join(sorted(current | set(required))) + "\n")
-command = shlex.split((root / "CMakeFiles/MNN.dir/link.txt").read_text())
+link_file = root / "CMakeFiles/MNN.dir/link.txt"
+if link_file.exists():
+    command = shlex.split(link_file.read_text())
+else:
+    # Ninja does not produce link.txt. Its last command is the shared-library
+    # link, wrapped in ': && <compiler> ... && :'. Execute only that invocation.
+    lines = subprocess.check_output(["ninja", "-t", "commands", "libMNN.dylib"], cwd=root, text=True).splitlines()
+    words = shlex.split(lines[-1])
+    start = words.index("&&") + 1
+    end = words.index("&&", start)
+    command = words[start:end]
 command.append("-Wl,-exported_symbols_list," + str(listing))
 subprocess.run(command, cwd=root, check=True)
 missing = set(required) - exports()

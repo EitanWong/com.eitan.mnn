@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using MNN.Unity.Editor;
 using NUnit.Framework;
@@ -50,6 +51,21 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(MNNStudioTask.ImageGeneration, models[0].Task);
             Assert.AreEqual(directory, models[0].Directory);
             Assert.False(MNNStudioTasks.Get(0).Accepts(models[0]));
+        }
+
+        [Test]
+        public void InstalledCommunityRepositoryExposesNestedLanguageVariants()
+        {
+            string directory = Repository("hf-community-model", MNNModelDownloadTasks.InstallMarker,
+                "int4/config.json", "int4/llm_config.json", "int4/tokenizer.txt", "int4/llm.mnn",
+                "int8/config.json", "int8/llm_config.json", "int8/tokenizer.mtok", "int8/llm.mnn");
+            File.WriteAllText(Path.Combine(directory, "int8/config.json"), "{\"tokenizer_file\":\"tokenizer.mtok\"}");
+            File.WriteAllText(Path.Combine(directory, MNNModelDownloadTasks.InstallMarker), "hf:community/model@revision");
+            var models = MNNStudioModel.Discover(new[] {_root, directory});
+            Assert.AreEqual(3, models.Count, "One catalog folder and two independently selectable language variants.");
+            Assert.AreEqual(2, models.Count(model => model.Task == MNNStudioTask.Chat));
+            Assert.IsTrue(models.Any(model => model.Name == "hf-community-model/int4"));
+            Assert.IsTrue(models.Any(model => model.Name == "hf-community-model/int8"));
         }
 
         [Test]
@@ -144,7 +160,7 @@ namespace MNN.Unity.Tests
         public void TtsRecommendationsAreStandaloneModelsAndDiffusionHasSeparateRequirements()
         {
             var tts = MNNStudioTasks.Get((int)MNNStudioTask.SpeechSynthesis);
-            CollectionAssert.AreEquivalent(new[]{"MNN/supertonic-tts-mnn", "MNN/bert-vits2-MNN", "MNN/piper-voices-MNN"}, tts.Repositories);
+            CollectionAssert.AreEquivalent(new[]{MNNVerifiedTtsModel.Qwen3ExplicitRepository, MNNReferenceSpeechModel.IndexRepository, MNNReferenceSpeechModel.FireRedRepository, MNNCosyVoiceModel.Repository, "MNN/supertonic-tts-mnn", "MNN/bert-vits2-MNN", "MNN/piper-voices-MNN"}, tts.Repositories);
             foreach (string id in tts.Repositories)
                 Assert.True(tts.MatchesCatalog(new MNNModelInfo{modelScopeId = id}));
             Assert.False(tts.MatchesCatalog(new MNNModelInfo{modelScopeId = "MNN/Qwen2.5-Omni-3B-MNN"}));

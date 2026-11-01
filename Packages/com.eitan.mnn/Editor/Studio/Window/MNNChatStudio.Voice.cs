@@ -161,6 +161,7 @@ namespace MNN.Unity.Editor
 
         private void StopReply()
         {
+            StopKeywordListening();
             _session?.StopGeneration();
             if (!_voicePanel)
                 StopVoiceLoop();

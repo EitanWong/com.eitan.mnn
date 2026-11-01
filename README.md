@@ -2,17 +2,18 @@
 
 [![Repository checks](https://github.com/EitanWong/com.eitan.mnn/actions/workflows/package-structure.yml/badge.svg?branch=dev)](https://github.com/EitanWong/com.eitan.mnn/actions/workflows/package-structure.yml)
 
-Unity bindings and editor tools for [MNN](https://github.com/alibaba/MNN) 3.6.1:
-local tensor inference, language and multimodal models, retrieval, speech synthesis,
-and image generation. Model Manager handles model downloads; Chat Studio provides
-an editor workspace for inference and conversations.
+Unity bindings and editor tools for [MNN](https://github.com/alibaba/MNN) 3.6.2.
+The package includes tensor inference, language and multimodal APIs, retrieval,
+speech and image generation, model management, and Chat Studio. It requires Unity
+2021.3 or later.
 
 [简体中文](Packages/com.eitan.mnn/Documentation~/translations/README.zh-CN.md) · [Documentation](Packages/com.eitan.mnn/Documentation~/README.md) · [Changelog](CHANGELOG.md)
 
 ## Requirements
 
 - Unity 2021.3 or later; validation uses Unity 2021.3.45f2.
-- macOS 11+ with 64-bit Mono for the committed managed inference bindings.
+- macOS 11+ with 64-bit Mono, or supported Android/iOS ARM64 IL2CPP configurations;
+  see the [package README](Packages/com.eitan.mnn/README.md) for task-specific limits.
 - A compatible model, obtained separately under its own license.
 
 The bindings call official MNN C++ symbols under the bundled compiler/ABI contract.
@@ -23,9 +24,9 @@ Other-platform plugin files do not establish managed inference support. Check th
 
 ## Development status
 
-The current development snapshot has a [known clean-build blocker](Packages/com.eitan.mnn/Documentation~/development/ContinuousIntegration.md#known-clean-build-blocker)
-in OmniVoice. Static checks do not establish that the package compiles; this snapshot
-is not release-ready.
+The isolated Unity 2021.3.45f2 macOS ARM64 PlayMode run passes the platform
+contract and bundled affine inference tests. Other model and device coverage is
+documented in the [validation scope](Packages/com.eitan.mnn/Documentation~/Testing.md).
 
 ## Install
 

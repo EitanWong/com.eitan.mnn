@@ -23,7 +23,7 @@ MODELS = (
     "Qwen3-Embedding-0.6B-MNN",
     "Qwen3-Reranker-0.6B-MNN",
 )
-EXPECTED_TESTS = 30
+EXPECTED_TESTS = 34
 REPRESENTATIVE_FIXTURES = (
     "MNNLlmIntegrationTests", "VisionModelTests", "OmniModelTests",
     "AudioModelTests", "EmbeddingModelTests", "RerankerModelTests",
@@ -78,6 +78,7 @@ def main():
                MNN_TEST_MODEL_ROOT=str(model_root),
                MNN_TEST_ARTIFACT_ROOT=str(output),
                MNN_TEST_FIXTURE_ROOT=str(fixtures),
+               MNN_INFERENCE_CACHE_DIRECTORY=str(output / "InferenceCache"),
                MNN_REQUIRE_MODEL_TESTS="1")
     try:
         completed = subprocess.run(command, env=env, timeout=1800, check=False)

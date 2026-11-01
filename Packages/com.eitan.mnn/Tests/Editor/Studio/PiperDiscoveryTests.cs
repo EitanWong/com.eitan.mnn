@@ -49,7 +49,7 @@ namespace MNN.Unity.Tests
             string root = Path.GetFullPath("TestArtifacts~/PiperDiscovery/" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(root, "bin"));
             string tool = Path.Combine(root, "bin/espeak-ng");
-            File.WriteAllText(tool, "#!/bin/sh\nexit 0\n");
+            WriteTool(tool);
             try
             {
                 Assert.AreEqual(tool, MNNPiper.FindEspeak(root));
@@ -73,7 +73,7 @@ namespace MNN.Unity.Tests
             string dictionary = Path.Combine(data, "af_dict");
             File.WriteAllText(dictionary, "dictionary data");
             string tool = Path.Combine(root, "espeak-ng");
-            File.WriteAllText(tool, "#!/bin/sh\nexit 0\n");
+            WriteTool(tool);
             string key = MNNStudioPiperSettings.ExecutablePreference;
             bool had = EditorPrefs.HasKey(key);
             string old = EditorPrefs.GetString(key, "");
@@ -85,10 +85,10 @@ namespace MNN.Unity.Tests
                 // A corrupt model-local tool must not mask a valid environment tool.
                 File.WriteAllText(tool, "not a program");
                 string wrapper = Path.Combine(root, "wrapper.sh");
-                File.WriteAllText(wrapper, "#!/bin/sh\nexit 0\n");
+                WriteTool(wrapper);
                 Environment.SetEnvironmentVariable("MNN_ESPEAK_NG_PATH", wrapper);
                 Assert.AreEqual(wrapper, MNNPiper.FindEspeak(root));
-                File.WriteAllText(tool, "#!/bin/sh\nexit 0\n");
+                WriteTool(tool);
                 EditorPrefs.SetString(key, dictionary);
                 Assert.AreEqual(tool, MNNStudioPiperSettings.ResolveExecutable(root));
                 Assert.False(EditorPrefs.HasKey(key), "Invalid legacy executable preferences must be removed automatically.");
@@ -107,6 +107,14 @@ namespace MNN.Unity.Tests
                     EditorPrefs.DeleteKey(key);
                 Directory.Delete(root, true);
             }
+        }
+
+        private static void WriteTool(string path)
+        {
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+                File.WriteAllBytes(path, new byte[]{0x4d, 0x5a, 0, 0});
+            else
+                File.WriteAllText(path, "#!/bin/sh\nexit 0\n");
         }
 
         [UnityTest]

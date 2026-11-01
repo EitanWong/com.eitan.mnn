@@ -69,13 +69,28 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
-        public void SpeechAvailability_RequiresVerifiedTalkerContract()
+        public void SpeechAvailability_RequiresImplementedWaveformAbi()
         {
             var supported = MNNStudioModel.Read(Model("custom", "{\"is_visual\":true,\"is_audio\":true,\"has_talker\":true,\"image_pad\":151655,\"hidden_size\":2048}"));
             Assert.AreEqual("Omni", supported.CapabilityLabel);
-            Assert.That(supported.Supports(MNNModelCapabilities.SpeechOutput));
+            Assert.IsFalse(supported.Supports(MNNModelCapabilities.SpeechOutput));
             var future = MNNStudioModel.Read(Model("Qwen-New-Omni", "{\"is_visual\":true,\"is_audio\":true,\"has_talker\":true,\"talker_type\":\"new\"}"));
             Assert.That(!future.Supports(MNNModelCapabilities.SpeechOutput));
+        }
+
+        [Test]
+        public void IncompleteCosyVoiceInstall_IsDiscoveredButNotReportedRunnable()
+        {
+            string directory = Path.Combine(_root, "Cosy-Voice-MNN");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, MNNModelDownloadTasks.InstallMarker), "hf:VicenTrent/Cosy-Voice-MNN@revision");
+
+            var model = MNNStudioModel.Read(directory);
+
+            Assert.AreEqual(MNNStudioTask.SpeechSynthesis, model.Task);
+            Assert.IsTrue(model.IsCosyVoice);
+            Assert.IsFalse(model.HasGenerationPipeline);
+            StringAssert.Contains("verify and extract", MNNStudioTasks.Get((int)MNNStudioTask.SpeechSynthesis).UnavailableReason);
         }
 
         [Test]
@@ -130,6 +145,15 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void Response_CleansModelAnswerEnvelopeIncludingStreamingPartialText()
+        {
+            Assert.AreEqual("最终答案", MNNStudioPrompt.CleanResponse("<answer>\n最终答案\n</answer>"));
+            Assert.AreEqual("最终答案", MNNStudioPrompt.CleanResponse("<answer>\n最终答案"));
+            Assert.AreEqual("最终答案", MNNStudioPrompt.CleanResponse("<think>\n\n</think>\n<answer>\n最终答案\n</answer>"));
+            Assert.AreEqual("plain response", MNNStudioPrompt.CleanResponse("plain response"));
+        }
+
+        [Test]
         public void Prompt_MergesConsecutiveUsersAfterCancelledOrFailedTurn()
         {
             var pending = new List<MNNStudioMessage>{new MNNStudioMessage(true, "First unanswered question")};
@@ -147,6 +171,7 @@ namespace MNN.Unity.Tests
             File.WriteAllText(Path.Combine(model, "config.json"), "{\"sampler_type\":\"mixed\",\"mixed_samplers\":[\"topK\",\"topP\"],\"topK\":20}");
             var runtime = MNN.Unity.MNNModelOptions.Prepare(model, 4, false, Path.Combine(_root, "runtime"), MNN.Unity.MNNPrecisionMode.Normal);
             var studio = MNN.Unity.MNNModelOptions.Prepare(model, 4, false, Path.Combine(_root, "studio"), MNN.Unity.MNNPrecisionMode.Normal, true);
+            var asr = MNN.Unity.MNNModelOptions.Prepare(model, 4, false, Path.Combine(_root, "asr"), MNN.Unity.MNNPrecisionMode.Normal, speechRecognition: true);
             StringAssert.Contains("greedy", runtime.Json);
             StringAssert.Contains("penalty", studio.Json);
             StringAssert.Contains("repetition_penalty", studio.Json);
@@ -154,6 +179,9 @@ namespace MNN.Unity.Tests
             StringAssert.Contains("topK", studio.Json);
             StringAssert.Contains("topP", studio.Json);
             StringAssert.DoesNotContain("mixed_samplers:null", studio.Json);
+            StringAssert.Contains("greedy", asr.Json);
+            StringAssert.IsMatch("\"repetition_penalty\":1(?:\\.0)?[,}]", asr.Json);
+            StringAssert.Contains("1.1", runtime.Json, "ASR settings must not change ordinary text generation.");
         }
 
         [Test]
@@ -205,6 +233,8 @@ namespace MNN.Unity.Tests
             internal readonly ManualResetEventSlim Gate = new ManualResetEventSlim(false);
             internal int DisposalCount, InferenceThread;
             internal bool Fail;
+            internal float[] Waveform = Array.Empty<float>();
+            internal int SampleRate;
             public MNNStudioResult Run(MNNStudioRequest request)
             {
                 InferenceThread = Thread.CurrentThread.ManagedThreadId;
@@ -212,7 +242,7 @@ namespace MNN.Unity.Tests
                     throw new TimeoutException("Test worker timed out.");
                 if (Fail)
                     throw new InvalidOperationException("Inference failed");
-                return new MNNStudioResult{Text = request.Prompt};
+                return new MNNStudioResult{Text = request.Prompt, Waveform = Waveform, SampleRate = SampleRate};
             }
 
             public void Dispose()
@@ -231,6 +261,41 @@ namespace MNN.Unity.Tests
             }
 
             Assert.IsFalse(session.Busy, "The worker must complete.");
+        }
+
+        [UnityTest]
+        public IEnumerator Session_MeasuresAudioRtfForAnyBackend()
+        {
+            var backend = new ControlledBackend{Waveform = new float[48000], SampleRate = 24000};
+            using (var session = new MNNStudioSession(backend))
+            {
+                backend.Gate.Set();
+                session.Send(new MNNStudioRequest{Prompt = "speech"});
+                yield return Drain(session);
+                Assert.IsNull(session.Error);
+                Assert.AreEqual(2, session.Result.AudioSeconds);
+                Assert.Greater(session.Result.Seconds, 0);
+                Assert.AreEqual(session.Result.Seconds / 2, session.Result.RealTimeFactor.Value);
+            }
+        }
+
+        [Test]
+        public void RtfRequiresCompletedAudioAndFinitePositiveTiming()
+        {
+            var result = new MNNStudioResult{Seconds = 1, AudioSeconds = 2};
+            Assert.AreEqual(.5, result.RealTimeFactor);
+            result.Cancelled = true;
+            Assert.IsNull(result.RealTimeFactor);
+            result.Cancelled = false;
+            foreach (double invalid in new[]{0d, -1d, double.NaN, double.PositiveInfinity})
+            {
+                result.Seconds = invalid;
+                Assert.IsNull(result.RealTimeFactor);
+                result.Seconds = 1;
+                result.AudioSeconds = invalid;
+                Assert.IsNull(result.RealTimeFactor);
+                result.AudioSeconds = 2;
+            }
         }
 
         [UnityTest]

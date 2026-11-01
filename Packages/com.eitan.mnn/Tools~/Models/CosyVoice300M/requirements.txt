@@ -1,0 +1,11 @@
+# Tested with Python 3.12.14. Use an isolated environment under TestArtifacts~/.
+# MNN 3.6.1 additionally needs a matching official libMNN; see README.md.
+numpy==2.5.4
+torch==2.8.0
+torchaudio==2.8.0
+MNN==3.6.1
+onnx==1.23.2
+onnxruntime==1.31.0
+scipy==1.18.1
+einops==0.8.2
+tiktoken==0.14.0

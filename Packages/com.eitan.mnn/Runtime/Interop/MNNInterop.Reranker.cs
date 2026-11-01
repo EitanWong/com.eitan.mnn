@@ -1,6 +1,3 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP)
-#define MNN_APPLE_CPP_ABI
-#endif
 using System;
 using System.Runtime.InteropServices;
 using MNN.Unity.Interop.Handles;
@@ -9,12 +6,6 @@ namespace MNN.Unity.Interop
 {
     internal static partial class MNNInterop
     {
-#if MNN_APPLE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKNSt3__16vectorIiNS2_9allocatorIiEEEEb")]
-        private static extern IndirectShared ForwardIds(IntPtr model, ref CppVector ids, [MarshalAs(UnmanagedType.I1)] bool prefill);
-#else
-        private static IndirectShared ForwardIds(IntPtr model, ref CppVector ids, [MarshalAs(UnmanagedType.I1)] bool prefill) => throw UnsupportedAbi();
-#endif
         internal static RerankerHandle MNN_Reranker_create(string config, string options)
         {
             IntPtr model = OpenLlm(config, options, true);

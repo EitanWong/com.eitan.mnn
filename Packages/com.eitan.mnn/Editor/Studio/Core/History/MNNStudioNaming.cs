@@ -17,7 +17,7 @@ namespace MNN.Unity.Editor
 
         internal static string CleanTitle(string text)
         {
-            text = text ?? "";
+            text = MNNStudioPrompt.CleanResponse(text);
             int think = text.LastIndexOf("</think>", StringComparison.Ordinal);
             if (think >= 0)
                 text = text.Substring(think + 8);

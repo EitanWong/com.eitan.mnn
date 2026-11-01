@@ -26,3 +26,5 @@
 *.asset merge=unityyamlmerge eol=lf whitespace=-blank-at-eol
 *.meta merge=unityyamlmerge eol=lf whitespace=-blank-at-eol
 *.controller merge=unityyamlmerge eol=lf
+# Preserve whitespace in bundled upstream MNN headers.
+Packages/com.eitan.mnn/Runtime/Plugins/iOS/MNN.xcframework/**/Headers/llm/reranker.hpp whitespace=-blank-at-eol

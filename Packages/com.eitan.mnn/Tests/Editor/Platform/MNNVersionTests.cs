@@ -5,7 +5,7 @@ namespace MNN.Unity.Tests
     public class MNNVersionTests
     {
         [Test]
-        public void GetVersion_ReturnsEngineVersion() => StringAssert.StartsWith("3.6.", MNNVersion.GetVersion());
+        public void GetVersion_ReturnsEngineVersion() => Assert.AreEqual("3.6.2", MNNVersion.GetVersion());
         [Test]
         public void IsLoaded_ReturnsTrue() => Assert.IsTrue(MNNVersion.IsLoaded());
         [Test]

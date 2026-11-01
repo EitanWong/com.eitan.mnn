@@ -1,5 +1,8 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP)
-#define MNN_APPLE_CPP_ABI
+#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#define MNN_LLM_CPP_ABI
+#endif
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
+#define MNN_MOBILE_LLM_CPP_ABI
 #endif
 using System;
 using System.Runtime.InteropServices;
@@ -10,7 +13,7 @@ namespace MNN.Unity.Interop
 {
     internal static partial class MNNInterop
     {
-#if MNN_APPLE_CPP_ABI
+#if MNN_LLM_CPP_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8generateEi")]
         private static extern void GenerateStep(IntPtr model, int count);
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm6stopedEv")]
@@ -23,10 +26,12 @@ namespace MNN.Unity.Interop
         // Official llm_demo.cpp uses response(..., 0) followed by generate(1).
         // Context snapshots are read only BETWEEN synchronous calls on the owning worker.
         // No ostream implementation, native polling thread or custom C++ code is involved.
-        private static bool DecodeStreaming(IntPtr model, int limit, Action<MNNGenerationUpdate> progress, CancellationToken cancellation)
+        private static bool DecodeStreaming(IntPtr model, int limit, Action<string, int> progress, bool deltas, CancellationToken cancellation)
         {
             int previousCount = -1;
-            string previousText = null;
+            int consumedBytes = 0;
+            var decoder = new MNNStreamingText(deltas);
+            byte[] buffer = Array.Empty<byte>();
             for (int step = 0; step < limit; ++step)
             {
                 if (cancellation.IsCancellationRequested)
@@ -35,11 +40,12 @@ namespace MNN.Unity.Interop
                 var context = ReadContext(model);
                 CheckGeneration(context);
                 int count = VectorCount(context.Output, 4);
-                string text = DecodeCompleteUtf8(StringBytes(ref context.GeneratedText));
-                if (text != previousText)
+                int appended = CopyStringBytes(ref context.GeneratedText, consumedBytes, ref buffer);
+                consumedBytes = checked(consumedBytes + appended);
+                string text = decoder.Append(buffer, appended);
+                if (text != null)
                 {
-                    progress?.Invoke(new MNNGenerationUpdate(text, count));
-                    previousText = text;
+                    progress?.Invoke(text, count);
                 }
 
                 if (GenerationStopped(model))
