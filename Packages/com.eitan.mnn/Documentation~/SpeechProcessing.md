@@ -1,7 +1,7 @@
 # 语音处理模型与验证范围
 
 模型目录使用 `Assets/StreamingAssets/MNN/Models/<名称>-MNN`，每个目录独立保存 MNN 图、必要配置、README、许可证和 SHA-256 清单。
-原始 ONNX/PyTorch、参考输出、候选图和日志保存在工程 `TestArtifacts~/SpeechModels`，不放入部署目录。
+原始权重在 `Assets/StreamingAssets/MNN/Models/.conversion-source` 临时取得，消费者完成后校验并清理；来源收据、参考输出、候选图和日志保存在 `TestArtifacts~/SpeechModels`。
 Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 不打包任何模型。
 
 ## 托管接口
@@ -132,6 +132,8 @@ Mayavoz DCCRN的原构造器将多个归一化buffer指向同一张量，默认c
 Resemble完整增强器在本机两种后端顺序、real→maximum→real共48次完整调用中，源PCM最大NRMSE4.116614065911359e-5；六组CPU/Metal热调用中位耗时比均为2.4058–2.5875，因此Auto使用可用Metal，否则CPU4。real/maximum/返回real的CPU中位数为32646.594/101946.634/32575.509ms，Metal为13376.011/39414.312/13343.706ms。七张图与共享权重由2,035,366,849降至1,481,606,628字节，保留相同逻辑权重与语义指纹。CPU最大输入的一次vmmap约20.1GiB物理占用与当时peak、性能进程1Hz最大RSS12,020,285,440字节是不同指标，均不是部署内存上界；实际Player的单次Metal采样另报告physical footprint36.9G及当时peak37.5G，保留系统原始单位，不能与RSS混为一谈。最终七组CoreML阶段尝试CPU对照通过，但CoreML全部无有效输出，未验证ANE放置；详见模型README。
 
 ## 尚未通过的候选
+
+2026-11-01，Falcon 与 Falcon-Big 使用作者固定版本的 Studio inference copy，分别严格加载11,724,385和12,345,305参数。契约为16kHz两秒PCM配50帧96×96灰度嘴图，中心裁88×88；原始21条件加首条返回均有限且重复逐元素一致。只拆STFT/ISTFT边界的Torch神经图与原完整波形22/22误差为零，但实际MNN CPU1/High分别仅21/22和14/22通过预定NRMSE<0.001，最大误差0.00172420362与0.01558470829。独立ONNX Runtime也失败；原视觉特征交叉诊断确认音频网络自身即可越过门槛。官方`--useOriginRNNImpl`解决默认While形状失败，未解决完整数值资格。FP16/Q8/Normal/Low四条件诊断失败，Metal音频误差很大，CoreML无有效输出。两者未部署、未新增Unity/Studio入口，也未计入49项。原始`.pt`共96,801,430字节已校验清理；各自研究目录的`candidate-status-v398.json`、README与清理收据保留全部证据。没有放宽门槛、删去失败输入或用源神经输出代替转换结果。
 
 DAVE公开的 `real_avse_tiger_m.ckpt` 是双源音频TIGER-M主干，不包含完整视觉目标归属组件。25条原始Spectrum与导出改写在Torch2.8/CPU1逐位一致，但MNN CPU、Metal以及ONNX Runtime均在479–481样本边界未通过固定NRMSE<0.001门槛。原始Torch本身把CPU1改为CPU4时，480样本频谱NRMSE变为约0.12479；短输入对浮点归约和12次循环误差敏感。候选及诊断保留在 `TestArtifacts~/SpeechModels/DAVE-TIGER-M-16K`，尚未部署、接入或计入完成；没有放宽门槛或删去失败输入。
 
