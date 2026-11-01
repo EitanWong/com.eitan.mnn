@@ -127,6 +127,19 @@ class PublicationAuditTests(unittest.TestCase):
         self.refresh()
         self.assertIn('Player runtime file hash', self.errors())
 
+    def test_cuelight_coefficients_require_matching_player_snapshot(self):
+        name = 'cuelight_coefficients.bin'
+        (self.model / name).write_bytes(b'fixture coefficients')
+        self.refresh()
+        self.assertIn('Player runtime file coverage', self.errors())
+        self.optimization['player_validation']['runtime_files'].append(
+            {'path': name, 'sha256': hashlib.sha256((self.model / name).read_bytes()).hexdigest()})
+        self.refresh()
+        self.assertEqual('', self.errors())
+        (self.model / name).write_bytes(b'changed coefficients')
+        self.refresh()
+        self.assertIn('Player runtime file hash', self.errors())
+
     def test_documentation_update_does_not_invalidate_runtime_snapshot(self):
         (self.model / 'README.md').write_text('updated validation explanation')
         self.refresh()

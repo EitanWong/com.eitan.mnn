@@ -64,9 +64,11 @@ MODEL_NAMES = (
     "VoxTurn-v1-MNN",
     "Resemble-Enhance-44K-MNN",
     "LS-EEND-Simu-8K-MNN",
+    "CueLight-Nano-MNN",
 )
 RUNTIME_BINARY_FILES = frozenset((
     "ls_eend_coefficients.bin",
+    "cuelight_coefficients.bin",
     "embeddings_bf16.bin", "mel-window.bin", "mel-filters.bin",
     "rotary-cos.bin", "rotary-sin.bin", "head-weight.bin", "head-bias.bin",
 ))

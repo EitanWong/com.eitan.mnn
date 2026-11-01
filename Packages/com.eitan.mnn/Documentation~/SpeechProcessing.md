@@ -25,6 +25,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 | 双说话人波形分离 | `MNNMossFormer2Separation.Separate` / `MNNSepFormerSeparation.Separate` / `MNNConvTasNetSeparation.Separate` / `MNNDprnnSeparation.Separate` / `MNNSudoRmRfSeparation.Separate` | Audio processing，预览第一个音轨 |
 | 音视频目标说话人提取 | `MNNAvMossFormer2Tse.Extract` | 混合 WAV + 有序 PNG/JPEG 人脸帧文件夹 |
 | 四说话人活动时间线 | `MNNSortformerDiarization.Analyze` / `AnalyzeWaveFile` | Audio processing，10ms–60秒完整WAV；内部原同步缓存策略 |
+| 流式语音活动/轮次结束 | `MNNCueLightTurnDetector.Push` / `Analyze` / `AnalyzeWaveFile` | Audio processing，16kHz mono；20ms逐帧、自动重置/18帧replay、snappy/careful端点时间线 |
 | LS-EEND说话人活动时间线 | `MNNLsEendDiarization.Analyze` / `AnalyzeWaveFile` / `MNNLsEendActivity.ToRttm` | Audio processing，8kHz mono、1–480000样本；保留9个posterior列、严格0.5阈值和11帧median |
 | 声纹向量 | `MNNSpeakerEmbedding` / `MNNWeSpeakerEmbedding` | Speaker recognition |
 | VAD | `MNNSileroVad` / `MNNFsmnVad` / `MNNMarbleNetVad` | Audio processing |
@@ -42,6 +43,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 
 | 模型 | 独立参考 | CPU 输出误差 | Metal 输出误差 | 当前选择 |
 |---|---|---:|---:|---|
+| CueLight Nano | 原始严格50键/485590参数、22条件加首条返回；Editor8/8与独立Player116/116 | 全六冷状态/默认概率最大3.18289e-5，reset/端点事件全相同 | 准确激活图5.18560e-6，事件全相同 | 两张FP32图/High；AutoCPU1，60秒调用335.14ms，Metal2529.41ms；FP16/Q8/Low/原Metal GELU拒绝，CoreML无输出 |
 | LS-EEND Simu8k | 原始严格229键checkpoint、原fbank/streaming helper；20条件含60秒，最终Editor9/9及独立Player | Player posterior最大绝对误差1.0252e-5 | 8.6427e-7 | 两张FP32图/High、AutoCPU2；完整60秒三轮线程测量选择；显式Metal通过但较慢；FP16/Q8/Low/CoreML拒绝 |
 | TIGER Speech16k | 原始25条件Spectrum与source-ordered pooling逐位一致；完整PCM、重复/变长/Studio | 波形NRMSE最大0.0007298644 | 0.0003042292 | FP32/High、source-float FFT640/hop160；AutoMetalNone/CPU4；完整PCM独占三轮测量、真实Player通过；FP16/Q8/Low/CoreML拒绝 |
 | Mayavoz DCCRN16k | 原始checkpoint独立buffer首次eval；22物理条件只读/四阶段改写逐位一致；Unity7/7 | 波形NRMSE最大8.27554e-6 | 混合6.97340e-6 | 一份共享FP32权重；AutoCPU4，显式MetalNone分析/循环在CPU、编码/解码在Metal；完整PCM独占测量、真实Player通过 |
@@ -95,7 +97,7 @@ Android CLI 结果与 Unity Android Player 结果分别记录，不能互相替�
 
 Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3Tests`、
 `AvMossFormer2StudioTests`、`WeSpeakerParityTests`、`DtlnTests`、`FsmnVadParityTests`、
-`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`、`ResembleEnhancerSourceParityTests`、`ResembleEnhancerStudioTests`、`LsEendSourceParityTests`、`LsEendStudioTests`；完整调用性能另由 `ResembleEnhancerPerformanceTests` / `LsEendPerformanceTests` 显式运行。LS-EEND参考根目录通过 `MNN_TEST_LS_EEND` 指定。
+`FrcrnParityTests`、`MossFormer2ParityTests`、`LiveKitTurnParityTests`、`GtcrnTests`、`MarbleNetParityTests`、`FullSubNetTests`、`SileroSourceParityTests`、`SmartTurnSourceParityTests`、`DtlnAecSourceParityTests`、`ERes2NetV2SourceParityTests`、`CampPlusSourceParityTests`、`FullSubNetPlusSourceParityTests`、`MossFormerGanSourceParityTests`、`EcapaTdnnSourceParityTests`、`TitaNetSourceParityTests`、`MossFormer2SeSourceParityTests`、`SepFormerSourceParityTests`、`ConvTasNetSourceParityTests`、`DprnnSourceParityTests`、`SortformerSourceParityTests`、`DptnetSourceParityTests`、`NamoSourceParityTests`、`NamoTokenizerParityTests`、`SudoRmRfSourceParityTests`、`DccrnetSourceParityTests`、`DcunetSourceParityTests`、`TigerSourceParityTests`、`DccrnSourceParityTests`、`ResembleEnhancerSourceParityTests`、`ResembleEnhancerStudioTests`、`LsEendSourceParityTests`、`LsEendStudioTests`、`CueLightSourceParityTests`、`CueLightStudioTests`；完整调用性能另由 `ResembleEnhancerPerformanceTests` / `LsEendPerformanceTests` / `CueLightPerformanceTests` 显式运行。LS-EEND参考根目录通过 `MNN_TEST_LS_EEND`、CueLight通过 `MNN_TEST_CUELIGHT` 指定。
 显式真实权重测试不会自动下载；分别设置 `MNN_TEST_DEEPFILTERNET_REFERENCE`、
 `MNN_TEST_AV_REFERENCE`、`MNN_TEST_WESPEAKER_REFERENCE` 和 `MNN_TEST_DTLN_REFERENCE` 到已有参考目录。新增模型对应
 `MNN_TEST_FSMN_REFERENCE`、`MNN_TEST_FRCRN_REFERENCE`、`MNN_TEST_MOSS_REFERENCE`、
@@ -111,9 +113,11 @@ Editor fixture：`SpeechModelPackagingTests`、`FftPlanTests`、`DeepFilterNet3T
 
 LS-EEND主许可MIT，同时保留Conformer的Apache2与Microsoft/Hitachi的MIT通知。原作者训练最多8个说话人，部署保留删除dummy后的9列；完整录音API内部逐帧状态推理，保留左右7帧特征上下文及9帧神经延迟。实际FFT为256，配置中未使用的1024未照搬；原Retention旋转被作者注释，因此转换器移除未使用的position输入。60秒完整PCM的CPU1/2/4/8三轮中位数为1303.828/1223.1767/1245.7538/1235.98ms，选择CPU2；Metal完整4秒约230ms，比CPU约79–87ms慢，保留显式选项。无本模型Android/iOS或NPU/ANE放置证据，数值比较不代替DER/JER质量评测。
 
+2026-11-01，`CueLight-Nano-MNN`通过第五组独立Player116/116，无失败/跳过；CPU1、Metal1、Auto1各22条原条件加首条返回，冷状态/默认自动重置各重复两次，共276次完整PCM调用，七项运行/通知文件SHA与冻结、部署及构建副本一致。构建id `fccd1113ba1f4699a8267b6bdabd1a67`，XML SHA256 `7471ac7f07af20229c4a13b54fded1a08e24dc421c24ac2d4f763cc98710f49e`，证据在 `TestArtifacts~/SpeechModels/CueLight-Nano/player-verified-v260.json`。当前44个独立项目，保留五组构建，不能合称一次44模型联合构建。CueLight保留Apache2和完整NOTICE/教师数据通知；原语音概率取replay前、轮次概率取replay后。CPU使用官方关闭GELU近似的图，Metal使用经源比较的准确erf多项式图；未修改MNN或新增C++。公开模型卡英语限定与任务质量指标仍属单独边界。
+
 通过Editor fixture不等于通过Player，创建GPU会话也不等于所有算子在GPU执行。结构检查见[测试说明](Testing.md)，原生调用仅使用包现有、限定平台/编译器的官方C++符号ABI契约，未新增C++、桥接导出或修改官方MNN源码。
 
-发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前43模型发布预检和24项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-three-v231.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-three-inventory.json`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
+发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前44模型发布预检和25项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-four-v264.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-four-inventory.json`。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
 
 ## 新模型的数值与存储约定
 
