@@ -44,6 +44,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 
 | 模型 | 独立参考 | CPU 输出误差 | Metal 输出误差 | 当前选择 |
 |---|---|---:|---:|---|
+| FS-EEND CALLHOME8k | 原始严格106键/9974450参数，20条PCM加返回；联合Editor与性能22/22、三模型Player122/122 | 完整PCM最大1.09077e-5 | 1.90735e-6 | 一张FP32/High图，共用固定profile运行器；AutoCPU8，显式Metal通过；60秒135.61/131.35ms，4秒CPU8更快；FP16/Q8/Low/CoreML拒绝 |
 | FS-EEND Simu8k | 原始严格106键/9974450参数，20条PCM加返回；与LS联合Editor16/16及双模型Player119/119 | 完整PCM最大3.23654e-5 | 2.29478e-6 | 一张FP32/High图，AutoCPU8；60秒CPU8/Metal1约130.38/127.30ms，4秒CPU8更快；显式Metal通过，FP16/Q8/Low/CoreML拒绝 |
 | CueLight Nano-SSM | 原始严格65键/483688参数、22条件加首条返回；联合Editor15/15（含GRU8）、双模型Player118/118 | 完整PCM最大9.07183e-5，全部reset/端点事件一致 | Module和实际Interpreter重复一致性失败，拒绝 | 单CPU图/High、AutoCPU1；60秒约740.93ms，CPU2/4/8较慢；FP16/Q8/Low/CoreML拒绝；SSM两端点阈值均0.8 |
 | CueLight Nano | 原始严格50键/485590参数、22条件加首条返回；Editor8/8与独立Player116/116 | 全六冷状态/默认概率最大3.18289e-5，reset/端点事件全相同 | 准确激活图5.18560e-6，事件全相同 | 两张FP32图/High；AutoCPU1，60秒调用335.14ms，Metal2529.41ms；FP16/Q8/Low/原Metal GELU拒绝，CoreML无输出 |
@@ -120,7 +121,7 @@ LS-EEND主许可MIT，同时保留Conformer的Apache2与Microsoft/Hitachi的MIT�
 
 通过Editor fixture不等于通过Player，创建GPU会话也不等于所有算子在GPU执行。结构检查见[测试说明](Testing.md)，原生调用仅使用包现有、限定平台/编译器的官方C++符号ABI契约，未新增C++、桥接导出或修改官方MNN源码。
 
-发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前46模型发布预检和26项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-six-v316.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-six-inventory.json`（SHA256 `e1fb2a05a271f34f32cd17c03abaa874396ee6488b45be9b087c5b9ed84d15ec`）。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
+发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前47模型发布预检和26项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-seven-v335.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-seven-inventory.json`（SHA256 `7a223e83af4aec400d41d64d468e55608db161d31fac7b4e04ef7e9ff8eef660`）。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
 
 ## 新模型的数值与存储约定
 
@@ -152,4 +153,8 @@ TIGER与Mayavoz DCCRN的独占完整PCM测量在Apple M5/Mac17,2、macOS27.2、1
 
 2026-11-01，`FS-EEND-Simu-8K-MNN`完成第七组真实macOS arm64 Mono2x Player119/119，无失败或跳过。FS CPU8/Metal8/Auto8各42次完整PCM，LS CPU2/Metal2/Auto2回归各42次，全构建252次；全部运行/通知文件与冻结、部署、staged和built副本SHA一致。构建id `4f2add06d132458cb4db5e192edf269d`，XML SHA256 `7870061495edf7ae5abd472a4b45b965584d29a6e1ec5447a15a61e0f4c29430`，证据见 `TestArtifacts~/SpeechModels/FS-EEND-Simu-8K/player-verified-v313.json`。当前46个独立项目、七组实际构建，不能合称46模型联合构建。
 
-FS-EEND采用作者Simu公开MIT checkpoint，原logmel23不做LS累计均值；两者共用参数化托管FFT/mel/context和原RTTM，LS回归误差保持CPU1.0252e-5/Metal8.6427e-7。FS保持delay9及9个零embedding尾部flush，删除dummy后5列完整保留，训练最多4说话人；API是整段因果注意力Analyze，没有在线Push端口。固定60秒上限，AutoCPU8/High，完整PCM三轮测量60秒130.38ms、4秒8.70ms；显式Metal1在60秒127.30ms、4秒10.07ms，设备与长度会影响选择。官方CoreML原图拒绝GatherV2，进一步固定40帧/拆分投影probe仍无有效输出，不启用NPU。原45,063,125-byte checkpoint已在全部消费者完成后删除，仅保留SHA与清理收据。未完成本模型移动真机或DER/JER任务质量评估；CALLHOME及其余候选继续独立审查，ModelScope最后统一上传。
+FS-EEND采用作者Simu公开MIT checkpoint，原logmel23不做LS累计均值；两者共用参数化托管FFT/mel/context和原RTTM，LS回归误差保持CPU1.0252e-5/Metal8.6427e-7。FS保持delay9及9个零embedding尾部flush，删除dummy后5列完整保留，训练最多4说话人；API是整段因果注意力Analyze，没有在线Push端口。固定60秒上限，AutoCPU8/High，完整PCM三轮测量60秒130.38ms、4秒8.70ms；显式Metal1在60秒127.30ms、4秒10.07ms，设备与长度会影响选择。官方CoreML原图拒绝GatherV2，进一步固定40帧/拆分投影probe仍无有效输出，不启用NPU。原45,063,125-byte checkpoint已在全部消费者完成后删除，仅保留SHA与清理收据。未完成本模型移动真机或DER/JER任务质量评估；CALLHOME随后独立验收见下文，其余候选继续审查，ModelScope最后统一上传。
+
+2026-11-01，`FS-EEND-CALLHOME-8K-MNN`通过第八组独立真实Player122/122，无失败或跳过。CALLHOME、原Simu及LS各CPU/Metal/Auto三后端，共378次完整PCM调用；全部运行/通知文件SHA与冻结、部署、staged和built副本一致。Build `b2627195e5e749a2afad6d32bab7b8be`，XML SHA256 `ee6ffd37b5ef4e6aca39ea35e592e4ea8ae30c5ebc2e1f84c04ed2b3193728de`，证据 `TestArtifacts~/SpeechModels/FS-EEND-CALLHOME-8K/player-verified-v332.json`。两个FS checkpoint通过不可变身份/图SHA映射共用完整录音API；Studio显示实际模型名，未修改原Simu部署资产。当前47项保留八组实际构建，不是47项联合Player验收。
+
+CALLHOME采用作者公开45,070,453-byte checkpoint，SHA `eda37490029b9112d5a40849e2e825404ec55e12671dd982d07b81780339c949`；原权重已在全部消费者完成后删除。源图改写最大1.31131e-6；完整PCM CPU8/Auto最大1.09077e-5、Metal8最大1.90735e-6，均低于固定1e-4，原RTTM与重复完全一致。60秒CPU1/2/4/8中位195.3421/180.6936/137.5618/135.6127ms，Metal1 131.3533ms；4秒CPU8 8.49735ms、Metal1 10.13555ms，保留AutoCPU8和显式Metal。FP16/Q8/Low失败；官方CoreML原图及源等价固定40帧/拆分投影probe均无有效输出，后者spec4空输入validator/compile code4。保留原logmel23、五posterior列、delay9与零embeddingflush；无移动真机、NPU或DER/JER质量声明。ModelScope仍最后统一上传。

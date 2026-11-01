@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace MNN.Unity
 {
-    /// <summary>FS-EEND Simu complete-recording diarization with causal attention, original lookahead and five posterior columns.</summary>
+    /// <summary>FS-EEND complete-recording diarization with causal attention, original lookahead and five posterior columns.</summary>
     public sealed class MNNFsEendDiarization : IDisposable
     {
         public const int SampleRate = 8000, DefaultThreadCount = 8;
@@ -13,10 +13,12 @@ namespace MNN.Unity
         private readonly MNNEendFeatures _features;
         private bool _disposed;
         public MNNBackendType Backend => _graph.Backend;
+        public string ModelName { get; }
 
         private MNNFsEendDiarization(string directory, int threads, MNNBackendType backend)
         {
             var config = MNNFsEendModel.ReadVerified(directory) ?? throw new InvalidDataException("FS-EEND profile or runtime file verification failed.");
+            ModelName = MNNFsEendProfile.Find(config.checkpoint_sha256).Name;
             _features = new MNNEendFeatures(config.analysis_window, config.mel_filters, false);
             if (backend == MNNBackendType.Auto) backend = MNNBackendType.CPU;
             _graph = new MNNGenerationGraph(Path.Combine(directory, MNNFsEendModel.Graph), threads, backendType: backend,

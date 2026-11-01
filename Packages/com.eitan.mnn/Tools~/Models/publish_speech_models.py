@@ -67,6 +67,7 @@ MODEL_NAMES = (
     "CueLight-Nano-MNN",
     "CueLight-Nano-SSM-MNN",
     "FS-EEND-Simu-8K-MNN",
+    "FS-EEND-CALLHOME-8K-MNN",
 )
 RUNTIME_BINARY_FILES = frozenset((
     "fs_eend_coefficients.bin",
