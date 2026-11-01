@@ -11,18 +11,20 @@ namespace MNN.Unity.Tests
     [Category("NativeInference"), Category("SpeechModels")]
     public sealed class VbxPlayerTests
     {
-        [TestCase(MNNBackendType.CPU), TestCase(MNNBackendType.Metal), TestCase(MNNBackendType.Auto)]
-        public void OriginalCompletePcmRawVectorsMatchInBuiltPlayer(MNNBackendType backend)
+        [TestCase("VBx-ResNet101-16K-MNN", MNNBackendType.CPU), TestCase("VBx-ResNet101-16K-MNN", MNNBackendType.Metal), TestCase("VBx-ResNet101-16K-MNN", MNNBackendType.Auto)]
+        [TestCase("VBx-ResNet101-8K-MNN", MNNBackendType.CPU), TestCase("VBx-ResNet101-8K-MNN", MNNBackendType.Metal), TestCase("VBx-ResNet101-8K-MNN", MNNBackendType.Auto)]
+        public void OriginalCompletePcmRawVectorsMatchInBuiltPlayer(string profile, MNNBackendType backend)
         {
             Assert.False(Application.isEditor, "Run in a built Player."); MNNPlatformSupport.RequireSupported();
-            string root = Environment.GetEnvironmentVariable("MNN_TEST_VBX"); Assert.That(root, Is.Not.Null.And.Not.Empty);
-            string reference = Path.Combine(root, "source-v341/reference");
-            string directory = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "VBx-ResNet101-16K-MNN");
+            bool telephone = profile == "VBx-ResNet101-8K-MNN";
+            string root = Environment.GetEnvironmentVariable(telephone ? "MNN_TEST_VBX8" : "MNN_TEST_VBX"); Assert.That(root, Is.Not.Null.And.Not.Empty);
+            string reference = Path.Combine(root, telephone ? "source-v359/reference" : "source-v341/reference");
+            string directory = Path.Combine(Application.streamingAssetsPath, "MNN", "Models", profile);
             var cases = new[] { "minimum", "short", "real", "quiet", "gain2", "silence", "constant", "hop_before", "hop_at", "hop_after",
                 "cmn_before", "cmn_at", "cmn_after", "segment_before", "segment_at", "segment_after", "jump_before", "jump_at", "jump_after", "maximum" };
             using (var model = MNNVbxEmbedding.Load(directory, backendType: backend))
             {
-                Assert.AreEqual("VBx-ResNet101-16K-MNN", model.ModelName);
+                Assert.AreEqual(profile, model.ModelName); Assert.AreEqual(telephone ? 8000 : 16000, model.InputSampleRate); Assert.AreEqual(telephone ? 4 : 8, model.ThreadCount);
                 foreach (string name in cases.Concat(new[] { cases[0] }))
                 {
                     var pcm = Read(Path.Combine(reference, name + "-input.f32")); var expected = Read(Path.Combine(reference, name + "-embedding.f32"));

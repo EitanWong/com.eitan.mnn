@@ -17,12 +17,13 @@ namespace MNN.Unity
         {
             var config = JsonUtility.FromJson<MNNVbxConfig>(File.ReadAllText(Path.Combine(directory, FileName)))
                 ?? throw new InvalidDataException("Invalid VBx profile.");
+            var profile = MNNVbxProfile.Find(config.checkpoint_sha256) ?? throw new InvalidDataException("Unrecognized VBx checkpoint.");
             var bytes = File.ReadAllBytes(Path.Combine(directory, CoefficientsFile));
-            if (!BitConverter.IsLittleEndian || bytes.Length != 134784)
+            if (!BitConverter.IsLittleEndian || bytes.Length != profile.CoefficientBytes)
                 throw new InvalidDataException("Invalid VBx coefficients.");
-            config.Window = new double[400]; config.Mel = new double[257 * 64];
-            Buffer.BlockCopy(bytes, 0, config.Window, 0, 400 * 8);
-            Buffer.BlockCopy(bytes, 400 * 8, config.Mel, 0, config.Mel.Length * 8);
+            config.Window = new double[profile.FrameSize]; config.Mel = new double[(profile.FftSize / 2 + 1) * 64];
+            Buffer.BlockCopy(bytes, 0, config.Window, 0, config.Window.Length * 8);
+            Buffer.BlockCopy(bytes, config.Window.Length * 8, config.Mel, 0, config.Mel.Length * 8);
             return config;
         }
     }

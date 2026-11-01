@@ -35,6 +35,7 @@ namespace MNN.Unity.Tests
                     Assert.AreEqual(backend == MNNBackendType.Auto ? MNNBackendType.Metal : backend, model.Backend);
                 }
                 Assert.AreEqual("VBx-ResNet101-16K-MNN", model.ModelName);
+                Assert.AreEqual(8, model.ThreadCount);
             }
         }
         [Test]
