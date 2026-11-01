@@ -26,6 +26,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 | 音视频目标说话人提取 | `MNNAvMossFormer2Tse.Extract` | 混合 WAV + 有序 PNG/JPEG 人脸帧文件夹 |
 | 四说话人活动时间线 | `MNNSortformerDiarization.Analyze` / `AnalyzeWaveFile` | Audio processing，10ms–60秒完整WAV；内部原同步缓存策略 |
 | CueLight Nano/SSM流式语音活动/轮次结束 | `MNNCueLightTurnDetector.Push` / `Analyze` / `AnalyzeWaveFile` | Audio processing，16kHz mono；20ms逐帧、自动重置/18帧replay、snappy/careful端点时间线 |
+| FS-EEND说话人活动时间线 | `MNNFsEendDiarization.Analyze` / `AnalyzeWaveFile` / `MNNFsEendActivity.ToRttm` | Audio processing，8kHz mono、1–480000样本；保留5列posterior，整段因果注意力、原前瞻/延迟与RTTM |
 | LS-EEND说话人活动时间线 | `MNNLsEendDiarization.Analyze` / `AnalyzeWaveFile` / `MNNLsEendActivity.ToRttm` | Audio processing，8kHz mono、1–480000样本；保留9个posterior列、严格0.5阈值和11帧median |
 | 声纹向量 | `MNNSpeakerEmbedding` / `MNNWeSpeakerEmbedding` | Speaker recognition |
 | VAD | `MNNSileroVad` / `MNNFsmnVad` / `MNNMarbleNetVad` | Audio processing |
@@ -43,6 +44,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 
 | 模型 | 独立参考 | CPU 输出误差 | Metal 输出误差 | 当前选择 |
 |---|---|---:|---:|---|
+| FS-EEND Simu8k | 原始严格106键/9974450参数，20条PCM加返回；与LS联合Editor16/16及双模型Player119/119 | 完整PCM最大3.23654e-5 | 2.29478e-6 | 一张FP32/High图，AutoCPU8；60秒CPU8/Metal1约130.38/127.30ms，4秒CPU8更快；显式Metal通过，FP16/Q8/Low/CoreML拒绝 |
 | CueLight Nano-SSM | 原始严格65键/483688参数、22条件加首条返回；联合Editor15/15（含GRU8）、双模型Player118/118 | 完整PCM最大9.07183e-5，全部reset/端点事件一致 | Module和实际Interpreter重复一致性失败，拒绝 | 单CPU图/High、AutoCPU1；60秒约740.93ms，CPU2/4/8较慢；FP16/Q8/Low/CoreML拒绝；SSM两端点阈值均0.8 |
 | CueLight Nano | 原始严格50键/485590参数、22条件加首条返回；Editor8/8与独立Player116/116 | 全六冷状态/默认概率最大3.18289e-5，reset/端点事件全相同 | 准确激活图5.18560e-6，事件全相同 | 两张FP32图/High；AutoCPU1，60秒调用335.14ms，Metal2529.41ms；FP16/Q8/Low/原Metal GELU拒绝，CoreML无输出 |
 | LS-EEND Simu8k | 原始严格229键checkpoint、原fbank/streaming helper；20条件含60秒，最终Editor9/9及独立Player | Player posterior最大绝对误差1.0252e-5 | 8.6427e-7 | 两张FP32图/High、AutoCPU2；完整60秒三轮线程测量选择；显式Metal通过但较慢；FP16/Q8/Low/CoreML拒绝 |
@@ -118,7 +120,7 @@ LS-EEND主许可MIT，同时保留Conformer的Apache2与Microsoft/Hitachi的MIT�
 
 通过Editor fixture不等于通过Player，创建GPU会话也不等于所有算子在GPU执行。结构检查见[测试说明](Testing.md)，原生调用仅使用包现有、限定平台/编译器的官方C++符号ABI契约，未新增C++、桥接导出或修改官方MNN源码。
 
-发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前45模型发布预检和25项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-five-v287.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-five-inventory.json`（SHA256 `620936d538358e5d3bd9558d9f1b934ec5da085708d0c6b5ad4f0418a4d638c6`）。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
+发布工具 `Tools~/Models/publish_speech_models.py --audit-only` 无需凭据，检查目录清洁度、manifest全部文件/bytes/SHA、首选图以及已记录Player图/运行配置/tokenizer/必要运行常量覆盖。预检不会重新推理。当前46模型发布预检和26项发布工具行为测试已通过，记录在 `TestArtifacts~/SpeechModels/publish-preflight-forty-six-v316.log`；清单在 `TestArtifacts~/SpeechModels/deliverable-forty-six-inventory.json`（SHA256 `e1fb2a05a271f34f32cd17c03abaa874396ee6488b45be9b087c5b9ed84d15ec`）。按用户要求，ModelScope在全部工作结束时统一上传，目前尚未上传。
 
 ## 新模型的数值与存储约定
 
@@ -147,3 +149,7 @@ AV-TFGridNet的静音均值条件仍未过源波形门槛。ISAM已明确双说�
 TIGER与Mayavoz DCCRN的独占完整PCM测量在Apple M5/Mac17,2、macOS27.2、10核/24GiB主机完成，三种交错顺序，每配置/输入15次稳定样本，并另测加载、首次和变长调用。TIGER MetalNone/High的1秒/3秒稳定中位数995.978/3296.022ms，CPU4/High为2447.827/6968.987ms；DCCRN CPU4/High为49.229/187.595ms，MetalNone/High为45.479/167.657ms，但变长1秒调用为70.788/106.852ms，故保留CPU默认与显式Metal选择。DCCRN分段CPU1/2/4/8均完成源波形资格与独占测量，各有取舍。加载/首次/变长的原始记录与校验值位于 `TestArtifacts~/SpeechModels/*exclusive*summary.json`，模型各自mnn_optimization.json保留对应摘要；这些结论不代表跨设备全局最优。
 
 2026-11-01，`CueLight-Nano-SSM-MNN`完成第六组独立Player118/118（SSM CPU/Auto共184次完整PCM，原GRU CPU/Metal/Auto回归276次，全构建460次）；构建id `e22ed42a4088492b8aecfe5ea4475d06`、XML SHA256 `ba272595e41c9c50b70c601fec6e6436697ec61a4c2a61f5a21b41bc6cdacb7e`。六项SSM运行/通知文件SHA与冻结、部署和built副本一致，证据见 `TestArtifacts~/SpeechModels/CueLight-Nano-SSM/player-verified-v283.json`。当前45个独立项目保留六组实际构建，不能称45模型联合Player验收。SSM使用三组[1,13886]状态，实际inner n32，原ssm_n320配置未被构造函数采用；没有改成GRU状态或阈值。完整PCM CPU误差9.07183e-5低于固定1e-4；Studio与流式API已验证。Module与实际Interpreter Metal均出现重复不一致；CoreML无有效输出，只验收CPU1/High，没有GPU/NPU或移动Player资格。
+
+2026-11-01，`FS-EEND-Simu-8K-MNN`完成第七组真实macOS arm64 Mono2x Player119/119，无失败或跳过。FS CPU8/Metal8/Auto8各42次完整PCM，LS CPU2/Metal2/Auto2回归各42次，全构建252次；全部运行/通知文件与冻结、部署、staged和built副本SHA一致。构建id `4f2add06d132458cb4db5e192edf269d`，XML SHA256 `7870061495edf7ae5abd472a4b45b965584d29a6e1ec5447a15a61e0f4c29430`，证据见 `TestArtifacts~/SpeechModels/FS-EEND-Simu-8K/player-verified-v313.json`。当前46个独立项目、七组实际构建，不能合称46模型联合构建。
+
+FS-EEND采用作者Simu公开MIT checkpoint，原logmel23不做LS累计均值；两者共用参数化托管FFT/mel/context和原RTTM，LS回归误差保持CPU1.0252e-5/Metal8.6427e-7。FS保持delay9及9个零embedding尾部flush，删除dummy后5列完整保留，训练最多4说话人；API是整段因果注意力Analyze，没有在线Push端口。固定60秒上限，AutoCPU8/High，完整PCM三轮测量60秒130.38ms、4秒8.70ms；显式Metal1在60秒127.30ms、4秒10.07ms，设备与长度会影响选择。官方CoreML原图拒绝GatherV2，进一步固定40帧/拆分投影probe仍无有效输出，不启用NPU。原45,063,125-byte checkpoint已在全部消费者完成后删除，仅保留SHA与清理收据。未完成本模型移动真机或DER/JER任务质量评估；CALLHOME及其余候选继续独立审查，ModelScope最后统一上传。

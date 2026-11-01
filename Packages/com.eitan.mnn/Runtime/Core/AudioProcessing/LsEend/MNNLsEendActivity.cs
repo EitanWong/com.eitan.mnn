@@ -1,6 +1,4 @@
 using System;
-using System.Globalization;
-using System.Text;
 
 namespace MNN.Unity
 {
@@ -23,32 +21,6 @@ namespace MNN.Unity
         }
 
         /// <summary>Original strict threshold 0.5, zero-padded 11-frame median and 100 ms RTTM grid.</summary>
-        public string ToRttm(string recordingId)
-        {
-            if (string.IsNullOrWhiteSpace(recordingId)) throw new ArgumentException("Supply an RTTM recording ID.", nameof(recordingId));
-            foreach (char character in recordingId)
-                if (char.IsWhiteSpace(character) || char.IsControl(character)) throw new ArgumentException("RTTM IDs cannot contain whitespace.", nameof(recordingId));
-            var text = new StringBuilder();
-            for (int column = 0; column < Columns; ++column)
-            {
-                int start = -1;
-                for (int t = 0; t <= FrameCount; ++t)
-                {
-                    int active = 0;
-                    if (t < FrameCount)
-                        for (int k = Math.Max(0, t - 5); k < Math.Min(FrameCount, t + 6); ++k)
-                            if (Probabilities[k * Columns + column] > .5f) ++active;
-                    bool speaking = active >= 6;
-                    if (speaking && start < 0) start = t;
-                    if (!speaking && start >= 0)
-                    {
-                        text.AppendFormat(CultureInfo.InvariantCulture, "SPEAKER {0} 1 {1,7:F2} {2,7:F2} <NA> <NA> {0}_{3} <NA>\n",
-                            recordingId, start * FrameSeconds, (t - start) * FrameSeconds, column);
-                        start = -1;
-                    }
-                }
-            }
-            return text.ToString();
-        }
+        public string ToRttm(string recordingId) => MNNEendRttm.Format(Probabilities, Columns, recordingId);
     }
 }

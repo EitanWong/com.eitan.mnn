@@ -66,8 +66,10 @@ MODEL_NAMES = (
     "LS-EEND-Simu-8K-MNN",
     "CueLight-Nano-MNN",
     "CueLight-Nano-SSM-MNN",
+    "FS-EEND-Simu-8K-MNN",
 )
 RUNTIME_BINARY_FILES = frozenset((
+    "fs_eend_coefficients.bin",
     "ls_eend_coefficients.bin",
     "cuelight_coefficients.bin",
     "embeddings_bf16.bin", "mel-window.bin", "mel-filters.bin",

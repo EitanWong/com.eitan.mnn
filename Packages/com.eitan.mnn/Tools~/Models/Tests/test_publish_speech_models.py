@@ -115,20 +115,15 @@ class PublicationAuditTests(unittest.TestCase):
         self.assertIn('Player runtime file coverage', self.errors())
 
     def test_ls_eend_coefficients_require_matching_player_snapshot(self):
-        name = 'ls_eend_coefficients.bin'
-        (self.model / name).write_bytes(b'fixture coefficients')
-        self.refresh()
-        self.assertIn('Player runtime file coverage', self.errors())
-        self.optimization['player_validation']['runtime_files'].append(
-            {'path': name, 'sha256': hashlib.sha256((self.model / name).read_bytes()).hexdigest()})
-        self.refresh()
-        self.assertEqual('', self.errors())
-        (self.model / name).write_bytes(b'changed coefficients')
-        self.refresh()
-        self.assertIn('Player runtime file hash', self.errors())
+        self.check_coefficient_snapshot('ls_eend_coefficients.bin')
 
     def test_cuelight_coefficients_require_matching_player_snapshot(self):
-        name = 'cuelight_coefficients.bin'
+        self.check_coefficient_snapshot('cuelight_coefficients.bin')
+
+    def test_fs_eend_coefficients_require_matching_player_snapshot(self):
+        self.check_coefficient_snapshot('fs_eend_coefficients.bin')
+
+    def check_coefficient_snapshot(self, name):
         (self.model / name).write_bytes(b'fixture coefficients')
         self.refresh()
         self.assertIn('Player runtime file coverage', self.errors())

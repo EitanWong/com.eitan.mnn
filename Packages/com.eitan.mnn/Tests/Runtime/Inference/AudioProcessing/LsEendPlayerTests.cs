@@ -26,10 +26,10 @@ namespace MNN.Unity.Tests
             {
                 foreach (string name in cases.Concat(new[] { cases[0] }))
                 {
-                    var pcm = Read(Path.Combine(reference, name + "-input.f32"));
-                    var expected = Read(Path.Combine(reference, name + "-posterior.f32"));
+                    var pcm = EendReference.Read(Path.Combine(reference, name + "-input.f32"));
+                    var expected = EendReference.Read(Path.Combine(reference, name + "-posterior.f32"));
                     var actual = model.Analyze(pcm);
-                    LsEendReference.Check(name, expected, actual.Probabilities);
+                    EendReference.Check(name, expected, actual.Probabilities);
                     CollectionAssert.AreEqual(actual.Probabilities, model.Analyze(pcm).Probabilities, name + " repeat");
                     Assert.AreEqual((pcm.Length + 799) / 800, actual.FrameCount);
                     Assert.AreEqual(File.ReadAllText(Path.Combine(root, "managed-reference-v216", name + ".rttm")), actual.ToRttm(name));
@@ -40,11 +40,6 @@ namespace MNN.Unity.Tests
                 model.Dispose();
                 Assert.Throws<ObjectDisposedException>(() => model.Analyze(new float[1]));
             }
-        }
-        private static float[] Read(string path)
-        {
-            var bytes = File.ReadAllBytes(path); var result = new float[bytes.Length / 4];
-            Buffer.BlockCopy(bytes, 0, result, 0, bytes.Length); return result;
         }
     }
 }

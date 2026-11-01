@@ -1,10 +1,16 @@
 using System;
+using System.IO;
 using NUnit.Framework;
 
 namespace MNN.Unity.Tests
 {
-    internal static class LsEendReference
+    internal static class EendReference
     {
+        internal static float[] Read(string path)
+        {
+            var bytes = File.ReadAllBytes(path); var result = new float[bytes.Length / 4];
+            Buffer.BlockCopy(bytes, 0, result, 0, bytes.Length); return result;
+        }
         internal static void Check(string label, float[] expected, float[] actual)
         {
             Assert.AreEqual(expected.Length, actual.Length, label);
