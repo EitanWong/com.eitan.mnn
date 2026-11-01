@@ -49,4 +49,3 @@ def lower(model):
         if type(module).__name__=='ChannelWiseLayerNorm':module.forward=types.MethodType(centered_norm,module)
         if type(module).__name__=='GlobalChannelLayerNorm':module.forward=types.MethodType(staged_global_norm,module)
     return result
-

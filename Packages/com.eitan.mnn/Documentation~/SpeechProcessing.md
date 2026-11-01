@@ -7,7 +7,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 ## 托管接口
 
 | 任务 | 接口 | Studio |
-|---|---|---|
+| --- | --- | --- |
 | TIGER16k双源分离 | `MNNTigerSeparation.Separate` / `SeparateWaveFile` | 单WAV，321–48000样本，保留两轨顺序；Studio预览第一轨 |
 | Mayavoz DCCRN16k增强 | `MNNDccrnEnhancement.Enhance` / `EnhanceWaveFile` | 单WAV，checkpoint-owned首次eval、补齐hop后裁回原长 |
 | Resemble44.1k完整CFM增强 | `MNNResembleEnhancer.Enhance` / `EnhanceWaveFile` | 单WAV，400–132300样本；固定seed0、32NFE midpoint、lambda/tau=.5 |
@@ -44,7 +44,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 2026-11-01，在当前 Unity 2021.3.45f2 macOS 主机：
 
 | 模型 | 独立参考 | CPU 输出误差 | Metal 输出误差 | 当前选择 |
-|---|---|---:|---:|---|
+| --- | --- | ---: | ---: | --- |
 | FS-EEND CALLHOME8k | 原始严格106键/9974450参数，20条PCM加返回；联合Editor与性能22/22、三模型Player122/122 | 完整PCM最大1.09077e-5 | 1.90735e-6 | 一张FP32/High图，共用固定profile运行器；AutoCPU8，显式Metal通过；60秒135.61/131.35ms，4秒CPU8更快；FP16/Q8/Low/CoreML拒绝 |
 | FS-EEND Simu8k | 原始严格106键/9974450参数，20条PCM加返回；与LS联合Editor16/16及双模型Player119/119 | 完整PCM最大3.23654e-5 | 2.29478e-6 | 一张FP32/High图，AutoCPU8；60秒CPU8/Metal1约130.38/127.30ms，4秒CPU8更快；显式Metal通过，FP16/Q8/Low/CoreML拒绝 |
 | CueLight Nano-SSM | 原始严格65键/483688参数、22条件加首条返回；联合Editor15/15（含GRU8）、双模型Player118/118 | 完整PCM最大9.07183e-5，全部reset/端点事件一致 | Module和实际Interpreter重复一致性失败，拒绝 | 单CPU图/High、AutoCPU1；60秒约740.93ms，CPU2/4/8较慢；FP16/Q8/Low/CoreML拒绝；SSM两端点阈值均0.8 |

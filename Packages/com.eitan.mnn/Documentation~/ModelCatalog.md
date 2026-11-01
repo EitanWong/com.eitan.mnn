@@ -140,7 +140,6 @@ Auto 页面配置与韩文单行采用 CPU；其他单行 Auto 保留既有后�
 新增性能基准对 CPU/Metal 的 1/2/4/8 线程逐项检查输出质量；已优化 YOLO 的托管预处理。
 其他模型仍需各自的性能测量、配置选择和质量回归，不能把 `Auto` 当作已证明最佳性能。
 
-
 ## 分类规则与人工核查
 
 分类实现独立为 `MNNModelRepository.Classification.cs`，优先使用明确的任务元数据，
@@ -191,7 +190,6 @@ perfect Chinese/English transcription. Auto selects CPU: measured Metal runs giv
 the same transcripts but are slower because each chunk synchronizes many states.
 These checks do not establish compatibility with other Sherpa architectures.
 
-
 ## SenseVoiceSmall
 
 `wo105090/SenseVoiceSmall-MNN` is a pinned ModelScope profile with `model.mnn`,
@@ -207,7 +205,6 @@ Its data-dependent shape operators require the existing official Express path.
 Model Manager also prepares its `mnn_sensevoice.json` for Studio. Keyword spotting,
 VAD and turn-detection repositories are classified as AudioProcessing rather than
 SpeechRecognition.
-
 
 ## Whisper
 
@@ -270,7 +267,6 @@ Audio processing。安装仅下载经 SHA-256 校验的 1,486,656-byte MNN 图�
 中文/英文/静音及两段语音参考覆盖中有一个 64 ms 的量化边界偏差，见
 [Testing](Testing.md#silero-vad)。
 
-
 ## Smart Turn v3.2
 
 Hugging Face `Jeryuk/smart-turn-v3.2-gpu-MNN` 固定版本
@@ -288,7 +284,6 @@ Hugging Face `Jeryuk/smart-turn-v3.2-gpu-MNN` 固定版本
 只有文件清单同时包含 MNN 图、LLM 配置和 tokenizer 才启用筛选；其它模型保留
 完整仓库文件，既有固定模型配置继续使用各自的最小安装计划。
 
-
 ## 新增 TTS 固定安装与验证边界
 
 缓存 schema v13 增加 `dr3334/Kokoro-82M-v1.0-MNN`、
@@ -304,25 +299,20 @@ Indic 的全部控制仅通过波形检查，语言内容目前只部分核对 T
 Qwen3-TTS 的其他导出和其他未适配的 Sherpa VITS
 仍需相应协议、前端与真实合成验证；不能把目录中的 TTS 分类视作已经完成运行接入。
 
-
 schema v14 增加 KindBrave Kokoro v1.1 两站的固定八文件安装方案与外置权重支持。
 103 音色均可执行合成，全部音色的内容质量仍待完成；具体未通过项见 Testing。
-
 
 schema v15 增加 `developerabu/mms-tts-tam-mnn` 的固定 INT8 三文件方案、Tamil 字符前端和
 Studio TTS 路由。安装后生成任务准备文件和原始模型来源/许可说明；不因目录含有同名
 `model_int8.mnn` 就自动套用。完整句子质量及同仓库其他精度变体仍待验证。
 
-
 schema v16 将 MMS Tamil 固定安装扩展为全部三个精度图，共五个下载文件。
 Studio 的 Precision 菜单可选择已安装的 INT8、FP16/INT8、FP32，切换后重新加载推理实例。
 后二者的严格 Tamil ASR 内容审计未通过，不能因管线可执行就宣称质量已验证。
 
-
 schema v17 接入 KindBrave Chinese Sherpa VITS 的双平台固定六文件方案与五说话人管线。
 HF 和 ModelScope 文件哈希一致，声音参考句均通过独立 ASR，Studio 支持 16 kHz 播放保存。
 不下载未接入的 Jieba/FST 资源，数字与多音字限制见 API。不会自动套用所有 VITS 导出。
-
 
 schema v18 增加两种 MOSS Nano 安装方案：ModelScope 的
 `kiven2008/moss-tts-nano-100m-mnn`（固定采样帧，十文件）和
@@ -332,17 +322,14 @@ schema v18 增加两种 MOSS Nano 安装方案：ModelScope 的
 中文/英文合成通过；音色及语言的内容质量范围单独记录在 Testing，不能由目录可运行标记推断。
 Qwen3-TTS 的高层官方 API 实验尚未通过，因此仍不标为可运行。
 
-
 schema v19 增加 Hugging Face `Bbkblo/DhVaani-0.5-MNN` 的 v1.1 固定八文件安装与 Studio
 参考语音管线。revision 为 `9ecccbbba2d6269dc083ab1975800de8b0dbe1c1`；下载文件逐一固定大小和 SHA-256。
 Hindi/English 内容样本、实际 Studio 播放保存及无网络续传均已验证，仍需准确参考原文。
 同名的其他发布者及早期静音图不自动复用此协议。
 
-
 TTS 仓库即使包含 `llm_config.json`、tokenizer 和 MNN 图，也不能直接使用通用 LLM
 规则标为可运行；仍需相应的语音任务管线。此项避免未通过验证的 Qwen3-TTS 被误标，
 普通 Chat LLM 的完整配置继续使用原有通用管线。
-
 
 schema v20 增加 HF `yunfengwang/Qwen3-TTS-12Hz-0.6B-Base-MNN` 的固定 47 文件计划，
 包含三阶段图、FP16 投影/嵌入表、BPE 与预编码 demo 参考声音。
@@ -374,7 +361,6 @@ SHA-256，恢复该音色名称，保持原始配置不变；其他空列表不�
 同名不同作者或不同平台不会合并。一个仓库存在多个改名安装目录时，不任意选择其中之一。
 原来的标准安装位置优先，未标记目录仍可由 Studio 直接发现，不据名称猜测仓库身份。
 
-
 ### Kokoro v1.1 expanded
 
 `starsharp06sharp/kokoro-multi-lang-v1.1-MNN-Multilingual` 的 FlatBuffer 元数据声明 103 个有名称音色，但文件实际附加了 53 个未命名表。安装计划固定 8 个可用推理文件，Studio 只暴露 103 个有名称音色；其余表不会被猜名。图和外部权重独立校验，中文/英文词典匹配，24 kHz。已验证 `zf_001`、`zm_009`、`af_maple` 的实际合成和独立转写。
@@ -395,7 +381,6 @@ Hugging Face 使用固定仓库 revision，ModelScope 使用逐文件不可变 c
 公开索引快照，不代表未来新增仓库也已验证。已接入模型中的个别音色、语种和长文本
 质量限制仍见 [测试说明](Testing.md)，不能据仓库数量宣称所有音色均通过转写。
 
-
 ### Pocket-TTS（MNN 全链路）
 
 HF `developerabu/pocket-tts-mnn` 固定 revision
@@ -410,7 +395,6 @@ Studio 接通生成、播放和保存。预设音色文件需要上游访问权�
 
 本机 CPU4 重复调用中位 3.931 秒生成 1.76 秒音频（RTF 2.233），未达到实时。
 复用已加载图和最近一次参考音色状态，避免每次重新编码。实测范围见 [Testing](Testing.md#pocket-tts-mnn-全链路)。
-
 
 ### IndicF5 MNN
 

@@ -112,14 +112,12 @@ Unity 2021 / iOS 27 测试宿主在隔离导出工程中使用 Swift SceneDelega
 `TestArtifacts~/TaskIntegration/`。移动设备历史 LLM 真机结果仍只覆盖既有四个代表模型，
 新增任务尚未写成设备通过记录，不能把条件编译或符号审计当作新增模型的真机推理证据。
 
-
 PP-DocLayoutV3 使用同一 `MNNDocumentLayout` API，基于真实页面检查后将 Auto 限定为 CPU：
 Metal Normal 输出无效边框，High 精度漏检。Android OPPO PELM00 的 CPU / Auto 实际权重用例均通过；完整设备结果 115 通过、0 失败、
 0 跳过，已核对 XML build id 与安装 APK 中的 build id 一致。Editor 传输超时后从设备恢复证据。
 iPhone 17 ARM64 IL2CPP：115 项通过、0 失败/跳过，两项 CPU/Auto→CPU 真实页面均得到 13 个区域；
 加载约 1.1–1.34 秒、推理约 1.08–1.29 秒，进程峰值 RSS 约 1.87 GB，包含 Unity/缓存。最新记录见
 `TestArtifacts~/TaskIntegration/DocumentLayout/validation-report.md`。
-
 
 iOS Unity 2021 / Xcode 27 的 IL2CPP 编译不能直接声明未加 ABI tag 的 string 析构符号，
 否则与同编译单元的 libc++ inline 实例重名。共享 `MNNInterop.Abi` partial 通过系统 `dlsym`
@@ -148,7 +146,6 @@ NLP page. iPhone17 CPU/Auto→CPU ran six original-reference cases per backend w
 probability error <=0.000430; the 845.9 MB profile reached 2.76 GB process RSS and
 emitted memory warnings. GPU is intentionally refused for this CPU-only publisher
 profile. INT8 and multilingual variants are not yet certified.
-
 
 2026-10-26 Depth Anything V2 Small 使用共享 MNNImageTask.Depth partial：
 iPhone 17 专项 117 项通过，Android OPPO PELM00 与 English Laya 合并专项 119 项通过，

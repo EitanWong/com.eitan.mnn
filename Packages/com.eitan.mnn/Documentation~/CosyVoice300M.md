@@ -118,7 +118,6 @@ Flow 单输入 Module、10 步原生 VARP 状态和线程筛选未建立明显�
 另4份均是“五点”与“5点”的写法差异；四份量化仍内容失败。
 这不是音质普遍无损或 RTF≤.3 的证明。配对音色代理、PCM差异、失败尝试和回退代价均保留在优化报告中。
 
-
 ## 保守优化与小样本验证（2026-10-28）
 
 新增 `MNNCosyVoice300MDecoderMode`：默认 `Float16`，显式候选 `ExperimentalInt8` / `ExperimentalFfnInt8`。
@@ -139,7 +138,6 @@ Unity/MNN与Torch相对RMSE小于0.00018，修正网络本身约0.15–0.61毫�
 最终连续GPU合成、独立ASR/音色代理、失效尝试及限制见开发工程
 `TestArtifacts~/CosyVoice300M/ConservativeOptimization/REPORT.md`。
 本轮仍没有达到质量验收前提下的 Unity RTF<0.3；Studio继续默认FP16/完整参考/十步Flow。
-
 
 本轮最终质量结论：保留集教师/两步/修正后的独立 ASR 严格匹配为3/8、3/8、4/8；教师本身也有真实内容偏差，
 修正网络的平均音色代理由教师0.532降至0.492，因此端点MSE改善不构成保音质验收，修正网络不接入默认合成。

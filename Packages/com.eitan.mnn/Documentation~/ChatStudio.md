@@ -259,7 +259,6 @@ CosyVoice 输出为 24 kHz 单声道，提供 `Default` 内置音色和随机种
 分段可能改变韵律；需要检查特定文本的读法时，可保存 WAV 后试听。
 缺少资源或文件大小不匹配时不会启用生成。使用范围及取消语义见 [API](API.md)。
 
-
 ## IndexTTS-2.5 / FireRedTTS3
 
 在 Model Manager 搜索 `IndexTTS-2.5-mnn` 或 `fireredtts3-mnn`，下载完整模型配置。
@@ -305,7 +304,6 @@ v4 的部分空格准确率较标准 v5 低，模型输出保持原样；默认�
 当前不含 0/180 度方向分类、复杂版面排序、弯曲文字矫正或其余未验证语言。
 同一工作区中的视觉语言模型仍可按原有方式读取文档。
 
-
 ### Standalone Zipformer speech recognition
 
 Choose **Speech recognition**, install either official 2023-02 English or
@@ -317,7 +315,6 @@ it does not use the instruction field to translate or follow prompts. Audio-lang
 models remain available for prompt-driven audio tasks. The supported recording
 formats are mono/stereo PCM16/24/32 or float32 WAV at 8–96 kHz. Transcription
 can contain recognition errors, particularly code-switching in the bilingual model.
-
 
 ### Whisper and SenseVoice transcription
 
@@ -361,7 +358,6 @@ WAV，点击 Run。结果按秒列出语音开始和结束时间，静音显示 
 结果是语音区间，不包含文字转录或说话人身份。该量化导出与 float ONNX 的
 已知边界误差见 [API](API.md#silero-vad)；其他音频模型仍需要各自的任务适配器。
 
-
 ## Audio processing · Smart Turn
 
 安装 `Jeryuk/smart-turn-v3.2-gpu-MNN`，在 Audio processing 中选中它，提供或录制
@@ -369,7 +365,6 @@ WAV，点击 Run。结果按秒列出语音开始和结束时间，静音显示 
 最多八秒上下文。它与 Silero VAD 共用工作区，模型选择决定执行哪种任务。
 后台运行、取消和结果展示沿用 Studio 工作任务；不生成聊天记录或语音转录。
 预处理、阈值与平台边界见 [API](API.md#smart-turn-endpoint-detection)。
-
 
 ## Kokoro v1.1 external weights
 
@@ -385,7 +380,6 @@ Studio 提供全部 103 个音色，中英文词典、语速、播放与 WAV 保
 同一句话的 SenseVoice 检查 76/103 通过；其余 27 个中，Qwen 独立转写有 20 个包含完整
 内容断言，7 个仍不满足，不能宣布全部音色质量已通过。详见 Testing 中的证据与边界。
 
-
 ## MMS Tamil
 
 模型管理器下载 `developerabu/mms-tts-tam-mnn` 的固定 INT8 profile 后，Studio 的
@@ -395,7 +389,6 @@ Speech synthesis 可选择 Tamil 单音色、插入 Tamil 示例、调节语速�
 发音/转写仍有偏差，精度菜单提供 INT8、FP16/INT8 和 FP32，切换时释放旧推理实例；后两者的严格 ASR 内容检查尚未通过。原模型许可见安装目录中的
 `MMS-SOURCE-NOTICE.txt`。
 
-
 ## Chinese Sherpa VITS
 
 `KindBrave/sherpa-vits-zh-ll-MNN-Custom` 两站固定安装已接通 TTS 工作区。
@@ -403,7 +396,6 @@ Speech synthesis 可选择 Tamil 单音色、插入 Tamil 示例、调节语速�
 插入中文示例、播放并保存 16 kHz WAV。五个说话人的参考句均经过真实合成与独立 ASR。
 前端使用仓库注音词典，未接入 Jieba/FST；数字请写成中文，多音字读法受词典限制。
 最多 300 字符，未知字词会明确拒绝。改名目录仍按配套文件识别为 TTS。
-
 
 ## MOSS Nano
 
@@ -413,14 +405,12 @@ Speech synthesis 工作区显示全部 18 个参考音色和 seed；Use example 
 输出 48 kHz，可试听、保存 WAV；本图没有语速控制。最多 250 个 token、30 秒语音，超限明确报错。
 数字请写成口语文字。内置日语音色等仍有内容测试失败，详情见 Testing；示例按钮不代表质量已通过。
 
-
 ## DhVaani
 
 安装 `Bbkblo/DhVaani-0.5-MNN` 后选择 Speech synthesis。
 选择或录制 0.5–15 秒参考 WAV，并填写录音中的准确原文，再输入 Hindi 或 English 目标文本。
 支持 seed、1–32 采样步和 0.5–2 倍语速；默认八步。Use example 提供英文目标句，
 不会自动替用户填写参考录音原文。输出 24 kHz，可播放和保存；数字需写成口语形式。
-
 
 ## Qwen3-TTS 显式 KV
 
@@ -433,7 +423,6 @@ Voice 菜单列出 `voices/<name>/` 中校验通过的预编码参考音色，�
 模型权重尺寸及参考音色校验不通过时禁用运行。界面仅显示此管线支持的音色、语言和 Seed 控件。
 其他 Qwen3-TTS 导出不自动套用此管线。
 
-
 ## Pocket-TTS
 
 安装 `developerabu/pocket-tts-mnn` 或刷新本地模型后选择已有 `Pocket-TTS-MNN`。
@@ -443,13 +432,11 @@ Voice 菜单列出 `voices/<name>/` 中校验通过的预编码参考音色，�
 公开 `reference_sample.wav` 位于模型目录，可直接选择；受限的预设音色未自动下载。
 全部推理由 MNN 执行，首次加载会核验固定版本文件，后续复用图和最近的参考音色。
 
-
 ## IndicF5
 
 安装 `developerabu/IndicF5-MNN` 后选择 Speech synthesis。选择或录制参考 WAV，并填写录音原文；
 当前提供 Hindi / Tamil 示例，输出 24 kHz 单声道 WAV。管线使用 INT8 DiT 和动态 Vocos FP32，
 短句约 2048 mel 帧上限。Tamil 内容检查仍保留近音拼写限制。
-
 
 ## 文档版面分析
 

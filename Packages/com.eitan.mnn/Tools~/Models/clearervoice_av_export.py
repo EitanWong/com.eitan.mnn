@@ -31,4 +31,3 @@ class Visual(torch.nn.Module):
 class Audio(torch.nn.Module):
     def __init__(self,model):super().__init__();self.net=model.sep_network
     def forward(self,mixture,visual_features):return self.net(mixture,visual_features)
-

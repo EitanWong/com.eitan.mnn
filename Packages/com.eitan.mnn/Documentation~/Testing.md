@@ -455,7 +455,6 @@ CosyVoice 输出为 24 kHz 单声道，提供 `Default` 内置音色和随机种
 分段可能改变韵律；需要检查特定文本的读法时，可保存 WAV 后试听。
 缺少资源或文件大小不匹配时不会启用生成。使用范围及取消语义见 [API](API.md)。
 
-
 ## IndexTTS-2.5 / FireRedTTS3
 
 在 Model Manager 搜索 `IndexTTS-2.5-mnn` 或 `fireredtts3-mnn`，下载完整模型配置。
@@ -501,7 +500,6 @@ v4 的部分空格准确率较标准 v5 低，模型输出保持原样；默认�
 当前不含 0/180 度方向分类、复杂版面排序、弯曲文字矫正或其余未验证语言。
 同一工作区中的视觉语言模型仍可按原有方式读取文档。
 
-
 ### Standalone Zipformer speech recognition
 
 Choose **Speech recognition**, install either official 2023-02 English or
@@ -513,7 +511,6 @@ it does not use the instruction field to translate or follow prompts. Audio-lang
 models remain available for prompt-driven audio tasks. The supported recording
 formats are mono/stereo PCM16/24/32 or float32 WAV at 8–96 kHz. Transcription
 can contain recognition errors, particularly code-switching in the bilingual model.
-
 
 ### Whisper and SenseVoice transcription
 
@@ -556,7 +553,6 @@ WAV，点击 Run。结果按秒列出语音开始和结束时间，静音显示 
 模型支持 8–96 kHz、最长十分钟，内部使用固定 16 kHz VAD；默认 CPU 单线程。
 结果是语音区间，不包含文字转录或说话人身份。该量化导出与 float ONNX 的
 已知边界误差见 [API](API.md#silero-vad)；其他音频模型仍需要各自的任务适配器。
-
 
 ## Keyword spotting (KWS) 中文唤醒词
 
@@ -608,7 +604,6 @@ python3 Packages/com.eitan.mnn/Tools~/Testing/run_platform_tests.py \
 后台运行、取消和结果展示沿用 Studio 工作任务；不生成聊天记录或语音转录。
 预处理、阈值与平台边界见 [API](API.md#smart-turn-endpoint-detection)。
 
-
 ## Kokoro v1.1 external weights
 
 `KindBrave/kokoro-multi-lang-v1_1-MNN-Custom` 新增双平台固定安装方案：
@@ -623,7 +618,6 @@ Studio 提供全部 103 个音色，中英文词典、语速、播放与 WAV 保
 同一句话的 SenseVoice 检查 76/103 通过；其余 27 个中，Qwen 独立转写有 20 个包含完整
 内容断言，7 个仍不满足，不能宣布全部音色质量已通过。详见 Testing 中的证据与边界。
 
-
 ## MMS Tamil
 
 模型管理器下载 `developerabu/mms-tts-tam-mnn` 的固定 INT8 profile 后，Studio 的
@@ -633,7 +627,6 @@ Speech synthesis 可选择 Tamil 单音色、插入 Tamil 示例、调节语速�
 发音/转写仍有偏差，精度菜单提供 INT8、FP16/INT8 和 FP32，切换时释放旧推理实例；后两者的严格 ASR 内容检查尚未通过。原模型许可见安装目录中的
 `MMS-SOURCE-NOTICE.txt`。
 
-
 ## Chinese Sherpa VITS
 
 `KindBrave/sherpa-vits-zh-ll-MNN-Custom` 两站固定安装已接通 TTS 工作区。
@@ -642,7 +635,6 @@ Speech synthesis 可选择 Tamil 单音色、插入 Tamil 示例、调节语速�
 前端使用仓库注音词典，未接入 Jieba/FST；数字请写成中文，多音字读法受词典限制。
 最多 300 字符，未知字词会明确拒绝。改名目录仍按配套文件识别为 TTS。
 
-
 ## MOSS Nano
 
 模型管理器可安装 `kiven2008/moss-tts-nano-100m-mnn` 和
@@ -650,7 +642,6 @@ Speech synthesis 可选择 Tamil 单音色、插入 Tamil 示例、调节语速�
 Speech synthesis 工作区显示全部 18 个参考音色和 seed；Use example 按音色填入参考语言文本。
 输出 48 kHz，可试听、保存 WAV；本图没有语速控制。最多 250 个 token、30 秒语音，超限明确报错。
 数字请写成口语文字。内置日语音色等仍有内容测试失败，详情见 Testing；示例按钮不代表质量已通过。
-
 
 ## MOSS Nano 与 Qwen3-TTS 实验（2026-10-19）
 
@@ -673,11 +664,9 @@ FP16 有一次中文参考句正确，但英文及后续调用未稳定结束；
 `qwen3-tts-raw-diagnostic.xml` 仅为执行诊断：INT8 第一帧后 63 帧全零码，FP16 重复码和近静音。
 带参考音频、提高精度及关闭 attention 缓存优化均未解决，内部实验保持未开放。
 
-
 `moss-cached-voice-audit.xml`：两种词表的日语 token ID 对照 **2/2 passed**。
 缓存图布局的 18 音色均产生有效波形，11 个中文/英文参考句通过，全部七个日语音色未通过严格内容断言；
 该质量审计保留失败状态。固定图布局的 Adam 失败不能用另一个布局的通过结果覆盖。
-
 
 ## DhVaani v1.1（2026-10-19）
 
@@ -703,7 +692,6 @@ Studio 验证缺参考录音/原文时拒绝启动，真实生成后实际播放
 这一机器八步/CPU4 样本生成 5.496 秒、音频 2.464 秒，RTF 2.231；不宣称实时或已达最佳性能。
 固定八文件的本地 HTTP 下载测试校验全部资产、重命名目录路由、完整安装零 HTTP 续传，以及拒绝未验证旧 revision。
 
-
 `dhvaani-native-projection.xml` **55/55 passed**，`dhvaani-dynamic-cache.xml` **5/5 passed**。
 输出投影改用内存图中的 MatMul/Add 后，与独立线性计算最大绝对误差为 1.7683e-5；
 NumPy DSP、中文字符拒绝、英文重复合成、Hindi 内容及 Studio 测试仍通过。
@@ -715,7 +703,6 @@ NumPy DSP、中文字符拒绝、英文重复合成、Hindi 内容及 Studio 测
 冷调用分别为 9.087 / 6.210 / 5.060 / 5.153 秒（不含 Load 的文件校验/图准备）。
 `dhvaani-cpu-performance.json` 保存各项数据；旧 Mono 格式化器导致的末字段 JSON 序列化问题已修复，
 本次 RTF 按原报告的 medianSeconds/audioSeconds 计算，XML 中的原始测量输出保留。
-
 
 ## Qwen3-TTS 显式 KV 导出（2026-10-19）
 
@@ -744,7 +731,6 @@ Studio 的 3.52 秒中文音频生成耗时 16.282 秒、RTF 4.626；不同测�
 MOSS Studio 有一次结果未送达窗口，未报告原生错误。`tts-studio-discovery-recheck.xml` 的
 两种 MOSS Studio 和 TTS/聊天目录回归均通过（3/3），暂未复现；后续测试增加窗口持有 session
 及 session 已产生结果的诊断断言，没有删除生成/播放或内容断言。
-
 
 `qwen3-explicit-performance.xml` 显式性能检查通过：每个候选先合成一次，再测量三次同句同 seed，
 最终波形与基准最大误差低于 .02，且各候选均通过独立中文内容识别。
@@ -857,7 +843,6 @@ Studio 标记为 experimental。其他语言和任意参考录音的质量未验
 重复中位约 319/344/168/165 ms；这不是整句合成耗时。保留默认四线程，
 32 步短句实测约 35 秒，未达到实时。原生验证范围仍为上述项目限定 macOS Mono ABI。
 
-
 ## Qwen3-TTS Studio 接入复核（2026-10-23）
 
 本轮证据在仓库根目录 `TestArtifacts~/QwenTts/verification-summary.json`。
@@ -883,7 +868,6 @@ Studio 用例验证实际自动播放、停止、WAV 编码保存及语言请求
 使用现有官方 C++ API 声明与托管前后处理，没有新增 C++、自定义导出或官方源码修改。
 ModelScope Talker INT8/FP16 实验导出的质量失败结论保持不变，不能套用本轮成功结果。
 
-
 ## PP-DocLayoutV3 文档版面验证
 
 `DocumentLayoutTests` 校验模型协议拒绝、阈值、坐标拉伸还原、裁剪及阅读顺序。
@@ -899,7 +883,6 @@ iOS physical footprint 和加载/推理耗时。将两个固定资产与 `layout
 `persistentDataPath/document-layout/` 后，使用 `run_platform_tests.py --document-layout-root <existing-assets>`
 要求两项用例都通过；缺少资产或跳过不能算作验证通过。桌面 Player 可直接指定目录。
 `--test-filter` 可选择专项测试，报告仅覆盖筛选后的用例；该 runner 同时要求平台契约与基础推理检查。
-
 
 ## Candy / DeepLab 图像任务独立参考与 Player 检查
 
@@ -959,7 +942,6 @@ warnings. This is a full-process observation and is not a model-only memory budg
 The upstream action logits are saturated, so only their exposed softmax probability is
 compared for these examples; this does not establish action calibration or threshold
 safety. English INT8 and multilingual Laya variants remain unverified.
-
 
 ## Depth Anything V2 Small 与 Android English Laya 补测
 

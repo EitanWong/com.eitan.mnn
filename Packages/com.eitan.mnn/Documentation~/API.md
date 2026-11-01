@@ -730,7 +730,6 @@ EOS 和长度检查不等同于逐字内容校验，不能保证模型在所有�
 约定。已验证 macOS arm64 Unity Editor；其他平台及 Player 的 CosyVoice 推理尚未实测。
 本实现未新增 C++、自定义导出或桥接库。当前不包含声音克隆/注册流程。
 
-
 ## Kokoro 与 Indic VITS
 
 `MNNKokoro.Load(directory)` 读取原始 `tts.mnn` / 稀疏 `tokenizer.txt` / `voices/*.bin`，
@@ -869,7 +868,6 @@ using (var recognizer = MNNPaddleTextRecognizer.Load(modelDirectory))
 纯色图没有字形边缘，直接返回空文本和零置信度，避免部分识别头对空白图产生伪文字。
 手工 profile 必须与模型语言、字典和输出协议吻合；没有自动宣称其他 PP-OCR 图兼容。
 
-
 ## PP-OCRv5 整页识别
 
 同一安装的 `mnn_paddle_ocr.json` 声明 DB 检测图、tensor 名称、最大边长、阈值和后端偏好。
@@ -969,7 +967,6 @@ code-switching errors. CPU selection is deliberate; the tested Metal path lost
 words. Silence with background noise can still hallucinate without an external
 VAD. Runtime uses the package's existing MNN 3.6.1 Apple clang/libc++ macOS Mono
 ABI contract, with no additional C++ or custom exports.
-
 
 ### Whisper speech recognition
 
@@ -1123,7 +1120,6 @@ float ONNX 存在差异：六组参考中五组边界完全一致，补静音的
 最后区间提前 64 ms；不把该差异归为对齐成功。VAD 仅检测语音活动，不能
 生成转录、识别人或可靠区分所有噪声。参见 [测试说明](Testing.md#silero-vad)。
 
-
 ## Smart Turn endpoint detection
 
 Model Manager 安装固定版本 `Jeryuk/smart-turn-v3.2-gpu-MNN` 后生成
@@ -1151,7 +1147,6 @@ Auto 使用 CPU4。M5 上 CPU4/8 接近、CPU4 使用更少线程；这不是所
 仅沿用已有 macOS64 Mono ABI；不增加 C++、桥接库或原生导出。
 验证范围见 [测试说明](Testing.md#smart-turn-v32)。
 
-
 ## Kokoro v1.1 external weights
 
 `KindBrave/kokoro-multi-lang-v1_1-MNN-Custom` 新增双平台固定安装方案：
@@ -1165,7 +1160,6 @@ Studio 提供全部 103 个音色，中英文词典、语速、播放与 WAV 保
 示例文字根据音色语言选择。全部音色能生成有限非静音波形，但内容验证尚未全部通过：
 同一句话的 SenseVoice 检查 76/103 通过；其余 27 个中，Qwen 独立转写有 20 个包含完整
 内容断言，7 个仍不满足，不能宣布全部音色质量已通过。详见 Testing 中的证据与边界。
-
 
 ## MMS Tamil TTS
 
@@ -1196,7 +1190,6 @@ they remain unverified for content quality. The generated
 `MMS-SOURCE-NOTICE.txt` records the original `facebook/mms-tts-tam` model's
 CC-BY-NC-4.0 license; the export repository's Apache metadata does not replace it.
 
-
 ## Chinese Sherpa VITS
 
 ```csharp
@@ -1221,7 +1214,6 @@ not implement the repository's Jieba or FST normalizers. Write numbers as Chines
 words. Polyphonic words follow the supplied lexicon; unknown characters/Latin words
 are rejected rather than omitted. These single-sentence checks do not establish
 accuracy for arbitrary Chinese. CPU / current macOS Mono ABI only.
-
 
 ## MOSS Nano
 
@@ -1250,7 +1242,6 @@ using (var tts = MNNMossNano.Load(modelDirectory))
 Qwen3-TTS 的官方 `Omni::generateTTS` 调用仍是内部实验：已测试的 INT8/FP16 导出存在
 不结束、重复音频码或近静音问题，未开放 Studio 可运行配置，也未作为可用公共 API 发布。
 
-
 ## DhVaani v1.1
 
 `MNNDhVaani.Load(directory, threads: 4)` 支持 Hugging Face
@@ -1278,7 +1269,6 @@ Hindi 和 English 使用字符词表，不静默丢弃未支持的字符；数�
 已验证英文重复合成、Hindi 跨语言参考样本及 Studio；不代表所有文本与声音克隆质量均通过。
 当前平台边界仍为 MNN 3.6.1 / Apple clang / libc++ ABI v1 / macOS64 Mono。
 
-
 ## Qwen3-TTS 显式 KV
 
 `MNNQwen3ExplicitTts.Load(directory, threads: 4)` 支持固定的 HF
@@ -1304,7 +1294,6 @@ using (var tts = MNNQwen3ExplicitTts.Load(modelDirectory))
 不返回截断语音。取消在帧/码本计算之间检查；同实例操作串行，Dispose 等待当前调用释放。
 嵌入表按行读取，图与投影在实例内复用。CPU 与原生调用仍受本项目 macOS Mono ABI 限制。
 
-
 `cacheCodePredictorShapes: true` 可缓存十五种固定 CP 形状以减少重复 resize，默认关闭。
 实测 CPU4 重复调用中位由 8.961 降到 8.019 秒，但首次调用更慢，进程驻留内存样本明显增加。
 仅在有足够内存且重复合成时考虑启用；详见 Testing 中的完整测量。
@@ -1313,7 +1302,6 @@ Kokoro 还支持 `Jeryuk/kokoro-v1_0-MNN` 的单 `zf_xiaoxiao` 音色，以及
 `starsharp06sharp/kokoro-multi-lang-v1.1-MNN-Multilingual` 的 103 个有名称音色。
 后者附加的 53 份未命名表不作为音色公开；当前前端仅实现中文与美式英文词典。
 两者均通过 `MNNKokoro.Load(directory)` 加载，安装器补齐已验证的固定资源。
-
 
 ### Pocket-TTS
 
@@ -1387,7 +1375,6 @@ PCM 采样率和声道必须与输出一致；本循环不隐式重采样、裁�
 低精度可能改变 EOS、音频时长和声音，需要按设备重新验证内容、音质和性能。
 流式输出不等于实时合格：必须分别测首块延迟、持续/滑动窗口 RTF、实际播放欠载和 Omni 并发开销。
 
-
 ### IndicF5
 
 `MNNIndicF5Tts.Load(modelDirectory)` 使用 `developerabu/IndicF5-MNN` 的固定 INT8 DiT、动态 Vocos
@@ -1432,7 +1419,6 @@ L2 归一化向量，`MNNVectorSimilarity.Cosine` 可计算跨模态相似度。
 的官方图、Kaldi 25/10 ms fbank、每频带均值归一化和 192 维 L2 向量。`EncodeWaveFile` 支持
 8–96 kHz 输入并统一重采样到 16 kHz；应用应自行使用同一数据集校准 cosine 阈值。
 
-
 ### PP-DocLayoutV3 文档版面
 
 `MNNDocumentLayout.Load(directory)` 核验固定 `tansen87/PP-DocLayoutV3_mnn` 权重与
@@ -1464,7 +1450,6 @@ Model Manager 安装的 128/256/512 profile，固定 CPU/High。`ProcessHop` 每
 inverse: false)` 原地处理独立的 `double[]`，逆变换除以长度；预热后无托管分配。
 可选 Burst 程序集自动检测已安装的 Burst 1.8+，未安装时使用相同 C# 内核。
 用法、DSP 约定与验证边界见 [DTLN AEC](DtlnAec.md)。
-
 
 ## Depth Anything V2 Small 深度估计
 
