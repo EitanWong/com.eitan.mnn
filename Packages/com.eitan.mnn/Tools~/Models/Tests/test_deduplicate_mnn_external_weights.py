@@ -60,7 +60,13 @@ class ExternalWeightCompactionTests(unittest.TestCase):
             self.assertFalse(target.exists())
 
     def test_official_scale_graph_compacts_without_losing_weights(self):
-        fixture = json.loads((Path(__file__).parent / 'Fixtures/external_scale.json').read_text())
+        self.assert_graph_compacts_without_losing_weights('external_scale.json')
+
+    def test_official_layernorm_graph_compacts_without_losing_weights(self):
+        self.assert_graph_compacts_without_losing_weights('external_layernorm.json')
+
+    def assert_graph_compacts_without_losing_weights(self, fixture_name):
+        fixture = json.loads((Path(__file__).parent / 'Fixtures' / fixture_name).read_text())
         artifacts = TOOL.parents[4] / 'TestArtifacts~/SpeechModels/ToolTests'
         artifacts.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=artifacts) as temporary:

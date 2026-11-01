@@ -2,7 +2,7 @@
 """Share identical external weight records in an official MNN 3.6.1 graph.
 
 Only serialized model data is changed. Net.oplists, Op.main, Convolution2D.external,
-Blob.external and Scale.external follow the official schema/default/*.fbs tables. This does not
+Blob.external, Scale.external and LayerNorm.external follow the official schema/default/*.fbs tables. This does not
 modify MNN source, native object layouts, operators, values or quantization.
 Requires converter --saveExternalData; all source bytes must be accounted for.
 """
@@ -71,7 +71,7 @@ class Model:
         for index in range(self.integer(ops)):
             op = self.follow(ops + 4 + index * 4)
             parameter_type = self.integer(self.field(op, 1), 'B')
-            external_slot = {9: 6, 7: 9, 58: 3}.get(parameter_type)
+            external_slot = {9: 6, 7: 9, 58: 3, 88: 5}.get(parameter_type)
             if external_slot is None:
                 continue
             parameter = self.follow(self.field(op, 2))
