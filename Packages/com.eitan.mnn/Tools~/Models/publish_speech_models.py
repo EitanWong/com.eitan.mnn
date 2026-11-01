@@ -70,6 +70,7 @@ MODEL_NAMES = (
     "FS-EEND-CALLHOME-8K-MNN",
     "VBx-ResNet101-16K-MNN",
     "VBx-ResNet101-8K-MNN",
+    "TurnSense-SmolLM2-135M-MNN",
 )
 RUNTIME_BINARY_FILES = frozenset((
     "fs_eend_coefficients.bin",

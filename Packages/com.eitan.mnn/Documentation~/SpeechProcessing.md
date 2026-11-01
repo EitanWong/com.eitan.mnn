@@ -32,6 +32,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 | VAD | `MNNSileroVad` / `MNNFsmnVad` / `MNNMarbleNetVad` | Audio processing |
 | 音频轮次结束 | `MNNSmartTurn.Predict` | Audio processing |
 | 文本轮次结束 | `MNNLiveKitTurnDetector.Predict` / `MNNNamoTurnDetector.Predict` | Audio processing，ASR 转写文本 |
+| TurnSense SmolLM2文本EOU | `MNNTurnSense.Predict` | Audio processing，保留原始空白的转写文本；含前缀最多256 token，超过显式拒绝 |
 | 音频／文本多任务轮次判断 | `MNNVoxTurn.Predict` / `PredictBatch` / `EndOfTurn` | VoxTurn v1，六类判断；纯文本、音频或两者组合；保留非商业许可 |
 | 带播放参考的回声消除 | `MNNDtlnAec.Process` / `ProcessHop` | Echo cancellation，双 WAV |
 
@@ -168,3 +169,7 @@ VBx16k使用作者同一固定树公开ONNX，revision `57466e6e245d5cdfe2e88ee6
 2026-11-01，`VBx-ResNet101-8K-MNN`完成第十组独立真实macOS arm64 Mono2x Player119/119，无失败或跳过；8k CPU4/Metal4/Auto4各42次完整PCM，共126次；16k CPU8/Metal8/Auto8回归126次，全构建252次。两种profile共享托管前端/运行器，所有重复逐位一致；八项运行/通知文件SHA与冻结、部署、staged和built匹配。Build `3fc8261fc3894efdb5e96fee686204cd`，XML SHA256 `43a8d8d96e86950dcb08551454c45cfcdcf5486d64156805ce55af135a29a014`，证据 `TestArtifacts~/SpeechModels/VBx-ResNet101-8K/player-verified-v371.json`。当前49项、十组实际构建，不能称49模型联合验收。
 
 VBx8k固定作者同revision电话带宽ONNX，SHA `3ed741330f8e56a151430c382a172839f1bb7e78d73554a6189e199a2d0a4816`；8kHz mono、760–80000样本，Povey200/FFT256/hop80/64mel20–3700Hz、镜像60/100；其余原seed3整数PCM/抖动8、float64/滑动CMN与raw256尺度保留。完整PCM NRMSE CPU最大8.87370e-5、Metal/Auto3.08964e-6；两种前端float32逐元素一致，联合Editor20/20。4秒CPU4/Metal1为46.3723/30.2654ms，10秒119.2705/78.0576ms；Auto优先Metal，CPU回退4线程。Load省略threadCount使用profile默认（8k4、16k8），显式1–64仍保留；InputSampleRate与ThreadCount报告实际值。FP16/Q8/Low失败，原动态及源等价固定400帧CoreML仍无有效输出；没有移动真机/NPU或任务质量资格。原ONNX与固定probe均在消费者结束后删除，ModelScope仍最后统一上传。
+
+2026-11-01，`TurnSense-SmolLM2-135M-MNN`新增为第50个独立项目（latishab文本SmolLM2，与brgroup音频TurnSense不同）。210个LoRA投影先单层再全层按原参数合并，原36组概率差最大3.21865e-6，图由697857800减至540120312字节。合并FP32在CPU/Metal原36组概率最大差1.22190e-5/4.82798e-6，固定maxabs<0.001、分类及重复完全一致；FP16与Q8未通过，未部署。Auto选择可用Metal，否则CPU4，High/None；最终完整托管调用CPU4/Metal4预热中位120.7641/40.5133ms，属于当前Apple M5测量。官方CoreML因GatherV2不支持而无有效输出，没有NPU/ANE或移动真机资格。
+
+实际作者AutoTokenizer会将文件中的Digits→ByteLevel替换成单个ByteLevel；运行器保留其原始前缀、所有空白/Unicode、256右补齐id2及原始两概率，不再次softmax，不隐式截断。36组原始精确IDs/masks及509组扩展输入通过；固定9,663字节Unicode表消除平台Unicode版本差异，附完整UnicodeV3许可。最终Editor8/8（含Studio文本路由、空文本、空白、取消/释放）及独立真实macOS arm64 Mono2x Player116/116零失败/跳过，三backend共216次完整文本调用，CPU/Metal/Auto概率最大误差1.15634e-5/4.82798e-6/4.82798e-6；全部六项运行/通知文件SHA与冻结、部署、staged、built一致。Build `d80ec9023ef1464c8c815364d6c35318`，XML SHA256 `bc5f8a8bc18f04352ab68c9cf69103c3eb0b6d7db64cd067595ca939ce2f5b7d`，证据 `TestArtifacts~/SpeechModels/TurnSense-SmolLM2-135M/player-verified-v433.json`。这是第十一组独立构建，不能称50项一次联合验收；数值对齐不代表重新验证任务准确率。原ONNX及暂存源文件已在所有消费者结束后校验清理；其余候选继续处理，ModelScope最后统一上传。
