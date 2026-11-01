@@ -28,7 +28,7 @@ Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 
 | CueLight Nano/SSM流式语音活动/轮次结束 | `MNNCueLightTurnDetector.Push` / `Analyze` / `AnalyzeWaveFile` | Audio processing，16kHz mono；20ms逐帧、自动重置/18帧replay、snappy/careful端点时间线 |
 | FS-EEND说话人活动时间线 | `MNNFsEendDiarization.Analyze` / `AnalyzeWaveFile` / `MNNFsEendActivity.ToRttm` | Audio processing，8kHz mono、1–480000样本；保留5列posterior，整段因果注意力、原前瞻/延迟与RTTM |
 | LS-EEND说话人活动时间线 | `MNNLsEendDiarization.Analyze` / `AnalyzeWaveFile` / `MNNLsEendActivity.ToRttm` | Audio processing，8kHz mono、1–480000样本；保留9个posterior列、严格0.5阈值和11帧median |
-| 声纹向量 | `MNNSpeakerEmbedding` / `MNNWeSpeakerEmbedding` | Speaker recognition |
+| 声纹向量 | `MNNSpeakerEmbedding` / `MNNWeSpeakerEmbedding` / `MNNVbxEmbedding` | Speaker recognition；VBx保留原始256维尺度 |
 | VAD | `MNNSileroVad` / `MNNFsmnVad` / `MNNMarbleNetVad` | Audio processing |
 | 音频轮次结束 | `MNNSmartTurn.Predict` | Audio processing |
 | 文本轮次结束 | `MNNLiveKitTurnDetector.Predict` / `MNNNamoTurnDetector.Predict` | Audio processing，ASR 转写文本 |
@@ -158,3 +158,7 @@ FS-EEND采用作者Simu公开MIT checkpoint，原logmel23不做LS累计均值；
 2026-11-01，`FS-EEND-CALLHOME-8K-MNN`通过第八组独立真实Player122/122，无失败或跳过。CALLHOME、原Simu及LS各CPU/Metal/Auto三后端，共378次完整PCM调用；全部运行/通知文件SHA与冻结、部署、staged和built副本一致。Build `b2627195e5e749a2afad6d32bab7b8be`，XML SHA256 `ee6ffd37b5ef4e6aca39ea35e592e4ea8ae30c5ebc2e1f84c04ed2b3193728de`，证据 `TestArtifacts~/SpeechModels/FS-EEND-CALLHOME-8K/player-verified-v332.json`。两个FS checkpoint通过不可变身份/图SHA映射共用完整录音API；Studio显示实际模型名，未修改原Simu部署资产。当前47项保留八组实际构建，不是47项联合Player验收。
 
 CALLHOME采用作者公开45,070,453-byte checkpoint，SHA `eda37490029b9112d5a40849e2e825404ec55e12671dd982d07b81780339c949`；原权重已在全部消费者完成后删除。源图改写最大1.31131e-6；完整PCM CPU8/Auto最大1.09077e-5、Metal8最大1.90735e-6，均低于固定1e-4，原RTTM与重复完全一致。60秒CPU1/2/4/8中位195.3421/180.6936/137.5618/135.6127ms，Metal1 131.3533ms；4秒CPU8 8.49735ms、Metal1 10.13555ms，保留AutoCPU8和显式Metal。FP16/Q8/Low失败；官方CoreML原图及源等价固定40帧/拆分投影probe均无有效输出，后者spec4空输入validator/compile code4。保留原logmel23、五posterior列、delay9与零embeddingflush；无移动真机、NPU或DER/JER质量声明。ModelScope仍最后统一上传。
+
+2026-11-01，`VBx-ResNet101-16K-MNN`完成第九组独立真实macOS arm64 Mono2x Player116/116，无失败或跳过；CPU8、Metal8、Auto8各42次完整PCM，共126次，重复逐位一致。Build `cc69785467174c448fc0067ecb6e4fb5`，XML SHA256 `a0e53223f11b2c41dd99ab105ad17623eeaacabb09599c17a1953714b04e79dd`；四项运行/通知文件与冻结、部署、staged、built副本SHA一致，证据 `TestArtifacts~/SpeechModels/VBx-ResNet101-16K/player-verified-v356.json`。当前48个独立项目，九组实际构建，不能称48模型联合验收。
+
+VBx16k使用作者同一固定树公开ONNX，revision `57466e6e245d5cdfe2e88ee6503702ace3ffdd03`，原SHA `f550bf3d7766478a0684b8f564184db81c3346a7c99a61051f033b42b8f08373`。这是原get_embedding整段utterance入口，返回未L2归一化的256维x-vector，不包含CLI144/24窗口、VAD、PLDA、聚类或VBHMM。16kHz mono、1520–160000样本，保留seed3/53bit NumPy MT uniform、整数PCM/抖动8、镜像、float64 Povey400/FFT512/64mel和LC150/RC149滑动CMN，最后转float32；Unity前端全部逐元素一致。完整PCM NRMSE CPU最大9.77642e-5、Metal/Auto3.92507e-5，原门槛0.001及cosine0.99999不变。4秒/10秒完整调用Metal中位41.6916/109.8631ms，CPU8为58.19075/145.0044ms，选择Auto优先Metal、CPU8回退、High/None。FP16/Q8/Low失败；原动态及源等价固定400帧CoreML均spec4空输入validator/compile code4无有效输出，没有ANE或移动真机资格。Apache2全文与Brno通知随附，原ONNX及临时固定图已在全部消费者完成后删除。其余候选继续处理，ModelScope最后统一上传。

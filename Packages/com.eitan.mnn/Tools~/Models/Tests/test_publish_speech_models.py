@@ -123,6 +123,9 @@ class PublicationAuditTests(unittest.TestCase):
     def test_fs_eend_coefficients_require_matching_player_snapshot(self):
         self.check_coefficient_snapshot('fs_eend_coefficients.bin')
 
+    def test_vbx_coefficients_require_matching_player_snapshot(self):
+        self.check_coefficient_snapshot('vbx_coefficients.bin')
+
     def check_coefficient_snapshot(self, name):
         (self.model / name).write_bytes(b'fixture coefficients')
         self.refresh()
