@@ -1,4 +1,4 @@
-# MNN for Unity Documentation
+# Documentation
 
 Start with the [package README](../README.md) for installation and the supported
 macOS Mono ABI and mobile Interpreter ABI. This is a project-maintained compiler-specific C# binding, not an
@@ -27,11 +27,53 @@ that every platform or model pipeline is implemented.
 - [Basic sample](../Samples~/BasicExample/README.md): import and run the example.
 - [Changelog](../CHANGELOG.md): package releases.
 
-- [Real inference and tests](Testing.md): verified models, results and platform limits.
-- [Native build](../Native~/README.md): direct C++ calls and compiler ABI contract.
+## Start here
+
+- [Package overview and installation](../README.md)
+- [Basic Inference sample](../Samples~/BasicExample/README.md)
+- [Chat Studio](ChatStudio.md): conversations, media, model preparation and task limits.
+- [简体中文 project overview](translations/README.zh-CN.md)
 
 Paths under `TestArtifacts~/` in the test documentation refer to local evidence;
 logs, model weights and generated media are excluded from Git. Historical test
 results retain their original scope and do not replace validation of a new build.
 
 - [中文唤醒词检测与 Studio 使用](KeywordSpotting.md)
+
+## API and models
+
+- [API reference](API.md): public C# types and inference workflows.
+- [Acceleration](Acceleration.md): backend selection, precision, fallback and caching.
+- [OmniVoice](OmniVoice.md): conversion, synthesis, model licensing and measured limits.
+- [Native build and ABI contract](../Native~/README.md): required compiler and library assumptions.
+
+## Development
+
+- [Contributing](development/Contributing.md): setup, checks and review expectations.
+- [Project structure](ProjectStructure.md): directory ownership and assembly boundaries.
+- [Repository maintenance](RepositoryManagement.md): source assets, local files and Git hygiene.
+- [Branches and installation references](development/Branches.md)
+- [CI and validation](development/ContinuousIntegration.md): automatic checks and optional Unity runs.
+- [Release procedure](development/Releases.md): versioning, tags, package archives and draft releases.
+- [Test evidence and reproduction](Testing.md): actual model results and platform limits.
+- [Tool reference](../Tools~/README.md)
+
+## Community and history
+
+- [Support](community/Support.md)
+- [Community guidelines](community/CodeOfConduct.md)
+- [Security policy](community/Security.md)
+- [Package changelog](../CHANGELOG.md)
+- [Repository changelog](https://github.com/EitanWong/com.eitan.mnn/blob/dev/CHANGELOG.md)
+
+## Documentation conventions
+
+All project guides and translations live in `Documentation~`. The repository and
+package READMEs remain short entry points; release history stays in the standard
+CHANGELOG files. Topic guides currently retain their original language. New
+navigation and maintainer guides use English; translations belong in `translations/`.
+Keep executable examples, supported platforms and validation claims consistent
+with the code included in the same commit.
+
+Paths under `TestArtifacts~/` refer to local evidence excluded from Git. Historical
+results describe the tested build and environment; they do not certify a later build.

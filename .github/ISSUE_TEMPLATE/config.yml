@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/EitanWong/com.eitan.mnn/blob/dev/Packages/com.eitan.mnn/Documentation~/README.md
+    about: Installation, API reference, platform limits and contributor guides.
+  - name: Security reporting
+    url: https://github.com/EitanWong/com.eitan.mnn/blob/dev/Packages/com.eitan.mnn/Documentation~/community/Security.md
+    about: Read the reporting policy before sharing sensitive details.

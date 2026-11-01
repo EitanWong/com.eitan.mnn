@@ -169,6 +169,8 @@ pytorch_model*.bin.meta
 # Local packages and imported project samples
 /Packages/com.eitan.easymic/
 /Packages/com.eitan.easymic.meta
+/Packages/com.eitan.easymic-*/
+/Packages/com.eitan.easymic-*.meta
 /Packages/com.eitan.easymic.apm/
 /Packages/com.eitan.easymic.apm.meta
 /Packages/com.eitan.easymic.apm-*/
@@ -181,3 +183,6 @@ pytorch_model*.bin.meta
 # Mono crash reports and memory dumps
 mono_cras*.json
 mono_cras*.blob
+
+# Local sample connection settings
+/MNN/

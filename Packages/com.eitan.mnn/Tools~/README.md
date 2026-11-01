@@ -9,6 +9,9 @@ Run commands from the development repository root. No tool automatically downloa
 | `Validation/check_assembly_compilation.py` | Compile all eight asmdefs separately with declared package dependencies, including samples and test fixtures | Installed macOS Unity .NET/Roslyn, cached test framework references from the development project |
 | `Models/prepare_image_profile.py` | Prepare SHA-checked Candy/DeepLab profiles with `--profile`; explicit optional source download | Python 3.9+, existing unmodified official MNN 3.6.1 converter |
 | `Testing/generate_image_reference.py` | Generate independent RGB input/logit/PNG references from existing pinned Candy/DeepLab assets | Python with Pillow, numpy and onnxruntime or ai-edge-litert |
+| `Validation/validate_repository.py` | Tracked assets, manifest exclusions and Markdown link membership | Python 3.11+ and Git |
+| `Validation/test_*.py` | Repository-policy and CI-preparation regression tests | Python 3.11+ and Git |
+| `Testing/prepare_ci_project.py` | Isolated Unity test project with the committed package | Python 3.11+; output under `TestArtifacts~/` |
 | `Testing/check_platform_compilation.py` | 13 conditional C# compilation/import configurations | Installed macOS Unity .NET/Roslyn and `monodis` |
 | `Testing/prepare_multimodal_fixtures.py` | Small local color images and WAV input | Python 3.9+, macOS `say`/`afconvert` and installed voice |
 | `Testing/run_model_tests.py` | Six representative models, strict offline EditMode run | Python 3.9+, existing isolated Unity project, downloaded models and local fixtures |
@@ -111,3 +114,6 @@ already be on that device; only the runner/library are temporarily staged.
 Synthetic throughput does not certify answer correctness or Unity overhead.
 See [LLM performance](../Documentation~/LlmPerformance.md) for commands, real
 managed correctness gates and the current device recommendations.
+
+CI, runner setup and the distinction between static and native checks are documented in
+[CI and validation](../Documentation~/development/ContinuousIntegration.md).

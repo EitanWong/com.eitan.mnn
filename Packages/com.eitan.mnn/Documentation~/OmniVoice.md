@@ -23,8 +23,7 @@ total about 3.0 GiB. The original safetensors in the same local model asset
 directory are conversion sources and are not needed by `MNNOmniVoice` at runtime.
 Model weights and test outputs are ignored by Git. For Android, copy or deliver
 the files to a real filesystem directory before calling `Load`; APK
-`StreamingAssets` URLs cannot be passed to MNN's file loader. See
-[model delivery](ModelDelivery.md).
+`StreamingAssets` URLs cannot be passed to MNN's file loader. See the model-path examples in the [API reference](API.md).
 
 The upstream [model card](https://www.modelscope.cn/models/k2-fsa/OmniVoice)
 states that the pretrained weights use **CC-BY-NC**. Check that license before
@@ -155,9 +154,8 @@ changing production defaults. The original Python/MNN diagnostic and Unity XML
 results are under `TestArtifacts~/OmniVoiceResearch/` in the development project.
 
 The measured macOS result does not establish Android/iOS latency or quality.
-Mobile deployment uses the package's pinned compiler/platform ABI contract in
-[mobile interop](MobileInterop.md); test the actual Player and backend before
-promoting it.
+The committed binding targets the [macOS Mono ABI](../Native~/README.md).
+Mobile deployment requires a separately implemented ABI and validation on the actual Player and backend.
 
 ## CosyVoice3-MNN comparison and mobile scope
 
@@ -205,7 +203,6 @@ The compact path is an optional measured optimization, not a claim of smooth
 mobile playback or a mobile Unity Player validation. Reliable real-time mobile
 speech still needs target-device profiling and likely training-based reduction
 of repeated backbone computation, with separate quality evaluation.
-
 
 ## CFG and step distillation research
 
