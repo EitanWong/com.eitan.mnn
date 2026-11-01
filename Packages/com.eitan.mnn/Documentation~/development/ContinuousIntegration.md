@@ -47,13 +47,11 @@ force pushes and configure reviewers for the `release` and `unity-validation`
 environments. These are GitHub repository settings; adding workflow files alone
 does not enable branch protection or environment approval.
 
-## Known clean-build blocker
+## Isolated validation evidence
 
-A local run of the new isolated project against the existing dev snapshot failed
-before tests: OmniVoice references `MNNReferenceAudio` and `MNNBytePairTokenizer`,
-which are absent from the committed tree. It also expects graph APIs from the
-uncommitted runtime work. This infrastructure change does not publish that separate
-runtime work or certify the package as buildable.
-
-Resolve the dependency closure and rerun the affine workflow before marking the
-dev-to-main promotion ready to merge. Keep the PR in draft while this blocker remains.
+The 2026-11-02 macOS ARM64 review run compiled the isolated project and passed
+115 platform contract and affine PlayMode tests on Unity 2021.3.45f2, including
+CPU and Auto/Metal affine inference. This resolves the earlier missing OmniVoice
+types in the development snapshot. The affine workflow selects these two test
+fixtures explicitly; model-specific Player suites require separate model assets
+and are not included in this result.

@@ -42,9 +42,15 @@ jobs:
         run: |
           extra=()
           if [ "$VALIDATION_SCOPE" = contract ]; then extra+=(--contract-only); fi
+          if [ "$VALIDATION_SCOPE" = affine ]; then
+            extra+=(--test-filter 'MNN.Unity.Tests.PlayerInferenceTests;MNN.Unity.Tests.PlatformContractTests')
+          fi
           python3 -B Packages/com.eitan.mnn/Tools~/Testing/run_platform_tests.py \
             --unity "$UNITY_EDITOR" --project "$UNITY_PROJECT" \
             --platform PlayMode --backend Mono2x "${extra[@]}"
+          if [ "$VALIDATION_SCOPE" = affine ]; then
+            python3 -c 'import json; from pathlib import Path; p = Path("TestArtifacts~/MNNValidation/PlatformValidation/PlayMode-Mono2x-inference/summary.json"); s = json.loads(p.read_text()); assert s["affine_inference_verified"] and s["auto_affine_inference_verified"], "Affine validation did not execute all required tests"'
+          fi
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

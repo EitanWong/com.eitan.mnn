@@ -24,9 +24,9 @@ Other-platform plugin files do not establish managed inference support. Check th
 
 ## Development status
 
-The current development snapshot has a [known clean-build blocker](Packages/com.eitan.mnn/Documentation~/development/ContinuousIntegration.md#known-clean-build-blocker)
-in OmniVoice. Static checks do not establish that the package compiles; this snapshot
-is not release-ready.
+The isolated Unity 2021.3.45f2 macOS ARM64 PlayMode run passes the platform
+contract and bundled affine inference tests. Other model and device coverage is
+documented in the [validation scope](Packages/com.eitan.mnn/Documentation~/Testing.md).
 
 ## Install
 
