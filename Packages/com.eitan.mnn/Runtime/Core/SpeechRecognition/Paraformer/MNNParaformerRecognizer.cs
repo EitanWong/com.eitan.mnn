@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace MNN.Unity
 {
     /// <summary>Chinese greedy ASR for the pinned 8404-token Paraformer online graph exports.</summary>
-    public sealed class MNNParaformerRecognizer : IDisposable
+    public sealed partial class MNNParaformerRecognizer : IDisposable
     {
         private readonly object _gate = new object();
         private readonly MNNSingleInputModule _encoder;
@@ -73,79 +73,12 @@ namespace MNN.Unity
                 }
                 if (silent) return new MNNSpeechRecognition(string.Empty, Array.Empty<int>(), Array.Empty<float>());
                 var pcm = MNNSpeechDsp.Resample(samples, sampleRate, 16000, cancellationToken);
-                Array.Resize(ref pcm, checked(pcm.Length + 16000)); // Flush acoustic right context before the CIF tail.
-                var features = MNNSenseVoiceFeatures.Extract(pcm, out int frames, cancellationToken);
-                var states = Enumerable.Range(0, 16).Select(i =>
-                    new MNNGenerationGraph.Input("in_cache_" + i, new float[5120], 1, 512, 10)).ToArray();
-                var overlap = new float[10 * 560];
-                var chunk = new float[20 * 560];
-                var encoded = new float[20 * 512];
-                var hidden = new float[512];
-                var embeddings = new List<float>(11 * 512);
-                var ids = new List<int>();
-                float integral = 0;
-                for (int start = 0; start + 10 <= frames; start += 10)
+                using (var stream = CreateStream())
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    Array.Copy(overlap, chunk, overlap.Length);
-                    for (int t = 0; t < 10; ++t)
-                        for (int k = 0; k < 560; ++k)
-                        {
-                            float position = (start + t + 1) * PositionScales[k % 280];
-                            chunk[(10 + t) * 560 + k] = features[(start + t) * 560 + k] * 22.62741699796952f +
-                                (float)(k < 280 ? Math.Sin(position) : Math.Cos(position));
-                        }
-                    Array.Copy(chunk, 10 * 560, overlap, 0, overlap.Length);
-                    var packed = _encoder.Run(chunk, 1, 20, 560);
-                    if (packed.Length != 20 * 513) throw new InvalidDataException("Invalid Paraformer encoder output.");
-                    for (int t = 0; t < 20; ++t) Array.Copy(packed, t * 513, encoded, t * 512, 512);
-                    embeddings.Clear();
-                    for (int t = 5; t < 15; ++t)
-                    {
-                        float alpha = packed[t * 513 + 512];
-                        if (alpha < 0 || alpha > 1) throw new InvalidDataException("Invalid Paraformer CIF weight.");
-                        float contribution = Math.Min(alpha, 1 - integral);
-                        for (int k = 0; k < 512; ++k) hidden[k] += contribution * encoded[t * 512 + k];
-                        if (integral + alpha < 1) integral += alpha;
-                        else
-                        {
-                            embeddings.AddRange(hidden);
-                            integral += alpha - 1;
-                            for (int k = 0; k < 512; ++k) hidden[k] = integral * encoded[t * 512 + k];
-                        }
-                    }
-                    // FunASR's final zero hidden frame carries alpha=0.45, emitting a delayed final token.
-                    if (start + 20 > frames && integral + .45f >= 1) embeddings.AddRange(hidden);
-                    if (embeddings.Count == 0) continue;
-                    cancellationToken.ThrowIfCancellationRequested();
-                    int tokens = embeddings.Count / 512;
-                    var inputs = new List<MNNGenerationGraph.Input>
-                    {
-                        new MNNGenerationGraph.Input("enc", encoded, 1, 20, 512),
-                        new MNNGenerationGraph.Input("enc_len", new[] {20}, 1),
-                        new MNNGenerationGraph.Input("acoustic_embeds", embeddings.ToArray(), 1, tokens, 512),
-                        new MNNGenerationGraph.Input("acoustic_embeds_len", new[] {tokens}, 1)
-                    };
-                    inputs.AddRange(states);
-                    var outputs = _decoder.RunOutputs(_outputs, inputs.ToArray());
-                    if (!outputs[0].Shape.SequenceEqual(new[] {1, tokens, 8404}))
-                        throw new InvalidDataException("Invalid Paraformer logits shape.");
-                    for (int t = 0; t < tokens; ++t)
-                    {
-                        int offset = t * 8404, best = 0;
-                        for (int k = 1; k < 8404; ++k)
-                            if (outputs[0].Values[offset + k] > outputs[0].Values[offset + best]) best = k;
-                        if (best > 2 && _tokens[best] != "<unk>") ids.Add(best);
-                    }
-                    for (int i = 0; i < 16; ++i)
-                    {
-                        if (!outputs[i + 1].Shape.SequenceEqual(new[] {1, 512, 10}))
-                            throw new InvalidDataException("Invalid Paraformer decoder cache.");
-                        states[i] = outputs[i + 1].AsInput("in_cache_" + i);
-                    }
+                    for (int offset = 0; offset < pcm.Length; offset += 480000)
+                        stream.AcceptWaveform(pcm, offset, Math.Min(480000, pcm.Length - offset), cancellationToken);
+                    return stream.InputFinished(cancellationToken);
                 }
-                cancellationToken.ThrowIfCancellationRequested();
-                return new MNNSpeechRecognition(Decode(ids.Select(id => _tokens[id])), ids.ToArray(), Array.Empty<float>());
             }
         }
 

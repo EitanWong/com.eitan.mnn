@@ -1086,7 +1086,27 @@ PCM16/24/32 和 float32。结果包含独立 token ID 快照，`Timestamps` 为�
 默认 Auto 选择 CPU（4 线程），避免 Metal 编码器已观察到的非有限输出。
 显式指定加速器不代表质量已验证；错误会报告为异常。
 中文官方测试音频通过逐字比对；夹英文测试有多余的 “is”，英文质量未验证。
-该 API 暂不提供实时麦克风分块接口、时间戳、标点恢复或 VAD。
+增量接口保留跨块 encoder/CIF/decoder 状态，接受 16 kHz 单声道归一化 PCM：
+
+```csharp
+using (var recognizer = MNNParaformerRecognizer.Load(modelDirectory))
+using (var stream = recognizer.CreateStream())
+{
+    // On a dedicated inference worker, for each captured PCM slice:
+    string provisional = stream.AcceptWaveform(pcm, offset, count, cancellationToken);
+    // At the utterance boundary; idempotent until Reset:
+    MNNSpeechRecognition final = stream.InputFinished(cancellationToken);
+    stream.Reset(); // New utterance or capture discontinuity.
+}
+```
+
+每次调用最多 30 秒、单流累计最多十分钟；PCM 缓冲有界，声学推进为 600 ms，
+特征需要 25 ms 上下文。首字还取决于模型出词、采集和排队，不能把 PCM 投递粒度当成首字延迟。
+增量文本为累计的临时假设，句末 `InputFinished` 排空一秒模型上下文（计算补零，不要求用户等待一秒录音）；
+最终文本由模型实际解码决定。未提供时间戳、标点恢复或 VAD。
+每个 stream 交给一个 worker；多个 stream 的递归数组独立，但共享 recognizer 的原生图锁，
+不会并行执行同一图。中断推理后的流必须 `Reset`；参数校验失败不改变状态。
+销毁 recognizer 前先停止并释放 streams。设备回调应只投递有界 PCM，不直接调用模型。
 
 编码器导出缺少 `enc_len` 的生产节点，加载器通过公开的 MNN FlatBuffer
 序列化格式在内存中补充常量，并合并 encoder/CIF 输出以每块只执行一次编码器；
