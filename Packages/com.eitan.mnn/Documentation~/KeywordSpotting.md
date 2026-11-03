@@ -1,6 +1,6 @@
-# 中文唤醒词检测（KWS）
+# 中英文唤醒词检测（KWS）
 
-支持 Wenetspeech 3.3M Zipformer2 中文唤醒词模型。模型推理由现有的官方 MNN
+支持 Wenetspeech 3.3M 中文和 GigaSpeech 3.3M 英文 Zipformer2 唤醒词模型。模型推理由现有的官方 MNN
 C++ Interpreter、Tensor 和 Module API 执行；特征提取、关键词图、beam search、
 置信度判定和流式缓存由 C# 实现。不依赖 sherpa 原生库，没有新增 C++ 或自定义 C 导出。
 
@@ -29,10 +29,19 @@ macOS 64 位 Mono。它是本项目针对随包二进制维护的 ABI 契约，�
 小米小米
 ```
 
-语言可选 `Automatic` 或 `Chinese`。当前实现的 Wenetspeech 模型只支持中文；
-自动模式会检查输入是否适配，英文、中英混合、数字或标点会在启动前提示。
-目前没有可运行的英文 KWS 适配器，因此不会自动切换到不兼容的模型。
+语言可选 `Automatic`、`Chinese` 或 `English`。单个 `MNNKeywordSpotter` 对应一种语言，
+自动模式检查文字与所加载模型是否兼容；Studio 以选中的模型为准，选择英文模型时
+默认 `Siri` 和 `Hey Siri`，并提供英文演示录音。选择中文模型时使用上述中文示例。
 `MNNKeywordSpotter.Language` / `MNNKeywordSpotterConfig.Language` 公开模型语言。
+
+SiriAI 运行时的唤醒词列表支持逐项添加、修改和删除，默认英文 `Siri` / `Hey Siri`。
+选择自动语言后可在同一列表添加中文和英文短语，每项只使用一种语言；底层分组并仅加载
+实际用到的语言模型，两种语言均存在时会同时运行两个检测器。也可以显式限定中文或英文，
+不兼容的输入会在保存/启动前提示。单个短语内的中英混合、数字和标点暂不支持。
+
+英文输入由 C# 自动规范化并按固定的 500-piece SentencePiece 词表分词。发布文件虽名为
+`bpe.model`，其模型类型实际为 unigram，底层使用对应的 Viterbi 分词；开发者和用户
+无需填写 token、转换文件或调用 Python。发音由英文声学模型负责，不用中文读音近似英文。
 
 底层使用随包发布的离线汉字/词组发音表自动生成模型所需的声母、带调韵母并校验
 词表和长度。常见多音词按最长词组匹配；人名、罕见字和特定语境读音仍需实际录音
@@ -79,7 +88,22 @@ Studio 的 live 推理在后台运行，关闭窗口后会等待正在执行的�
 `Tools~/Models/generate_kws_pronunciations.py --tokens <已安装模型的 tokens.txt>`；
 只在维护时需要 pypinyin 0.55.0，运行时全部由 C# 执行。
 
-下载固定版本 `df5d5e80a73b139d19217c46a9c72b6508c98b37`，只安装所需的
+英文模型准备（本工程已安装到 `Assets/StreamingAssets/MNN/Models/English-KWS-GigaSpeech`）：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Models/prepare_english_kws.py --converter /path/to/MNNConvert
+# 只验证现有模型，不下载、不转换：
+python3 Packages/com.eitan.mnn/Tools~/Models/prepare_english_kws.py --verify-only
+```
+
+使用已有官方 MNN 3.6.1 转换器；工具固定 sherpa-onnx 官方
+`kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01` 发布包及 SHA-256，
+校验源 ONNX、转换后 MNN、词表和 SentencePiece 模型后生成 `mnn_kws.json`。
+转换日志在 `TestArtifacts~/EnglishKwsPreparation`。新工程需先完成此准备，运行时自动选模型
+不会自动联网下载。模型及嵌入词表许可见 [英文模型许可说明](EnglishKeywordModelNotice.md)。
+`--vocabulary-output <path>` 是维护时的词表重建选项，需要 Python sentencepiece；产品运行不需要。
+
+中文模型下载固定版本 `df5d5e80a73b139d19217c46a9c72b6508c98b37`，只安装所需的
 encoder、decoder、joiner、197-token 词表、说明和一个演示录音；不下载 ONNX 或其他重复权重。
 下载时逐文件检查 SHA-256，准备根目录 `mnn_kws.json`；加载时重新验证三个图及词表。
 支持仓库原始嵌套目录和本工程的扁平目录，修改模型文件名或任意替换图不受支持。

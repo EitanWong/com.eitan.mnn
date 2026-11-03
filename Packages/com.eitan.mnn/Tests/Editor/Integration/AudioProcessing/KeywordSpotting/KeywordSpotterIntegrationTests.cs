@@ -67,13 +67,20 @@ namespace MNN.Unity.Tests
         }
 
         [UnityTest]
-        public IEnumerator StudioWindowLoadsDemoRunsWorkerAndDisplaysKeywordResults()
+        public IEnumerator StudioWindowLoadsDemoRunsWorkerAndDisplaysKeywordResults() => RunStudioKeywordDemo(false);
+
+        [UnityTest]
+        public IEnumerator StudioWindowLoadsEnglishDemoAndDisplaysKeywordResults() => RunStudioKeywordDemo(true);
+
+        private IEnumerator RunStudioKeywordDemo(bool english)
         {
             var window = ScriptableObject.CreateInstance<MNNChatStudio>();
             FieldInfo Field(string name) => typeof(MNNChatStudio).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
             object Invoke(string name) => typeof(MNNChatStudio).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(window, null);
-            var model = MNNStudioModel.Read(Models);
-            string assets = MNNKwsModel.AssetDirectory(Models);
+            string directory = english ? Environment.GetEnvironmentVariable("MNN_ENGLISH_KWS_MODELS") : Models;
+            if (directory == null) Assert.Ignore("Provide the prepared model for this language.");
+            var model = MNNStudioModel.Read(directory);
+            string assets = MNNKwsModel.AssetDirectory(directory);
             LogAssert.Expect(LogType.Log, "[MNN] Loaded model from: " + Path.Combine(assets, MNNKwsModel.Encoder));
             LogAssert.Expect(LogType.Log, "[MNN] Created session: requested=CPU, actual=CPU, threads=2");
             LogAssert.Expect(LogType.Log, "[MNN] Loaded model from: " + Path.Combine(assets, MNNKwsModel.Joiner));
@@ -105,10 +112,10 @@ namespace MNN.Unity.Tests
                 Assert.False(session.Busy);
                 Assert.IsNull(session.Error);
                 var result = (MNNStudioResult)Field("_retrieval").GetValue(window);
-                Assert.That(result.Text, Does.Contain("文森特卡索").And.Contain("法国"));
-                Assert.AreEqual(2, result.KeywordDetections.Length);
+                Assert.That(result.Text, Does.Contain(english ? "light up" : "文森特卡索"));
+                Assert.AreEqual(english ? 1 : 2, result.KeywordDetections.Length);
                 Invoke("StopKeywordListening");
-                Assert.That(result.Text, Does.Contain("法国"), "Stopping an inactive listener must preserve the recording result.");
+                Assert.That(result.Text, Does.Contain(english ? "light up" : "法国"), "Stopping an inactive listener must preserve the recording result.");
                 Assert.IsEmpty((List<MNNStudioMessage>)Field("_messages").GetValue(window));
                 window.position = new Rect(60, 60, 660, 620);
                 window.Repaint();

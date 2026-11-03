@@ -11,15 +11,24 @@ namespace MNN.Unity.Editor
     {
         private MNNStudioKeywordListener _keywordListener;
         [SerializeField] private MNNKeywordLanguage _keywordLanguage;
+        private string _keywordSettingsDirectory;
         private readonly List<MNNKeywordDetection> _liveKeywordMatches = new List<MNNKeywordDetection>();
 
         private void DrawKeywordSettings()
         {
+            var language = MNNKeywordSpotterConfig.Read(Selected.Directory).Language;
+            string defaults = language == MNNKeywordLanguage.English ? MNNKeywordSpotterConfig.EnglishDefaultWords : MNNKwsModel.DefaultKeywords;
+            if (_keywordSettingsDirectory != Selected.Directory)
+            {
+                _keywordSettingsDirectory = Selected.Directory;
+                if (_keywords == MNNKwsModel.DefaultKeywords || _keywords == MNNKeywordSpotterConfig.EnglishDefaultWords) _keywords = defaults;
+                _keywordLanguage = MNNKeywordLanguage.Automatic;
+            }
             GUILayout.Space(12);
-            GUILayout.Label("Wake words · Chinese", MNNStudioUI.Heading);
-            GUILayout.Label("Type Chinese wake words, one phrase per line. Example: 小爱同学", MNNStudioUI.Caption);
-            _keywordLanguage = (MNNKeywordLanguage)EditorGUILayout.Popup("Wake word language", (int)_keywordLanguage, new[] { "Automatic · Chinese model", "Chinese" });
-            GUILayout.Label(MNNKeywordText.LanguageHint, MNNStudioUI.Caption);
+            GUILayout.Label("Wake words · " + language, MNNStudioUI.Heading);
+            GUILayout.Label(language == MNNKeywordLanguage.English ? "Type English wake words, one phrase per line. Example: Hey Siri" : "Type Chinese wake words, one phrase per line. Example: 小爱同学", MNNStudioUI.Caption);
+            _keywordLanguage = EditorGUILayout.Popup("Wake word language", _keywordLanguage == MNNKeywordLanguage.Automatic ? 0 : 1,
+                new[] { "Automatic · " + language + " model", language.ToString() }) == 0 ? MNNKeywordLanguage.Automatic : language;
             GUI.SetNextControlName("MNNStudioKeywords");
             string visibleWords = MNNKeywordText.GetDisplayText(_keywords);
             string editedWords = EditorGUILayout.TextArea(visibleWords, MNNStudioUI.Input, GUILayout.MinHeight(92));
@@ -31,17 +40,17 @@ namespace MNN.Unity.Editor
             if (MNNStudioUI.Button("Use example wake words", 180, quiet: true))
             {
                 GUI.FocusControl(null);
-                _keywords = MNNKwsModel.DefaultKeywords;
+                _keywords = defaults;
             }
             string assets = MNNKwsModel.AssetDirectory(Selected.Directory);
-            if (File.Exists(Path.Combine(assets, "test_wavs/3.wav")) && File.Exists(Path.Combine(assets, "test_wavs/test_keywords.txt")))
+            if (File.Exists(Path.Combine(assets, language == MNNKeywordLanguage.English ? "test_wavs/0.wav" : "test_wavs/3.wav")))
             {
                 if (MNNStudioUI.Button("Load demo recording", 180, quiet: true))
                 {
                     GUI.FocusControl(null);
                     Try(LoadKeywordDemo);
                 }
-                GUILayout.Label("Demo: detects 文森特卡索 and 法国. Select Run after loading.", MNNStudioUI.Caption);
+                GUILayout.Label(language == MNNKeywordLanguage.English ? "Demo: detects light up. Select Run after loading." : "Demo: detects 文森特卡索 and 法国. Select Run after loading.", MNNStudioUI.Caption);
             }
             GUILayout.Space(8);
         }
@@ -49,9 +58,10 @@ namespace MNN.Unity.Editor
         private void LoadKeywordDemo()
         {
             string assets = MNNKwsModel.AssetDirectory(Selected.Directory);
+            bool english = MNNKeywordSpotterConfig.Read(Selected.Directory).Language == MNNKeywordLanguage.English;
             // The demo input uses the same ordinary-text path as a user's custom phrases.
-            string keywords = "文森特卡索\n周望军\n朱丽楠\n蒋友伯\n女儿\n法国\n见面会\n落实";
-            string audio = Path.Combine(assets, "test_wavs/3.wav");
+            string keywords = english ? "light up\nlovely child\nforever" : "文森特卡索\n周望军\n朱丽楠\n蒋友伯\n女儿\n法国\n见面会\n落实";
+            string audio = Path.Combine(assets, english ? "test_wavs/0.wav" : "test_wavs/3.wav");
             if (!File.Exists(audio)) throw new FileNotFoundException("The KWS demo recording is missing. Download the complete KWS profile again.", audio);
             _keywords = keywords;
             _audioPath = audio;
@@ -82,19 +92,19 @@ namespace MNN.Unity.Editor
         private void StartKeywordListening()
         {
             if (Busy || _audio.IsRecording || Selected?.IsKeywordSpotter != true) return;
-            MNNKeywordText.Prepare(_keywords, _keywordLanguage);
+            MNNKeywordText.Prepare(_keywords, MNNKeywordSpotterConfig.Read(Selected.Directory).Language);
             ReleaseSession();
             _audio.StopPreview();
             _keywordListener = new MNNStudioKeywordListener(Selected.Directory, _keywords, _keywordThreshold, _keywordScore, _threads);
             _error = null;
             _liveKeywordMatches.Clear();
-            _retrieval = new MNNStudioResult {Text = "Listening for wake words…", BackendDescription = "Zipformer2 Chinese KWS · CPU"};
+            _retrieval = new MNNStudioResult {Text = "Listening for wake words…", BackendDescription = "Zipformer2 KWS · CPU"};
             _taskResultMessage = null;
         }
 
         private string KeywordInputError()
         {
-            try { MNNKeywordText.Prepare(_keywords, _keywordLanguage); return null; }
+            try { MNNKeywordText.Prepare(_keywords, MNNKeywordSpotterConfig.Read(Selected.Directory).Language); return null; }
             catch (ArgumentException error) { return error.Message; }
         }
 
@@ -108,7 +118,7 @@ namespace MNN.Unity.Editor
                 _liveKeywordMatches.AddRange(matches);
                 if (_liveKeywordMatches.Count > 100) _liveKeywordMatches.RemoveRange(0, _liveKeywordMatches.Count - 100);
                 _retrieval = new MNNStudioResult {Text = MNNStudioNativeBackend.FormatKeywords(_liveKeywordMatches.ToArray()),
-                    KeywordDetections = _liveKeywordMatches.ToArray(), BackendDescription = "Live Zipformer2 Chinese KWS · CPU"};
+                    KeywordDetections = _liveKeywordMatches.ToArray(), BackendDescription = "Live Zipformer2 KWS · CPU"};
                 _taskResultMessage = null;
                 Repaint();
             }
