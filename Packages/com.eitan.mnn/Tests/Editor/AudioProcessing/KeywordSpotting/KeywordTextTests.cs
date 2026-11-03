@@ -26,7 +26,7 @@ namespace MNN.Unity.Tests
         [TestCase("hello assistant"), TestCase("你好 Siri"), TestCase("123"), TestCase("こんにちは")]
         public void UnsupportedLanguagesCannotSilentlyReachChineseModel(string text)
         {
-            Assert.Throws<ArgumentException>(() => Prepare(text));
+            Assert.Throws<ArgumentException>(() => MNNKeywordText.Prepare(text, MNNKeywordLanguage.Chinese));
         }
 
         [TestCase(""), TestCase(" \n "), TestCase("你好\n你好"), TestCase("你好！"), TestCase("你好\0")]
@@ -50,7 +50,7 @@ namespace MNN.Unity.Tests
         public void ExplicitLanguageMustMatchTheAvailableModel()
         {
             Assert.AreEqual(Prepare("小爱同学"), MNNKeywordText.Prepare("小爱同学", MNNKeywordLanguage.Chinese));
-            Assert.Throws<ArgumentException>(() => MNNKeywordText.Prepare("hello", MNNKeywordLanguage.English));
+            Assert.Throws<ArgumentException>(() => MNNKeywordText.Prepare("你好", MNNKeywordLanguage.English));
             Assert.Throws<ArgumentOutOfRangeException>(() => MNNKeywordText.Prepare("你好", (MNNKeywordLanguage)99));
         }
 

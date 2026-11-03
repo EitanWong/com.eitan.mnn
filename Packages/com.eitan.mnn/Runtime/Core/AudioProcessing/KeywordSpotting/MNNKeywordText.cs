@@ -7,7 +7,7 @@ using System.Text;
 
 namespace MNN.Unity
 {
-    /// <summary>Offline ordinary-text preparation for the supported Chinese Wenetspeech KWS model.
+    /// <summary>Offline ordinary-text preparation for the supported Chinese Wenetspeech and English GigaSpeech KWS models.
     /// Does not load native libraries, write files, download assets or require Python.</summary>
     public static partial class MNNKeywordText
     {
@@ -25,43 +25,43 @@ namespace MNN.Unity
         public static string GetDisplayText(string wakeWords) => string.Join("\n", (wakeWords ?? "").Split('\n')
             .Select(line => line.IndexOf('@') < 0 ? line.Trim() : line.Substring(line.IndexOf('@') + 1).Trim()));
 
-        /// <summary>Prepare ordinary Chinese phrases, one per line, with model vocabulary and language checks.
+        /// <summary>Prepare ordinary Chinese or English phrases for one model, one per line, with model vocabulary and language checks.
         /// Legacy token lines with @labels remain accepted for saved configurations.</summary>
         public static string Prepare(string wakeWords, MNNKeywordLanguage language = MNNKeywordLanguage.Automatic)
         {
             ValidateInput(wakeWords, language);
+            if (language == MNNKeywordLanguage.Automatic) language = DetectLanguage(wakeWords);
             var result = new List<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (string line in wakeWords.Split('\n').Select(source => source.Trim().Normalize()).Where(source => source.Length > 0))
             {
                 // Keep previous serialized model specifications working without asking users to migrate them.
-                string prepared = line.IndexOf('@') >= 0 ? line : PreparePhrase(line);
+                string prepared = line.IndexOf('@') >= 0 ? line : language == MNNKeywordLanguage.English ? PrepareEnglishPhrase(line) : PreparePhrase(line);
                 if (!seen.Add(TokenSequence(prepared))) throw new ArgumentException("Wake words have duplicate pronunciations. Keep one of each phrase.");
                 if (seen.Count > 128) throw new ArgumentException("Enter at most 128 wake words.");
                 result.Add(prepared);
             }
             string specification = string.Join("\n", result);
             if (specification.Length > 32768) throw new ArgumentException("The wake words are too long. Use fewer or shorter phrases.");
-            if (wakeWords.IndexOf('@') >= 0) ValidateLegacy(specification);
+            if (wakeWords.IndexOf('@') >= 0) ValidateLegacy(specification, language);
             return specification;
         }
 
         private static void ValidateInput(string wakeWords, MNNKeywordLanguage language)
         {
             if (!Enum.IsDefined(typeof(MNNKeywordLanguage), language)) throw new ArgumentOutOfRangeException(nameof(language));
-            if (language == MNNKeywordLanguage.English) throw new ArgumentException(LanguageHint);
             if (string.IsNullOrWhiteSpace(wakeWords) || wakeWords.Length > 32768 || wakeWords.IndexOf('\0') >= 0)
                 throw new ArgumentException("Enter wake words, one phrase per line (up to 32,768 characters).");
         }
 
         private static string TokenSequence(string specification) => string.Join(" ",
-            specification.Split((char[])null, StringSplitOptions.RemoveEmptyEntries)
+            specification.Split('@')[0].Split((char[])null, StringSplitOptions.RemoveEmptyEntries)
                 .Where(part => !part.StartsWith("@", StringComparison.Ordinal) && !part.StartsWith(":", StringComparison.Ordinal) && !part.StartsWith("#", StringComparison.Ordinal)));
 
-        private static void ValidateLegacy(string specification)
+        private static void ValidateLegacy(string specification, MNNKeywordLanguage language)
         {
             // Construction validates the saved format without evaluating either inference callback.
-            try { _ = new MNNKeywordDecoder(specification, ModelTokens, .25f, 1, 1, 4, null, null); }
+            try { _ = new MNNKeywordDecoder(specification, language == MNNKeywordLanguage.English ? EnglishTokens : ModelTokens, .25f, 1, 1, 4, null, null, language == MNNKeywordLanguage.English ? 1 : 2); }
             catch (ArgumentException) { throw new ArgumentException("Saved wake-word settings are invalid. Enter the wake words again."); }
         }
 

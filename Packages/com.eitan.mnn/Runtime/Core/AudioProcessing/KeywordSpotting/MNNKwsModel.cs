@@ -43,6 +43,11 @@ namespace MNN.Unity
 
         internal static void Verify(string directory)
         {
+            if (File.Exists(Path.Combine(directory, MNNKeywordSpotterConfig.FileName)) && MNNEnglishKwsModel.IsRepository(MNNKeywordSpotterConfig.Read(directory).repository))
+            {
+                MNNEnglishKwsModel.Verify(directory);
+                return;
+            }
             string assets = AssetDirectory(directory);
             for (int i = 0; i < 4; ++i)
                 using (var stream = File.OpenRead(Path.Combine(assets, Paths[i])))
@@ -61,6 +66,7 @@ namespace MNN.Unity
         {
             try
             {
+                if (MNNEnglishKwsModel.IsRepository(MNNKeywordSpotterConfig.Read(directory).repository)) return MNNEnglishKwsModel.IsComplete(directory);
                 return IsRepository(MNNKeywordSpotterConfig.Read(directory).repository) &&
                     Paths.Take(4).Select((path, i) => new FileInfo(Path.Combine(AssetDirectory(directory), path)).Length == Sizes[i]).All(value => value);
             }

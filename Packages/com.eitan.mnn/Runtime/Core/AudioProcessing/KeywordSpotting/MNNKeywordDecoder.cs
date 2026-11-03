@@ -31,13 +31,13 @@ namespace MNN.Unity
 
         private readonly Node _root = new Node();
         private List<Hypothesis> _hypotheses;
-        private readonly int _trailingBlanks, _maxPaths, _maxLength;
+        private readonly int _trailingBlanks, _maxPaths, _maxLength, _vocabularySize;
         private readonly Func<int[], float[]> _decode;
         private readonly Func<float[], float[], float[]> _join;
         private int _frame;
 
         internal MNNKeywordDecoder(string keywords, string[] tokens, float threshold, float score,
-            int trailingBlanks, int maxPaths, Func<int[], float[]> decode, Func<float[], float[], float[]> join)
+            int trailingBlanks, int maxPaths, Func<int[], float[]> decode, Func<float[], float[], float[]> join, int minimumTokens = 2)
         {
             if (string.IsNullOrWhiteSpace(keywords) || keywords.Length > 32768)
                 throw new ArgumentException("Enter one tokenized keyword per line (up to 32,768 characters).", nameof(keywords));
@@ -46,24 +46,25 @@ namespace MNN.Unity
             if (trailingBlanks < 1 || trailingBlanks > 25) throw new ArgumentOutOfRangeException(nameof(trailingBlanks));
             if (maxPaths < 1 || maxPaths > 16) throw new ArgumentOutOfRangeException(nameof(maxPaths));
             _decode = decode; _join = join; _trailingBlanks = trailingBlanks; _maxPaths = maxPaths;
+            _vocabularySize = tokens.Length;
             var table = tokens.Select((text, id) => new {text, id}).ToDictionary(item => item.text, item => item.id, StringComparer.Ordinal);
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (string line in keywords.Split('\n'))
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                string[] parts = line.Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+                int label = line.IndexOf('@');
+                string[] parts = (label < 0 ? line : line.Substring(0, label)).Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
                 var ids = new List<int>();
                 float boost = score, limit = threshold;
-                string phrase = null;
+                string phrase = label < 0 ? null : line.Substring(label + 1).Trim();
                 foreach (string part in parts)
                 {
-                    if (part.StartsWith("@", StringComparison.Ordinal)) phrase = part.Substring(1);
-                    else if (part.StartsWith(":", StringComparison.Ordinal)) boost = Parse(part, 0, 10);
+                    if (part.StartsWith(":", StringComparison.Ordinal)) boost = Parse(part, 0, 10);
                     else if (part.StartsWith("#", StringComparison.Ordinal)) limit = Parse(part, float.Epsilon, 1);
                     else if (table.TryGetValue(part.Normalize(), out int id) && id > 2) ids.Add(id);
                     else throw new ArgumentException("Unknown KWS token '" + part + "'. Use space-separated tone-marked initials/finals from tokens.txt, e.g. x iǎo ài t óng x ué @小爱同学.");
                 }
-                if (ids.Count < 2 || ids.Count > 64) throw new ArgumentException("Each keyword needs 2–64 model tokens.");
+                if (ids.Count < minimumTokens || ids.Count > 64) throw new ArgumentException("The wake phrase is too short or too long for this model.");
                 if (!seen.Add(string.Join(",", ids))) throw new ArgumentException("Duplicate keyword token sequence.");
                 if (seen.Count > 128) throw new ArgumentException("At most 128 keywords can be active.");
                 _maxLength = Math.Max(_maxLength, ids.Count);
@@ -126,7 +127,7 @@ namespace MNN.Unity
                 string key = context[0] + "," + context[1];
                 if (!cache.TryGetValue(key, out var decoded)) cache[key] = decoded = _decode(context);
                 var logits = _join(encoded, decoded);
-                if (logits.Length != 197 || logits.Any(value => !Finite(value))) throw new InvalidDataException("Expected finite KWS logits with 197 tokens.");
+                if (logits.Length != _vocabularySize || logits.Any(value => !Finite(value))) throw new InvalidDataException("KWS output does not match the model vocabulary.");
                 float max = logits.Max();
                 double logSum = max + Math.Log(logits.Sum(value => Math.Exp(value - max)));
                 for (int id = 0; id < logits.Length; ++id)

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace MNN.Unity
 {
-    /// <summary>Chinese Zipformer2 keyword spotting using the bundled official MNN C++ ABI.
+    /// <summary>Chinese/English Zipformer2 keyword spotting using the bundled official MNN C++ ABI.
     /// Each instance owns one stream. Reset before changing recording; dispose after use.</summary>
     public sealed class MNNKeywordSpotter : IDisposable
     {
@@ -27,15 +27,17 @@ namespace MNN.Unity
         private long _acceptedSamples;
         private bool _disposed, _finished, _faulted;
         public MNNBackendType Backend => _session.ActualBackend;
-        public MNNKeywordLanguage Language => MNNKeywordLanguage.Chinese;
+        public MNNKeywordLanguage Language { get; }
 
         private MNNKeywordSpotter(string directory, int threads)
         {
-            if (!MNNKwsModel.IsRepository(MNNKeywordSpotterConfig.Read(directory).repository))
-                throw new InvalidDataException("Unsupported KWS profile; install the Wenetspeech 3.3M model.");
+            var profile = MNNKeywordSpotterConfig.Read(directory);
+            if (!MNNKwsModel.IsRepository(profile.repository) && !MNNEnglishKwsModel.IsRepository(profile.repository))
+                throw new InvalidDataException("Unsupported KWS profile; install a supported Chinese or English wake model.");
+            Language = profile.Language;
             MNNKwsModel.Verify(directory);
             string assets = MNNKwsModel.AssetDirectory(directory);
-            _tokens = ReadTokens(Path.Combine(assets, "tokens.txt"));
+            _tokens = ReadTokens(Path.Combine(assets, "tokens.txt"), Language == MNNKeywordLanguage.English ? 500 : 197);
             _shapes["x"] = new[] {1, 45, 80};
             int[] contexts = {64, 32, 16, 8, 16, 32}, heads = {4, 4, 4, 8, 4, 4}, kernels = {15, 15, 7, 7, 7, 15};
             for (int i = 0; i < 6; ++i)
@@ -56,7 +58,7 @@ namespace MNN.Unity
                 _session.ResizeInputs(_shapes);
                 _decoder = new MNNSingleInputModule(Path.Combine(assets, MNNKwsModel.Decoder), "y", "decoder_out", threads, MNNBackendType.CPU);
                 _joiner = new MNNGenerationGraph(Path.Combine(assets, MNNKwsModel.Joiner), threads, backendType: MNNBackendType.CPU);
-                Reset(MNNKwsModel.DefaultKeywords);
+                Reset(Language == MNNKeywordLanguage.English ? MNNKeywordSpotterConfig.EnglishDefaultWords : MNNKwsModel.DefaultKeywords);
             }
             catch
             {
@@ -79,9 +81,9 @@ namespace MNN.Unity
             _states[name] = new float[shape.Aggregate(1, (a, b) => checked(a * b))];
         }
 
-        internal static string[] ReadTokens(string path)
+        internal static string[] ReadTokens(string path, int vocabularySize = 197)
         {
-            var tokens = new string[197];
+            var tokens = new string[vocabularySize];
             foreach (string line in File.ReadAllLines(path, new UTF8Encoding(false, true)))
             {
                 int split = line.LastIndexOf(' ');
@@ -92,25 +94,25 @@ namespace MNN.Unity
                 tokens[id] = line.Substring(0, split).Normalize();
             }
             if (tokens.Any(string.IsNullOrEmpty) || tokens.Distinct().Count() != tokens.Length || tokens[0] != "<blk>" || tokens[2] != "<unk>")
-                throw new InvalidDataException("Expected the 197-token Wenetspeech KWS vocabulary.");
+                throw new InvalidDataException("The KWS token table does not match its model profile.");
             return tokens;
         }
 
-        /// <summary>Set ordinary Chinese wake words, one phrase per line (e.g. 小爱同学).
+        /// <summary>Set ordinary wake words in the loaded model language, one phrase per line (e.g. Hey Siri or 小爱同学).
         /// Automatically prepares model input and resets the stream. Legacy token specifications remain accepted.</summary>
         public void Reset(string keywords, float threshold = .25f, float score = 1.0f, int trailingBlanks = 1, int maxActivePaths = 4)
         {
             lock (_gate)
             {
                 ThrowIfDisposed();
-                var search = new MNNKeywordDecoder(MNNKeywordText.Prepare(keywords), _tokens, threshold, score, trailingBlanks, maxActivePaths,
+                var search = new MNNKeywordDecoder(MNNKeywordText.Prepare(keywords, Language), _tokens, threshold, score, trailingBlanks, maxActivePaths,
                     context => _decoder.Run(context, 1, 2),
                     (encoded, decoded) =>
                     {
                         if (decoded.Length != 320) throw new InvalidDataException("Expected 320-wide KWS decoder output.");
                         return _joiner.Run("logit", new MNNGenerationGraph.Input("encoder_out", encoded, 1, 320),
                             new MNNGenerationGraph.Input("decoder_out", decoded, 1, 320));
-                    });
+                    }, Language == MNNKeywordLanguage.English ? 1 : 2);
                 _search = search;
                 _pcm.Clear(); _firstFrame = 0; _processed[0] = 0; _acceptedSamples = 0;
                 _finished = false; _faulted = false;
