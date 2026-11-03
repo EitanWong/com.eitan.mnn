@@ -526,6 +526,24 @@ These standalone ASR models transcribe audio; instructions do not enable
 translation or change their decoding tasks. Whisper has no token timestamps.
 Old raw installations need profile preparation through Model Manager.
 
+SenseVoice uses the FunASR training frontend: seven centered fbank frames every
+six frames, replicating both edges and retaining the final partial window before
+fixed CMVN. Paraformer's streaming export retains its separate causal window
+contract. The ModelScope SenseVoice runner appends the public MNN `ArgMax` op to
+an in-memory copy of its verified graph, returning int32 IDs instead of the full
+25,055-value vocabulary per frame. The installed model and weights are unchanged;
+the Hugging Face profile retains its Express logits route. This reduces managed
+output transfer, not the model's internal vocabulary projection or native tensor storage.
+
+For independent frontend references, run
+`Tools~/Testing/generate_sensevoice_reference.py --root <existing-ASR-Additional-root>`
+with locally installed numpy and kaldi-native-fbank. It writes
+`en-sensevoice-training.f32` and `zh-en-sensevoice-training.f32` beside the existing
+models. Set `MNN_TEST_SENSEVOICE_ROOT` for `SenseVoiceIntegrationTests`, including
+full-logit versus reduced-output parity across changing shapes. No assets or
+dependencies are downloaded. These checks exercise the existing supported MNN ABI;
+they do not establish a portable official C# API or qualify other platforms.
+
 ### Qwen3-ASR transcription
 
 In **Speech recognition**, install the verified Qwen3-ASR 0.6B INT8 profile from

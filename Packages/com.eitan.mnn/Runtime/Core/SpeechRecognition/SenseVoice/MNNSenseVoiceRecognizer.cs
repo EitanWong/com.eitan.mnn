@@ -38,7 +38,9 @@ namespace MNN.Unity
             var backend = MNNAcceleration.Resolve(MNNAcceleration.ForDynamicGraph(backendType));
             if (backend == MNNBackendType.Metal || _huggingFace) backend = MNNBackendType.CPU;
             var precision = backend == MNNBackendType.CPU ? MNNPrecisionMode.Normal : MNNPrecisionMode.High;
-            _graph = new MNNGenerationGraph(MNNZipformerConfig.Resolve(directory, config.model), threads,
+            string path = MNNZipformerConfig.Resolve(directory, config.model);
+            var prepared = _huggingFace ? null : MNNSenseVoiceGraph.WithGreedyOutput(File.ReadAllBytes(path));
+            _graph = new MNNGenerationGraph(path, threads, prepared,
                 express: _huggingFace, backendType: backend, precisionMode: precision);
         }
 
@@ -79,34 +81,45 @@ namespace MNN.Unity
                     new MNNGenerationGraph.Input("text_norm", new[] {_textNorm}, 1)
                 };
                 // HF has data-dependent shape operators and needs the existing Express API.
-                float[] logits;
-                if (_huggingFace)
-                    logits = _graph.Run("logits", inputs);
-                else
+                if (!_huggingFace)
                 {
-                    var result = _graph.RunOutputs(new[] {"logits"}, inputs)[0];
-                    if (!result.Shape.SequenceEqual(new[] {1, frames + 4, 25055}))
-                        throw new InvalidDataException("Unexpected SenseVoice logits shape.");
-                    logits = result.Values;
+                    var result = _graph.RunOutputs(new[] { MNNSenseVoiceGraph.OutputName }, inputs)[0];
+                    if (!(result.Data is int[] ids) || !result.Shape.SequenceEqual(new[] { 1, frames + 4 }))
+                        throw new InvalidDataException("Unexpected SenseVoice token shape or type.");
+                    return Decode(ids, cancellationToken);
                 }
+                var logits = _graph.Run("logits", inputs);
                 if (logits.Length != checked((frames + 4) * 25055))
                     throw new InvalidDataException("Unexpected SenseVoice logits shape.");
-                return Decode(logits, cancellationToken);
+                return Decode(GreedyIds(logits, cancellationToken), cancellationToken);
             }
         }
 
-        private MNNSpeechRecognition Decode(float[] logits, CancellationToken token)
+        private int[] GreedyIds(float[] logits, CancellationToken token)
         {
-            var ids = new List<int>();
-            var times = new List<float>();
-            int previous = -1, emitted = 0;
-            var text = new StringBuilder();
-            for (int f = 0; f < logits.Length / _tokens.Length; ++f)
+            var ids = new int[logits.Length / _tokens.Length];
+            for (int f = 0; f < ids.Length; ++f)
             {
                 token.ThrowIfCancellationRequested();
                 int offset = f * _tokens.Length, best = 0;
                 for (int k = 1; k < _tokens.Length; ++k)
                     if (logits[offset + k] > logits[offset + best]) best = k;
+                ids[f] = best;
+            }
+            return ids;
+        }
+
+        private MNNSpeechRecognition Decode(int[] bestIds, CancellationToken token)
+        {
+            var ids = new List<int>();
+            var times = new List<float>();
+            int previous = -1, emitted = 0;
+            var text = new StringBuilder();
+            for (int f = 0; f < bestIds.Length; ++f)
+            {
+                token.ThrowIfCancellationRequested();
+                int best = bestIds[f];
+                if (best < 0 || best >= _tokens.Length) throw new InvalidDataException("Invalid SenseVoice token ID.");
                 if (best != 0 && best != previous)
                 {
                     // The first four collapsed symbols describe language/emotion/event/ITN.

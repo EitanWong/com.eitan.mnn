@@ -114,7 +114,9 @@ namespace MNN.Unity
 
             private void ProcessChunk(bool final, CancellationToken token)
             {
-                var features = MNNSenseVoiceFeatures.Extract(_pcm, out int frames, token);
+                // This streaming export consumes valid causal windows; SenseVoice's
+                // centered training frontend must not change its cache/advance protocol.
+                var features = MNNSenseVoiceFeatures.Extract(_pcm, out int frames, token, centerLfr: false);
                 if (frames != 10) throw new InvalidDataException("Expected ten Paraformer feature frames.");
                 Array.Copy(_overlap, _chunk, _overlap.Length);
                 for (int t = 0; t < 10; ++t)

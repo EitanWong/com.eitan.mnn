@@ -10,6 +10,41 @@ namespace MNN.Unity.Tests
     [TestFixture, Category("Integration"), Category("SenseVoice")]
     public class SenseVoiceIntegrationTests
     {
+        [Test]
+        public void GreedyOutputMatchesTheOriginalLogitsOnConsecutiveShapes()
+        {
+            if (Root == null) Assert.Ignore("Set MNN_TEST_SENSEVOICE_ROOT; no downloads.");
+            string path = Path.Combine(Models(false), "model.mnn");
+            byte[] original = File.ReadAllBytes(path);
+            using (var reference = new MNNGenerationGraph(path, 1, backendType: MNNBackendType.CPU))
+            using (var reduced = new MNNGenerationGraph(path, 1, MNNSenseVoiceGraph.WithGreedyOutput(original), backendType: MNNBackendType.CPU))
+            {
+                foreach (string name in new[] { "en", "zh-en", "en" })
+                {
+                    var audio = MNNWaveAudio.Read(Wave(name), out _);
+                    var features = MNNSenseVoiceFeatures.Extract(audio, out int frames, default);
+                    var inputs = new[] {
+                        new MNNGenerationGraph.Input("speech", features, 1, frames, 560),
+                        new MNNGenerationGraph.Input("speech_lengths", new[] { frames }, 1),
+                        new MNNGenerationGraph.Input("language", new[] { 0 }, 1),
+                        new MNNGenerationGraph.Input("text_norm", new[] { 14 }, 1) };
+                    var logits = reference.RunOutputs(new[] { "logits" }, inputs)[0].Values;
+                    var result = reduced.RunOutputs(new[] { MNNSenseVoiceGraph.OutputName }, inputs)[0];
+                    Assert.AreEqual(typeof(int[]), result.Data.GetType());
+                    var ids = (int[])result.Data;
+                    Assert.AreEqual(frames + 4, ids.Length);
+                    for (int f = 0; f < ids.Length; ++f)
+                    {
+                        int best = 0;
+                        for (int k = 1; k < 25055; ++k)
+                            if (logits[f * 25055 + k] > logits[f * 25055 + best]) best = k;
+                        Assert.AreEqual(best, ids[f], name + " frame " + f);
+                    }
+                }
+            }
+            CollectionAssert.AreEqual(original, File.ReadAllBytes(path), "The installed model remains unchanged.");
+        }
+
         private string Root => Environment.GetEnvironmentVariable("MNN_TEST_SENSEVOICE_ROOT");
         private string Models(bool huggingFace) => Root == null ? null : Path.Combine(Root, huggingFace ? "xinliu--sensevoice_mnn" : "wo105090--SenseVoiceSmall-MNN");
         private string Wave(string name) => Path.Combine(Root, "..", "Zipformer", "Audio", name + "-0.wav");
@@ -21,7 +56,7 @@ namespace MNN.Unity.Tests
             var audio = MNNWaveAudio.Read(Wave(name), out int rate);
             Assert.AreEqual(16000, rate);
             var features = MNNSenseVoiceFeatures.Extract(audio, out int frames, CancellationToken.None);
-            var reference = File.ReadAllBytes(Path.Combine(Root, name + "-sensevoice.f32"));
+            var reference = File.ReadAllBytes(Path.Combine(Root, name + "-sensevoice-training.f32"));
             Assert.AreEqual(frames * 560 * 4, reference.Length);
             double total = 0, max = 0;
             for (int i = 0; i < features.Length; ++i)
@@ -43,7 +78,7 @@ namespace MNN.Unity.Tests
                 Assert.AreEqual(MNNBackendType.CPU, recognizer.Backend);
                 var first = recognizer.RecognizeWaveFile(Wave("en"));
                 TestContext.WriteLine(first.Text);
-                Assert.AreEqual("After early nightfall, the yellow lamps would light up here and there. the squalid quarter of the brothels.", first.Text);
+                Assert.AreEqual("After early nightfall, the yellow lamps would light up here and there. The squalid quarter of the brothels.", first.Text);
                 Assert.AreEqual(first.TokenIds.Count, first.Timestamps.Count);
                 Assert.True(first.Timestamps.SequenceEqual(first.Timestamps.OrderBy(t => t)));
                 Assert.AreEqual("", recognizer.Recognize(new float[16000], 16000).Text);

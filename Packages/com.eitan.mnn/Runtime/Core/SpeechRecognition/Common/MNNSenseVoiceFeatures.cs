@@ -5,7 +5,8 @@ using System.Threading;
 namespace MNN.Unity
 {
     // SenseVoiceSmall: PCM scaled by 32768, Hamming, snipped edges, 20–8000 Hz,
-    // stack seven frames every six frames, then apply the model's fixed CMVN.
+    // Center seven frames every six frames with replicated edges (FunASR LFR),
+    // then apply the model's fixed CMVN. Do not drop the final incomplete window.
     internal static class MNNSenseVoiceFeatures
     {
         private sealed class Filter
@@ -61,13 +62,13 @@ namespace MNN.Unity
 
         private static double Mel(double hz) => 1127 * Math.Log(1 + hz / 700);
 
-        internal static float[] Extract(float[] samples, out int frames, CancellationToken token)
+        internal static float[] Extract(float[] samples, out int frames, CancellationToken token, bool centerLfr = true)
         {
             if (samples == null || samples.Length == 0)
                 throw new ArgumentException("Expected nonempty 16 kHz mono PCM.", nameof(samples));
             int inputFrames = samples.Length < 400 ? 0 : (samples.Length - 400) / 160 + 1;
             if (inputFrames < 7) throw new ArgumentException("SenseVoice requires at least 85 ms of audio.", nameof(samples));
-            frames = (inputFrames - 7) / 6 + 1;
+            frames = centerLfr ? (inputFrames + 5) / 6 : (inputFrames - 7) / 6 + 1;
             var output = new float[checked(inputFrames * 80)];
             var real = new double[512];
             var imaginary = new double[512];
@@ -104,8 +105,13 @@ namespace MNN.Unity
             for (int f = 0; f < frames; ++f)
             {
                 if ((f & 31) == 0) token.ThrowIfCancellationRequested();
-                for (int k = 0; k < 560; ++k)
-                    stacked[f * 560 + k] = (output[f * 6 * 80 + k] + NegativeMean[k % 80]) * InverseDeviation[k % 80];
+                for (int windowFrame = 0; windowFrame < 7; ++windowFrame)
+                {
+                    int source = Math.Max(0, Math.Min(inputFrames - 1, f * 6 + windowFrame - (centerLfr ? 3 : 0))) * 80;
+                    int destination = f * 560 + windowFrame * 80;
+                    for (int m = 0; m < 80; ++m)
+                        stacked[destination + m] = (output[source + m] + NegativeMean[m]) * InverseDeviation[m];
+                }
             }
             return stacked;
         }

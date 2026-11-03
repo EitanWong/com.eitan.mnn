@@ -9,6 +9,7 @@ Run commands from the development repository root. No tool automatically downloa
 | `Validation/check_assembly_compilation.py` | Compile all eight asmdefs separately with declared package dependencies, including samples and test fixtures | Installed macOS Unity .NET/Roslyn, cached test framework references from the development project |
 | `Models/prepare_image_profile.py` | Prepare SHA-checked Candy/DeepLab profiles with `--profile`; explicit optional source download | Python 3.9+, existing unmodified official MNN 3.6.1 converter |
 | `Testing/generate_image_reference.py` | Generate independent RGB input/logit/PNG references from existing pinned Candy/DeepLab assets | Python with Pillow, numpy and onnxruntime or ai-edge-litert |
+| `Testing/generate_sensevoice_reference.py` | Generate centered FunASR LFR/CMVN references from existing SenseVoice assets and WAVs | Python with numpy and kaldi-native-fbank; no downloads |
 | `Validation/validate_repository.py` | Tracked assets, manifest exclusions and Markdown link membership | Python 3.11+ and Git |
 | `Validation/test_*.py` | Repository-policy and CI-preparation regression tests | Python 3.11+ and Git |
 | `Testing/prepare_ci_project.py` | Isolated Unity test project with the committed package | Python 3.11+; output under `TestArtifacts~/` |

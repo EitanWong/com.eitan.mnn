@@ -23,6 +23,7 @@ The package version is 3.6.2.
 
 ### Changed
 
+- SenseVoice now retains centered training-frontend boundary windows; Paraformer keeps its causal streaming windows. The verified ModelScope profile reduces greedy IDs inside an in-memory graph using the public MNN ArgMax operator, avoiding full vocabulary output copies to managed memory.
 - Audio catalogs and Model Manager now separate VAD, turn detection, enhancement, source separation, target speaker extraction, diarization and sound classification, with shared search aliases and offline migration of older cached categories.
 - Current managed interop calls official MNN C++ symbols under the bundled MNN 3.6.2,
   Apple clang / libc++ ABI v1, macOS 11+, 64-bit Mono contract. No new C++ sources,
