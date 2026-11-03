@@ -54,14 +54,8 @@ namespace MNN.Unity
                 return MNNModelCatalogCategory.AvatarAnimation.ToString();
             MNNModelCatalogCategory? explicitTask = TaskCategory(taskSet);
             MNNModelCatalogCategory? family = FamilyCategory(identity);
-            if (family == MNNModelCatalogCategory.EchoCancellation && explicitTask == MNNModelCatalogCategory.AudioProcessing)
-                return MNNModelCatalogCategory.EchoCancellation.ToString();
-            if (family == MNNModelCatalogCategory.KeywordSpotting &&
-                (!explicitTask.HasValue || explicitTask == MNNModelCatalogCategory.SpeechRecognition || explicitTask == MNNModelCatalogCategory.AudioProcessing))
-                return MNNModelCatalogCategory.KeywordSpotting.ToString();
-            if (family == MNNModelCatalogCategory.AudioProcessing && explicitTask == MNNModelCatalogCategory.SpeechRecognition &&
-                HasTerm(identity, "silero.vad|smart-turn"))
-                return MNNModelCatalogCategory.AudioProcessing.ToString();
+            if (AudioFamilyOverridesTask(family, explicitTask))
+                return family.Value.ToString();
             if (family == MNNModelCatalogCategory.SpeechSynthesis && explicitTask == MNNModelCatalogCategory.AudioGeneration)
                 return MNNModelCatalogCategory.SpeechSynthesis.ToString();
             if (family == MNNModelCatalogCategory.Reranker && explicitTask == MNNModelCatalogCategory.EmbeddingModel)
@@ -105,7 +99,8 @@ namespace MNN.Unity
 
         private static MNNModelCatalogCategory? TaskCategory(HashSet<string> tasks)
         {
-            if (tasks.Overlaps(new[] {"acoustic-echo-cancellation", "echo-cancellation"})) return MNNModelCatalogCategory.EchoCancellation;
+            var audio = AudioTaskCategory(tasks);
+            if (audio.HasValue) return audio;
             if (tasks.Overlaps(new[] { "face-2d-keypoints", "face-keypoints", "face-landmark", "face-landmarks" })) return MNNModelCatalogCategory.FaceLandmarks;
             if (tasks.Contains("face-reconstruction") || tasks.Contains("image-to-3d")) return MNNModelCatalogCategory.Reconstruction3D;
             if (tasks.Contains("avatar-animation")) return MNNModelCatalogCategory.AvatarAnimation;
@@ -113,7 +108,6 @@ namespace MNN.Unity
             if (tasks.Overlaps(new[] { "image-dehazing", "image-denoising", "image-restoration", "image-deblurring" })) return MNNModelCatalogCategory.ImageRestoration;
             if (tasks.Contains("depth-estimation")) return MNNModelCatalogCategory.DepthEstimation;
             if (tasks.Overlaps(new[] { "audio-generation", "text-to-audio", "music-generation", "text-to-music" })) return MNNModelCatalogCategory.AudioGeneration;
-            if (tasks.Overlaps(new[] { "speaker-recognition", "speaker-identification" })) return MNNModelCatalogCategory.SpeakerRecognition;
             if (tasks.Contains("document-rectification")) return MNNModelCatalogCategory.DocumentRectification;
             if (tasks.Overlaps(new[] { "table-recognition", "document-layout", "document-layout-analysis" })) return MNNModelCatalogCategory.DocumentLayout;
             if (tasks.Contains("face-detection")) return MNNModelCatalogCategory.FaceDetection;
@@ -121,9 +115,8 @@ namespace MNN.Unity
             if (tasks.Overlaps(new[] { "text-to-video", "text-to-video-synthesis", "image-to-video" })) return MNNModelCatalogCategory.VideoGeneration;
             if (tasks.Overlaps(new[] { "text-to-image", "text-to-image-synthesis" })) return MNNModelCatalogCategory.ImageGenerationModel;
             if (tasks.Overlaps(new[] { "text-to-speech", "speech-synthesis" })) return MNNModelCatalogCategory.SpeechSynthesis;
-            if (tasks.Overlaps(new[] { "keyword-spotting", "keyword-detection", "wake-word-detection" })) return MNNModelCatalogCategory.KeywordSpotting;
             if (tasks.Overlaps(new[] { "speech-recognition", "auto-speech-recognition", "automatic-speech-recognition" })) return MNNModelCatalogCategory.SpeechRecognition;
-            if (tasks.Overlaps(new[] { "voice-activity-detection", "audio-classification", "audio-to-audio", "speech-enhancement" })) return MNNModelCatalogCategory.AudioProcessing;
+            if (tasks.Contains("audio-to-audio")) return MNNModelCatalogCategory.AudioProcessing;
             if (tasks.Overlaps(new[] { "translation", "machine-translation" })) return MNNModelCatalogCategory.Translation;
             if (tasks.Contains("sentence-similarity") || tasks.Contains("sentence-embedding") || tasks.Contains("text-embedding")) return MNNModelCatalogCategory.EmbeddingModel;
             if (tasks.Contains("image-feature-extraction") || tasks.Contains("zero-shot-image-classification")) return MNNModelCatalogCategory.ImageEmbedding;
@@ -141,13 +134,10 @@ namespace MNN.Unity
 
         private static MNNModelCatalogCategory? FamilyCategory(string text)
         {
-            if (HasTerm(text, "dualturn|turnsense|voxturn|ls-eend|fs-eend|cuelight")) return MNNModelCatalogCategory.AudioProcessing;
-            if (HasTerm(text, "dtln[._-]aec|acoustic-echo-cancellation")) return MNNModelCatalogCategory.EchoCancellation;
+            var audio = AudioFamilyCategory(text);
+            if (audio.HasValue) return audio;
             // Word boundaries avoid matching owners (handled separately) and unrelated substrings.
             if (HasTerm(text, "unitalker|taoavatar|musetalk")) return MNNModelCatalogCategory.AvatarAnimation;
-            if (HasTerm(text, "kws|keyword-spotting|keyword-detection|wake-word|wakeup")) return MNNModelCatalogCategory.KeywordSpotting;
-            if (HasTerm(text, "tiger-speech|dave-tiger|dccrn-mayavoz|wavlm|spexplus|spex-plus|seg-ygd|resemble-(?:denoiser|enhance)")) return MNNModelCatalogCategory.AudioProcessing;
-            if (HasTerm(text, "vbx-resnet101|butspeechfit/vbx|eres2netv2?|speaker-recognition|3dspeaker")) return MNNModelCatalogCategory.SpeakerRecognition;
             if (HasTerm(text, "indextts[0-9]*|index-tts|fireredtts[0-9]*|sherpa-vits|pipertts")) return MNNModelCatalogCategory.SpeechSynthesis;
             if (HasTerm(text, "stable-audio|music[0-9]+|music-generation|audio-generation")) return MNNModelCatalogCategory.AudioGeneration;
             if (HasTerm(text, "uvdoc|document-unwarping|doc-unwarping")) return MNNModelCatalogCategory.DocumentRectification;
@@ -158,7 +148,6 @@ namespace MNN.Unity
             if (HasTerm(text, "modnet|matting")) return MNNModelCatalogCategory.ImageMatting;
             if (HasTerm(text, "doclayout")) return MNNModelCatalogCategory.DocumentLayout;
             if (HasTerm(text, "mobileclip|bioclip2?|siglip2?|openclip|clip-vit")) return MNNModelCatalogCategory.ImageEmbedding;
-            if (HasTerm(text, "silero.vad|smart-turn")) return MNNModelCatalogCategory.AudioProcessing;
             if (HasTerm(text, "animatediff|wan2[._][0-9]|hunyuanvideo")) return MNNModelCatalogCategory.VideoGeneration;
             if (HasTerm(text, "omni|all-modal")) return MNNModelCatalogCategory.OmniModel;
             if (HasTerm(text, "reranker|re-ranker|rerank")) return MNNModelCatalogCategory.Reranker;

@@ -99,7 +99,8 @@ namespace MNN.Unity.Editor
             return models.FindAll(model => Contains(model.name, query) || Contains(model.displayName, query) || Contains(model.description, query)
                 || Contains(model.modelScopeId, query) || Contains(model.repositoryId, query)
                 || (model.tags != null && Array.Exists(model.tags, tag => Contains(tag, query)))
-                || (model.tasks != null && Array.Exists(model.tasks, task => Contains(task, query))));
+                || (model.tasks != null && Array.Exists(model.tasks, task => Contains(task, query)))
+                || MNNModelCatalog.MatchesAudioCategorySearch(model.category, query));
         }
 
         private static bool Contains(string value, string query)

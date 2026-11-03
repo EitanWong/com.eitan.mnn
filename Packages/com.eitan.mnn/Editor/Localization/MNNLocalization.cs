@@ -180,8 +180,15 @@ namespace MNN.Unity.Editor
             AddFilterTranslation("category.textgeneration", "Text generation", "文本生成", "テキスト生成", "텍스트 생성");
             AddFilterTranslation("category.nlp", "Natural language processing", "自然语言处理", "自然言語処理", "자연어 처리");
             AddFilterTranslation("category.keywordspotting", "Keyword spotting (KWS)", "唤醒词检测（KWS）", "ウェイクワード検出（KWS）", "웨이크 워드 감지 (KWS)");
-            AddFilterTranslation("category.audioprocessing", "Audio processing", "音频处理", "音声処理", "오디오 처리");
+            AddFilterTranslation("category.audioprocessing", "Other audio processing", "其他音频处理", "その他の音声処理", "기타 오디오 처리");
             AddFilterTranslation("category.echocancellation", "Echo cancellation (AEC)", "回声消除（AEC）", "エコー除去（AEC）", "에코 제거 (AEC)");
+            AddFilterTranslation("category.voiceactivitydetection", "Voice activity detection (VAD)", "语音活动检测（VAD）", "音声区間検出（VAD）", "음성 활동 감지 (VAD)");
+            AddFilterTranslation("category.turndetection", "Turn detection / endpointing", "轮次检测／端点检测", "発話ターン・終端検出", "발화 턴 / 끝점 감지");
+            AddFilterTranslation("category.speechenhancement", "Speech enhancement / denoising", "语音增强／降噪", "音声強調・ノイズ除去", "음성 향상 / 잡음 제거");
+            AddFilterTranslation("category.speechseparation", "Speech / source separation", "语音分离／声源分离", "音声・音源分離", "음성 / 음원 분리");
+            AddFilterTranslation("category.targetspeakerextraction", "Target speaker extraction (TSE)", "目标说话人提取（TSE）", "対象話者抽出（TSE）", "대상 화자 추출 (TSE)");
+            AddFilterTranslation("category.speakerdiarization", "Speaker diarization", "说话人分段／日志", "話者ダイアライゼーション", "화자 분할");
+            AddFilterTranslation("category.audioclassification", "Audio classification / sound events", "声音分类／事件检测", "音声分類・音響イベント検出", "오디오 분류 / 소리 이벤트");
             AddFilterTranslation("category.ocr", "OCR", "OCR", "OCR", "OCR");
             AddFilterTranslation("category.other", "Other models", "其他模型", "その他のモデル", "기타 모델");
             AddFilterTranslation("category.imagematting", "Image matting", "图像抠图", "画像マッティング", "이미지 매팅");

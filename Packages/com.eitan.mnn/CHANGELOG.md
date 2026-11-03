@@ -23,6 +23,7 @@ The package version is 3.6.2.
 
 ### Changed
 
+- Audio catalogs and Model Manager now separate VAD, turn detection, enhancement, source separation, target speaker extraction, diarization and sound classification, with shared search aliases and offline migration of older cached categories.
 - Current managed interop calls official MNN C++ symbols under the bundled MNN 3.6.2,
   Apple clang / libc++ ABI v1, macOS 11+, 64-bit Mono contract. No new C++ sources,
   custom C exports or companion bridge are introduced. This is not an official portable MNN C# SDK.

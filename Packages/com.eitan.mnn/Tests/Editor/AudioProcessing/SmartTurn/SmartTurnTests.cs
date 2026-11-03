@@ -34,10 +34,10 @@ namespace MNN.Unity.Tests
         {
             Assert.AreEqual(MNNSmartTurnModel.Revision, MNNSmartTurnModel.ResolveRevision("main"));
             Assert.Throws<ArgumentException>(() => MNNSmartTurnModel.ResolveRevision("different"));
-            var model = new MNNModelInfo {provider = MNNModelProvider.HuggingFace, repositoryId = MNNSmartTurnModel.Repository, name = "smart-turn-v3.2-gpu-MNN"};
-            typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+            var model = new MNNRemoteModel {provider = MNNModelSource.HuggingFace, repositoryId = MNNSmartTurnModel.Repository, name = "smart-turn-v3.2-gpu-MNN"};
+            typeof(MNNModelCatalog).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(null, new object[] {model, new[] {MNNSmartTurnModel.Graph}});
-            Assert.AreEqual(MNNModelCategory.AudioProcessing.ToString(), model.category);
+            Assert.AreEqual(MNNModelCategory.TurnDetection.ToString(), model.category);
             Assert.AreEqual(MNNSmartTurnModel.Revision, model.revision);
             Assert.True(model.runtimeAvailable);
             string folder = Path.GetFullPath("TestArtifacts~/SmartTurnTests/" + Guid.NewGuid().ToString("N"));

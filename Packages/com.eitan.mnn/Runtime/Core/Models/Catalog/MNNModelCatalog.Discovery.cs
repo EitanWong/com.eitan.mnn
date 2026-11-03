@@ -580,7 +580,7 @@ namespace MNN.Unity
             }
             if (model.provider == MNNModelSource.HuggingFace && MNNSmartTurnModel.IsRepository(model.repositoryId))
             {
-                model.category = MNNModelCatalogCategory.AudioProcessing.ToString();
+                model.category = MNNModelCatalogCategory.TurnDetection.ToString();
                 model.revision = model.version = MNNSmartTurnModel.Revision;
                 model.fileSize = MNNSmartTurnModel.Bytes + 265;
                 model.runtimeAvailable = true;
@@ -610,14 +610,14 @@ namespace MNN.Unity
             }
             if (IsPublishedSileroRepository(model))
             {
-                model.category = MNNModelCatalogCategory.AudioProcessing.ToString();
+                model.category = MNNModelCatalogCategory.VoiceActivityDetection.ToString();
                 model.tasks = new[] { "voice-activity-detection" };
                 model.runtimeAvailable = files.Contains(MNNSileroVadConfig.FileName) && files.Contains(MNNSileroModel.OfficialGraph);
                 model.supportSummary = "Official Silero v5.1 export requires its deployment profile and FP32 graph. Loading verifies the pinned profile and graph hash; file discovery does not validate inference or platform compatibility.";
             }
             if (model.provider == MNNModelSource.HuggingFace && MNNSileroModel.IsRepository(model.repositoryId))
             {
-                model.category = MNNModelCatalogCategory.AudioProcessing.ToString();
+                model.category = MNNModelCatalogCategory.VoiceActivityDetection.ToString();
                 model.revision = model.version = MNNSileroModel.Revision;
                 model.fileSize = MNNSileroModel.Bytes + 249;
                 model.runtimeAvailable = true;

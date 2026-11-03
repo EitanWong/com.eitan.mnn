@@ -72,6 +72,38 @@ using (var downloader = new MNNModelDownloader())
 查询失败不会发布该来源的不完整结果。`DiscoveryWarnings` 提供被跳过的不可用仓库信息。
 目录服务不包含编辑器磁盘缓存或窗口状态；上层可自行管理刷新和缓存策略。
 
+## 音频任务分类与搜索
+
+Runtime 目录、Model Manager 和 Studio 使用同一套音频任务分类。`AudioProcessing`
+保留给尚无法细分的音频处理资源，界面显示为“其他音频处理”。已明确任务的模型归入：
+
+| 分类枚举 | 用途 | 模型示例 |
+| --- | --- | --- |
+| `VoiceActivityDetection` | 检测哪些时间段存在语音，简称 VAD | Silero、MarbleNet、FSMN VAD |
+| `TurnDetection` | 判断说话轮次是否结束、确定端点 | SmartTurn、TurnSense、NAMO、VoxTurn、CueLight |
+| `SpeechEnhancement` | 语音增强、降噪、去混响 | DTLN、GTCRN、FRCRN、DeepFilterNet3 |
+| `SpeechSeparation` | 从混合音频输出不同声源的波形 | ConvTasNet、DPRNN、SepFormer、MossFormer2-SS |
+| `TargetSpeakerExtraction` | 利用参考语音或视觉条件提取目标波形，简称 TSE | SpExPlus、SEG、AV-DPRNN、AV-MossFormer2-TSE |
+| `SpeakerDiarization` | 标记谁在何时说话，输出说话人时间段 | Sortformer、FS-EEND、LS-EEND |
+| `AudioClassification` | 声音分类、音频标签与声音事件检测 | 具有对应 hub task 的分类模型 |
+| `KeywordSpotting` | 唤醒词与关键词检测，简称 KWS | Zipformer KWS |
+| `EchoCancellation` | 利用播放参考消除声学回声，简称 AEC | DTLN AEC |
+| `SpeakerRecognition` | 声纹提取、说话人识别或验证 | ECAPA-TDNN、ERes2NetV2、WeSpeaker、VBx |
+
+例如 `catalog.GetModelsByCategory(MNNModelCatalogCategory.TurnDetection)` 只返回轮次检测
+模型。Runtime 与 Editor 的 `SearchModels` 均支持分类关键词，包括 `vad`、
+`turn detection`、`denoise`、`target speaker`，以及“语音活动检测”“轮次检测”“降噪”
+“目标说话人”等中文词。Model Manager 的分类筛选和文本搜索可以同时使用。
+
+分类优先使用明确的任务元数据，再使用有边界的模型家族名称；不会根据描述中提到的其他
+模型或仓库作者名称猜测任务。已发布条目同样经过这套规则。CueLight 以轮次检测为主分类，
+保留语音活动检测的附加任务标签；目标提取与普通源分离分别展示。
+
+新增枚举追加在末尾，保留原有序列化数字。Model Manager 缓存 schema 29 会在离线读取旧
+快照时迁移明确的音频任务分类，保留旧磁盘快照和运行支持状态，并继续按原策略刷新。
+Studio 的任务筛选接受新分类，执行仍使用相应的现有音频管线。分类描述模型用途；
+`runtimeAvailable` 和各调用方的适配器继续决定模型能否运行。
+
 ## 下载行为和资源所有权
 
 - `MNNModelSource` 支持 `ModelScope` 和 `HuggingFace`。可直接传仓库 ID，或把

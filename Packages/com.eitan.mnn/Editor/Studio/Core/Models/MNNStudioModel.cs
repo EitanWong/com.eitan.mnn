@@ -65,8 +65,8 @@ namespace MNN.Unity.Editor
             if (Has("mnn_frcrn_se.json", "mnn_deepfilternet3.json", MNNDccrnConfig.FileName, MNNDccrnetConfig.FileName,
                 MNNDcunetConfig.FileName, MNNResembleEnhancerConfig.FileName, MNNResembleDenoiserConfig.FileName,
                 MNNDtlnConfig.FileName, MNNGtcrnConfig.FileName, MNNFullSubNetConfig.FileName,
-                MNNMossFormer2SeConfig.FileName, MNNMossFormerGanConfig.FileName)) return MNNStudioTask.SpeechEnhancement;
-            if (Has(MNNConvTasNetConfig.FileName, MNNDprnnConfig.FileName, MNNDptnetConfig.FileName, MNNSepFormerConfig.FileName,
+                MNNMossFormer2SeConfig.FileName, MNNMossFormerGanConfig.FileName, MNNDptnetConfig.FileName)) return MNNStudioTask.SpeechEnhancement;
+            if (Has(MNNConvTasNetConfig.FileName, MNNDprnnConfig.FileName, MNNSepFormerConfig.FileName,
                 MNNSepReformerConfig.FileName, MNNSudoRmRfConfig.FileName, MNNTigerConfig.FileName, MNNSpExPlusConfig.FileName,
                 MNNAvConvTasNetConfig.FileName, MNNAvDprnnConfig.FileName, MNNAvMossFormer2TseConfig.FileName,
                 MNNSegConfig.FileName, "mnn_mossformer2_ss.json")) return MNNStudioTask.SpeechSeparation;
@@ -75,14 +75,23 @@ namespace MNN.Unity.Editor
 
         internal static MNNStudioTask AudioSubtaskForIdentity(string identity, string[] tasks)
         {
-            string value = (identity ?? "") + " " + string.Join(" ", tasks ?? Array.Empty<string>());
-            bool Has(params string[] terms) => terms.Any(term => value.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
-            if (Has("silero", "fsmn-vad", "fsmn_vad", "marblenet", "voice-activity-detection")) return MNNStudioTask.VoiceActivityDetection;
-            if (Has("smart-turn", "smart_turn", "dualturn", "turnsense", "voxturn", "livekit-turn", "namo-turn", "cuelight")) return MNNStudioTask.TurnDetection;
-            if (Has("fs-eend", "ls-eend", "sortformer", "speaker-diarization")) return MNNStudioTask.SpeakerDiarization;
-            if (Has("frcrn", "deepfilternet", "dccrn", "dcunet", "denoiser", "enhancer", "gtcrn", "fullsubnet", "mossformer2-se", "mossformergan", "dtln", "speech-enhancement")) return MNNStudioTask.SpeechEnhancement;
-            if (Has("convtasnet", "dprnn", "dptnet", "sepformer", "sepreformer", "sudormrf", "spex", "tiger", "seg-ygd", "mossformer2-ss", "mossformer2-tse", "speech-separation")) return MNNStudioTask.SpeechSeparation;
-            return MNNStudioTask.AudioProcessing;
+            return AudioSubtaskForCategory(MNNModelRepository.Classify(identity, tasks: tasks));
+        }
+
+        internal static MNNStudioTask AudioSubtaskForCategory(string category, string identity = null, string[] tasks = null)
+        {
+            if (category == MNNModelCategory.AudioProcessing.ToString() && (identity != null || tasks != null))
+                category = MNNModelRepository.Classify(identity, tasks: tasks);
+            switch (category)
+            {
+                case "VoiceActivityDetection": return MNNStudioTask.VoiceActivityDetection;
+                case "TurnDetection": return MNNStudioTask.TurnDetection;
+                case "SpeechEnhancement": return MNNStudioTask.SpeechEnhancement;
+                case "SpeechSeparation":
+                case "TargetSpeakerExtraction": return MNNStudioTask.SpeechSeparation;
+                case "SpeakerDiarization": return MNNStudioTask.SpeakerDiarization;
+                default: return MNNStudioTask.AudioProcessing;
+            }
         }
     }
 }

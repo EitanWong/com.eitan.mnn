@@ -39,7 +39,7 @@ namespace MNN.Unity.Tests
             typeof(MNNModelCatalog).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(null, new object[] {model, new[] {MNNSileroModel.Graph}});
             Assert.AreEqual(!modelScope, model.runtimeAvailable);
-            Assert.AreEqual("AudioProcessing", model.category);
+            Assert.AreEqual("VoiceActivityDetection", model.category);
             if (!modelScope)
             {
                 Assert.AreEqual(MNNSileroModel.Revision, model.revision);

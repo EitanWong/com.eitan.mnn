@@ -71,6 +71,23 @@ namespace MNN.Unity.Tests
             Assert.False(TaskInfo(MNNStudioTask.KeywordSpotting).MatchesCatalog(model));
         }
 
+        [TestCase("VoiceActivityDetection", "VoiceActivityDetection")]
+        [TestCase("TurnDetection", "TurnDetection")]
+        [TestCase("SpeechEnhancement", "SpeechEnhancement")]
+        [TestCase("SpeechSeparation", "SpeechSeparation")]
+        [TestCase("TargetSpeakerExtraction", "SpeechSeparation")]
+        [TestCase("SpeakerDiarization", "SpeakerDiarization")]
+        public void SpecificAudioCatalogCategoriesKeepTheirStudioWorkspace(string category, string taskName)
+        {
+            var task = (MNNStudioTask)Enum.Parse(typeof(MNNStudioTask), taskName);
+            var model = new MNNModelInfo { name = "anonymous", category = category };
+            Assert.True(TaskInfo(task).MatchesCatalog(model));
+            Assert.True(TaskInfo(MNNStudioTask.AudioProcessing).MatchesCatalog(model));
+            Assert.AreEqual(MNNStudioTask.AudioProcessing, MNNStudioTasks.FromCategory(category), "Keep the existing audio execution pipeline.");
+            foreach (var other in new[] { MNNStudioTask.VoiceActivityDetection, MNNStudioTask.TurnDetection, MNNStudioTask.SpeechEnhancement, MNNStudioTask.SpeechSeparation, MNNStudioTask.SpeakerDiarization })
+                if (other != task) Assert.False(TaskInfo(other).MatchesCatalog(model), other.ToString());
+        }
+
         [UnityTest]
         public IEnumerator ChooseWaveDefersNestedGuiEventsAndPreservesDraft()
         {

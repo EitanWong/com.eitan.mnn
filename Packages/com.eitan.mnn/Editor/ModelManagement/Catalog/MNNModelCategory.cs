@@ -58,6 +58,13 @@ namespace MNN.Unity.Editor
         SpeakerRecognition,
         DocumentRectification,
         KeywordSpotting,
-        EchoCancellation
+        EchoCancellation,
+        VoiceActivityDetection,
+        TurnDetection,
+        SpeechEnhancement,
+        SpeechSeparation,
+        TargetSpeakerExtraction,
+        SpeakerDiarization,
+        AudioClassification
     }
 }

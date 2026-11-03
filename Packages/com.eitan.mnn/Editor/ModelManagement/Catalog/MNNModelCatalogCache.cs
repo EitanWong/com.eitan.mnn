@@ -10,7 +10,7 @@ namespace MNN.Unity.Editor
     // Cache only complete provider snapshots. Installation state belongs to the current project scan.
     internal sealed class MNNModelCatalogCache
     {
-        internal const int SchemaVersion = 28; // Pinned document layout pipeline and Studio workspace.
+        internal const int SchemaVersion = 29; // Specific audio task categories; migrate old cached entries offline.
         internal static MNNModelCatalogCache Shared { get; set; } = new MNNModelCatalogCache(
             Path.GetFullPath("Library/MNN/ModelCatalog"), DiscoverAsync, paged: true);
 
@@ -77,8 +77,10 @@ namespace MNN.Unity.Editor
                             Validate(stored, provider);
                             if (stored.RequiresRefresh)
                                 foreach (var model in stored.models)
-                                    if (MNNModelRepository.Classify(model.repositoryId, model.name, tasks: model.tasks, tags: model.tags, paths: model.mnnFiles) == MNNModelCategory.KeywordSpotting.ToString())
-                                        model.category = MNNModelCategory.KeywordSpotting.ToString();
+                                {
+                                    string category = MNNModelRepository.Classify(model.repositoryId, model.name, tasks: model.tasks, tags: model.tags, paths: model.mnnFiles);
+                                    if (MNNModelCatalog.IsSpecificAudioCategory(category)) model.category = category;
+                                }
                             _memory[provider] = stored;
                             break;
                         }

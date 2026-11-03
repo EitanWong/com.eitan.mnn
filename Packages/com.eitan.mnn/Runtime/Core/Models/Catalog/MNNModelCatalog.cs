@@ -281,7 +281,7 @@ namespace MNN.Unity
             if (string.IsNullOrWhiteSpace(query))
                 return models;
             query = query.Trim();
-            return models.FindAll(m => Contains(m.name, query) || Contains(m.displayName, query) || Contains(m.description, query) || Contains(m.modelScopeId, query) || Contains(m.repositoryId, query) || (m.tags != null && Array.Exists(m.tags, tag => Contains(tag, query))) || (m.tasks != null && Array.Exists(m.tasks, task => Contains(task, query))));
+            return models.FindAll(m => Contains(m.name, query) || Contains(m.displayName, query) || Contains(m.description, query) || Contains(m.modelScopeId, query) || Contains(m.repositoryId, query) || (m.tags != null && Array.Exists(m.tags, tag => Contains(tag, query))) || (m.tasks != null && Array.Exists(m.tasks, task => Contains(task, query))) || MatchesAudioCategorySearch(m.category, query));
         }
 
         private static bool Contains(string value, string query)
