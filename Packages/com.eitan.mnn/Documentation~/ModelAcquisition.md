@@ -64,6 +64,11 @@ using (var downloader = new MNNModelDownloader())
 | `DiscoverHuggingFaceModelsAsync` | 搜索公共 Hugging Face MNN 仓库 |
 | `MNNModelCatalog.CreateDefault()` | 创建包含已发布 DTLN AEC 配置的离线初始目录 |
 
+离线初始目录也包含可运行的 `EitanWang/Silero-v5.1-MNN`。联网发现该仓库时，
+只有同时存在 `mnn_silero_vad.json` 和 `silero_v5_16k_fp32.mnn` 才标为
+`runtimeAvailable`；实际加载仍校验固定 profile 和图哈希。MarbleNet、FSMN 等
+发布条目保留各自的运行支持状态，不因同属 VAD 任务而自动变为可运行。
+
 查询失败不会发布该来源的不完整结果。`DiscoveryWarnings` 提供被跳过的不可用仓库信息。
 目录服务不包含编辑器磁盘缓存或窗口状态；上层可自行管理刷新和缓存策略。
 

@@ -70,6 +70,10 @@ namespace MNN.Unity
         internal static bool IsPublishedSpeechRepository(string repositoryId) =>
             PublishedSpeechProfiles.Any(profile => string.Equals("EitanWang/" + profile.Name, repositoryId, StringComparison.OrdinalIgnoreCase));
 
+        private static bool IsPublishedSileroRepository(MNNRemoteModel model) =>
+            model.provider == MNNModelSource.ModelScope && string.Equals(model.repositoryId,
+                "EitanWang/Silero-v5.1-MNN", StringComparison.OrdinalIgnoreCase);
+
         internal void IncludePublishedSpeechProfiles()
         {
             foreach (var profile in PublishedSpeechProfiles)
@@ -91,7 +95,7 @@ namespace MNN.Unity
                 model.mnnFiles = (string[])profile.Graphs.Clone();
                 model.supportSummary = (profile.Name == "VoxTurn-v1-MNN" ? "Noncommercial license. " : string.Empty) +
                     "Published MNN deployment files. Consult the model card for input, license and validation limits; catalog availability does not validate inference.";
-                model.runtimeAvailable = false;
+                model.runtimeAvailable = IsPublishedSileroRepository(model);
             }
         }
     }

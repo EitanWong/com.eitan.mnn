@@ -38,6 +38,7 @@ The package version is 3.6.2.
 
 ### Fixed
 
+- Published Silero v5.1 is available to runtime catalog consumers; online discovery requires its deployment profile and FP32 graph.
 - Matching realtime and offline Silero consumers now share reference-counted inference resources while retaining independent stream state; resources unload with the last owner.
 
 - Compiler ABI differences between arm64 and x86_64 Players for libc++ strings, callbacks and allocation.

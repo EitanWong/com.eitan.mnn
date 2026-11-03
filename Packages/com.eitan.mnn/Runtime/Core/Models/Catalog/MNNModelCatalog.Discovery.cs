@@ -608,6 +608,13 @@ namespace MNN.Unity
                 model.runtimeAvailable = true;
                 model.supportSummary = "Chinese Wenetspeech 3.3M Zipformer2 keyword spotting. Pinned MNN graphs and 197-token vocabulary; managed streaming keyword beam search, custom tone-marked pinyin keywords, confidence and timestamps. Studio supports WAV, recording and live microphone detection. CPU / macOS Mono ABI.";
             }
+            if (IsPublishedSileroRepository(model))
+            {
+                model.category = MNNModelCatalogCategory.AudioProcessing.ToString();
+                model.tasks = new[] { "voice-activity-detection" };
+                model.runtimeAvailable = files.Contains(MNNSileroVadConfig.FileName) && files.Contains(MNNSileroModel.OfficialGraph);
+                model.supportSummary = "Official Silero v5.1 export requires its deployment profile and FP32 graph. Loading verifies the pinned profile and graph hash; file discovery does not validate inference or platform compatibility.";
+            }
             if (model.provider == MNNModelSource.HuggingFace && MNNSileroModel.IsRepository(model.repositoryId))
             {
                 model.category = MNNModelCatalogCategory.AudioProcessing.ToString();
