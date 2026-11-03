@@ -27,6 +27,7 @@ namespace MNN.Unity
         private long _acceptedSamples;
         private bool _disposed, _finished, _faulted;
         public MNNBackendType Backend => _session.ActualBackend;
+        public MNNKeywordLanguage Language => MNNKeywordLanguage.Chinese;
 
         private MNNKeywordSpotter(string directory, int threads)
         {
@@ -95,14 +96,14 @@ namespace MNN.Unity
             return tokens;
         }
 
-        /// <summary>Validate and set tokenized keywords, resetting encoder, decoder and timestamps.
-        /// One line per phrase, e.g. x iǎo ài t óng x ué @小爱同学. Optional :boost and #threshold.</summary>
+        /// <summary>Set ordinary Chinese wake words, one phrase per line (e.g. 小爱同学).
+        /// Automatically prepares model input and resets the stream. Legacy token specifications remain accepted.</summary>
         public void Reset(string keywords, float threshold = .25f, float score = 1.0f, int trailingBlanks = 1, int maxActivePaths = 4)
         {
             lock (_gate)
             {
                 ThrowIfDisposed();
-                var search = new MNNKeywordDecoder(keywords, _tokens, threshold, score, trailingBlanks, maxActivePaths,
+                var search = new MNNKeywordDecoder(MNNKeywordText.Prepare(keywords), _tokens, threshold, score, trailingBlanks, maxActivePaths,
                     context => _decoder.Run(context, 1, 2),
                     (encoded, decoded) =>
                     {

@@ -21,16 +21,25 @@ macOS 64 位 Mono。它是本项目针对随包二进制维护的 ABI 契约，�
 6. `Load demo recording` 会选中随模型安装的 `test_wavs/3.wav` 和它的关键词配置。
    点 `Run`，结果应包含“文森特卡索”和“法国”。`Use example wake words` 恢复默认短语。
 
-关键词格式遵循模型的拼音声母、韵母 token，**不能直接填写任意汉字或数字声调拼音**：
+直接输入想说的唤醒词，一行一个，无需填写拼音、token、`@` 标记或生成关键词文件：
 
 ```text
-x iǎo ài t óng x ué @小爱同学
-n ǐ h ǎo w èn w èn @你好问问
-x iǎo m ǐ x iǎo m ǐ :1.5 #0.35 @小米小米
+小爱同学
+你好问问
+小米小米
 ```
 
-`@` 后是结果显示名；可选的 `:boost` 与 `#threshold` 覆盖该短语的全局设置。
-拼音必须出现在 `tokens.txt` 中，未知 token 会给出错误。不会自动猜测汉字读音。
+语言可选 `Automatic` 或 `Chinese`。当前实现的 Wenetspeech 模型只支持中文；
+自动模式会检查输入是否适配，英文、中英混合、数字或标点会在启动前提示。
+目前没有可运行的英文 KWS 适配器，因此不会自动切换到不兼容的模型。
+`MNNKeywordSpotter.Language` / `MNNKeywordSpotterConfig.Language` 公开模型语言。
+
+底层使用随包发布的离线汉字/词组发音表自动生成模型所需的声母、带调韵母并校验
+词表和长度。常见多音词按最长词组匹配；人名、罕见字和特定语境读音仍需实际录音
+确认。无需 Python、额外模型、联网转换或用户维护转换文件。
+多个短语不能具有相同读音，否则会提示保留一个，避免同一声音对应多个结果。
+旧版本保存的 token 配置仍可读取；新代码与 UI 只需填写自然文字。
+
 阈值越高越难触发；boost 越高越容易保留关键词搜索路径，也可能增加误触发。
 置信度是命中 token 的平均声学概率，不是校准后的“唤醒正确率”。重叠短语可能
 优先返回较短短语；通过关键词配置及阈值在目标设备上评测。
@@ -42,7 +51,7 @@ using MNN.Unity;
 
 using (var kws = MNNKeywordSpotter.Load(modelDirectory))
 {
-    const string keywords = "x iǎo ài t óng x ué @小爱同学";
+    const string keywords = "小爱同学";
     var matches = kws.DetectWaveFile(wavPath, keywords);
     foreach (var match in matches)
         UnityEngine.Debug.Log($"{match.Keyword}: {match.StartSeconds:F2}s, {match.Confidence:P1}");
@@ -64,6 +73,11 @@ Studio 的 live 推理在后台运行，关闭窗口后会等待正在执行的�
 麦克风断开、设备格式不符或累计两秒处理积压会停止监听并提示重新开始。
 
 ## 模型与验证
+
+发音数据来自 MIT 许可的 [pypinyin 0.55.0](https://github.com/mozillazg/python-pinyin/tree/v0.55.0)，
+许可见 [发音数据许可](KeywordPronunciationLicense.md)。重建工具为
+`Tools~/Models/generate_kws_pronunciations.py --tokens <已安装模型的 tokens.txt>`；
+只在维护时需要 pypinyin 0.55.0，运行时全部由 C# 执行。
 
 下载固定版本 `df5d5e80a73b139d19217c46a9c72b6508c98b37`，只安装所需的
 encoder、decoder、joiner、197-token 词表、说明和一个演示录音；不下载 ONNX 或其他重复权重。

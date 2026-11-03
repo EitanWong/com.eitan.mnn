@@ -10,6 +10,7 @@ namespace MNN.Unity
     {
         public const string FileName = "mnn_kws.json";
         public string repository = MNNKwsModel.Repository;
+        public MNNKeywordLanguage Language => MNNKeywordLanguage.Chinese;
 
         public static MNNKeywordSpotterConfig Read(string directory) =>
             JsonUtility.FromJson<MNNKeywordSpotterConfig>(File.ReadAllText(Path.Combine(directory, FileName)))
