@@ -38,6 +38,8 @@ The package version is 3.6.2.
 
 ### Fixed
 
+- Matching realtime and offline Silero consumers now share reference-counted inference resources while retaining independent stream state; resources unload with the last owner.
+
 - Compiler ABI differences between arm64 and x86_64 Players for libc++ strings, callbacks and allocation.
 - Piper executable/data-directory discovery and invalid saved dictionary paths.
 - GPU quality regressions through precision retry, CPU compatibility policies and Omni speech runtime separation.
