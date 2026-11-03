@@ -25,6 +25,7 @@ namespace MNN.Unity
         private MNNKeywordDecoder _search;
         private int _firstFrame;
         private long _acceptedSamples;
+        private readonly int _primingSamples;
         private bool _disposed, _finished, _faulted;
         public MNNBackendType Backend => _session.ActualBackend;
         public MNNKeywordLanguage Language { get; }
@@ -35,6 +36,9 @@ namespace MNN.Unity
             if (!MNNKwsModel.IsRepository(profile.repository) && !MNNEnglishKwsModel.IsRepository(profile.repository))
                 throw new InvalidDataException("Unsupported KWS profile; install a supported Chinese or English wake model.");
             Language = profile.Language;
+            // A silent encoder hop gives the English model acoustic context before a short first word.
+            // This primes caches without waiting for microphone audio or shifting the caller's timeline.
+            _primingSamples = Language == MNNKeywordLanguage.English ? 32 * 160 : 0;
             MNNKwsModel.Verify(directory);
             string assets = MNNKwsModel.AssetDirectory(directory);
             _tokens = ReadTokens(Path.Combine(assets, "tokens.txt"), Language == MNNKeywordLanguage.English ? 500 : 197);
@@ -114,7 +118,9 @@ namespace MNN.Unity
                             new MNNGenerationGraph.Input("decoder_out", decoded, 1, 320));
                     }, Language == MNNKeywordLanguage.English ? 1 : 2);
                 _search = search;
-                _pcm.Clear(); _firstFrame = 0; _processed[0] = 0; _acceptedSamples = 0;
+                _pcm.Clear();
+                if (_primingSamples > 0) _pcm.AddRange(new float[_primingSamples]);
+                _firstFrame = 0; _processed[0] = 0; _acceptedSamples = 0;
                 _finished = false; _faulted = false;
                 foreach (var state in _states) Array.Clear(state.Value, 0, state.Value.Length);
             }
@@ -183,7 +189,11 @@ namespace MNN.Unity
                     var values = new float[320];
                     Array.Copy(encoded, frame * 320, values, 0, 320);
                     var match = _search.Advance(values);
-                    if (match != null && match.StartSeconds < _acceptedSamples / 16000.0) matches.Add(match);
+                    if (match == null) continue;
+                    float timeOffset = _primingSamples / 16000f;
+                    if (match.EndSeconds <= timeOffset || match.StartSeconds >= (_acceptedSamples + _primingSamples) / 16000.0) continue;
+                    matches.Add(new MNNKeywordDetection(match.Keyword, match.Confidence,
+                        Math.Max(0, match.StartSeconds - timeOffset), Math.Max(0, match.EndSeconds - timeOffset), match.TokenIds.ToArray()));
                 }
                 int discard = (_firstFrame + 31) * 160;
                 _pcm.RemoveRange(0, discard);

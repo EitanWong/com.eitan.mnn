@@ -48,6 +48,23 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void KeywordBoostKeepsAValidAcousticCandidateBeforeBeamPruning()
+        {
+            float[] logits = Enumerable.Repeat(-20f, 197).ToArray();
+            var decoder = new MNNKeywordDecoder("a b @wake", Tokens(), .25f, 1, 1, 1,
+                _ => new float[320], (_, __) => logits);
+            logits[0] = (float)Math.Log(.3); logits[3] = (float)Math.Log(.2);
+            logits[5] = (float)Math.Log(.5);
+            Assert.IsNull(decoder.Advance(new float[320]));
+            logits = Enumerable.Repeat(-20f, 197).ToArray(); logits[4] = 20;
+            Assert.IsNull(decoder.Advance(new float[320]));
+            logits[4] = -20; logits[0] = 20;
+            Assert.IsNull(decoder.Advance(new float[320]));
+            Assert.AreEqual("wake", decoder.Advance(new float[320])?.Keyword,
+                "The keyword boost must affect which path survives, not only paths already selected.");
+        }
+
+        [Test]
         public void FailureArcsRecoverOverlappingPrefixesAndThresholdRejectsWeakMatches()
         {
             var matches = Run("a b @first\nb c @second", new[] {3, 4, 5, 0, 0});
@@ -67,9 +84,9 @@ namespace MNN.Unity.Tests
         [TestCase(false), TestCase(true)]
         public void CatalogPinsOnlySupportedPublisherAndProvider(bool modelScope)
         {
-            var model = new MNNModelInfo {provider = modelScope ? MNNModelProvider.ModelScope : MNNModelProvider.HuggingFace,
+            var model = new MNNRemoteModel {provider = modelScope ? MNNModelSource.ModelScope : MNNModelSource.HuggingFace,
                 repositoryId = MNNKwsModel.Repository, name = "kws-zipformer-wenetspeech-3.3M-MNN"};
-            typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", BindingFlags.Static | BindingFlags.NonPublic)
+            typeof(MNNModelCatalog).GetMethod("ApplyArtifactEvidence", BindingFlags.Static | BindingFlags.NonPublic)
                 .Invoke(null, new object[] {model, MNNKwsModel.Paths.Select(path => MNNKwsModel.Prefix + path).ToArray()});
             Assert.AreEqual(!modelScope, model.runtimeAvailable);
             Assert.AreEqual("KeywordSpotting", model.category);

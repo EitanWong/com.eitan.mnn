@@ -116,6 +116,18 @@ namespace MNN.Unity
             if (resetTime) _frame = 0;
         }
 
+        private Node NextState(Node previous, int id, out float score)
+        {
+            score = 0;
+            if (id == 0 || id == 2) return previous;
+            Node state = previous;
+            bool direct = state.Next.ContainsKey(id);
+            while (state != _root && !state.Next.ContainsKey(id)) state = state.Fail;
+            Node next = state.Next.TryGetValue(id, out var target) ? target : _root;
+            score = (direct ? next.TokenScore : next.Score - previous.Score) + next.OutputScore;
+            return next;
+        }
+
         internal MNNKeywordDetection Advance(float[] encoded)
         {
             var candidates = new List<Tuple<double, int, Hypothesis, float>>();
@@ -134,7 +146,8 @@ namespace MNN.Unity
                 {
                     if (id == 1) continue; // <sos/eos> is not a keyword unit.
                     double logProbability = logits[id] - logSum;
-                    candidates.Add(Tuple.Create(hypothesis.Score + logProbability, id, hypothesis, (float)Math.Exp(logProbability)));
+                    NextState(hypothesis.State, id, out float contextScore);
+                    candidates.Add(Tuple.Create(hypothesis.Score + logProbability + contextScore, id, hypothesis, (float)Math.Exp(logProbability)));
                 }
             }
             var next = new Dictionary<string, Hypothesis>();
@@ -146,11 +159,7 @@ namespace MNN.Unity
                     Ids = new List<int>(previous.Ids), Probabilities = new List<float>(previous.Probabilities), Times = new List<int>(previous.Times)};
                 if (id != 0 && id != 2)
                 {
-                    Node state = previous.State;
-                    bool direct = state.Next.ContainsKey(id);
-                    while (state != _root && !state.Next.ContainsKey(id)) state = state.Fail;
-                    hypothesis.State = state.Next.TryGetValue(id, out var target) ? target : _root;
-                    hypothesis.Score += (direct ? hypothesis.State.TokenScore : hypothesis.State.Score - previous.State.Score) + hypothesis.State.OutputScore;
+                    hypothesis.State = NextState(previous.State, id, out _);
                     hypothesis.Blanks = 0;
                     hypothesis.Ids.Add(id); hypothesis.Probabilities.Add(item.Item4); hypothesis.Times.Add(_frame);
                     if (hypothesis.State == _root)
