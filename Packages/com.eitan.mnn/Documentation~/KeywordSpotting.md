@@ -115,3 +115,21 @@ encoder、decoder、joiner、197-token 词表、说明和一个演示录音；�
 不规则 PCM 分块、状态复位、下载哈希和 Studio 路由。录音样例测试不能代表远场、
 噪声或任意自定义短语的误唤醒率；真实麦克风环境需单独评测。
 运行方法和本次证据见 [测试说明](Testing.md)。
+
+## 短英文唤醒词的回归
+
+英文模型在流开始时使用一个 320 ms 的内部静音块建立初始声学上下文，返回的时间戳
+已扣除该内部块，仍对应调用者的 PCM。关键词分数在候选路径裁剪前应用，声学置信阈值
+仍使用原始概率；不通过降低默认阈值补偿漏检。Studio 文件、监听和 SiriAI 使用同一实现。
+
+维护者可使用本机已有的 macOS 英语声音重建短语测试音频：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Testing/prepare_english_wake_fixtures.py
+```
+
+将输出目录设为 `MNN_TEST_WAKE_FIX_AUDIO`，英文模型目录设为 `MNN_ENGLISH_KWS_MODELS`，
+执行 `EnglishKeywordSpotterIntegrationTests`。测试分别检查两种声音的 Siri / Hi Siri /
+Hey Siri、低音量、静音前缀、逐块输入与文件输入一致性，并拒绝静音及无关录音。
+SiriAI 的 `SiriAIRealtimeEntranceTests.SynthesizedEnglishWakeTraversesCaptureAndEntersRealtimeConversation`
+另验证连续采集处理到实时入口和命令音频交接。合成录音仅用于回归，不能代表真人准确率。
