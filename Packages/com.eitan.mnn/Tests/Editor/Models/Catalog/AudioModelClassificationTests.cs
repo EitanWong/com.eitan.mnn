@@ -63,13 +63,14 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
-        public void EveryPublishedAudioProfileHasASpecificCategoryWithoutChangingSupport()
+        public void EveryPublishedAudioProfileHasASpecificCategoryAndCorrectExecutionAvailability()
         {
             var models = MNNModelCatalog.CreateDefault().Models.Where(model => MNNModelCatalog.IsPublishedSpeechRepository(model.repositoryId)).ToArray();
             Assert.AreEqual(46, models.Length);
             Assert.False(models.Any(model => model.category == "AudioProcessing" || model.category == "Other"));
             Assert.True(models.All(model => model.category == MNNModelRepository.Classify(model.repositoryId, tasks: model.tasks)));
-            Assert.AreEqual(1, models.Count(model => model.runtimeAvailable));
+            Assert.True(models.Where(model => model.category != "TargetSpeakerExtraction" && model.category != "SpeakerDiarization").All(model => model.runtimeAvailable));
+            Assert.True(models.Where(model => model.category == "TargetSpeakerExtraction" || model.category == "SpeakerDiarization").All(model => !model.runtimeAvailable));
         }
 
         [Test]

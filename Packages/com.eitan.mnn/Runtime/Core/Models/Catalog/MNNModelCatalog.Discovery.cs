@@ -36,6 +36,32 @@ namespace MNN.Unity
         private readonly List<string> _discoveryWarnings = new List<string>();
         public IReadOnlyList<string> DiscoveryWarnings => _discoveryWarnings;
 
+        /// <summary>Shared provider search and continuation policy for Editor and Player consumers.</summary>
+        public async Task<MNNModelCatalogPage> FetchCatalogPageAsync(MNNModelSource source, int stream = 0,
+            int page = 1, string cursor = null, string query = null, HttpClient httpClient = null,
+            string modelScopeApiRoot = null, MNNHuggingFaceSourcePool mirrorPool = null, CancellationToken cancellationToken = default)
+        {
+            bool searching = !string.IsNullOrWhiteSpace(query);
+            if (source == MNNModelSource.ModelScope)
+            {
+                var result = await FetchModelScopeSearchPageAsync(stream, page, query, httpClient,
+                    modelScopeApiRoot, cancellationToken).ConfigureAwait(false);
+                bool nextStream = !searching && result.NextPage == 0 && stream + 1 < ModelScopeSearches.Length;
+                return new MNNModelCatalogPage { Models = result.Models, Warnings = result.Warnings,
+                    NextStream = nextStream ? stream + 1 : stream, NextPage = nextStream ? 1 : result.NextPage,
+                    HasMore = nextStream || result.NextPage > 0 };
+            }
+            if (source == MNNModelSource.HuggingFace)
+            {
+                var result = await FetchHuggingFaceSearchPageAsync(stream, cursor, query, httpClient,
+                    mirrorPool, cancellationToken).ConfigureAwait(false);
+                bool nextStream = !searching && result.NextCursor == null && stream + 1 < HuggingFaceSearches.Length;
+                return new MNNModelCatalogPage { Models = result.Models, NextStream = nextStream ? stream + 1 : stream,
+                    NextCursor = result.NextCursor, HasMore = nextStream || result.NextCursor != null };
+            }
+            throw new ArgumentOutOfRangeException(nameof(source));
+        }
+
         /// <summary>Fetches one Hugging Face page, following a validated continuation only when requested.</summary>
         public async Task<MNNHuggingFacePage> FetchHuggingFacePageAsync(string cursor = null, HttpClient httpClient = null,
             MNNHuggingFaceSourcePool mirrorPool = null, CancellationToken cancellationToken = default)
@@ -608,6 +634,7 @@ namespace MNN.Unity
                 model.runtimeAvailable = true;
                 model.supportSummary = "Chinese Wenetspeech 3.3M Zipformer2 keyword spotting. Pinned MNN graphs and 197-token vocabulary; managed streaming keyword beam search, custom tone-marked pinyin keywords, confidence and timestamps. Studio supports WAV, recording and live microphone detection. CPU / macOS Mono ABI.";
             }
+            ApplyPublishedSpeechProfile(model);
             if (IsPublishedSileroRepository(model))
             {
                 model.category = MNNModelCatalogCategory.VoiceActivityDetection.ToString();

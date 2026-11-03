@@ -19,6 +19,49 @@ namespace MNN.Unity.Tests
         private string _root;
         private static readonly byte[] ModelBytes = Encoding.UTF8.GetBytes("runtime model fixture");
 
+        [UnityTest]
+        public IEnumerator UnifiedCatalogTraversesAllProviderStreamsAndQueriesOnlyOnce()
+        {
+            var pool = new MNNHuggingFaceSourcePool(new[] { new MNNHuggingFaceSource("Fixture", "https://unified-hf.test") });
+            int scopeRequests = 0, faceRequests = 0;
+            using (var client = Client(request =>
+            {
+                if (request.RequestUri.AbsolutePath == "/openapi/v1/models")
+                {
+                    ++scopeRequests;
+                    return Json("{\"success\":true,\"data\":{\"total_count\":0,\"models\":[]}}");
+                }
+                ++faceRequests;
+                return Json("[]");
+            }))
+            {
+                foreach (MNNModelSource source in Enum.GetValues(typeof(MNNModelSource)))
+                {
+                    int stream = 0, page = 1, fetched = 0;
+                    string cursor = null;
+                    bool more;
+                    do
+                    {
+                        var task = new MNNModelCatalog().FetchCatalogPageAsync(source, stream, page, cursor,
+                            httpClient: client, modelScopeApiRoot: "https://unified-ms.test", mirrorPool: pool);
+                        yield return Until(task);
+                        AssertSucceeded(task);
+                        stream = task.Result.NextStream; page = task.Result.NextPage; cursor = task.Result.NextCursor;
+                        more = task.Result.HasMore;
+                        Assert.LessOrEqual(++fetched, 3, "Empty streams must advance and eventually exhaust.");
+                    } while (more);
+                    Assert.AreEqual(3, fetched, "Union official, tag and name search streams for both consumers.");
+                    var search = new MNNModelCatalog().FetchCatalogPageAsync(source, query: "turn detection",
+                        httpClient: client, modelScopeApiRoot: "https://unified-ms.test", mirrorPool: pool);
+                    yield return Until(search);
+                    AssertSucceeded(search);
+                    Assert.IsFalse(search.Result.HasMore, "A user query must not repeat through the three default streams.");
+                }
+                Assert.AreEqual(4, scopeRequests);
+                Assert.AreEqual(4, faceRequests);
+            }
+        }
+
         [UnityTest, Explicit("Downloads the pinned Silero graph for a real transfer measurement.")]
         public IEnumerator LivePinnedModelTransferMeasuresDownload()
         {

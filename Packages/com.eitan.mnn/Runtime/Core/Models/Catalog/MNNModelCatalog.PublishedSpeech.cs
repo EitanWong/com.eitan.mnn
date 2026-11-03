@@ -88,16 +88,29 @@ namespace MNN.Unity
                         displayName = profile.Name, author = "EitanWang", revision = "master", isRepository = true};
                     models.Add(model);
                 }
-                model.tasks = profile.Name.StartsWith("CueLight-", StringComparison.Ordinal)
-                    ? new[] { profile.Task, "voice-activity-detection" } : new[] { profile.Task };
-                model.category = Classify(repository, profile.Name, tasks: model.tasks);
-                model.tags = new[] { "MNN" }.Concat(model.tasks).ToArray();
-                model.fileSize = profile.Bytes;
-                model.mnnFiles = (string[])profile.Graphs.Clone();
-                model.supportSummary = (profile.Name == "VoxTurn-v1-MNN" ? "Noncommercial license. " : string.Empty) +
-                    "Published MNN deployment files. Consult the model card for input, license and validation limits; catalog availability does not validate inference.";
-                model.runtimeAvailable = IsPublishedSileroRepository(model);
+                ApplyPublishedSpeechProfile(model, profile);
             }
+        }
+        private static void ApplyPublishedSpeechProfile(MNNRemoteModel model, PublishedSpeechProfile profile)
+        {
+            model.tasks = profile.Name.StartsWith("CueLight-", StringComparison.Ordinal)
+                ? new[] { profile.Task, "voice-activity-detection" } : new[] { profile.Task };
+            model.category = Classify(model.repositoryId, profile.Name, tasks: model.tasks);
+            model.tags = new[] { "MNN" }.Concat(model.tasks).ToArray();
+            model.fileSize = profile.Bytes;
+            model.mnnFiles = (string[])profile.Graphs.Clone();
+            model.supportSummary = (profile.Name == "VoxTurn-v1-MNN" ? "Noncommercial license. " : string.Empty) +
+                "Published MNN deployment files. Consult the model card for input, license and validation limits; catalog availability does not validate inference.";
+            model.runtimeAvailable = profile.Task != "target-speaker-extraction" && profile.Task != "speaker-diarization";
+            model.requiresTranscript = profile.Name == "NAMO-Turn-Detector-v1-Multilingual-MNN" ||
+                profile.Name == "TurnSense-SmolLM2-135M-MNN";
+        }
+        private static void ApplyPublishedSpeechProfile(MNNRemoteModel model)
+        {
+            if (model.provider != MNNModelSource.ModelScope) return;
+            var profile = PublishedSpeechProfiles.FirstOrDefault(item => string.Equals("EitanWang/" + item.Name,
+                model.repositoryId, StringComparison.OrdinalIgnoreCase));
+            if (profile != null) ApplyPublishedSpeechProfile(model, profile);
         }
     }
 }

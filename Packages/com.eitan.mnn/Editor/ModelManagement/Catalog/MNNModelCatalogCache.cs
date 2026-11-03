@@ -232,25 +232,12 @@ namespace MNN.Unity.Editor
 
         private static async Task<MNNModelRepository> DiscoverPageAsync(MNNModelProvider provider, int stream, int pageNumber, string cursor)
         {
-            var repository = new MNNModelRepository();
-            if (provider == MNNModelProvider.ModelScope)
-            {
-                var page = await MNNModelManager.SearchModelScopeCatalogPageAsync(stream, pageNumber).ConfigureAwait(false);
-                repository.models.AddRange(page.Models.Select(MNNModelRepository.FromRemote));
-                repository.AddDiscoveryWarnings(page.Warnings);
-                repository.NextModelScopePage = page.NextPage;
-                repository.NextSearchStream = stream;
-                if (page.NextPage == 0 && stream < 2) { repository.NextSearchStream = stream + 1; repository.NextModelScopePage = 1; }
-                repository.HasMorePages = repository.NextModelScopePage > 0;
-            }
-            else
-            {
-                var page = await MNNModelManager.SearchHuggingFaceCatalogPageAsync(stream, cursor).ConfigureAwait(false);
-                repository.models.AddRange(page.Models.Select(MNNModelRepository.FromRemote));
-                repository.NextHuggingFaceCursor = page.NextCursor;
-                repository.NextSearchStream = page.NextCursor == null && stream < 2 ? stream + 1 : stream;
-                repository.HasMorePages = page.NextCursor != null || stream < 2;
-            }
+            var page = await new MNNModelCatalog().FetchCatalogPageAsync((MNNModelSource)provider,
+                stream, pageNumber, cursor).ConfigureAwait(false);
+            var repository = new MNNModelRepository { NextModelScopePage = page.NextPage,
+                NextHuggingFaceCursor = page.NextCursor, NextSearchStream = page.NextStream, HasMorePages = page.HasMore };
+            repository.models.AddRange(page.Models.Select(MNNModelRepository.FromRemote));
+            repository.AddDiscoveryWarnings(page.Warnings);
             return repository;
         }
     }

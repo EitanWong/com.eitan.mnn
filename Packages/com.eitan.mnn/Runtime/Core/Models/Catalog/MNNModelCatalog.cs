@@ -280,8 +280,23 @@ namespace MNN.Unity
         {
             if (string.IsNullOrWhiteSpace(query))
                 return models;
+            return models.FindAll(model => MatchesSearch(model, query));
+        }
+
+        /// <summary>Shared local search semantics for catalog consumers, including audio task aliases.</summary>
+        public static bool MatchesSearch(MNNRemoteModel model, string query) => model != null &&
+            MatchesSearch(query, model.name, model.displayName, model.description, model.modelScopeId,
+                model.repositoryId, model.tags, model.tasks, model.category);
+
+        internal static bool MatchesSearch(string query, string name, string displayName, string description,
+            string modelScopeId, string repositoryId, string[] tags, string[] tasks, string category)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return true;
             query = query.Trim();
-            return models.FindAll(m => Contains(m.name, query) || Contains(m.displayName, query) || Contains(m.description, query) || Contains(m.modelScopeId, query) || Contains(m.repositoryId, query) || (m.tags != null && Array.Exists(m.tags, tag => Contains(tag, query))) || (m.tasks != null && Array.Exists(m.tasks, task => Contains(task, query))) || MatchesAudioCategorySearch(m.category, query));
+            return Contains(name, query) || Contains(displayName, query) || Contains(description, query) ||
+                Contains(modelScopeId, query) || Contains(repositoryId, query) ||
+                tags != null && Array.Exists(tags, tag => Contains(tag, query)) ||
+                tasks != null && Array.Exists(tasks, task => Contains(task, query)) || MatchesAudioCategorySearch(category, query);
         }
 
         private static bool Contains(string value, string query)
