@@ -23,6 +23,28 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void OrdinaryWakeWordsMatchPublishedSpecificationsAndRecoverAfterInvalidInput()
+        {
+            string assets = MNNKwsModel.AssetDirectory(Models);
+            string specification = File.ReadAllText(Path.Combine(assets, "test_wavs/test_keywords.txt"));
+            const string words = "文森特卡索\n周望军\n朱丽楠\n蒋友伯\n女儿\n法国\n见面会\n落实";
+            using (var spotter = MNNKeywordSpotter.Load(Models))
+            {
+                string audio = Path.Combine(assets, "test_wavs/3.wav");
+                var expected = spotter.DetectWaveFile(audio, specification);
+                var actual = spotter.DetectWaveFile(audio, words);
+                CollectionAssert.AreEqual(new[] { "文森特卡索", "法国" }, actual.Select(match => match.Keyword));
+                Assert.AreEqual(MNNStudioNativeBackend.FormatKeywords(expected), MNNStudioNativeBackend.FormatKeywords(actual));
+                Assert.AreEqual(MNNKeywordLanguage.Chinese, spotter.Language);
+                Assert.Throws<ArgumentException>(() => spotter.Reset("hello assistant"));
+                spotter.Reset(words);
+                Assert.IsEmpty(spotter.AcceptWaveform(new float[16000]));
+                Assert.AreEqual(MNNStudioNativeBackend.FormatKeywords(expected),
+                    MNNStudioNativeBackend.FormatKeywords(spotter.DetectWaveFile(audio, words)));
+            }
+        }
+
+        [Test]
         public void PublishedRecordingsDetectKeywordsAndRejectSilenceAndUnrelatedWords()
         {
             MNNKwsModel.Prepare(Models);

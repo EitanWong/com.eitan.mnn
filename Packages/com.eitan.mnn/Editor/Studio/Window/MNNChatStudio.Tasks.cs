@@ -566,8 +566,8 @@ namespace MNN.Unity.Editor
                 return "Choose a separate recording of the target speaker.";
             if (Selected.RequiresVisualFrames && !Directory.Exists(_avFramesDirectory))
                 return "Choose the target speaker's aligned face-frame folder at 25 FPS.";
-            if (Selected.IsKeywordSpotter && string.IsNullOrWhiteSpace(_keywords))
-                return "Enter at least one tokenized wake word.";
+            if (Selected.IsKeywordSpotter && KeywordInputError() != null)
+                return KeywordInputError();
             if (Selected.RequiresReferenceAudio && !File.Exists(_audioPath))
                 return "Choose or record a reference WAV to enable synthesis.";
             if (Selected.RequiresReferenceAudio && Selected.RequiresReferenceTranscript && string.IsNullOrWhiteSpace(_referenceText))
