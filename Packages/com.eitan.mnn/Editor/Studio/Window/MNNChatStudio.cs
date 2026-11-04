@@ -73,6 +73,9 @@ namespace MNN.Unity.Editor
                 _activeChatId = null;
             _draft = _draft ?? "";
             _customRoot = EditorPrefs.GetString("MNN.Studio.ModelRoot", "");
+            _modelDiscovery?.Dispose();
+            _modelDiscovery = new MNNStudioModelDiscovery();
+            _error = null;
             RefreshModels();
             _historyPath = Path.GetFullPath(Path.Combine("Library", "MNN", "Studio", "history.json"));
             try
@@ -91,6 +94,7 @@ namespace MNN.Unity.Editor
 
         private void OnDisable()
         {
+            _modelDiscovery?.Dispose();
             StopKeywordListening();
             EditorApplication.update -= Tick;
             MNNModelDownloadTasks.instance.Changed -= OnStudioDownloadsChanged;
@@ -131,6 +135,8 @@ namespace MNN.Unity.Editor
         {
             if (_audio == null)
                 return;
+            if (!Busy)
+                PollModelDiscovery();
             if (_downloadsDirty && !Busy)
             {
                 _downloadsDirty = false;
@@ -182,15 +188,6 @@ namespace MNN.Unity.Editor
                 _lastRepaint = EditorApplication.timeSinceStartup;
                 Repaint();
             }
-        }
-
-        private void RefreshModels()
-        {
-            var errors = new List<string>();
-            _models = MNNStudioModel.Discover(new[]{Path.Combine(Application.streamingAssetsPath, "MNN", "Models"), Path.Combine(Application.persistentDataPath, "MNN", "Models"), _customRoot}, errors);
-            _error = errors.Count > 0 ? string.Join("\n", errors) : null;
-            FilterModels();
-            RefreshVoiceModels();
         }
 
         private void FilterModels()
@@ -310,20 +307,8 @@ namespace MNN.Unity.Editor
 
         private void RefreshKeepingConversation()
         {
-            string previous = Selected?.Directory ?? _history.Conversations.Find(item => item.Id == _activeChatId)?.ModelDirectory;
+            _error = null;
             RefreshModels();
-            int index = _available.FindIndex(model => model.Directory == previous);
-            if (index >= 0)
-                _modelIndex = index;
-            else if (previous != null)
-            {
-                _modelIndex = -1;
-                _error = "The current model is unavailable. Choose a downloaded model to continue.";
-            }
-
-            if (_session != null && _sessionModelDirectory != Selected?.Directory)
-                ReleaseSession();
-            Repaint();
         }
 
         private void DrawError()
@@ -356,7 +341,7 @@ namespace MNN.Unity.Editor
         {
             var rect = GUILayoutUtility.GetRect(0, 28, GUILayout.ExpandWidth(true));
             GUI.Label(new Rect(rect.x + 24, rect.y + 6, 180, 16), "MNN  ·  On device", MNNStudioUI.Caption);
-            string state = _keywordListener != null ? "Listening for wake words" : _namingChatId != null ? "Naming conversation…" : _contextCompressionPending && Busy ? "Compressing context…" : Busy ? "Processing" : _audio != null && _audio.IsRecording ? "Recording" : _session != null ? "Model loaded" : "Model unloaded";
+            string state = _keywordListener != null ? "Listening for wake words" : _namingChatId != null ? "Naming conversation…" : _contextCompressionPending && Busy ? "Compressing context…" : Busy ? "Processing" : _audio != null && _audio.IsRecording ? "Recording" : DiscoveringModels ? "Finding local models…" : _session != null ? "Model loaded" : "Model unloaded";
             GUI.Label(new Rect(rect.xMax - 224, rect.y + 6, 200, 16), state, MNNStudioUI.RightCaption);
         }
 

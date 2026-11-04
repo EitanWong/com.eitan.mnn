@@ -17,7 +17,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator WarmLibraryCostFollowsVisibleRowsRatherThanSavedChatCount()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var history = new MNNStudioHistory();
             Field("_historyPath").SetValue(window, null);
             Field("_history").SetValue(window, history);
@@ -58,7 +58,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator WarmTranscriptCostFollowsViewportRatherThanHistoryLength()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             // Keep this synthetic benchmark independent of the developer's saved history/models.
             Field("_historyPath").SetValue(window, null);
             Field("_history").SetValue(window, new MNNStudioHistory());
@@ -96,7 +96,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator TranscriptSupportsScrollSearchResizeAppendAndReset()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             Field("_historyPath").SetValue(window, null);
             Field("_autoTitle").SetValue(window, false);
             var messages = (List<MNNStudioMessage>)Field("_messages").GetValue(window);

@@ -59,6 +59,10 @@ namespace MNN.Unity.Editor
                 _taskIndex = (int)task;
                 _customRoot = Path.GetDirectoryName(Path.GetFullPath(directory));
                 EditorPrefs.SetString("MNN.Studio.ModelRoot", _customRoot);
+                _models.RemoveAll(item => item.Directory == model.Directory);
+                _models.Add(model);
+                FilterModels();
+                RefreshVoiceModels();
                 RefreshModels();
                 _modelIndex = _available.FindIndex(item => item.Directory == model.Directory);
                 _query = TaskExample;
@@ -93,7 +97,7 @@ namespace MNN.Unity.Editor
                     if (CurrentTask.Task == MNNStudioTask.Other)
                         DrawWorkspaceCatalog();
                     GUILayout.Space(16);
-                    string status = !CurrentTask.Runnable || Selected != null && !CurrentTask.CanRun(Selected) ? CurrentTask.UnavailableReason : !MNNPlatformSupport.IsSupported ? MNNPlatformSupport.UnsupportedReason : "Choose a compatible local model to get started. The model loads on the first request.";
+                    string status = DiscoveringModels && Selected == null ? "Finding local models… You can keep using Studio while this finishes." : !CurrentTask.Runnable || Selected != null && !CurrentTask.CanRun(Selected) ? CurrentTask.UnavailableReason : !MNNPlatformSupport.IsSupported ? MNNPlatformSupport.UnsupportedReason : "Choose a compatible local model to get started. The model loads on the first request.";
                     EditorGUILayout.HelpBox(status, MessageType.Info);
                     if (Selected != null)
                     {

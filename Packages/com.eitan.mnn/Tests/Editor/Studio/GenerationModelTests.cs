@@ -136,7 +136,7 @@ namespace MNN.Unity.Tests
         [TestCase(3), TestCase(5)]
         public void StudioRejectsIncompleteGenerationBeforeCreatingNativeSession(int taskIndex)
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var type = typeof(MNNChatStudio);
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
             try

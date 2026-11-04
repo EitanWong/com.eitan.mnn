@@ -71,7 +71,7 @@ namespace MNN.Unity.Tests
         public IEnumerator SearchHit_RestoresSessionAndScrollsToMatchingMessage()
         {
             string root = Path.GetFullPath(Path.Combine("Library", "MNN", "StudioWindowTests", Guid.NewGuid().ToString("N")));
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var history = new MNNStudioHistory();
             var messages = new List<MNNStudioMessage>();
             for (int i = 0; i < 30; ++i)

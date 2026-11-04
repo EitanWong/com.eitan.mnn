@@ -24,7 +24,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void StudioOffersChineseExampleAndPreservesUserDraftOnVoiceModelChange()
         {
-            var window = UnityEngine.ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
             var type = typeof(MNNChatStudio);
             try

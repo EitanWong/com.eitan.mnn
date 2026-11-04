@@ -23,7 +23,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void ModelSession_IsReusedForNewChatAndReleasedOnModelChange()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var backend = new LifecycleBackend();
             var session = new MNNStudioSession(backend);
             try
@@ -46,7 +46,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void ModelSwitch_PreservesConversationAndDraftAndIdleReleaseIsLazy()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var backend = new LifecycleBackend();
             var session = new MNNStudioSession(backend);
             string root = Path.GetFullPath(Path.Combine("TestArtifacts~", "StudioHistory", Guid.NewGuid().ToString("N")));
@@ -259,7 +259,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void Window_SwitchingChatsPreservesDraftAndIsolatesPromptContext()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             string root = Path.GetFullPath(Path.Combine("Library", "MNN", "StudioHistoryTests", Guid.NewGuid().ToString("N")));
             try
             {

@@ -59,7 +59,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void TranscriptOnlyUiRequiresChoicesAndRetainsLanguageAndSpeaker()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Set(window, "_audioPath", string.Empty);

@@ -91,7 +91,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator ChooseWaveDefersNestedGuiEventsAndPreservesDraft()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var model = MNNStudioModel.Read(Model("audio", "{\"is_audio\":true}"));
             string audio = Path.Combine(_root, "reference.wav");
             File.WriteAllBytes(audio, MNNStudioAudio.EncodeWave(new float[16000], 16000));
@@ -174,7 +174,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void GuiExitIsNotHandledAsAStudioError()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 var error = Assert.Throws<TargetInvocationException>(() => Invoke(window, "Try", new Action(() => throw new ExitGUIException())));
@@ -322,7 +322,7 @@ namespace MNN.Unity.Tests
             string reference = Path.Combine(_root, "reference.wav");
             File.WriteAllBytes(reference, MNNStudioAudio.EncodeWave(new[]{.1f, -.1f}, 16000));
 
-            var window = UnityEngine.ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Field("_available").SetValue(window, new List<MNNStudioModel>
@@ -355,7 +355,7 @@ namespace MNN.Unity.Tests
             var shortSamples = Enumerable.Repeat(.1f, 7840).ToArray();
             File.WriteAllBytes(valid, MNNStudioAudio.EncodeWave(validSamples, 16000));
             File.WriteAllBytes(tooShort, MNNStudioAudio.EncodeWave(shortSamples, 16000));
-            var window = UnityEngine.ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Field("_available").SetValue(window, new List<MNNStudioModel>{new MNNStudioModel("IndexTTS-2.5-mnn", indexDirectory, MNNStudioTask.SpeechSynthesis, MNNModelCapabilities.Text)});
@@ -391,7 +391,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator TranscriptionUsesAudioAndDedicatedResultWithoutChatHistory()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var backend = new Backend();
             var session = new MNNStudioSession(backend);
             string audio = Path.Combine(_root, "input.wav");

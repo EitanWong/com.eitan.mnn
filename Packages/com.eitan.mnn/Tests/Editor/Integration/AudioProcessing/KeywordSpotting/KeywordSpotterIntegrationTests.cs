@@ -74,7 +74,7 @@ namespace MNN.Unity.Tests
 
         private IEnumerator RunStudioKeywordDemo(bool english)
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             FieldInfo Field(string name) => typeof(MNNChatStudio).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
             object Invoke(string name) => typeof(MNNChatStudio).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(window, null);
             string directory = english ? Environment.GetEnvironmentVariable("MNN_ENGLISH_KWS_MODELS") : Models;

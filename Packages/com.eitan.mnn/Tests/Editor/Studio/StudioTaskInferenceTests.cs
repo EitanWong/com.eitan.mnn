@@ -23,7 +23,7 @@ namespace MNN.Unity.Tests
             var model = MNNStudioModel.Read(MultimodalTestData.Model(modelName));
             string imagePath = image == null ? null : MultimodalTestData.Fixture(image);
             string audioPath = audio == null ? null : MultimodalTestData.Fixture(audio);
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Set(window, "_autoTitle", false);

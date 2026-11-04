@@ -136,7 +136,7 @@ namespace MNN.Unity.Tests
             UnityEngine.Object.DestroyImmediate(texture);
             var backend = new PoseBackend();
             var session = new MNNStudioSession(backend);
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             FieldInfo Field(string name) => typeof(MNNChatStudio).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance);
             object Invoke(string name) => typeof(MNNChatStudio).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance).Invoke(window, null);
             try

@@ -37,7 +37,7 @@ namespace MNN.Unity.Tests
                 Assert.Throws<OperationCanceledException>(() => backend.Run(new MNNStudioRequest { Prompt = "Hello", Cancellation = new CancellationToken(true) }));
                 Assert.Throws<ArgumentNullException>(() => backend.Run(new MNNStudioRequest { Prompt = null }));
             }
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Set(window, "_available", new List<MNNStudioModel> { model });

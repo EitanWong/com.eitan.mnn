@@ -51,7 +51,7 @@ namespace MNN.Unity.Tests
             foreach (string repository in new[]{"IndexTTS-2.5-mnn", "fireredtts3-mnn"})
             {
                 var model = MNNStudioModel.Read(Path.Combine(root, repository));
-                var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+                var window = StudioWindowFixture.Create<MNNChatStudio>();
                 var backend = new ReferencePickerBackend();
                 var session = new MNNStudioSession(backend);
                 Action scheduled = null;
@@ -145,7 +145,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator UseExampleReplacesFocusedInstructionAndRemainsEditable()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             string clipboard = EditorGUIUtility.systemCopyBuffer;
             try
             {
@@ -275,7 +275,7 @@ namespace MNN.Unity.Tests
             var model = MNNStudioModel.Read((repository == "IndicF5-MNN" || repository == "Pocket-TTS-MNN" || repository == "starsharp06sharp--kokoro-v1_1" || repository == "Jeryuk--kokoro-v1_0-MNN" || repository == "PiperLessac" || repository == "MossNano" || repository == "MossNanoCached" || repository == "DhVaani" || repository == "Qwen3-TTS-Explicit") ? Path.Combine(Environment.GetEnvironmentVariable("MNN_TEST_QWEN3_TTS_ROOT"), repository) : repository == "sherpa-vits-zh-ll" ? Environment.GetEnvironmentVariable("MNN_TEST_SHERPA_VITS_ROOT") : repository == "mms-tts-tam-mnn" ? Environment.GetEnvironmentVariable("MNN_TEST_MMS_TAMIL_ROOT") : repository == "kokoro-v1_1" ? Environment.GetEnvironmentVariable("MNN_TEST_KOKORO11_ROOT") : repository == "vits-tts-mnn" ? Environment.GetEnvironmentVariable("MNN_TEST_INDIC_VITS_ROOT") : repository == "Kokoro-82M-v1.0-MNN" ? Environment.GetEnvironmentVariable("MNN_TEST_KOKORO_ROOT") : repository == "Supertonic-3-INT8-MNN" ? Environment.GetEnvironmentVariable("MNN_TEST_SUPERTONIC3_ROOT") : repository == "IndexTTS-2.5-mnn" || repository == "fireredtts3-mnn" ? Path.Combine(Environment.GetEnvironmentVariable("MNN_TEST_REFERENCE_SPEECH_ROOT"), repository) : repository == "Cosy-Voice-MNN" ? Environment.GetEnvironmentVariable("MNN_TEST_COSYVOICE_ROOT") : GenerationTestData.Model(repository ?? (tts ? "supertonic-tts-mnn" : sana ? "MNN-Sana-Edit-V2" : "stable-diffusion-v1-5-mnn")));
             if (ttsPrecision != null) model.MmsTamilPrecision = ttsPrecision;
             Assert.True(MNNStudioTasks.Get((int)model.Task).CanRun(model));
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             bool muted = EditorUtility.audioMasterMute;
             try
             {

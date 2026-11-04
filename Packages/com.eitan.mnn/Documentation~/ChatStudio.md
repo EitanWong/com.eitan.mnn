@@ -46,6 +46,12 @@ Embedding/Reranker 及专用 pipeline 按安装标记中的仓库 ID 或目录�
 
 ## 编辑器渲染性能
 
+打开窗口后在后台扫描本地模型目录并准备当前工作区与语音选择器的可用性，状态栏显示
+`Finding local models…`。扫描期间窗口可绘制与编辑；完成后在 Editor 主线程更新模型列表。
+刷新保留现有列表和当前选择，扫描失败时保留已知模型并显示错误；完成后模型确实缺失才禁用发送。
+重复刷新会取消旧请求，关闭窗口不等待磁盘扫描，旧请求也不会回写已关闭窗口。
+Unity 路径、偏好设置、控件和资源仍由主线程处理；这里的后台工作不加载推理模型。
+
 长对话保留完整消息，但只为可见区域及少量预留区域创建消息控件；屏幕外使用已测量高度保留
 滚动范围，搜索仍可跳转到任意消息。首次打开对话、改变内容宽度、主题或显示缩放时重新测量；
 追加消息复用已有布局。侧栏只绘制可见会话行，每次布局统一分组历史记录，保留文件夹折叠与拖放。
@@ -62,6 +68,10 @@ python3 Packages/com.eitan.mnn/Tools~/Testing/run_conversation_tests.py \
 该测试比较预热后 24/480 条消息与 24/960 个侧栏会话的布局加重绘中位耗时，并检查滚动范围、
 搜索、缩放、追加和重置。数据保存在隔离工程的 `TestArtifacts~/StudioRendering/`，
 XML 与日志位于 runner 的输出目录。这是 Editor UI 回归，不测量首次模型扫描、原生推理或模型吞吐量。
+
+启动生命周期与失败恢复由 `StudioModelDiscoveryTests` 和 `StudioStartupTests` 覆盖。
+显式选择 `StudioStartupTests.OpeningWithInstalledModelsDoesNotBlockTheEditor` 可使用开发仓库
+已有的模型目录测量窗口打开、首帧、扫描完成和最慢启动更新；该用例不会下载模型。
 
 ## 按任务准备模型
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using UnityEngine;
 
 namespace MNN.Unity.Editor
@@ -101,11 +102,12 @@ namespace MNN.Unity.Editor
             return new MNNStudioModel(name, Path.GetFullPath(directory), task, capabilities, category);
         }
 
-        internal static List<MNNStudioModel> Discover(IEnumerable<string> roots, ICollection<string> errors = null)
+        internal static List<MNNStudioModel> Discover(IEnumerable<string> roots, ICollection<string> errors = null, CancellationToken cancellation = default)
         {
             var found = new Dictionary<string, MNNStudioModel>(StringComparer.Ordinal);
             foreach (string root in roots.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct())
             {
+                cancellation.ThrowIfCancellationRequested();
                 if (!System.IO.Directory.Exists(root))
                     continue;
                 try
@@ -117,7 +119,7 @@ namespace MNN.Unity.Editor
                         {
                             var model = Read(root);
                             found[model.Directory] = model;
-                            AddLanguageVariants(model, found, errors);
+                            AddLanguageVariants(model, found, errors, cancellation);
                         }
                         catch (Exception error)when (error is IOException || error is ArgumentException || error is UnauthorizedAccessException)
                         {
@@ -129,13 +131,14 @@ namespace MNN.Unity.Editor
 
                     foreach (string directory in System.IO.Directory.GetDirectories(root).OrderBy(value => value, StringComparer.Ordinal))
                     {
+                        cancellation.ThrowIfCancellationRequested();
                         if (!IsModelDirectory(directory))
                             continue;
                         try
                         {
                             var model = Read(directory);
                             found[model.Directory] = model;
-                            AddLanguageVariants(model, found, errors);
+                            AddLanguageVariants(model, found, errors, cancellation);
                         }
                         catch (Exception error)when (error is IOException || error is ArgumentException || error is UnauthorizedAccessException)
                         {
@@ -152,7 +155,7 @@ namespace MNN.Unity.Editor
             return found.Values.OrderBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
-        private static void AddLanguageVariants(MNNStudioModel repository, IDictionary<string, MNNStudioModel> found, ICollection<string> errors)
+        private static void AddLanguageVariants(MNNStudioModel repository, IDictionary<string, MNNStudioModel> found, ICollection<string> errors, CancellationToken cancellation)
         {
             if (repository.IsPaddleText)
             {
@@ -161,6 +164,7 @@ namespace MNN.Unity.Editor
                     return;
                 foreach (string metadata in System.IO.Directory.EnumerateFiles(variants, MNNPaddleTextConfig.FileName, SearchOption.AllDirectories))
                 {
+                    cancellation.ThrowIfCancellationRequested();
                     string directory = Path.GetDirectoryName(metadata);
                     try
                     {
@@ -183,6 +187,7 @@ namespace MNN.Unity.Editor
             {
                 foreach (string variant in new[]{"v2", "v3"})
                 {
+                    cancellation.ThrowIfCancellationRequested();
                     string directory = Path.Combine(repository.Directory, variant);
                     if (MNNSupertonic.IsComplete(directory))
                         found[directory] = new MNNStudioModel(repository.Name + "/" + variant, directory, MNNStudioTask.SpeechSynthesis, (MNNModelCapabilities)0, MNNModelCategory.SpeechSynthesis.ToString());
@@ -197,6 +202,7 @@ namespace MNN.Unity.Editor
                 return;
             foreach (string metadata in System.IO.Directory.EnumerateFiles(repository.Directory, "llm_config.json", SearchOption.AllDirectories))
             {
+                cancellation.ThrowIfCancellationRequested();
                 string directory = Path.GetDirectoryName(metadata);
                 if (!File.Exists(Path.Combine(directory, "config.json")) || !System.IO.Directory.EnumerateFiles(directory, "*.mnn").Any())
                     continue;
@@ -217,7 +223,16 @@ namespace MNN.Unity.Editor
             }
         }
 
-        private static bool IsModelDirectory(string directory) => MNNCosyVoice300MModel.HasLayout(directory) || MNNIndicF5Tts.IsComplete(directory) || MNNPocketTts.IsComplete(directory) || MNNQwen3ExplicitTts.HasLayout(directory) || MNNDhVaani.IsComplete(directory) || MNNMossNano.IsComplete(directory) || MNNSherpaVitsChinese.IsComplete(directory) || MNNMmsTamil.IsComplete(directory) || MNNSupertonic.IsComplete(directory) || MNNKokoroModel.IsComplete(directory) || File.Exists(Path.Combine(directory, MNNKeywordSpotterConfig.FileName)) || File.Exists(Path.Combine(directory, MNNSmartTurnConfig.FileName)) || File.Exists(Path.Combine(directory, MNNSileroVadConfig.FileName)) || File.Exists(Path.Combine(directory, "mnn_fsmn_vad.json")) || File.Exists(Path.Combine(directory, "mnn_frcrn_se.json")) || File.Exists(Path.Combine(directory, MNNMarbleNetVadConfig.FileName)) || File.Exists(Path.Combine(directory, "mnn_livekit_turn_detector.json")) || File.Exists(Path.Combine(directory, "mnn_mossformer2_ss.json")) || File.Exists(Path.Combine(directory, MNNWeSpeakerModelConfig.FileName)) || File.Exists(Path.Combine(directory, MNNParaformerConfig.FileName)) || File.Exists(Path.Combine(directory, MNNQwen3AsrConfig.FileName)) || File.Exists(Path.Combine(directory, MNNSenseVoiceConfig.FileName)) || File.Exists(Path.Combine(directory, MNNZipformerConfig.FileName)) || File.Exists(Path.Combine(directory, MNNWhisperConfig.FileName)) || File.Exists(Path.Combine(MNNCosyVoiceModel.ResolveDirectory(directory), "config-cpu-cosyvoice-ras.json")) || File.Exists(Path.Combine(directory, "config.json")) || File.Exists(Path.Combine(directory, MNNModelDownloadTasks.InstallMarker)) || HasDiffusionStages(directory) || HasDiffusionStages(Path.Combine(directory, "general")) || HasDiffusionStages(Path.Combine(directory, "opencl")) || System.IO.Directory.EnumerateFiles(directory, "*.mnn", SearchOption.TopDirectoryOnly).Any();
+        private static bool IsModelDirectory(string directory)
+        {
+            // Common install/config markers establish the same discovery eligibility
+            // without probing every specialized model protocol first.
+            return File.Exists(Path.Combine(directory, MNNModelDownloadTasks.InstallMarker)) ||
+                File.Exists(Path.Combine(directory, "config.json")) ||
+                HasSpecializedModelLayout(directory);
+        }
+
+        private static bool HasSpecializedModelLayout(string directory) => MNNCosyVoice300MModel.HasLayout(directory) || MNNIndicF5Tts.IsComplete(directory) || MNNPocketTts.IsComplete(directory) || MNNQwen3ExplicitTts.HasLayout(directory) || MNNDhVaani.IsComplete(directory) || MNNMossNano.IsComplete(directory) || MNNSherpaVitsChinese.IsComplete(directory) || MNNMmsTamil.IsComplete(directory) || MNNSupertonic.IsComplete(directory) || MNNKokoroModel.IsComplete(directory) || File.Exists(Path.Combine(directory, MNNKeywordSpotterConfig.FileName)) || File.Exists(Path.Combine(directory, MNNSmartTurnConfig.FileName)) || File.Exists(Path.Combine(directory, MNNSileroVadConfig.FileName)) || File.Exists(Path.Combine(directory, "mnn_fsmn_vad.json")) || File.Exists(Path.Combine(directory, "mnn_frcrn_se.json")) || File.Exists(Path.Combine(directory, MNNMarbleNetVadConfig.FileName)) || File.Exists(Path.Combine(directory, "mnn_livekit_turn_detector.json")) || File.Exists(Path.Combine(directory, "mnn_mossformer2_ss.json")) || File.Exists(Path.Combine(directory, MNNWeSpeakerModelConfig.FileName)) || File.Exists(Path.Combine(directory, MNNParaformerConfig.FileName)) || File.Exists(Path.Combine(directory, MNNQwen3AsrConfig.FileName)) || File.Exists(Path.Combine(directory, MNNSenseVoiceConfig.FileName)) || File.Exists(Path.Combine(directory, MNNZipformerConfig.FileName)) || File.Exists(Path.Combine(directory, MNNWhisperConfig.FileName)) || File.Exists(Path.Combine(MNNCosyVoiceModel.ResolveDirectory(directory), "config-cpu-cosyvoice-ras.json")) || HasDiffusionStages(directory) || HasDiffusionStages(Path.Combine(directory, "general")) || HasDiffusionStages(Path.Combine(directory, "opencl")) || System.IO.Directory.EnumerateFiles(directory, "*.mnn", SearchOption.TopDirectoryOnly).Any();
         private static bool HasDiffusionStages(string directory) => File.Exists(Path.Combine(directory, "text_encoder.mnn")) && File.Exists(Path.Combine(directory, "unet.mnn")) && File.Exists(Path.Combine(directory, "vae_decoder.mnn"));
     }
 }
