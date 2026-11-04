@@ -959,6 +959,11 @@ using (var recognizer = MNNSenseVoiceRecognizer.Load(modelDirectory))
 
 The pinned profile supports `auto`, `zh`, `en`, `ja`, `ko` and `yue`; the integration fixtures cover English and Chinese/English. Exact digital silence returns an empty result.
 
+`Text`, `TokenIds` and `Timestamps` contain speech tokens only. The first four
+encoder positions are rich metadata labels; speech CTC decoding starts after
+those positions, even if a metadata prediction is blank or repeated. Rich event
+tokens predicted later in the sequence are omitted from plain transcription.
+
 SenseVoice recordings must be mono normalized PCM or a supported mono/stereo WAV
 at 8–96 kHz, 85 ms–60 seconds. This API processes one recording per call; there is
 no live streaming or automatic segmentation. The graph supports five languages,

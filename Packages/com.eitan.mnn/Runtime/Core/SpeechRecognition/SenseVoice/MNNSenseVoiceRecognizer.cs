@@ -109,25 +109,30 @@ namespace MNN.Unity
             return ids;
         }
 
-        private MNNSpeechRecognition Decode(int[] bestIds, CancellationToken token)
+        private MNNSpeechRecognition Decode(int[] bestIds, CancellationToken token) => Decode(bestIds, _tokens, token);
+
+        internal static MNNSpeechRecognition Decode(int[] bestIds, string[] tokens, CancellationToken token)
         {
             var ids = new List<int>();
             var times = new List<float>();
-            int previous = -1, emitted = 0;
+            int previous = -1;
             var text = new StringBuilder();
             for (int f = 0; f < bestIds.Length; ++f)
             {
                 token.ThrowIfCancellationRequested();
                 int best = bestIds[f];
-                if (best < 0 || best >= _tokens.Length) throw new InvalidDataException("Invalid SenseVoice token ID.");
+                if (best < 0 || best >= tokens.Length) throw new InvalidDataException("Invalid SenseVoice token ID.");
+                // These four encoder positions are trained with rich-label cross entropy;
+                // CTC speech starts at position four, independently of blank/repeated labels.
+                if (f < 4) continue;
                 if (best != 0 && best != previous)
                 {
-                    // The first four collapsed symbols describe language/emotion/event/ITN.
-                    if (emitted++ >= 4)
+                    string symbol = tokens[best];
+                    if (!(symbol.StartsWith("<|", StringComparison.Ordinal) && symbol.EndsWith("|>", StringComparison.Ordinal)))
                     {
                         ids.Add(best);
                         times.Add(Math.Max(0, f - 4) * .06f);
-                        text.Append(_tokens[best]);
+                        text.Append(symbol);
                     }
                 }
                 previous = best;

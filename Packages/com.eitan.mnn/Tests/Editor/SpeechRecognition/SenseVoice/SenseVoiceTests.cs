@@ -22,6 +22,46 @@ namespace MNN.Unity.Tests
                 Assert.AreEqual(expected[i], features[indices[i]], .0003f, "feature " + indices[i]);
         }
 
+        [TestCase(0), TestCase(24885)]
+        public void MissingOrRepeatedPrefixMetadataCannotConsumeTheFirstSpokenWord(int secondPrefix)
+        {
+            var result = Decode(new[] { 24885, secondPrefix, 24993, 25016, 3, 3, 0, 4 });
+            Assert.AreEqual("hello world", result.Text);
+            CollectionAssert.AreEqual(new[] { 3, 4 }, result.TokenIds);
+            Assert.That(result.Timestamps, Is.EqualTo(new[] { 0f, .18f }).Within(.000001f));
+        }
+
+        [Test]
+        public void RichEventTokensCannotLeakIntoPlainTranscriptionOrEraseRepeatedWords()
+        {
+            var result = Decode(new[] { 24885, 25004, 24993, 25016, 3, 24995, 3, 0, 4 });
+            Assert.AreEqual("hello hello world", result.Text);
+            CollectionAssert.AreEqual(new[] { 3, 3, 4 }, result.TokenIds);
+        }
+
+        [Test]
+        public void SpeechCtcStartsIndependentlyOfTheLastMetadataPrediction()
+        {
+            var result = Decode(new[] { 24885, 25004, 24993, 3, 3, 0, 3, 4 });
+            Assert.AreEqual("hello hello world", result.Text);
+            CollectionAssert.AreEqual(new[] { 3, 3, 4 }, result.TokenIds);
+        }
+
+        [Test]
+        public void DecoderValidatesPrefixIdsAndHonorsCancellation()
+        {
+            Assert.Throws<InvalidDataException>(() => Decode(new[] { -1, 25004, 24993, 25016, 3 }));
+            Assert.Throws<OperationCanceledException>(() => MNNSenseVoiceRecognizer.Decode(new[] { 0, 0, 0, 0, 3 },
+                new[] { "", "", "", "hello" }, new System.Threading.CancellationToken(true)));
+        }
+
+        private static MNNSpeechRecognition Decode(int[] path)
+        {
+            var tokens = Enumerable.Range(0, 25055).Select(i => i >= 24884 ? "<|metadata|>" : "token" + i).ToArray();
+            tokens[3] = "▁hello"; tokens[4] = "▁world";
+            return MNNSenseVoiceRecognizer.Decode(path, tokens, default);
+        }
+
         [Test]
         public void CausalWindowsKeepTheParaformerAdvanceContract()
         {
