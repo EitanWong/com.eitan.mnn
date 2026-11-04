@@ -357,9 +357,7 @@ namespace MNN.Unity.Editor
             var rect = GUILayoutUtility.GetRect(0, 28, GUILayout.ExpandWidth(true));
             GUI.Label(new Rect(rect.x + 24, rect.y + 6, 180, 16), "MNN  ·  On device", MNNStudioUI.Caption);
             string state = _keywordListener != null ? "Listening for wake words" : _namingChatId != null ? "Naming conversation…" : _contextCompressionPending && Busy ? "Compressing context…" : Busy ? "Processing" : _audio != null && _audio.IsRecording ? "Recording" : _session != null ? "Model loaded" : "Model unloaded";
-            var style = new GUIStyle(MNNStudioUI.Caption)
-            {alignment = TextAnchor.MiddleRight};
-            GUI.Label(new Rect(rect.xMax - 224, rect.y + 6, 200, 16), state, style);
+            GUI.Label(new Rect(rect.xMax - 224, rect.y + 6, 200, 16), state, MNNStudioUI.RightCaption);
         }
 
         private sealed class CenteredContent : GUI.Scope

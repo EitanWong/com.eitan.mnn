@@ -14,6 +14,7 @@ namespace MNN.Unity.Editor.UI
         private static readonly List<Texture2D> Textures = new List<Texture2D>();
         private static GUIStyle _card, _user, _body, _userBody, _userCaption, _caption, _title, _heading, _input;
         private static GUIStyle _code, _markdownHeading, _markdownBody, _markdownCode;
+        private static GUIStyle _centeredHeading, _centeredCaption, _rightCaption, _singleLineCaption, _filename;
         private static Font _codeFont;
         private static GUIStyle _button, _primary, _quiet, _icon, _segment, _selectedSegment, _chip, _placeholder, _navigation, _selectedNavigation, _model;
         internal static Color Background => EditorGUIUtility.isProSkin ? new Color(.13f, .13f, .13f) : Color.white;
@@ -153,6 +154,31 @@ namespace MNN.Unity.Editor.UI
             }
         }
 
+        internal static GUIStyle CenteredHeading
+        {
+            get { Ensure(); return _centeredHeading; }
+        }
+
+        internal static GUIStyle CenteredCaption
+        {
+            get { Ensure(); return _centeredCaption; }
+        }
+
+        internal static GUIStyle RightCaption
+        {
+            get { Ensure(); return _rightCaption; }
+        }
+
+        internal static GUIStyle SingleLineCaption
+        {
+            get { Ensure(); return _singleLineCaption; }
+        }
+
+        internal static GUIStyle Filename
+        {
+            get { Ensure(); return _filename; }
+        }
+
         internal static float ContentWidth(float windowWidth) => Mathf.Max(160, Mathf.Min(MaximumContentWidth, windowWidth - 2 * PageInset - 16));
         static MNNStudioUI()
         {
@@ -194,6 +220,11 @@ namespace MNN.Unity.Editor.UI
             {fontSize = 26, fontStyle = FontStyle.Normal, alignment = TextAnchor.MiddleCenter};
             _heading = new GUIStyle(_body)
             {fontSize = 14, fontStyle = FontStyle.Bold};
+            _centeredHeading = new GUIStyle(_heading) {alignment = TextAnchor.MiddleCenter};
+            _centeredCaption = new GUIStyle(_caption) {alignment = TextAnchor.MiddleCenter};
+            _rightCaption = new GUIStyle(_caption) {alignment = TextAnchor.MiddleRight};
+            _singleLineCaption = new GUIStyle(_caption) {wordWrap = false, clipping = TextClipping.Clip};
+            _filename = new GUIStyle(_body) {wordWrap = false, clipping = TextClipping.Clip};
             if (_codeFont == null)
             {
                 _codeFont = Font.CreateDynamicFontFromOSFont(new[]{"Menlo", "Consolas", "DejaVu Sans Mono"}, 12);
@@ -293,9 +324,14 @@ namespace MNN.Unity.Editor.UI
 
         internal static bool Navigation(string label, bool selected, float width, string tooltip = null, Action<Rect> beforeButton = null)
         {
-            Ensure();
             var rect = GUILayoutUtility.GetRect(width, 34, GUILayout.ExpandWidth(false));
             beforeButton?.Invoke(rect);
+            return NavigationAt(rect, label, selected, tooltip);
+        }
+
+        internal static bool NavigationAt(Rect rect, string label, bool selected, string tooltip = null)
+        {
+            Ensure();
             return GUI.Button(rect, new GUIContent(label, tooltip), selected ? _selectedNavigation : _navigation);
         }
 
@@ -363,9 +399,7 @@ namespace MNN.Unity.Editor.UI
                 using (new EditorGUILayout.VerticalScope(GUILayout.MinWidth(0)))
                 {
                     GUILayout.Label(kind, Caption);
-                    var filename = new GUIStyle(Body)
-                    {wordWrap = false, clipping = TextClipping.Clip};
-                    GUILayout.Label(new GUIContent(System.IO.Path.GetFileName(path), path), filename, GUILayout.MinWidth(0));
+                    GUILayout.Label(new GUIContent(System.IO.Path.GetFileName(path), path), Filename, GUILayout.MinWidth(0));
                 }
 
                 return Button("×", 28, quiet: true, tooltip: "Remove " + kind.ToLowerInvariant() + " attachment");
@@ -377,9 +411,7 @@ namespace MNN.Unity.Editor.UI
             GUILayout.Space(32);
             GUILayout.Label(title, Title, GUILayout.Height(36));
             GUILayout.Space(8);
-            var style = new GUIStyle(Caption)
-            {alignment = TextAnchor.MiddleCenter};
-            GUILayout.Label(detail, style, GUILayout.Height(44));
+            GUILayout.Label(detail, CenteredCaption, GUILayout.Height(44));
             GUILayout.Space(20);
         }
 

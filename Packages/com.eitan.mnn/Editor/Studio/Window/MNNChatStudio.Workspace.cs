@@ -54,6 +54,8 @@ namespace MNN.Unity.Editor
                     _sidebarScroll = scroll.scrollPosition;
                     DrawLibrary();
                 }
+                if (Event.current.type == EventType.Repaint)
+                    _sidebarViewRect = GUILayoutUtility.GetLastRect();
 
                 GUILayout.Space(12);
                 using (new EditorGUILayout.HorizontalScope())
@@ -70,15 +72,6 @@ namespace MNN.Unity.Editor
                 }
 
                 GUILayout.Space(20);
-            }
-        }
-
-        private static void SidebarCaption(string text)
-        {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Space(22);
-                GUILayout.Label(text, MNNStudioUI.Caption, GUILayout.Width(SidebarWidth - 38));
             }
         }
 

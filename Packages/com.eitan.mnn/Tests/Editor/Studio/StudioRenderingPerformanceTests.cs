@@ -15,6 +15,47 @@ namespace MNN.Unity.Tests
     public sealed class StudioRenderingPerformanceTests
     {
         [UnityTest]
+        public IEnumerator WarmLibraryCostFollowsVisibleRowsRatherThanSavedChatCount()
+        {
+            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var history = new MNNStudioHistory();
+            Field("_historyPath").SetValue(window, null);
+            Field("_history").SetValue(window, history);
+            Field("_autoTitle").SetValue(window, false);
+            Field("_error").SetValue(window, null);
+            try
+            {
+                window.position = new Rect(80, 80, 900, 700);
+                window.Show();
+                AddChats(history, 24);
+                for (int i = 0; i < 5; ++i) { window.Repaint(); yield return null; }
+                double shortMilliseconds = Measure(window);
+                AddChats(history, 960);
+                for (int i = 0; i < 5; ++i) { window.Repaint(); yield return null; }
+                double longMilliseconds = Measure(window);
+                string root = Path.GetFullPath(Path.Combine("TestArtifacts~", "StudioRendering"));
+                Directory.CreateDirectory(root);
+                File.WriteAllText(Path.Combine(root, "library.txt"),
+                    "24 chats ms/GUI cycle: " + shortMilliseconds.ToString("F3") +
+                    "\n960 chats ms/GUI cycle: " + longMilliseconds.ToString("F3") + "\n");
+                TestContext.WriteLine(File.ReadAllText(Path.Combine(root, "library.txt")));
+                Assert.Less(longMilliseconds, shortMilliseconds * 6 + 3,
+                    "The sidebar must not create IMGUI controls for every saved conversation.");
+                Field("_sidebarScroll").SetValue(window, new Vector2(0, float.MaxValue));
+                for (int i = 0; i < 4; ++i) { window.Repaint(); yield return null; }
+                Assert.Greater(((Vector2)Field("_sidebarScroll").GetValue(window)).y, 20000);
+                var rows = (Dictionary<string, Rect>)Field("_libraryRows").GetValue(window);
+                Assert.True(rows.ContainsKey("959"), "The final saved chat must remain reachable.");
+                LogAssert.NoUnexpectedReceived();
+            }
+            finally
+            {
+                window.Close();
+                UnityEngine.Object.DestroyImmediate(window);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator WarmTranscriptCostFollowsViewportRatherThanHistoryLength()
         {
             var window = ScriptableObject.CreateInstance<MNNChatStudio>();
@@ -103,6 +144,16 @@ namespace MNN.Unity.Tests
                     "Message " + messages.Count + "\n\n## Explanation\n\n" +
                     "A paragraph that wraps across the transcript. 中文排版与滚动。 " + new string('x', 180) +
                     "\n\n```csharp\nvar value = 42;\nDebug.Log(value);\n```\n\nFinal paragraph."));
+        }
+
+        private static void AddChats(MNNStudioHistory history, int count)
+        {
+            while (history.Conversations.Count < count)
+            {
+                string id = history.Conversations.Count.ToString();
+                history.Conversations.Add(MNNStudioConversation.Capture(id, "missing-model",
+                    Array.Empty<MNNStudioMessage>(), "Saved conversation " + id, null, null));
+            }
         }
 
         private static double Measure(MNNChatStudio window)

@@ -113,8 +113,7 @@ namespace MNN.Unity.Editor.UI
                     if (_hits.Count == 0)
                     {
                         GUILayout.Space(32);
-                        GUILayout.Label("No matching conversations", new GUIStyle(MNNStudioUI.Caption)
-                        {alignment = TextAnchor.MiddleCenter});
+                        GUILayout.Label("No matching conversations", MNNStudioUI.CenteredCaption);
                     }
 
                     for (int i = 0; i < _hits.Count; ++i)
@@ -131,8 +130,7 @@ namespace MNN.Unity.Editor.UI
 
                         GUI.Label(new Rect(row.x + 20, row.y + 8, row.width - 40, 22), hit.Title ?? "New chat", MNNStudioUI.Body);
                         string prefix = hit.MessageIndex < 0 ? "" : hit.IsUser ? "You · " : "Assistant · ";
-                        GUI.Label(new Rect(row.x + 20, row.y + 32, row.width - 40, 30), prefix + hit.Preview, new GUIStyle(MNNStudioUI.Caption)
-                        {wordWrap = false, clipping = TextClipping.Clip});
+                        GUI.Label(new Rect(row.x + 20, row.y + 32, row.width - 40, 30), prefix + hit.Preview, MNNStudioUI.SingleLineCaption);
                     }
                 }
 

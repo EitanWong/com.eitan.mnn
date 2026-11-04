@@ -127,7 +127,6 @@ namespace MNN.Unity.Editor
                         if (_voiceResponse.IsValid && _voiceResponse != update.Response) CommitVoiceDisplay();
                         _voiceResponse = update.Response;
                         _streamText = update.Text;
-                        _streamMarkdown = new MNNStudioMarkdown(_streamText);
                     }
                     if (_followOutput) _scroll.y = float.MaxValue;
                 }
@@ -144,8 +143,7 @@ namespace MNN.Unity.Editor
             GUILayout.FlexibleSpace();
             using (new CenteredContent(ContentWidth))
             {
-                GUILayout.Label(Selected?.DisplayName ?? "Voice conversation", new GUIStyle(MNNStudioUI.Heading)
-                {alignment = TextAnchor.MiddleCenter});
+                GUILayout.Label(Selected?.DisplayName ?? "Voice conversation", MNNStudioUI.CenteredHeading);
                 GUILayout.Space(16);
                 float size = Mathf.Clamp(position.height - 300, 112, 230);
                 using (new EditorGUILayout.HorizontalScope())
@@ -160,11 +158,9 @@ namespace MNN.Unity.Editor
 
                 GUILayout.Space(12);
                 string status = VoiceState == MNNStudioVoiceState.Listening ? "Listening…" : VoiceState == MNNStudioVoiceState.Thinking ? "Thinking…" : VoiceState == MNNStudioVoiceState.Speaking ? "Speaking…" : VoiceState == MNNStudioVoiceState.Muted ? "Microphone muted" : VoiceState == MNNStudioVoiceState.Error ? "Voice paused" : "Ready when you are";
-                GUILayout.Label(status, new GUIStyle(MNNStudioUI.Heading)
-                {alignment = TextAnchor.MiddleCenter}, GUILayout.Height(24));
+                GUILayout.Label(status, MNNStudioUI.CenteredHeading, GUILayout.Height(24));
                 GUILayout.Space(4);
-                GUILayout.Label("Continuous capture · automatic turns · interrupt with the button", new GUIStyle(MNNStudioUI.Caption)
-                {alignment = TextAnchor.MiddleCenter}, GUILayout.Height(20));
+                GUILayout.Label("Continuous capture · automatic turns · interrupt with the button", MNNStudioUI.CenteredCaption, GUILayout.Height(20));
                 GUILayout.Label(_voiceConversation?.Diagnostics ?? "Choose recognition and synthesis models in Settings", MNNStudioUI.Caption);
                 GUILayout.Space(18);
                 using (new EditorGUILayout.HorizontalScope())
@@ -207,9 +203,18 @@ namespace MNN.Unity.Editor
             _contextCompressionPending = false;
             _shownProgress = _session.Progress;
             _streamText = _session.Progress.Text;
-            _streamMarkdown = new MNNStudioMarkdown(_streamText);
             if (_followOutput)
                 _scroll.y = float.MaxValue;
+        }
+
+        private void DrawStreamMarkdown(float width)
+        {
+            // Voice-only views and intermediate snapshots do not need formatting.
+            if (_streamMarkdown == null || _streamMarkdown.Source != _streamText)
+            {
+                _streamMarkdown = new MNNStudioMarkdown(_streamText);
+            }
+            _streamMarkdown.Draw(width);
         }
 
         private void StopReply()

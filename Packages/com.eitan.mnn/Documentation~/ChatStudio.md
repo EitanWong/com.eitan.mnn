@@ -44,6 +44,25 @@ WebGL 和 IL2CPP 不具备相同推理支持。没有新增 C++、桥接库、�
 Embedding/Reranker 及专用 pipeline 按安装标记中的仓库 ID 或目录名识别。右上角更多菜单提供刷新、Model Manager 与 Markdown 导出。
 刷新保留仍存在的模型与会话；模型缺失时保留文字并禁用发送。
 
+## 编辑器渲染性能
+
+长对话保留完整消息，但只为可见区域及少量预留区域创建消息控件；屏幕外使用已测量高度保留
+滚动范围，搜索仍可跳转到任意消息。首次打开对话、改变内容宽度、主题或显示缩放时重新测量；
+追加消息复用已有布局。侧栏只绘制可见会话行，每次布局统一分组历史记录，保留文件夹折叠与拖放。
+Markdown 复用文本高度和布局选项，流式文本仅在实际显示时格式化最新快照；语音面板不解析隐藏的聊天正文。
+
+可在已有 Unity 与测试依赖的环境中执行窗口回归（需要图形设备）：
+
+```bash
+python3 Packages/com.eitan.mnn/Tools~/Testing/run_conversation_tests.py \
+  --package-only --graphics --label studio-rendering \
+  --filter MNN.Unity.Tests.StudioRenderingPerformanceTests
+```
+
+该测试比较预热后 24/480 条消息与 24/960 个侧栏会话的布局加重绘中位耗时，并检查滚动范围、
+搜索、缩放、追加和重置。数据保存在隔离工程的 `TestArtifacts~/StudioRendering/`，
+XML 与日志位于 runner 的输出目录。这是 Editor UI 回归，不测量首次模型扫描、原生推理或模型吞吐量。
+
 ## 按任务准备模型
 
 1. 在顶部工作区菜单选择任务，或从左侧 `Tasks & models` 目录进入。

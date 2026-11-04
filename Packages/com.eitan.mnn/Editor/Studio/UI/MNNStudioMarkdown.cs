@@ -17,11 +17,16 @@ namespace MNN.Unity.Editor.UI
         }
 
         internal readonly List<Block> Blocks;
+        internal readonly string Source;
         private readonly MNNMarkdownDocument _document;
         private MNNMarkdownTheme _theme;
+        private float _measuredWidth = float.NaN;
+        private float _measuredScale;
+        private GUILayoutOption[][] _heightOptions;
 
         internal MNNStudioMarkdown(string text)
         {
+            Source = text;
             _document = MNNMarkdownDocument.Parse(text);
             _theme = EditorGUIUtility.isProSkin ? MNNMarkdownTheme.Dark : MNNMarkdownTheme.Light;
             Blocks = RenderBlocks(_document, _theme);
@@ -37,6 +42,7 @@ namespace MNN.Unity.Editor.UI
             Blocks.Clear();
             Blocks.AddRange(blocks);
             _theme = theme;
+            _measuredWidth = float.NaN;
         }
 
         private static List<Block> RenderBlocks(MNNMarkdownDocument document, MNNMarkdownTheme theme)
@@ -63,8 +69,10 @@ namespace MNN.Unity.Editor.UI
         internal void Draw(float width)
         {
             SetTheme(EditorGUIUtility.isProSkin ? MNNMarkdownTheme.Dark : MNNMarkdownTheme.Light);
-            foreach (var block in Blocks)
+            MeasureHeights(width);
+            for (int index = 0; index < Blocks.Count; ++index)
             {
+                var block = Blocks[index];
                 if (block.Code)
                 {
                     using (new EditorGUILayout.VerticalScope(MNNStudioUI.Card, GUILayout.Width(width)))
@@ -79,18 +87,37 @@ namespace MNN.Unity.Editor.UI
 
                         GUILayout.Space(8);
                         EditorGUILayout.SelectableLabel(block.RichText, MNNStudioUI.MarkdownCode,
-                            GUILayout.Height(Mathf.Max(20, MNNStudioUI.MarkdownCode.CalcHeight(new GUIContent(block.RichText), width - 32) + 2)));
+                            _heightOptions[index]);
                     }
                 }
                 else
                 {
                     var richStyle = block.Heading > 0 ? MNNStudioUI.MarkdownHeading : MNNStudioUI.MarkdownBody;
                     EditorGUILayout.SelectableLabel(block.Text, richStyle,
-                        GUILayout.Height(Mathf.Max(20, richStyle.CalcHeight(new GUIContent(block.Text), width) + 2)));
+                        _heightOptions[index]);
                 }
 
                 GUILayout.Space(block.Heading > 0 ? 8 : 12);
             }
+        }
+
+        private void MeasureHeights(float width)
+        {
+            float scale = EditorGUIUtility.pixelsPerPoint;
+            if (_measuredWidth == width && _measuredScale == scale)
+                return;
+            _heightOptions = new GUILayoutOption[Blocks.Count][];
+            var content = new GUIContent();
+            for (int index = 0; index < Blocks.Count; ++index)
+            {
+                var block = Blocks[index];
+                var style = block.Code ? MNNStudioUI.MarkdownCode : block.Heading > 0 ? MNNStudioUI.MarkdownHeading : MNNStudioUI.MarkdownBody;
+                content.text = block.Code ? block.RichText : block.Text;
+                float height = Mathf.Max(20, style.CalcHeight(content, block.Code ? width - 32 : width) + 2);
+                _heightOptions[index] = new[] { GUILayout.Height(height) };
+            }
+            _measuredWidth = width;
+            _measuredScale = scale;
         }
     }
 }

@@ -480,7 +480,7 @@ namespace MNN.Unity.Editor
                     else if (Busy && !string.IsNullOrEmpty(_streamText))
                     {
                         GUILayout.Space(20);
-                        _streamMarkdown?.Draw(ContentWidth);
+                        DrawStreamMarkdown(ContentWidth);
                     }
 
                     GUILayout.Space(24);

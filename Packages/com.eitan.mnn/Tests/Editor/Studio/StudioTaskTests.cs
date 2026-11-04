@@ -408,7 +408,9 @@ namespace MNN.Unity.Tests
                 session.Completed += () => Invoke(window, "OnCompleted");
                 Assert.True((bool)Invoke(window, "CanRunTask"));
                 Invoke(window, "RunTask");
-                for (int frame = 0; frame < 60 && session.Busy; ++frame)
+                // Batchmode test frames can finish before a queued worker is scheduled.
+                double deadline = UnityEditor.EditorApplication.timeSinceStartup + 5;
+                while (session.Busy && UnityEditor.EditorApplication.timeSinceStartup < deadline)
                 {
                     MNNStudioJobs.Update();
                     yield return null;

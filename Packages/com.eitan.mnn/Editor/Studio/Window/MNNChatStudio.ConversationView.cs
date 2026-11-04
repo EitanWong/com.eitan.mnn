@@ -38,7 +38,7 @@ namespace MNN.Unity.Editor
                         {
                             GUILayout.Label(Selected?.DisplayName ?? "Assistant", MNNStudioUI.Caption);
                             GUILayout.Space(6);
-                            _streamMarkdown?.Draw(ContentWidth);
+                            DrawStreamMarkdown(ContentWidth);
                         }
 
                         using (new EditorGUILayout.HorizontalScope())
