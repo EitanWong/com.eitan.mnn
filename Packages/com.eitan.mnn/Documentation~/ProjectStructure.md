@@ -200,3 +200,14 @@ python3 Packages/com.eitan.mnn/Tools~/Validation/check_assembly_compilation.py \
 也不验证原生链接、设备运行或模型精度。
 提供 `--burst-assembly /path/to/Unity.Burst.dll` 时也编译第九个可选性能程序集。
 提交范围、忽略规则、本地保存与分支流程见 [仓库维护](RepositoryManagement.md)。
+
+## 实时对话核心与应用装配
+
+`Runtime/Core/Language/Realtime/MNNConversationRuntime.*` 拥有共享对话策略：
+采集消费、VAD 轮次、ASR 预览、语音校验、退出意图、文本/TTS 并行、插话恢复、
+呈现历史和耗时诊断。`IMNNConversation*` 定义应用与模型边界，
+`MNNConversationPorts` 提供有界默认通知端口，`MNNConversationMnnProviders` 适配已有托管任务 API。
+SiriAI 的同名兼容入口只做装配/转发；不要在示例或 Studio 再复制这套策略。
+Studio 的 `MNNStudioRealtimeConversation` 只管理 Editor 设备与异步生命周期，
+Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有权见
+[共享实时对话](RealtimeConversations.md)。
