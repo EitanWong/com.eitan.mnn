@@ -8,16 +8,16 @@ namespace MNN.Unity
     /// </summary>
     public sealed class MNNStreamingResampler
     {
-        private const int TapCount = 32;
-        private const int HalfTaps = TapCount / 2;
+        private const int MinimumHalfTaps = 16;
         private const int PhaseCount = 1024;
-        private const int LookAhead = HalfTaps;
-        private const int HistoryFrames = TapCount + 32;
         private readonly int _inputRate;
         private readonly int _outputRate;
         private readonly int _channels;
         private readonly bool _identity;
         private readonly double _step;
+        private readonly int _tapCount;
+        private readonly int _lookAhead;
+        private readonly int _historyFrames;
         private readonly float[] _history;
         private readonly float[] _coefficients;
         private long _inputFrames;
@@ -35,8 +35,13 @@ namespace MNN.Unity
             _channels = input.Channels;
             _identity = _inputRate == _outputRate;
             _step = (double)_inputRate / _outputRate;
-            _history = _identity ? Array.Empty<float>() : new float[HistoryFrames * _channels];
-            _coefficients = _identity ? Array.Empty<float>() : BuildCoefficients(_inputRate, _outputRate);
+            // Keep filter support relative to the lower Nyquist frequency. A fixed input-sample
+            // count widens the transition band and aliases microphone noise as the input rate rises.
+            _lookAhead = (int)Math.Ceiling(MinimumHalfTaps * Math.Max(1.0, _step));
+            _tapCount = _lookAhead * 2;
+            _historyFrames = _tapCount + 32;
+            _history = _identity ? Array.Empty<float>() : new float[_historyFrames * _channels];
+            _coefficients = _identity ? Array.Empty<float>() : BuildCoefficients(_inputRate, _outputRate, _tapCount);
         }
 
         public long InputFrames => _inputFrames;
@@ -102,7 +107,7 @@ namespace MNN.Unity
                         throw new ArgumentException("Input must contain finite normalized PCM.", nameof(input));
                 }
                 long frame = _inputFrames++;
-                int historyOffset = (int)(frame % HistoryFrames) * _channels;
+                int historyOffset = (int)(frame % _historyFrames) * _channels;
                 Array.Copy(input, sourceOffset, _history, historyOffset, _channels);
                 ++consumedFrames;
             }
@@ -134,7 +139,7 @@ namespace MNN.Unity
         }
 
         private bool CanProduceLive() =>
-            Math.Floor(NextOutputPosition) + LookAhead < _inputFrames;
+            Math.Floor(NextOutputPosition) + _lookAhead < _inputFrames;
 
         private void WriteOutput(float[] destination, int destinationOffset)
         {
@@ -142,16 +147,16 @@ namespace MNN.Unity
             long center = (long)Math.Floor(position);
             double fraction = position - center;
             int phase = Math.Min(PhaseCount - 1, (int)(fraction * PhaseCount));
-            int coefficientOffset = phase * TapCount;
+            int coefficientOffset = phase * _tapCount;
             for (int channel = 0; channel < _channels; ++channel)
             {
                 double sum = 0;
-                for (int tap = 0; tap < TapCount; ++tap)
+                for (int tap = 0; tap < _tapCount; ++tap)
                 {
-                    long frame = center + LookAhead - tap;
+                    long frame = center + _lookAhead - tap;
                     if (frame < 0 || frame >= _inputFrames)
                         continue;
-                    int historyOffset = (int)(frame % HistoryFrames) * _channels + channel;
+                    int historyOffset = (int)(frame % _historyFrames) * _channels + channel;
                     sum += _history[historyOffset] * _coefficients[coefficientOffset + tap];
                 }
                 destination[destinationOffset + channel] = (float)Math.Max(-1.0, Math.Min(1.0, sum));
@@ -159,29 +164,30 @@ namespace MNN.Unity
             ++_outputFrames;
         }
 
-        private static float[] BuildCoefficients(int inputRate, int outputRate)
+        private static float[] BuildCoefficients(int inputRate, int outputRate, int tapCount)
         {
-            var result = new float[PhaseCount * TapCount];
+            var result = new float[PhaseCount * tapCount];
+            int halfTaps = tapCount / 2;
             double cutoff = Math.Min(1.0, (double)outputRate / inputRate) * .94;
             for (int phase = 0; phase < PhaseCount; ++phase)
             {
                 double fraction = (double)phase / PhaseCount;
                 double sum = 0;
-                for (int tap = 0; tap < TapCount; ++tap)
+                for (int tap = 0; tap < tapCount; ++tap)
                 {
-                    double distance = LookAhead - tap - fraction;
-                    double windowPosition = distance / LookAhead;
+                    double distance = halfTaps - tap - fraction;
+                    double windowPosition = distance / halfTaps;
                     double window = Math.Abs(windowPosition) >= 1
                         ? 0
                         : .42 + .5 * Math.Cos(Math.PI * windowPosition) + .08 * Math.Cos(2 * Math.PI * windowPosition);
                     double argument = cutoff * distance;
                     double sinc = argument == 0 ? 1 : Math.Sin(Math.PI * argument) / (Math.PI * argument);
                     double coefficient = cutoff * sinc * window;
-                    result[phase * TapCount + tap] = (float)coefficient;
+                    result[phase * tapCount + tap] = (float)coefficient;
                     sum += coefficient;
                 }
-                int offset = phase * TapCount;
-                for (int tap = 0; tap < TapCount; ++tap)
+                int offset = phase * tapCount;
+                for (int tap = 0; tap < tapCount; ++tap)
                     result[offset + tap] = (float)(result[offset + tap] / sum);
             }
             return result;

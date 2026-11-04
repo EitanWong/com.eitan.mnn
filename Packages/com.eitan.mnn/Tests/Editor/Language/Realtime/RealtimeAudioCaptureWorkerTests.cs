@@ -13,6 +13,8 @@ namespace MNN.Unity.Tests
 
         [TestCase(16000)]
         [TestCase(48000)]
+        [TestCase(44100)]
+        [TestCase(96000)]
         public void PausedProducerFlushesEveryFinalSampleAndCanResumeWithoutClosingTheWorker(int rate)
         {
             int count = rate / 5 + 37;
