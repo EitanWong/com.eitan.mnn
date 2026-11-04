@@ -43,7 +43,7 @@ namespace MNN.Unity.Editor
         private double _nextStreamLayout;
         private float ContentWidth => MNNStudioUI.ContentWidth(WorkspaceWidth);
         private bool CanSend => !Busy && Selected != null && _audio != null && !_audio.IsRecording && (!string.IsNullOrWhiteSpace(_draft) || !string.IsNullOrWhiteSpace(_imagePath) || !string.IsNullOrWhiteSpace(_audioPath));
-        private bool Busy => _keywordListener != null || _session != null && _session.Busy;
+        private bool Busy => _voiceConversation != null || _stoppingVoice != null || _keywordListener != null || _session != null && _session.Busy;
         private MNNStudioModel Selected => _modelIndex >= 0 && _modelIndex < _available.Count ? _available[_modelIndex] : null;
         [MenuItem("Window/MNN/Chat Studio %#m")]
         public static void Open()
@@ -106,8 +106,7 @@ namespace MNN.Unity.Editor
             _settingsPopup = null;
             if (_searchWindow != null)
                 _searchWindow.Close();
-            _voiceLoop = false;
-            _nextListen = 0;
+            StopVoiceLoop();
             _audio?.Dispose();
             _audio = null;
             if (_session != null)
@@ -166,12 +165,6 @@ namespace MNN.Unity.Editor
                 FinishRecording(false);
             if (_audio.CaptureFinished)
                 FinishRecording(_voiceLoop);
-            if (_voiceLoop && !_voiceMuted && _nextListen > 0 && EditorApplication.timeSinceStartup >= _nextListen && !Busy && !_audio.IsPlaying)
-            {
-                _nextListen = 0;
-                StartVoiceCapture();
-            }
-
             if (_session != null && _session.Busy && _namingChatId == null)
                 _contextCompressionPending = _session.CompressingContext;
             if (Busy && _namingChatId == null && now >= _nextStreamLayout)
@@ -197,6 +190,7 @@ namespace MNN.Unity.Editor
             _models = MNNStudioModel.Discover(new[]{Path.Combine(Application.streamingAssetsPath, "MNN", "Models"), Path.Combine(Application.persistentDataPath, "MNN", "Models"), _customRoot}, errors);
             _error = errors.Count > 0 ? string.Join("\n", errors) : null;
             FilterModels();
+            RefreshVoiceModels();
         }
 
         private void FilterModels()
@@ -418,6 +412,13 @@ namespace MNN.Unity.Editor
 
         private void StopVoiceLoop()
         {
+            CommitVoiceDisplay();
+            if (_voiceConversation != null)
+            {
+                _stoppingVoice = _voiceConversation;
+                _voiceConversation = null;
+            }
+            _stoppingVoice?.Stop();
             _voiceLoop = false;
             _nextListen = 0;
             _audio?.CancelRecording();

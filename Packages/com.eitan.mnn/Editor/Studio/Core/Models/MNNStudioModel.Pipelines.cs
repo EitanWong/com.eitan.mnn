@@ -8,20 +8,34 @@ namespace MNN.Unity.Editor
 {
     internal sealed partial class MNNStudioModel
     {
-        internal bool IsDualTurn => File.Exists(Path.Combine(Directory, MNNDualTurnEndpointingConfig.FileName));
-        internal bool IsTurnSense => File.Exists(Path.Combine(Directory, MNNTurnSenseConfig.FileName));
-        internal bool IsVoxTurn => File.Exists(Path.Combine(Directory, MNNVoxTurnModel.ConfigFile));
-        internal bool HasEchoCancellationPipeline => Task == MNNStudioTask.EchoCancellation && MNNDtlnAecModel.IsComplete(Directory);
-        internal bool IsKeywordSpotter => File.Exists(Path.Combine(Directory, MNNKeywordSpotterConfig.FileName));
-        internal bool HasKeywordSpottingPipeline => Task == MNNStudioTask.KeywordSpotting && MNNKwsModel.IsComplete(Directory);
-        internal bool HasAudioProcessingPipeline => Task == MNNStudioTask.AudioProcessing && (MNNDualTurnEndpointingModel.IsComplete(Directory) || MNNTurnSenseModel.IsComplete(Directory) || MNNFsEendModel.IsComplete(Directory) || MNNCueLightModel.IsComplete(Directory) || MNNLsEendModel.IsComplete(Directory) || MNNVoxTurnModel.IsComplete(Directory) || MNNDccrnModel.IsComplete(Directory) || MNNTigerModel.IsComplete(Directory) || MNNResembleEnhancerModel.IsComplete(Directory) || MNNResembleDenoiserModel.IsComplete(Directory) || MNNSegModel.IsComplete(Directory) || MNNSpExPlusModel.IsComplete(Directory) || MNNAvConvTasNetModel.IsComplete(Directory) || MNNAvDprnnModel.IsComplete(Directory) || MNNSepReformerModel.IsComplete(Directory) || MNNDcunetModel.IsComplete(Directory) || MNNDccrnetModel.IsComplete(Directory) || MNNSudoRmRfModel.IsComplete(Directory) || MNNNamoTurnDetectorModel.IsComplete(Directory) || MNNSileroModel.IsComplete(Directory) || MNNSmartTurnModel.IsComplete(Directory) || MNNFsmnVadModel.IsComplete(Directory) || MNNFrcrnSeModel.IsComplete(Directory) || MNNMarbleNetVadModel.IsComplete(Directory) || MNNMossFormer2Model.IsComplete(Directory) || MNNLiveKitTurnDetectorModel.IsComplete(Directory) || MNNDeepFilterNet3Model.IsComplete(Directory) || MNNDtlnModel.IsComplete(Directory) || MNNGtcrnModel.IsComplete(Directory) || MNNFullSubNetModel.IsComplete(Directory) || MNNDptnetModel.IsComplete(Directory) || MNNSortformerModel.IsComplete(Directory) || MNNDprnnModel.IsComplete(Directory) || MNNConvTasNetModel.IsComplete(Directory) || MNNSepFormerModel.IsComplete(Directory) || MNNMossFormer2SeModel.IsComplete(Directory) || MNNMossFormerGanModel.IsComplete(Directory) || _hasAvMossFormer2Pipeline);
-        internal bool HasDocumentLayoutPipeline => Task == MNNStudioTask.DocumentLayout && MNNDocumentLayoutModel.IsComplete(Directory);
-        internal bool HasTextDecisionPipeline => Task == MNNStudioTask.NLP && MNNTextDecisionModel.IsComplete(Directory);
-        internal bool HasImageEmbeddingPipeline => Task == MNNStudioTask.ImageEmbedding && MNNImageEmbeddingModel.IsComplete(Directory);
-        internal bool HasSpeakerRecognitionPipeline => Task == MNNStudioTask.SpeakerRecognition && (MNNVbxModel.IsComplete(Directory) || MNNSpeakerModel.IsComplete(Directory) || MNNWeSpeakerModel.IsComplete(Directory));
-        internal bool HasSpeechRecognitionPipeline => Task == MNNStudioTask.SpeechRecognition && (MNNZipformerModel.IsComplete(Directory) || MNNSenseVoiceModel.IsComplete(Directory) || MNNWhisperModel.IsComplete(Directory) || MNNQwen3AsrModel.IsComplete(Directory) || MNNParaformerModel.IsComplete(Directory));
-        internal bool IsYoloV8 => File.Exists(Path.Combine(Directory, MNNYoloV8Config.FileName));
-        internal bool IsImageTask => File.Exists(Path.Combine(Directory, MNNImageTaskConfig.FileName));
+        private readonly Lazy<bool> _snapshotIsDualTurn;
+        internal bool IsDualTurn => _snapshotIsDualTurn.Value;
+        private readonly Lazy<bool> _snapshotIsTurnSense;
+        internal bool IsTurnSense => _snapshotIsTurnSense.Value;
+        private readonly Lazy<bool> _snapshotIsVoxTurn;
+        internal bool IsVoxTurn => _snapshotIsVoxTurn.Value;
+        private readonly Lazy<bool> _snapshotHasEchoCancellationPipeline;
+        internal bool HasEchoCancellationPipeline => _snapshotHasEchoCancellationPipeline.Value;
+        private readonly Lazy<bool> _snapshotIsKeywordSpotter;
+        internal bool IsKeywordSpotter => _snapshotIsKeywordSpotter.Value;
+        private readonly Lazy<bool> _snapshotHasKeywordSpottingPipeline;
+        internal bool HasKeywordSpottingPipeline => _snapshotHasKeywordSpottingPipeline.Value;
+        private readonly Lazy<bool> _snapshotHasAudioProcessingPipeline;
+        internal bool HasAudioProcessingPipeline => _snapshotHasAudioProcessingPipeline.Value;
+        private readonly Lazy<bool> _snapshotHasDocumentLayoutPipeline;
+        internal bool HasDocumentLayoutPipeline => _snapshotHasDocumentLayoutPipeline.Value;
+        private readonly Lazy<bool> _snapshotHasTextDecisionPipeline;
+        internal bool HasTextDecisionPipeline => _snapshotHasTextDecisionPipeline.Value;
+        private readonly Lazy<bool> _snapshotHasImageEmbeddingPipeline;
+        internal bool HasImageEmbeddingPipeline => _snapshotHasImageEmbeddingPipeline.Value;
+        private readonly Lazy<bool> _snapshotHasSpeakerRecognitionPipeline;
+        internal bool HasSpeakerRecognitionPipeline => _snapshotHasSpeakerRecognitionPipeline.Value;
+        private readonly Lazy<bool> _snapshotHasSpeechRecognitionPipeline;
+        internal bool HasSpeechRecognitionPipeline => _snapshotHasSpeechRecognitionPipeline.Value;
+        private readonly Lazy<bool> _snapshotIsYoloV8;
+        internal bool IsYoloV8 => _snapshotIsYoloV8.Value;
+        private readonly Lazy<bool> _snapshotIsImageTask;
+        internal bool IsImageTask => _snapshotIsImageTask.Value;
         internal static MNNStudioTask ImageTaskFor(MNNImageTaskProfile profile)
         {
             switch (profile)
@@ -55,104 +69,104 @@ namespace MNN.Unity.Editor
             }
         }
 
-        internal bool IsPaddleText => File.Exists(Path.Combine(Directory, MNNPaddleTextConfig.FileName));
-        internal bool IsPaddlePage => File.Exists(Path.Combine(OcrPageRoot ?? Directory, MNNPaddleOcrConfig.FileName));
-        internal bool HasVisionPipeline
+        private readonly Lazy<bool> _snapshotIsPaddleText;
+        internal bool IsPaddleText => _snapshotIsPaddleText.Value;
+        private readonly Lazy<bool> _snapshotIsPaddlePage;
+        internal bool IsPaddlePage => _snapshotIsPaddlePage.Value;
+        private readonly Lazy<bool> _snapshotHasVisionPipeline;
+        internal bool HasVisionPipeline => _snapshotHasVisionPipeline.Value;
+        private bool CheckHasVisionPipeline()
         {
-            get
+            if (!(IsImageTask || Task == MNNStudioTask.ObjectDetection && IsYoloV8 || Task == MNNStudioTask.OCR && IsPaddleText))
+                return false;
+            try
             {
-                if (!(IsImageTask || Task == MNNStudioTask.ObjectDetection && IsYoloV8 || Task == MNNStudioTask.OCR && IsPaddleText))
-                    return false;
-                try
+                if (IsImageTask)
                 {
-                    if (IsImageTask)
-                    {
-                        var profile = MNNImageTaskConfig.Read(Directory);
-                        profile.Resolve(Directory, false);
-                        return Task == ImageTaskFor(profile.profile);
-                    }
+                    var profile = MNNImageTaskConfig.Read(Directory);
+                    profile.Resolve(Directory, false);
+                    return Task == ImageTaskFor(profile.profile);
+                }
 
-                    if (IsPaddlePage)
-                    {
-                        MNNPaddleOcrConfig.ReadForProfile(OcrPageRoot ?? Directory, OcrRecognizerProfile).Validate(OcrPageRoot ?? Directory);
-                        MNNPaddleOcrConfig.RecognizerDirectory(OcrPageRoot ?? Directory, OcrRecognizerProfile);
-                    }
-                    else if (IsPaddleText)
-                        MNNPaddleTextConfig.Read(Directory).Validate(Directory);
-                    else
-                        MNNYoloV8Config.Read(Directory).ResolveGraph(Directory);
-                    return true;
-                }
-                catch (Exception error)when (error is IOException || error is InvalidDataException || error is ArgumentException || error is UnauthorizedAccessException)
+                if (IsPaddlePage)
                 {
-                    return false;
+                    MNNPaddleOcrConfig.ReadForProfile(OcrPageRoot ?? Directory, OcrRecognizerProfile).Validate(OcrPageRoot ?? Directory);
+                    MNNPaddleOcrConfig.RecognizerDirectory(OcrPageRoot ?? Directory, OcrRecognizerProfile);
                 }
+                else if (IsPaddleText)
+                    MNNPaddleTextConfig.Read(Directory).Validate(Directory);
+                else
+                    MNNYoloV8Config.Read(Directory).ResolveGraph(Directory);
+                return true;
+            }
+            catch (Exception error)when (error is IOException || error is InvalidDataException || error is ArgumentException || error is UnauthorizedAccessException)
+            {
+                return false;
             }
         }
 
-        internal bool HasGenerationPipeline
+        private readonly Lazy<bool> _snapshotHasGenerationPipeline;
+        internal bool HasGenerationPipeline => _snapshotHasGenerationPipeline.Value;
+        private bool CheckHasGenerationPipeline()
         {
-            get
+            if (Task == MNNStudioTask.SpeechSynthesis)
             {
-                if (Task == MNNStudioTask.SpeechSynthesis)
+                // Classification is intentionally broader than runtime support.
+                // Keep unadapted TTS families visible in Model Manager, but do
+                // not allow Studio to route them through Supertonic by default.
+                if (!MNNTtsModelProfiles.IsImplemented(TtsProfile))
+                    return false;
+                if (IsIndicF5)
+                    return MNNIndicF5Tts.IsComplete(Directory);
+                if (IsPocket)
+                    return MNNPocketTts.IsComplete(Directory);
+                if (IsQwen3Explicit)
+                    return MNNQwen3ExplicitTts.IsComplete(Directory);
+                if (TtsProfile == MNNTtsModelProfile.DhVaani)
+                    return MNNDhVaani.IsComplete(Directory);
+                if (TtsProfile == MNNTtsModelProfile.MossNano)
+                    return MNNMossNano.IsComplete(Directory);
+                if (TtsProfile == MNNTtsModelProfile.Kokoro)
+                    return MNNKokoroModel.IsComplete(Directory);
+                if (TtsProfile == MNNTtsModelProfile.SherpaVitsChinese)
+                    return MNNSherpaVitsChinese.IsComplete(Directory);
+                if (TtsProfile == MNNTtsModelProfile.MmsTamil)
+                    return MNNMmsTamil.IsComplete(Directory);
+                if (TtsProfile == MNNTtsModelProfile.IndicVits)
+                    return MNNIndicVits.IsComplete(Directory);
+                if (RequiresReferenceAudio)
+                    return MNNReferenceSpeechModel.IsComplete(Directory, IsIndexTts);
+                if (IsCosyVoice300M)
+                    return MNNCosyVoice300MModel.IsComplete(Directory);
+                if (IsCosyVoice)
+                    return MNNCosyVoiceModel.IsComplete(Directory);
+                var metadata = ReadTaskConfig();
+                if (IsPiper)
                 {
-                    // Classification is intentionally broader than runtime support.
-                    // Keep unadapted TTS families visible in Model Manager, but do
-                    // not allow Studio to route them through Supertonic by default.
-                    if (!MNNTtsModelProfiles.IsImplemented(TtsProfile))
+                    if (metadata == null || metadata.sample_rate != 16000 && metadata.sample_rate != 22050 || string.IsNullOrWhiteSpace(metadata.model_path) || !File.Exists(Path.Combine(Directory, metadata.model_path)))
                         return false;
-                    if (IsIndicF5)
-                        return MNNIndicF5Tts.IsComplete(Directory);
-                    if (IsPocket)
-                        return MNNPocketTts.IsComplete(Directory);
-                    if (IsQwen3Explicit)
-                        return MNNQwen3ExplicitTts.IsComplete(Directory);
-                    if (TtsProfile == MNNTtsModelProfile.DhVaani)
-                        return MNNDhVaani.IsComplete(Directory);
-                    if (TtsProfile == MNNTtsModelProfile.MossNano)
-                        return MNNMossNano.IsComplete(Directory);
-                    if (TtsProfile == MNNTtsModelProfile.Kokoro)
-                        return MNNKokoroModel.IsComplete(Directory);
-                    if (TtsProfile == MNNTtsModelProfile.SherpaVitsChinese)
-                        return MNNSherpaVitsChinese.IsComplete(Directory);
-                    if (TtsProfile == MNNTtsModelProfile.MmsTamil)
-                        return MNNMmsTamil.IsComplete(Directory);
-                    if (TtsProfile == MNNTtsModelProfile.IndicVits)
-                        return MNNIndicVits.IsComplete(Directory);
-                    if (RequiresReferenceAudio)
-                        return MNNReferenceSpeechModel.IsComplete(Directory, IsIndexTts);
-                    if (IsCosyVoice300M)
-                        return MNNCosyVoice300MModel.IsComplete(Directory);
-                    if (IsCosyVoice)
-                        return MNNCosyVoiceModel.IsComplete(Directory);
-                    var metadata = ReadTaskConfig();
-                    if (IsPiper)
+                    try
                     {
-                        if (metadata == null || metadata.sample_rate != 16000 && metadata.sample_rate != 22050 || string.IsNullOrWhiteSpace(metadata.model_path) || !File.Exists(Path.Combine(Directory, metadata.model_path)))
-                            return false;
-                        try
-                        {
-                            MNNStudioPiperSettings.ResolveDataDirectory(this);
-                            return true;
-                        }
-                        catch (Exception error)when (error is IOException || error is ArgumentException)
-                        {
-                            return false;
-                        }
+                        MNNStudioPiperSettings.ResolveDataDirectory(this);
+                        return true;
                     }
-
-                    if (IsBertVits2)
-                        return metadata != null && metadata.sample_rate == 44100 && !string.IsNullOrWhiteSpace(metadata.model_path) && File.Exists(Path.Combine(Directory, metadata.model_path)) && new[]{"common/mnn_models/chinese_bert.mnn", "common/mnn_models/chinese_bert.mnn.weight", "common/text_processing_jsons/cn_bert_token.bin", "common/text_processing_jsons/pinyin_dict.bin", "common/text_processing_jsons/phrases_dict.bin", "common/text_processing_jsons/pinyin_to_symbol_map.bin", "common/text_processing_jsons/hotwords_cn.json", "common/text_processing_jsons/default_tone_words.json"}.All(file => File.Exists(Path.Combine(Directory, metadata.asset_folder ?? ".", file)));
-                    return TtsProfile == MNNTtsModelProfile.Supertonic && MNNSupertonic.IsComplete(Directory);
+                    catch (Exception error)when (error is IOException || error is ArgumentException)
+                    {
+                        return false;
+                    }
                 }
 
-                if (Task != MNNStudioTask.ImageGeneration)
-                    return false;
-                if (IsSana)
-                    return new[]{"connector", "projector", "transformer", "vae_encoder", "vae_decoder", "llm/llm"}.All(stage => File.Exists(Path.Combine(Directory, stage + ".mnn")) && File.Exists(Path.Combine(Directory, stage + ".mnn.weight"))) && new[]{"llm/llm_config.json", "llm/tokenizer.txt", "llm/meta_queries.mnn"}.All(file => File.Exists(Path.Combine(Directory, file)));
-                string root = System.IO.Directory.Exists(Path.Combine(Directory, "general")) ? Path.Combine(Directory, "general") : Directory;
-                return new[]{"text_encoder", "unet", "vae_decoder"}.All(stage => File.Exists(Path.Combine(root, stage + ".mnn")) && File.Exists(Path.Combine(root, stage + ".mnn.weight"))) && File.Exists(Path.Combine(root, "vocab.json")) && File.Exists(Path.Combine(root, "merges.txt"));
+                if (IsBertVits2)
+                    return metadata != null && metadata.sample_rate == 44100 && !string.IsNullOrWhiteSpace(metadata.model_path) && File.Exists(Path.Combine(Directory, metadata.model_path)) && new[]{"common/mnn_models/chinese_bert.mnn", "common/mnn_models/chinese_bert.mnn.weight", "common/text_processing_jsons/cn_bert_token.bin", "common/text_processing_jsons/pinyin_dict.bin", "common/text_processing_jsons/phrases_dict.bin", "common/text_processing_jsons/pinyin_to_symbol_map.bin", "common/text_processing_jsons/hotwords_cn.json", "common/text_processing_jsons/default_tone_words.json"}.All(file => File.Exists(Path.Combine(Directory, metadata.asset_folder ?? ".", file)));
+                return TtsProfile == MNNTtsModelProfile.Supertonic && MNNSupertonic.IsComplete(Directory);
             }
+
+            if (Task != MNNStudioTask.ImageGeneration)
+                return false;
+            if (IsSana)
+                return new[]{"connector", "projector", "transformer", "vae_encoder", "vae_decoder", "llm/llm"}.All(stage => File.Exists(Path.Combine(Directory, stage + ".mnn")) && File.Exists(Path.Combine(Directory, stage + ".mnn.weight"))) && new[]{"llm/llm_config.json", "llm/tokenizer.txt", "llm/meta_queries.mnn"}.All(file => File.Exists(Path.Combine(Directory, file)));
+            string root = System.IO.Directory.Exists(Path.Combine(Directory, "general")) ? Path.Combine(Directory, "general") : Directory;
+            return new[]{"text_encoder", "unet", "vae_decoder"}.All(stage => File.Exists(Path.Combine(root, stage + ".mnn")) && File.Exists(Path.Combine(root, stage + ".mnn.weight"))) && File.Exists(Path.Combine(root, "vocab.json")) && File.Exists(Path.Combine(root, "merges.txt"));
         }
 
         [Serializable]

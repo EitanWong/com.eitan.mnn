@@ -27,6 +27,7 @@ namespace MNN.Unity.Editor
         private MNNTtsModelProfile? _ttsProfile;
         private string[] _speechLanguages;
         private string[] _ttsVoices;
+        private readonly Config _taskConfig;
         internal string OcrPageRoot, OcrRecognizerProfile = ".";
         internal MNNStudioModel(string name, string directory, MNNStudioTask task, MNNModelCapabilities capabilities, string category = null)
         {
@@ -36,6 +37,29 @@ namespace MNN.Unity.Editor
             AudioSubtask = task == MNNStudioTask.AudioProcessing ? AudioSubtaskForDirectory(directory) : task;
             Capabilities = capabilities;
             Category = category ?? MNNModelRepository.Classify(name);
+            _taskConfig = ReadTaskConfigFromDisk();
+            _snapshotIsDualTurn = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, MNNDualTurnEndpointingConfig.FileName)));
+            _snapshotIsTurnSense = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, MNNTurnSenseConfig.FileName)));
+            _snapshotIsVoxTurn = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, MNNVoxTurnModel.ConfigFile)));
+            _snapshotHasEchoCancellationPipeline = new Lazy<bool>(() => Task == MNNStudioTask.EchoCancellation && MNNDtlnAecModel.IsComplete(Directory));
+            _snapshotIsKeywordSpotter = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, MNNKeywordSpotterConfig.FileName)));
+            _snapshotHasKeywordSpottingPipeline = new Lazy<bool>(() => Task == MNNStudioTask.KeywordSpotting && MNNKwsModel.IsComplete(Directory));
+            _snapshotHasAudioProcessingPipeline = new Lazy<bool>(() => Task == MNNStudioTask.AudioProcessing && (MNNDualTurnEndpointingModel.IsComplete(Directory) || MNNTurnSenseModel.IsComplete(Directory) || MNNFsEendModel.IsComplete(Directory) || MNNCueLightModel.IsComplete(Directory) || MNNLsEendModel.IsComplete(Directory) || MNNVoxTurnModel.IsComplete(Directory) || MNNDccrnModel.IsComplete(Directory) || MNNTigerModel.IsComplete(Directory) || MNNResembleEnhancerModel.IsComplete(Directory) || MNNResembleDenoiserModel.IsComplete(Directory) || MNNSegModel.IsComplete(Directory) || MNNSpExPlusModel.IsComplete(Directory) || MNNAvConvTasNetModel.IsComplete(Directory) || MNNAvDprnnModel.IsComplete(Directory) || MNNSepReformerModel.IsComplete(Directory) || MNNDcunetModel.IsComplete(Directory) || MNNDccrnetModel.IsComplete(Directory) || MNNSudoRmRfModel.IsComplete(Directory) || MNNNamoTurnDetectorModel.IsComplete(Directory) || MNNSileroModel.IsComplete(Directory) || MNNSmartTurnModel.IsComplete(Directory) || MNNFsmnVadModel.IsComplete(Directory) || MNNFrcrnSeModel.IsComplete(Directory) || MNNMarbleNetVadModel.IsComplete(Directory) || MNNMossFormer2Model.IsComplete(Directory) || MNNLiveKitTurnDetectorModel.IsComplete(Directory) || MNNDeepFilterNet3Model.IsComplete(Directory) || MNNDtlnModel.IsComplete(Directory) || MNNGtcrnModel.IsComplete(Directory) || MNNFullSubNetModel.IsComplete(Directory) || MNNDptnetModel.IsComplete(Directory) || MNNSortformerModel.IsComplete(Directory) || MNNDprnnModel.IsComplete(Directory) || MNNConvTasNetModel.IsComplete(Directory) || MNNSepFormerModel.IsComplete(Directory) || MNNMossFormer2SeModel.IsComplete(Directory) || MNNMossFormerGanModel.IsComplete(Directory) || _hasAvMossFormer2Pipeline));
+            _snapshotHasDocumentLayoutPipeline = new Lazy<bool>(() => Task == MNNStudioTask.DocumentLayout && MNNDocumentLayoutModel.IsComplete(Directory));
+            _snapshotHasTextDecisionPipeline = new Lazy<bool>(() => Task == MNNStudioTask.NLP && MNNTextDecisionModel.IsComplete(Directory));
+            _snapshotHasImageEmbeddingPipeline = new Lazy<bool>(() => Task == MNNStudioTask.ImageEmbedding && MNNImageEmbeddingModel.IsComplete(Directory));
+            _snapshotHasSpeakerRecognitionPipeline = new Lazy<bool>(() => Task == MNNStudioTask.SpeakerRecognition && (MNNVbxModel.IsComplete(Directory) || MNNSpeakerModel.IsComplete(Directory) || MNNWeSpeakerModel.IsComplete(Directory)));
+            _snapshotHasSpeechRecognitionPipeline = new Lazy<bool>(() => Task == MNNStudioTask.SpeechRecognition && (MNNZipformerModel.IsComplete(Directory) || MNNSenseVoiceModel.IsComplete(Directory) || MNNWhisperModel.IsComplete(Directory) || MNNQwen3AsrModel.IsComplete(Directory) || MNNParaformerModel.IsComplete(Directory)));
+            _snapshotIsYoloV8 = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, MNNYoloV8Config.FileName)));
+            _snapshotIsImageTask = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, MNNImageTaskConfig.FileName)));
+            _snapshotIsPaddleText = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, MNNPaddleTextConfig.FileName)));
+            _snapshotIsPaddlePage = new Lazy<bool>(() => File.Exists(Path.Combine(OcrPageRoot ?? Directory, MNNPaddleOcrConfig.FileName)));
+            _snapshotHasVisionPipeline = new Lazy<bool>(CheckHasVisionPipeline);
+            _snapshotHasGenerationPipeline = new Lazy<bool>(CheckHasGenerationPipeline);
+            _snapshotIsCosyVoice = new Lazy<bool>(() => !IsCosyVoice300M && (File.Exists(Path.Combine(MNNCosyVoiceModel.ResolveDirectory(Directory), "config-cpu-cosyvoice-ras.json")) || string.Equals(Name, "Cosy-Voice-MNN", StringComparison.OrdinalIgnoreCase) || Category == MNNModelCategory.SpeechSynthesis.ToString() && Name.IndexOf("cosyvoice", StringComparison.OrdinalIgnoreCase) >= 0));
+            _snapshotIsIndexTts = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, "gpt_prefill_fp16.mnn")) || Name.Equals("IndexTTS-2.5-mnn", StringComparison.OrdinalIgnoreCase));
+            _snapshotIsFireRedTts = new Lazy<bool>(() => File.Exists(Path.Combine(Directory, "redae_encoder.mnn")) || Name.Equals("fireredtts3-mnn", StringComparison.OrdinalIgnoreCase));
+            _snapshotSupertonicPrecision = new Lazy<string>(ReadSupertonicPrecision);
             IsAvMossFormer2Tse = File.Exists(Path.Combine(directory, MNNAvMossFormer2TseConfig.FileName));
             IsAvDprnn = File.Exists(Path.Combine(directory, MNNAvDprnnConfig.FileName));
             IsSeg = File.Exists(Path.Combine(directory, MNNSegConfig.FileName));

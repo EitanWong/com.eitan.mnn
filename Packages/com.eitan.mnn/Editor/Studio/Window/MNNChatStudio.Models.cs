@@ -5,6 +5,7 @@ namespace MNN.Unity.Editor
 {
     public sealed partial class MNNChatStudio
     {
+        private System.Threading.Tasks.Task _modelRelease = System.Threading.Tasks.Task.CompletedTask;
         private void EnsureSession()
         {
             if (!CurrentTask.CanRun(Selected))
@@ -13,9 +14,9 @@ namespace MNN.Unity.Editor
                 ReleaseSession();
             if (_session != null)
                 return;
-            // Runtime loading must occur on the Unity main thread. Reuse the loaded model
-            // for subsequent requests; only inference runs on the worker.
-            _session = new MNNStudioSession(MNNStudioNativeBackend.Load(Selected, _threads, _thinking));
+            var load = MNNStudioNativeBackend.CreateLoader(Selected, _threads, _thinking);
+            var released = _modelRelease;
+            _session = new MNNStudioSession(() => { released.GetAwaiter().GetResult(); return load(); });
             _sessionModelDirectory = Selected.Directory;
             _sessionLastUsed = EditorApplication.timeSinceStartup;
             _session.Completed += OnCompleted;
@@ -27,7 +28,11 @@ namespace MNN.Unity.Editor
             _session = null;
             _sessionModelDirectory = null;
             _sessionLastUsed = 0;
-            session?.Dispose();
+            if (session != null)
+            {
+                session.Dispose();
+                _modelRelease = session.Disposal;
+            }
         }
 
         private void SelectModel(int index)

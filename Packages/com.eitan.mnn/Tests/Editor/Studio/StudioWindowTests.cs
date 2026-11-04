@@ -150,7 +150,8 @@ namespace MNN.Unity.Tests
                         if (session.Busy)
                         {
                             backend.Release.Set();
-                            for (int i = 0; i < 30 && session.Busy; ++i)
+                            double deadline = EditorApplication.timeSinceStartup + 3;
+                            while (session.Busy && EditorApplication.timeSinceStartup < deadline)
                             {
                                 MNNStudioJobs.Update();
                                 yield return null;

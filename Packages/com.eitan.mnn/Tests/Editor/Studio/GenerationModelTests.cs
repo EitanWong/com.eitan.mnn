@@ -82,7 +82,8 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(MNNStudioTask.ImageGeneration, diffusion.Task);
             Assert.True(MNNStudioTasks.Get(3).CanRun(diffusion));
             File.Delete(Path.Combine(sd, "unet.mnn.weight"));
-            Assert.False(MNNStudioTasks.Get(3).CanRun(diffusion));
+            Assert.True(MNNStudioTasks.Get(3).CanRun(diffusion), "The existing discovery snapshot is stable until Refresh.");
+            Assert.False(MNNStudioTasks.Get(3).CanRun(MNNStudioModel.Read(sd)), "Refresh must revalidate removed model files.");
         }
 
         [Test]

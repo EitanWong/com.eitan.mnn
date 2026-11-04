@@ -10,7 +10,20 @@ namespace MNN.Unity.Editor
 {
     internal sealed partial class MNNStudioNativeBackend
     {
-        internal static MNNStudioNativeBackend Load(MNNStudioModel model, int threads, bool thinking)
+        // Resolve Unity package metadata on the Editor thread; native loading and cache hashing run on the session worker.
+        internal static Func<IMNNStudioBackend> CreateLoader(MNNStudioModel model, int threads, bool thinking)
+        {
+            string package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(MNNStudioNativeBackend).Assembly).resolvedPath;
+            string device = MNNInferenceCache.GraphicsDevice;
+            string executable = model?.IsPiper == true ? MNNStudioPiperSettings.ResolveExecutable(model.Directory) : null;
+            string data = model?.IsPiper == true ? MNNStudioPiperSettings.ResolveDataDirectory(model) : null;
+            return () => Load(model, threads, thinking, package, device, executable, data);
+        }
+
+        internal static MNNStudioNativeBackend Load(MNNStudioModel model, int threads, bool thinking) =>
+            (MNNStudioNativeBackend)CreateLoader(model, threads, thinking)();
+
+        private static MNNStudioNativeBackend Load(MNNStudioModel model, int threads, bool thinking, string package, string device, string piperExecutable, string piperData)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -23,10 +36,9 @@ namespace MNN.Unity.Editor
             {
                 if (model.Task == MNNStudioTask.Chat)
                 {
-                    string package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(MNNStudioNativeBackend).Assembly).resolvedPath;
                     backend._cacheLease = MNNStudioLlmCache.Acquire(Path.GetFullPath(Path.Combine("Library", "MNN", "Studio", "ShaderCache")),
                         model.Directory, Path.Combine(package, "Runtime", "Plugins", "macOS", "libMNN.dylib"),
-                        MNNInferenceCache.GraphicsDevice, threads);
+                        device, threads);
                     backend._cache = backend._cacheLease.DirectoryPath;
                 }
                 switch (model.Task)
@@ -201,7 +213,7 @@ namespace MNN.Unity.Editor
                         else if (model.TtsProfile == MNNTtsModelProfile.IndicVits)
                             backend._indicVits = MNNIndicVits.Load(model.Directory, threads);
                         else if (model.IsPiper)
-                            backend._piper = MNNPiper.Load(model.Directory, threads, MNNStudioPiperSettings.ResolveExecutable(model.Directory), MNNStudioPiperSettings.ResolveDataDirectory(model));
+                            backend._piper = MNNPiper.Load(model.Directory, threads, piperExecutable, piperData);
                         else if (model.IsBertVits2)
                             backend._bertVits = MNNBertVits2.Load(model.Directory, threads);
                         else if (model.TtsProfile == MNNTtsModelProfile.Supertonic)

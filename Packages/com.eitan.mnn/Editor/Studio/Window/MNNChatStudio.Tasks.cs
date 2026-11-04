@@ -218,6 +218,7 @@ namespace MNN.Unity.Editor
             string path = string.IsNullOrWhiteSpace(chosen) ? "" : MNNPiper.ResolveDataDirectory(Selected.Directory, selected: chosen);
             EditorPrefs.SetString(MNNStudioPiperSettings.DataPreference(Selected.Directory), path);
             ReleaseSession();
+            RefreshModels();
             _error = null;
             Repaint();
         }

@@ -37,5 +37,16 @@ namespace MNN.Unity.Editor
         internal Action<bool> ContextProgress;
         internal Action<MNNGenerationUpdate> Progress;
         internal CancellationToken Cancellation;
+
+        internal MNNStudioRequest Snapshot()
+        {
+            var copy = (MNNStudioRequest)MemberwiseClone();
+            copy.ReferenceRgb = ReferenceRgb == null ? null : (byte[])ReferenceRgb.Clone();
+            copy.VisualFrames = VisualFrames == null ? null : (float[])VisualFrames.Clone();
+            copy.TurnQuestions = TurnQuestions == null ? null : (string[])TurnQuestions.Clone();
+            copy.History = History == null ? null : (MNNStudioMessage[])History.Clone();
+            copy.Conversation = Conversation == null ? null : (MNNChatMessage[])Conversation.Clone();
+            return copy;
+        }
     }
 }

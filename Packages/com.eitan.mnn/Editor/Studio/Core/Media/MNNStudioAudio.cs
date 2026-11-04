@@ -3,16 +3,12 @@ using System.IO;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Networking;
 
 namespace MNN.Unity.Editor
 {
     internal sealed class MNNStudioAudio : IDisposable
     {
         private AudioClip _recording, _preview;
-        private UnityWebRequest _decodeRequest;
-        private string _playbackFile, _playbackError;
-        private bool _decodingPlayback;
         private string _device;
         private double _started;
         private double _playStarted;
@@ -25,14 +21,10 @@ namespace MNN.Unity.Editor
         private static readonly MethodInfo PositionMethod = AudioUtility?.GetMethod("GetPreviewClipPosition", AudioFlags);
         private readonly float[] _meter = new float[1024];
         internal static bool EditorAudioMuted => EditorUtility.audioMasterMute;
-        internal bool IsLoading => _decodingPlayback;
+        internal bool IsLoading => false;
         internal bool IsPlaying => IsLoading || (_preview != null && _playSamples != null && IsPlayingMethod != null && (bool)IsPlayingMethod.Invoke(null, null));
-        internal string ConsumePlaybackError()
-        {
-            string error = _playbackError;
-            _playbackError = null;
-            return error;
-        }
+        // Playback errors are now synchronous; retained for existing Studio callers.
+        internal string ConsumePlaybackError() => null;
 
         internal float Level { get; private set; }
 
@@ -96,11 +88,11 @@ namespace MNN.Unity.Editor
                 if (frames <= 0)
                     throw new InvalidOperationException("The microphone captured no audio. Check microphone permission.");
                 frames = Math.Min(frames, _recording.samples);
-                var data = new float[_recording.samples * _recording.channels];
+                var data = new float[frames * _recording.channels];
                 if (!_recording.GetData(data, 0))
                     throw new InvalidOperationException("Unity could not read captured audio.");
-                var mono = new float[frames];
-                for (int i = 0; i < frames; ++i)
+                var mono = _recording.channels == 1 ? data : new float[frames];
+                for (int i = 0; _recording.channels != 1 && i < frames; ++i)
                 {
                     float sum = 0;
                     for (int channel = 0; channel < _recording.channels; ++channel)
@@ -169,17 +161,15 @@ namespace MNN.Unity.Editor
                 throw new NotSupportedException("Audio preview is unavailable in this Unity version. Save the WAV to play it externally.");
             try
             {
-                string folder = Path.GetFullPath(Path.Combine("Library", "MNN", "Studio", "Playback"));
-                Directory.CreateDirectory(folder);
-                _playbackFile = Path.Combine(folder, Guid.NewGuid().ToString("N") + ".wav");
-                File.WriteAllBytes(_playbackFile, EncodeWave(samples, sampleRate));
+                _preview = AudioClip.Create("MNN Studio Speech", samples.Length, 1, sampleRate, false);
+                _preview.hideFlags = HideFlags.HideAndDontSave;
+                if (!_preview.SetData(samples, 0)) throw new InvalidOperationException("Unity could not copy generated PCM.");
                 _playSamples = samples;
                 _playRate = sampleRate;
                 _playStarted = EditorApplication.timeSinceStartup;
-                _decodeRequest = UnityWebRequestMultimedia.GetAudioClip(new Uri(_playbackFile).AbsoluteUri, AudioType.WAV);
-                _decodeRequest.SendWebRequest();
-                _decodingPlayback = true;
-                EditorApplication.update += PollPlaybackDecode;
+                PlayPreviewMethod.Invoke(null, new object[] { _preview, 0, false });
+                if (!IsPlayingMethod.Invoke(null, null).Equals(true))
+                    throw new InvalidOperationException("Unity did not start Editor PCM preview playback.");
             }
             catch
             {
@@ -188,75 +178,16 @@ namespace MNN.Unity.Editor
             }
         }
 
-        private void PollPlaybackDecode()
-        {
-            if (_decodeRequest == null || !_decodeRequest.isDone)
-                return;
-            EditorApplication.update -= PollPlaybackDecode;
-            _decodingPlayback = false;
-            try
-            {
-                if (_decodeRequest.result != UnityWebRequest.Result.Success)
-                    throw new IOException("Unity could not decode the generated WAV: " + _decodeRequest.error);
-                _preview = DownloadHandlerAudioClip.GetContent(_decodeRequest);
-                if (_preview == null || _preview.samples == 0)
-                    throw new InvalidDataException("Unity decoded an empty generated WAV.");
-                PlayPreviewMethod.Invoke(null, new object[]{_preview, 0, false});
-                if (!IsPlayingMethod.Invoke(null, null).Equals(true))
-                    throw new InvalidOperationException("Unity decoded the generated WAV but did not start Editor preview playback.");
-            }
-            catch (Exception error)
-            {
-                _playbackError = error.GetBaseException().Message;
-                StopPreview();
-            }
-            finally
-            {
-                DeletePlaybackFile();
-            }
-        }
-
         private static Type AudioUtility => typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.AudioUtil");
         internal void StopPreview()
         {
-            EditorApplication.update -= PollPlaybackDecode;
-            try
-            {
-                if (_preview != null || _decodeRequest != null)
-                    StopPreviewMethod?.Invoke(null, null);
-            }
+            try { if (_preview != null) StopPreviewMethod?.Invoke(null, null); }
             finally
             {
-                if (_decodeRequest != null)
-                {
-                    if (!_decodeRequest.isDone)
-                        _decodeRequest.Abort();
-                    _decodeRequest.Dispose();
-                    _decodeRequest = null;
-                }
-
-                _decodingPlayback = false;
-                if (_preview != null)
-                    UnityEngine.Object.DestroyImmediate(_preview);
+                if (_preview != null) UnityEngine.Object.DestroyImmediate(_preview);
                 _preview = null;
                 _playSamples = null;
                 Level = 0;
-                DeletePlaybackFile();
-            }
-        }
-
-        private void DeletePlaybackFile()
-        {
-            if (string.IsNullOrEmpty(_playbackFile))
-                return;
-            try
-            {
-                if (File.Exists(_playbackFile))
-                    File.Delete(_playbackFile);
-            }
-            finally
-            {
-                _playbackFile = null;
             }
         }
 
