@@ -5,6 +5,7 @@ namespace MNN.Unity
     /// <summary>
     /// Single input-owner endpoint buffer. Fixed memory, configurable pre-roll, independent speech/silence budgets.
     /// Silence produces a candidate, not a semantic decision. Resume/gaps invalidate candidate revisions.
+    /// Capacity rounds up to a whole 32 ms frame; consume/reset a full buffer before appending again.
     /// </summary>
     public sealed class MNNRealtimeUtteranceBuffer
     {
@@ -26,15 +27,23 @@ namespace MNN.Unity
             if (minimumSpeechMilliseconds < 20 || minimumSpeechMilliseconds > 2000 || silenceMilliseconds < 100 || silenceMilliseconds > 5000 || maximumSeconds < 2 || maximumSeconds > 120)
                 throw new ArgumentOutOfRangeException(nameof(maximumSeconds));
             if (preRollMilliseconds < 0 || preRollMilliseconds > 2000) throw new ArgumentOutOfRangeException(nameof(preRollMilliseconds));
-            _preRoll = new float[((preRollMilliseconds * 16 + 511) / 512) * 512];
+            int preRollSamples = ((preRollMilliseconds * 16 + 511) / 512) * 512;
+            int capacity = ((maximumSeconds * 16000 + 511) / 512) * 512;
+            int confirmedSamples = ((minimumSpeechMilliseconds * 16 + 511) / 512) * 512;
+            if (preRollSamples + confirmedSamples > capacity)
+                throw new ArgumentException("The recording limit must fit both pre-roll and minimum confirmed speech.", nameof(maximumSeconds));
+            _preRoll = new float[preRollSamples];
             _minimumSpeech = minimumSpeechMilliseconds * 16;
             _silence = silenceMilliseconds * 16;
-            _audio = new float[maximumSeconds * 16000];
+            // The owner consumes whole VAD frames. Keep the complete boundary frame instead
+            // of silently discarding its suffix (for example 256 samples at 30 seconds).
+            _audio = new float[capacity];
         }
         public void Append(float[] frame, bool speech, bool discontinuity = false)
         {
             if (frame == null || frame.Length < 512) throw new ArgumentException("Supply 512 mono samples at 16 kHz.");
             if (discontinuity) Reset();
+            if (IsFull) throw new InvalidOperationException("The utterance buffer is full; consume and reset it before appending more audio.");
             if (speech)
             {
                 if (_silent > 0 || _speech == 0) ++_revision;
@@ -49,9 +58,8 @@ namespace MNN.Unity
             else if (_length > 0) _silent += 512;
             if (_length > 0 || speech)
             {
-                int copy = Math.Min(512, _audio.Length - _length);
-                Array.Copy(frame, 0, _audio, _length, copy);
-                _length += copy;
+                Array.Copy(frame, 0, _audio, _length, 512);
+                _length += 512;
                 // Discard isolated clicks/noise that never met the speech budget.
                 if (!HasSpeech && _silent >= _silence) Reset();
             }
