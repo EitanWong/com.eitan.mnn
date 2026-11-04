@@ -35,7 +35,8 @@ namespace MNN.Unity
             switch (ProfileFile(directory))
             {
                 case MNNQwen3AsrConfig.FileName:
-                    var qwen = MNNQwen3AsrRecognizer.Load(directory, threadCount, backendType: backendType);
+                    var qwen = MNNQwen3AsrRecognizer.Load(directory, string.IsNullOrWhiteSpace(language) ? null : language,
+                        threadCount, backendType: backendType);
                     return new MNNSpeechRecognizer(qwen, () => qwen.Backend, (audio, rate, token) => qwen.Recognize(audio, rate, token));
                 case MNNParaformerConfig.FileName:
                     var para = MNNParaformerRecognizer.Load(directory, threadCount: threadCount, backendType: backendType);

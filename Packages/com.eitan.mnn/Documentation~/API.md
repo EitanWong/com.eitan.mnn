@@ -1030,7 +1030,7 @@ because its `llm_config.json` was updated after the weights. Source notices are
 installed alongside the assets. Other Qwen3-ASR exports need their own validation.
 
 ```csharp
-using (var recognizer = MNNQwen3AsrRecognizer.Load(modelDirectory))
+using (var recognizer = MNNQwen3AsrRecognizer.Load(modelDirectory, language: "auto"))
 {
     MNNSpeechRecognition transcript = recognizer.RecognizeWaveFile(wavPath, cancellationToken);
     Debug.Log(transcript.Text);
@@ -1044,18 +1044,28 @@ official MNN Llm audio API; feature extraction stays in MNN. Temporary inputs ar
 deleted on success, failure and cancellation. Exact zero silence returns an empty
 transcript without running the decoder. Each request resets generation state.
 
-Auto prefers Metal with CPU fallback, using greedy decoding and repetition
-penalty 1.0, retaining the
-pinned export's ASR template. English and Chinese/English fixtures were checked;
-there is no language selector or timestamp alignment. `TokenIds` contains a copy
-of the actual native output IDs. `MNNMultimodalResult.GeneratedTokenIds` also
+Backend Auto prefers Metal with CPU fallback, using greedy decoding and repetition
+penalty 1.0. The explicit language overload accepts `auto`, `zh`, `en`, `ja`, `ko`
+and `yue` (or their English names). It applies Qwen's role newlines and optional
+forced-language prefix through the existing official configuration API. Automatic
+language output is parsed so its language header is excluded from `Text`. English
+and Chinese are the measured accuracy scenarios; other language options require
+their own quality evaluation.
+
+The original overload without a language argument retains the installed template
+for compatibility. `MNNSpeechRecognizer.Load` also applies explicit language
+options to Qwen; an omitted or blank option retains the installed template.
+SiriAI exposes the same explicit choice in recognition settings. Installed model
+files remain unchanged. There is no timestamp alignment. `TokenIds` contains a copy
+of the actual native output IDs, including generated metadata in automatic mode.
+`MNNMultimodalResult.GeneratedTokenIds` also
 exposes an owned, read-only snapshot for multimodal and conversation generation.
 
 Cancellation is checked before inference and between decoder tokens. Native audio
 encoding and prefill finish synchronously; disposal waits for an active request.
 A transcript reaching the 256-token guard fails instead of returning truncated
 text. Explicit backend/precision options are available for measurement. The same
-macOS Mono / bundled MNN 3.6.1 Apple ABI requirements as `MNNLlm` apply; this is
+macOS Mono / bundled MNN 3.6.2 Apple ABI requirements as `MNNLlm` apply; this is
 not a portable official C# API. No bridge or new C++ implementation is involved.
 
 `Recognize` and `RecognizeWaveFile` optionally report decoder progress on the

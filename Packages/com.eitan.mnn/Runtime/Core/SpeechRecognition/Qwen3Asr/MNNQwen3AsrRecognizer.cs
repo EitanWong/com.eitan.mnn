@@ -14,10 +14,11 @@ namespace MNN.Unity
         private MNNLlm _model;
         private bool _recognizing;
         private readonly string _cache, _ownedCache;
+        private readonly bool _automaticLanguage;
         public MNNBackendType Backend { get { lock (_gate) { ThrowIfDisposed(); return _model.Backend; } } }
         public MNNBackendType MediaBackend { get { lock (_gate) { ThrowIfDisposed(); return _model.MediaBackend; } } }
 
-        private MNNQwen3AsrRecognizer(string directory, int threads, string cacheDirectory, MNNBackendType backend, MNNPrecisionMode precision)
+        private MNNQwen3AsrRecognizer(string directory, int threads, string cacheDirectory, MNNBackendType backend, MNNPrecisionMode precision, string language)
         {
             MNNQwen3AsrModel.ResolveRevision(null, MNNQwen3AsrConfig.Read(directory).repository);
             MNNQwen3AsrModel.Verify(directory);
@@ -26,22 +27,31 @@ namespace MNN.Unity
                 backend = MNNAcceleration.IsBackendAvailable(MNNBackendType.Metal) ? MNNBackendType.Metal : MNNBackendType.CPU;
             _cache = Path.GetFullPath(cacheDirectory ?? Path.Combine(MNNInferenceCache.DirectoryFor("Cache"), "Qwen3ASR", Guid.NewGuid().ToString("N")));
             _ownedCache = cacheDirectory == null ? _cache : null;
-            try { _model = MNNLlm.LoadForSpeechRecognition(directory, threads, _cache, backend, precision); }
+            _automaticLanguage = language == "";
+            try { _model = MNNLlm.LoadForSpeechRecognition(directory, threads, _cache, backend, precision,
+                MNNQwen3AsrPrompt.Configuration(language)); }
             catch { MNNModelOptions.RemoveOwnedCache(_ownedCache); throw; }
         }
 
         /// <summary>Use MNNModelLoading.LoadAsync for background loading. Auto prefers the quality-checked Metal route, with CPU fallback.</summary>
         public static MNNQwen3AsrRecognizer Load(string directory, int threadCount = 4, string cacheDirectory = null,
             MNNBackendType backendType = MNNBackendType.Auto, MNNPrecisionMode precisionMode = MNNPrecisionMode.Normal)
+            => Load(directory, null, threadCount, cacheDirectory, backendType, precisionMode);
+
+        /// <summary>Override the installed template's language: auto, zh, en, ja, ko or yue.
+        /// Auto generates and removes language metadata. Null preserves the installed template.</summary>
+        public static MNNQwen3AsrRecognizer Load(string directory, string language, int threadCount = 4, string cacheDirectory = null,
+            MNNBackendType backendType = MNNBackendType.Auto, MNNPrecisionMode precisionMode = MNNPrecisionMode.Normal)
         {
             MNNPlatformSupport.RequireSupported();
             if (string.IsNullOrWhiteSpace(directory)) throw new ArgumentNullException(nameof(directory));
             if (threadCount < 1 || threadCount > 64) throw new ArgumentOutOfRangeException(nameof(threadCount));
-            return new MNNQwen3AsrRecognizer(Path.GetFullPath(directory), threadCount, cacheDirectory, backendType, precisionMode);
+            string normalizedLanguage = MNNQwen3AsrPrompt.NormalizeLanguage(language);
+            return new MNNQwen3AsrRecognizer(Path.GetFullPath(directory), threadCount, cacheDirectory, backendType, precisionMode, normalizedLanguage);
         }
 
         /// <summary>Finite normalized mono PCM, 8–96 kHz, 0.1–30 seconds. No timestamp alignment.
-        /// Uses the pinned model's original ASR language template; English and Chinese/English were validated.</summary>
+        /// Language conditioning is selected when loading; the original overload preserves the installed template.</summary>
         public MNNSpeechRecognition Recognize(float[] samples, int sampleRate, CancellationToken cancellationToken = default, Action<MNNGenerationUpdate> onProgress = null)
         {
             if (sampleRate < 8000 || sampleRate > 96000) throw new ArgumentOutOfRangeException(nameof(sampleRate));
@@ -80,7 +90,8 @@ namespace MNN.Unity
                         maxNewTokens: 256, audioPath: wave, onProgress: update => onProgress?.Invoke(update), cancellationToken: cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     if (result.ReachedTokenLimit) throw new InvalidDataException("Qwen3-ASR reached the transcript token limit.");
-                    return new MNNSpeechRecognition(result.Text.Trim(), result.GeneratedTokenIds.ToArray(), Array.Empty<float>());
+                    return new MNNSpeechRecognition(MNNQwen3AsrPrompt.Transcript(result.Text, _automaticLanguage),
+                        result.GeneratedTokenIds.ToArray(), Array.Empty<float>());
                 }
                 finally
                 {

@@ -151,7 +151,8 @@ namespace MNN.Unity
 
         internal static MNNLlm LoadForChat(string modelDirectory, int threadCount, bool thinking, string cacheDirectory)
             => LoadAutomatic(modelDirectory, threadCount, thinking, cacheDirectory, null, true, MNNBackendType.Auto);
-        internal static MNNLlm LoadForSpeechRecognition(string directory, int threads, string cache, MNNBackendType backend, MNNPrecisionMode precision) => LoadCore(directory, threads, false, cache, precision, false, backend, true);
+        internal static MNNLlm LoadForSpeechRecognition(string directory, int threads, string cache, MNNBackendType backend, MNNPrecisionMode precision, string configurationJson = null)
+            => LoadCore(directory, threads, false, cache, precision, false, backend, true, performanceJson: configurationJson);
         private static MNNLlm LoadCore(string modelDirectory, int threadCount, bool enableThinking, string cacheDirectory, MNNPrecisionMode precisionMode, bool chatSampling, MNNBackendType backendType = MNNBackendType.Auto, bool speechRecognition = false, float? conversationTemperature = null, string performanceJson = null)
         {
             var options = MNNModelOptions.Prepare(modelDirectory, threadCount, enableThinking, cacheDirectory, precisionMode, chatSampling, backendType, speechRecognition, conversationTemperature);
