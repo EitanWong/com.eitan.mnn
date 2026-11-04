@@ -151,7 +151,9 @@ namespace MNN.Unity
                 }
             }
             var next = new Dictionary<string, Hypothesis>();
-            foreach (var item in candidates.OrderByDescending(value => value.Item1).Take(_maxPaths))
+            // Equivalent blank/unknown histories share a beam slot. Fill the beam
+            // with distinct histories so duplicates cannot evict a viable keyword.
+            foreach (var item in candidates.OrderByDescending(value => value.Item1))
             {
                 int id = item.Item2;
                 var previous = item.Item3;
@@ -181,6 +183,7 @@ namespace MNN.Unity
                     same.Score = merged;
                 }
                 else next[key] = hypothesis;
+                if (next.Count == _maxPaths) break;
             }
             _hypotheses = next.Values.ToList();
             var best = _hypotheses.OrderByDescending(value => value.Score).First();

@@ -14,7 +14,7 @@ namespace MNN.Unity.Editor
         private bool _taskSpeech;
         private bool _ocrCroppedLine;
         [SerializeField] private string _keywords = MNNKwsModel.DefaultKeywords;
-        [SerializeField] private float _keywordThreshold = .25f, _keywordScore = 1;
+        [SerializeField] private float _keywordThreshold = MNNKeywordSpotter.DefaultThreshold, _keywordScore = 1;
         private MNNStudioMessage _taskResultMessage;
         private string _referenceText = "";
         private int _speechLanguage, _ttsEmotion;

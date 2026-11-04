@@ -49,6 +49,11 @@ SiriAI 运行时的唤醒词列表支持逐项添加、修改和删除，默认�
 多个短语不能具有相同读音，否则会提示保留一个，避免同一声音对应多个结果。
 旧版本保存的 token 配置仍可读取；新代码与 UI 只需填写自然文字。
 
+共享默认阈值为 `MNNKeywordSpotter.DefaultThreshold`（0.15），boost 为1、搜索保留4条不同历史，
+词尾默认按语言确认：英文连续5帧空白（约200ms）、中文2帧（约80ms），避免漏掉连读的中文短语。
+`Reset` 的 `trailingBlanks=0` 自动选择语言，正数可显式覆盖；阈值、boost、搜索数量也可覆盖。
+文件与实时接口默认一致。已有手动保存的阈值继续生效，Studio 可在检测阈值中调整。
+低音量输入只在特征私有副本中做有上限的增益，近静音不放大，原始PCM与对话音频保持不变。
 阈值越高越难触发；boost 越高越容易保留关键词搜索路径，也可能增加误触发。
 置信度是命中 token 的平均声学概率，不是校准后的“唤醒正确率”。重叠短语可能
 优先返回较短短语；通过关键词配置及阈值在目标设备上评测。
@@ -133,3 +138,19 @@ python3 Packages/com.eitan.mnn/Tools~/Testing/prepare_english_wake_fixtures.py
 Hey Siri、低音量、静音前缀、逐块输入与文件输入一致性，并拒绝静音及无关录音。
 SiriAI 的 `SiriAIRealtimeEntranceTests.SynthesizedEnglishWakeTraversesCaptureAndEntersRealtimeConversation`
 另验证连续采集处理到实时入口和命令音频交接。合成录音仅用于回归，不能代表真人准确率。
+
+### 灵敏度回归
+
+使用现有macOS系统音色生成可复现的中英文音频，无模型或依赖下载：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Testing/prepare_english_wake_fixtures.py \
+  --sensitivity --output TestArtifacts~/WakeSensitivity/audio
+```
+
+设置 `MNN_TEST_WAKE_SENSITIVITY_AUDIO`、`MNN_ENGLISH_KWS_MODELS` 与 `MNN_TEST_KWS_MODELS`，
+运行 `KeywordSensitivityIntegrationTests`。测试使用6种合成音色、96条正常/十分之一音量/
+1.12倍播放速度与音高/低音量加20dB白噪声变体，以及84条普通和相近词负例、静音与噪声。
+质量门槛为英语至少90%、中文至少95%命中，相近词误触发最多英语1条、中文0条；全部漏检会导出，
+并非要求忽略困难音色。“seriously”仍可能与短词“Siri”混淆，长短语通常更易区分。
+这是合成回归与当前测试主机实时计算预算，不能当作真人、远场、不同口音或真实房间的准确率保证。

@@ -65,6 +65,23 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void EquivalentBlankPathsDoNotConsumeTheKeywordBeam()
+        {
+            float[] logits = Enumerable.Repeat(-20f, 197).ToArray();
+            var decoder = new MNNKeywordDecoder("a b @wake", Tokens(), .25f, 1, 1, 2,
+                _ => new float[320], (_, __) => logits);
+            logits[0] = (float)Math.Log(.45); logits[2] = (float)Math.Log(.45);
+            logits[3] = (float)Math.Log(.1);
+            Assert.IsNull(decoder.Advance(new float[320]));
+            logits = Enumerable.Repeat(-20f, 197).ToArray(); logits[4] = 20;
+            Assert.IsNull(decoder.Advance(new float[320]));
+            logits[4] = -20; logits[0] = 20;
+            Assert.IsNull(decoder.Advance(new float[320]));
+            Assert.AreEqual("wake", decoder.Advance(new float[320])?.Keyword,
+                "Blank and unknown lead to the same state; both must not evict a distinct wake path.");
+        }
+
+        [Test]
         public void FailureArcsRecoverOverlappingPrefixesAndThresholdRejectsWeakMatches()
         {
             var matches = Run("a b @first\nb c @second", new[] {3, 4, 5, 0, 0});

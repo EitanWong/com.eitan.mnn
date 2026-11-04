@@ -12,6 +12,10 @@ namespace MNN.Unity
     /// Each instance owns one stream. Reset before changing recording; dispose after use.</summary>
     public sealed class MNNKeywordSpotter : IDisposable
     {
+        /// <summary>Shared wake defaults for file, streaming, Studio and application callers.</summary>
+        public const float DefaultThreshold = .15f;
+        public const int DefaultTrailingBlanks = 0; // Automatic: English 4, Chinese 1.
+
         private readonly object _gate = new object();
         private readonly MNNInterpreter _encoder;
         private readonly MNNSession _session;
@@ -103,13 +107,15 @@ namespace MNN.Unity
         }
 
         /// <summary>Set ordinary wake words in the loaded model language, one phrase per line (e.g. Hey Siri or 小爱同学).
-        /// Automatically prepares model input and resets the stream. Legacy token specifications remain accepted.</summary>
-        public void Reset(string keywords, float threshold = .25f, float score = 1.0f, int trailingBlanks = 1, int maxActivePaths = 4)
+        /// Automatically prepares model input and resets the stream. Legacy token specifications remain accepted.
+        /// trailingBlanks=0 selects language-specific confirmation; positive values explicitly override it.</summary>
+        public void Reset(string keywords, float threshold = DefaultThreshold, float score = 1.0f, int trailingBlanks = DefaultTrailingBlanks, int maxActivePaths = 4)
         {
             lock (_gate)
             {
                 ThrowIfDisposed();
-                var search = new MNNKeywordDecoder(MNNKeywordText.Prepare(keywords, Language), _tokens, threshold, score, trailingBlanks, maxActivePaths,
+                var search = new MNNKeywordDecoder(MNNKeywordText.Prepare(keywords, Language), _tokens, threshold, score,
+                    trailingBlanks == DefaultTrailingBlanks ? (Language == MNNKeywordLanguage.English ? 4 : 1) : trailingBlanks, maxActivePaths,
                     context => _decoder.Run(context, 1, 2),
                     (encoded, decoded) =>
                     {
@@ -166,6 +172,7 @@ namespace MNN.Unity
                 token.ThrowIfCancellationRequested();
                 // Only the current chunk is copied; preceding samples preserve Kaldi's reflected-edge convention.
                 var audio = _pcm.Take((_firstFrame + 44) * 160 + 280).ToArray();
+                NormalizeQuietAudio(audio);
                 var features = MNNZipformerFeatures.ExtractFrames(audio, _firstFrame, 45, token);
                 _session.GetInput("x").CopyFromArray(features);
                 foreach (var state in _states) _session.GetInput(state.Key).CopyFromArray(state.Value);
@@ -202,6 +209,16 @@ namespace MNN.Unity
             return matches.ToArray();
         }
 
+        private static void NormalizeQuietAudio(float[] audio)
+        {
+            // Bound quiet-microphone gain in the model's private feature copy only.
+            // Leave near-silence alone and preserve the caller's capture/command waveform.
+            float peak = audio.Max(sample => Math.Abs(sample));
+            if (peak < .002f || peak >= .25f) return;
+            float gain = Math.Min(10, .25f / peak);
+            for (int i = 0; i < audio.Length; ++i) audio[i] *= gain;
+        }
+
         private static void CopyState<T>(MNNTensor tensor, T[] destination) where T : unmanaged
         {
             var source = tensor.MapForRead<T>();
@@ -212,7 +229,7 @@ namespace MNN.Unity
         /// <summary>Detect all keyword occurrences in finite 8–96 kHz mono PCM, up to ten minutes.
         /// Resets this instance's stream; threshold and boost apply unless a keyword overrides them.</summary>
         public MNNKeywordDetection[] Detect(float[] samples, int sampleRate, string keywords,
-            float threshold = .25f, float score = 1, CancellationToken cancellationToken = default)
+            float threshold = DefaultThreshold, float score = 1, CancellationToken cancellationToken = default)
         {
             if (sampleRate < 8000 || sampleRate > 96000) throw new ArgumentOutOfRangeException(nameof(sampleRate));
             ValidateSamples(samples, sampleRate * 600, cancellationToken);
@@ -233,7 +250,7 @@ namespace MNN.Unity
             }
         }
 
-        public MNNKeywordDetection[] DetectWaveFile(string path, string keywords, float threshold = .25f, float score = 1,
+        public MNNKeywordDetection[] DetectWaveFile(string path, string keywords, float threshold = DefaultThreshold, float score = 1,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -242,7 +259,7 @@ namespace MNN.Unity
         }
 
         public Task<MNNKeywordDetection[]> DetectAsync(float[] samples, int sampleRate, string keywords,
-            float threshold = .25f, float score = 1, CancellationToken cancellationToken = default)
+            float threshold = DefaultThreshold, float score = 1, CancellationToken cancellationToken = default)
         {
             var copy = samples == null ? null : (float[])samples.Clone();
             return Task.Run(() => Detect(copy, sampleRate, keywords, threshold, score, cancellationToken), cancellationToken);

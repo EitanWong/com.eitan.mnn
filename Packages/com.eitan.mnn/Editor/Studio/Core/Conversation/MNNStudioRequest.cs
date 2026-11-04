@@ -18,7 +18,7 @@ namespace MNN.Unity.Editor
         internal string GestureFeatures;
         internal float[] VisualFrames;
         internal string Keywords = MNNKwsModel.DefaultKeywords;
-        internal float KeywordThreshold = .25f, KeywordScore = 1;
+        internal float KeywordThreshold = MNNKeywordSpotter.DefaultThreshold, KeywordScore = 1;
         internal MNNChatMessage[] Conversation;
         internal int TokenLimit = 256;
         internal bool Speech;
