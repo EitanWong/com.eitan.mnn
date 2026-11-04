@@ -49,6 +49,7 @@ namespace MNN.Unity.Editor
             _retrieval = null;
             _taskResultMessage = null;
             _markdown.Clear();
+            _transcriptRows.Clear();
             ClearGeneratedImage();
             if (!Selected.Supports(MNNModelCapabilities.Vision))
                 _imagePath = null;
