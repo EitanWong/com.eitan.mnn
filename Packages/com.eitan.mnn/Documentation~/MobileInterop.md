@@ -19,7 +19,8 @@ SmolLM2 的已知旧版 ChatML `prompt_template` 在托管层转换为对应 Jin
 已有 Jinja 配置不被覆盖。
 
 Express executor/scope、VARP 结果所有权及原生 Embedding/Reranker 已接入共享 partial；
-Android/iOS 的当前导入符号审计通过，但这些新路径尚未完成移动真机权重推理验证。
+Android/iOS 的当前导入符号审计通过；iPhone 17 已完成本文所列真实检索与小型 Express 图验证，
+Android 的这些新增路径尚未完成当前真机权重推理验证。
 语音波形 `std::function` 回调尚无可用编组契约，所有平台均明确拒绝语音输出，
 已移除旧的手工虚表/回调对象实现。图像/音频输入通过 Omni 实现。
 下述历史真机证据仅覆盖四个具体模型，不能扩展为所有任务或当前修改均已验证。
@@ -62,7 +63,7 @@ Foundation/Metal 临时对象。它不添加推理桥接或原生代码。不得
 
 使用未修改的官方 MNN 3.6.2，当前提交 `7e3c6fb5225d3ccf22807ee641332669df34650d`。
 工具不下载依赖、不生成 C++，默认启用 LLM/Omni、低内存和 Transformer fuse，关闭 HTTP 资源。
-当前 Android CPU、iOS Metal 插件均通过 69 个绑定入口的官方 MNN/libc++ 符号审计，并拒绝 `MNN_*` 导出。
+当前 Android CPU、iOS Metal 插件均通过 72 个绑定入口的官方 MNN/libc++ 符号审计，并拒绝 `MNN_*` 导出。
 部分 Apple libc++ string 符号由 SDK 系统库提供，审计与 Player 链接共同核对。
 
 ```bash
@@ -83,6 +84,21 @@ iOS 默认启用 ARM82/SME2，Android 默认启用 ARM82/OpenCL/Vulkan/NNAPI、�
 [LLM 性能配置与验证](LlmPerformance.md)。编译了某个后端不代表该模型在该硬件上更快。
 
 ## 已验证范围
+
+2026-11-05：对当前插件重新解析精确导入名，Android ARM64、iOS 真机/模拟器 ARM64 各 72 个，
+macOS arm64/x64 各 69 个，均无缺失；Apple SDK libc++ 的精确系统符号单列。
+当前源码在私有工程完成 Unity 2021.3.45f2 iOS ARM64 IL2CPP Release 导出、Xcode 27.2 链接及签名校验；
+导出原生库 SHA-256 与随包真机切片 `f20e8a8803bb71c8b4803d042b45caf2897d60143521b744b712a563873afded` 一致。
+首次安装遇到免费开发者配置 3 应用上限；经用户明确授权卸载旧测试应用后，新专用应用完成安装。
+iPhone 17 iOS 27.3 Beta（24C5037i）的本轮三项验收均通过、无失败或跳过：CPU Express 内嵌 affine 图执行/复用、
+独立 executor/GC/释放；Qwen3-Embedding-0.6B Auto→CPU 的真实检索、长输入后重用及独立请求；
+Qwen3-Reranker-0.6B Auto→Metal 的真实相关性排序。
+Embedding 相关/无关 cosine 为 0.771234/0.286602，Reranker 分数为 0.996085/0.0000138663。
+三项用例墙钟约 0.100、4.067、2.367 秒，包含加载和断言，不是单次纯推理基准。
+16 个设备模型文件（907,593,671 字节）经完整回读 SHA-256 校验，设备 XML 与导出/安装应用的 build id 一致。
+可复跑的独立工程、签名应用、原生/模型身份及结果见开发仓库
+`TestArtifacts~/SiriAICompletion/Audio/ios-device-summary.json`、`ios-case-measurements.json` 和同目录证据。
+此结果仅覆盖上述设备、配置与模型，不证明 Android、原生波形回调/全双工、RTF 或内存目标。
 
 2026-10-25 整理后：13 个条件编译分支通过，macOS Mono 为 66 个 P/Invoke 入口，Android IL2CPP 为 69 个；iOS 为 68 个静态 P/Invoke
 加 1 个直接解析的系统 libc++ string 析构符号（官方符号审计共 69 个）。
