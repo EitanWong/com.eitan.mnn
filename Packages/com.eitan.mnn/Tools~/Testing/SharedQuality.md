@@ -143,6 +143,45 @@ Tool presence, successful compilation and functional tests do not establish
 CRAP below 10, duplication rank below 0.8, coverage percentage or mutation score.
 These metrics require provisioned tools and their real reports.
 
+## Physical Unity audio acceptance
+
+`MNNUnityAudioAcceptanceTests.cs` is an opt-in PlayMode fixture for an isolated
+project on a host with a real microphone, working output route and microphone
+permission. It emits a quiet 100 ms tone per cycle. Copy it from this tooling
+directory into `Assets/MNNAudioAcceptance/`, with a test assembly named
+`MNN.Unity.AudioAcceptance.Tests`, referencing `MNN.Unity` and
+`optionalUnityReferences: ["TestAssemblies"]`. Do not include the fixture in the
+application's shipping assembly. Run the exact fixture with graphics/audio enabled:
+
+```sh
+/path/to/licensed/Unity -batchmode -projectPath /absolute/isolated/project \
+  -runTests -testPlatform PlayMode \
+  -testFilter MNN.Unity.AudioAcceptance.MNNUnityAudioAcceptanceTests \
+  -testResults /absolute/TestArtifacts~/HardwareAudio/results.xml \
+  -logFile /absolute/TestArtifacts~/HardwareAudio/unity.log
+```
+
+The fixture opens, negotiates, captures finite PCM, renders output, waits for
+estimated presentation receipts and closes twice. Missing hardware, permission
+failure, a stopped DSP callback or incomplete cleanup fails the test. It never
+turns those conditions into a passing skip. It validates the shared device path,
+including DSP-budget reads before output binding; it does not establish speaker
+perception, ASR accuracy, acoustic AEC or native continuous-audio inference.
+
+Completed standalone runs also support a latency distribution report:
+
+```sh
+python3 -B Packages/com.eitan.mnn/Tools~/Testing/summarize_standalone_acceptance.py \
+  TestArtifacts~/Standalone/CompletedRun
+```
+
+It requires a completed passing measurement run, complete sequential CSV rows
+and matching source counters. It calculates nearest-rank p50/p95/p99 for actual
+first-token, first-PCM and turn latency, counting startup once per session.
+Simulated render window percentiles stay separate. Reports hash both inputs,
+omit transcript text and do not assert performance targets. Sampled native-only,
+GPU and interrupt measurements remain outside this tool's scope.
+
 ## Cloud service prerequisites and actual C# requests
 
 Copy `cloud_acceptance.example.json` into `TestArtifacts~/` and replace its model,
