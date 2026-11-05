@@ -1,0 +1,106 @@
+name: Offline shared regression
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'Packages/com.eitan.mnn/**'
+      - '.github/workflows/shared-managed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# The licensed host runs trusted main/dev commits. Fork pull requests stay on
+# the hosted Repository checks workflow until their code has been reviewed.
+concurrency:
+  group: shared-managed-unity
+  cancel-in-progress: false
+
+jobs:
+  shared:
+    name: Complete offline shared EditMode scope
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64, mnn-unity]
+    environment: unity-validation
+    timeout-minutes: 60
+    env:
+      UNITY_EDITOR: ${{ vars.MNN_UNITY_EXECUTABLE }}
+      OUTPUT: ${{ github.workspace }}/TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}
+      MODEL_ASSETS: ${{ vars.MNN_TEST_MODELS_ROOT }}
+      REFERENCE_ENVIRONMENT: ${{ vars.MNN_TEST_REFERENCE_ENVIRONMENT }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check runner prerequisites
+        shell: bash
+        run: |
+          test -x "$UNITY_EDITOR" || { echo 'Set MNN_UNITY_EXECUTABLE to an activated Unity 2021.3.45f2 executable.'; exit 1; }
+          python3 --version
+      - name: Test the regression and preflight tools
+        run: python3 -B -m unittest discover -s Packages/com.eitan.mnn/Tools~/Validation -p 'test_*.py'
+      - name: Report quality tool availability
+        run: python3 -B Packages/com.eitan.mnn/Tools~/Testing/probe_quality_tools.py --output "$OUTPUT/quality-tools.json"
+      - name: Run every offline shared EditMode test
+        shell: bash
+        run: |
+          resources=()
+          if [ -n "$MODEL_ASSETS" ]; then resources+=(--models-root "$MODEL_ASSETS"); fi
+          if [ -n "$REFERENCE_ENVIRONMENT" ]; then resources+=(--reference-environment "$REFERENCE_ENVIRONMENT"); fi
+          python3 -B Packages/com.eitan.mnn/Tools~/Testing/run_shared_managed_tests.py \
+            --unity "$UNITY_EDITOR" --graphics --scope offline --output "$OUTPUT" "${resources[@]}"
+      - name: Upload complete regression evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: shared-managed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/*.json
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/*.xml
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/*.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Measure the original allocation cases on host Mono
+        if: always()
+        run: |
+          python3 -B Packages/com.eitan.mnn/Tools~/Testing/run_mono_allocation_tests.py \
+            --unity "$UNITY_EDITOR" --unity-project "$OUTPUT/UnityProject" --output "$OUTPUT/HostMonoAllocation"
+      - name: Upload separate host Mono allocation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: host-mono-allocation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/HostMonoAllocation/*.json
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/HostMonoAllocation/*.xml
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/HostMonoAllocation/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  quality_prerequisites:
+    name: Required quality tool prerequisites
+    # Run after regression evidence is uploaded, including when regression fails.
+    needs: shared
+    if: always() && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    runs-on: [self-hosted, macOS, ARM64, mnn-unity]
+    environment: unity-validation
+    timeout-minutes: 5
+    env:
+      OUTPUT: ${{ github.workspace }}/TestArtifacts~/CI/QualityPrerequisites/${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require complexity, duplication, mutation and coverage tools
+        run: |
+          python3 -B Packages/com.eitan.mnn/Tools~/Testing/probe_quality_tools.py \
+            --require crapper dryer mutator unity-coverage --output "$OUTPUT/required-tools.json"
+      - name: Upload quality prerequisite evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: quality-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
+          path: TestArtifacts~/CI/QualityPrerequisites/${{ github.run_id }}-${{ github.run_attempt }}/*.json
+          if-no-files-found: warn
+          retention-days: 14

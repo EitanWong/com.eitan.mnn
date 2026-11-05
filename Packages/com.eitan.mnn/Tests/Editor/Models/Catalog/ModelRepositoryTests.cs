@@ -181,7 +181,7 @@ namespace MNN.Unity.Tests
             }
         }
 
-        [UnityTest, Explicit("Reads the live organization catalog and every repository manifest; downloads two small metadata files only.")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Reads the live organization catalog and every repository manifest; downloads two small metadata files only.")]
         public IEnumerator LiveCatalog_AllRepositoriesHaveDownloadableFiles()
         {
             var task = AuditLiveCatalogAsync();

@@ -339,7 +339,7 @@ namespace MNN.Unity.Tests
             return Json(Hf(id, "model.mnn"));
         }
 
-        [UnityTest, Explicit("Searches both live public hubs and reads manifests/metadata only. Does not download weights or run inference.")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Searches both live public hubs and reads manifests/metadata only. Does not download weights or run inference.")]
         public IEnumerator LiveDiscovery_AuditsBothPublicProviders()
         {
             string output = Path.GetFullPath(Environment.GetEnvironmentVariable("MNN_TEST_CATALOG_OUTPUT") ?? "TestArtifacts~/ModelDiscovery/PackageAudit");

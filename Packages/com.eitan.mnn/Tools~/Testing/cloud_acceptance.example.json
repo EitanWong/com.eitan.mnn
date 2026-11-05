@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "chat-reference",
+      "task": "chat",
+      "protocol": "OpenAIChat",
+      "endpoint": "https://api.openai.com/v1",
+      "model": "REPLACE_WITH_DEPLOYED_CHAT_MODEL",
+      "credential_env": "MNN_ACCEPTANCE_CHAT_KEY",
+      "timeout_seconds": 60,
+      "maximum_latency_seconds": 30,
+      "prompt": "Reply with exactly the word FOUR.",
+      "expected_text": "FOUR"
+    },
+    {
+      "id": "recognition-reference",
+      "task": "recognition",
+      "protocol": "OpenAIRecognition",
+      "endpoint": "https://api.openai.com/v1",
+      "model": "REPLACE_WITH_DEPLOYED_RECOGNITION_MODEL",
+      "credential_env": "MNN_ACCEPTANCE_RECOGNITION_KEY",
+      "timeout_seconds": 60,
+      "maximum_latency_seconds": 30,
+      "audio": "reference.wav",
+      "expected_text": "Replace with the reference recording transcript."
+    },
+    {
+      "id": "synthesis-reference",
+      "task": "synthesis",
+      "protocol": "OpenAISpeech",
+      "endpoint": "https://api.openai.com/v1",
+      "model": "REPLACE_WITH_DEPLOYED_SYNTHESIS_MODEL",
+      "credential_env": "MNN_ACCEPTANCE_SYNTHESIS_KEY",
+      "timeout_seconds": 60,
+      "maximum_latency_seconds": 30,
+      "text": "This is the cloud acceptance reference.",
+      "voice": "REPLACE_WITH_DEPLOYED_VOICE"
+    }
+  ]
+}
