@@ -7,10 +7,11 @@ namespace MNN.Unity
     /// <summary>Profile-selected MNN acoustic models with worker-local recurrent state. No device dependency.</summary>
     public sealed class MNNAcousticMnnModelFactory : IMNNAcousticModelFactory
     {
-        public IMNNAcousticEnhancer CreateEnhancer(string directory) => new Enhancer(directory);
-        public IMNNAcousticKeywordModel CreateKeyword(string directory) => new Keyword(MNNKeywordSpotter.Load(directory, 1));
-        public IMNNAcousticSeparator CreateSeparator(string directory) => new Separator(MNNSpeechSeparator.Load(directory, 2, MNNBackendType.CPU));
-        public IMNNAcousticSpeakerEncoder CreateSpeaker(string directory) => new Speaker(MNNSpeakerEncoder.Load(directory, 1, MNNBackendType.CPU));
+        public IMNNAcousticEnhancer CreateEnhancer(string directory) => new Enhancer(InstalledDirectory(directory));
+        public IMNNAcousticKeywordModel CreateKeyword(string directory) => new Keyword(MNNKeywordSpotter.Load(InstalledDirectory(directory), 1));
+        public IMNNAcousticSeparator CreateSeparator(string directory) => new Separator(MNNSpeechSeparator.Load(InstalledDirectory(directory), 2, MNNBackendType.CPU));
+        public IMNNAcousticSpeakerEncoder CreateSpeaker(string directory) => new Speaker(MNNSpeakerEncoder.Load(InstalledDirectory(directory), 1, MNNBackendType.CPU));
+        private static string InstalledDirectory(string directory) => MNNAcousticModelResources.Resolve(Environment.CurrentDirectory, directory);
 
         private sealed class Enhancer : IMNNAcousticEnhancer
         {

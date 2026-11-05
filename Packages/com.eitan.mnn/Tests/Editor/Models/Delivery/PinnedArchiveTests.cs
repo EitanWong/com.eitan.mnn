@@ -71,6 +71,16 @@ namespace MNN.Unity.Tests
         private void Install(string archive, MNNModelAssetFile[] files = null, CancellationToken token = default, Action<long> extracted = null) =>
             MNNModelArchiveInstaller.Install(archive, MNNModelDeliveryManifest.ComputeSha256(archive), Path.Combine(_root, "Installed"), files ?? Files(), token, extracted);
 
+        [Test]
+        public void PublicArchiveContractRequiresPositiveFileSizes()
+        {
+            string archive = Archive(Path.Combine(_root, "empty.zip"), "graphs/model.mnn", "tokenizer/config.json");
+            var files = Files();
+            files[1] = Required("tokenizer/config.json", "");
+            Assert.Throws<InvalidDataException>(() => Install(archive, files));
+            Assert.False(Directory.Exists(Path.Combine(_root, "Installed")));
+        }
+
         [TestCase("")]
         [TestCase("release/")]
         public void ExactNestedLayoutOrSingleWrapperIsPreserved(string prefix)

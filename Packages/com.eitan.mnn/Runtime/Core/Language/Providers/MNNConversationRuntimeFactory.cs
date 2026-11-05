@@ -110,7 +110,8 @@ namespace MNN.Unity
                     report.Route == MNNRealtimeRoute.NativeDuplexTextToSpeech)
                 {
                     if (_options.filterVoiceInput || _options.endRealtimeOnExitIntent)
-                        throw new MNNRealtimeRouteUnavailableException(report.Route, "Voice validation and exit intent require the built-in turn runtime.");
+                        throw new MNNRealtimeRouteUnavailableException(report.Route,
+                            "Voice validation and model-based exit intent require the built-in turn-based runtime. Select a cascaded/buffered route, or explicitly disable voice validation and exit intent for a provider-owned continuous session.");
                     if (_context.RequiresUtteranceSpeakerSelection)
                         throw new MNNRealtimeRouteUnavailableException(report.Route, "Utterance speaker selection requires the built-in turn runtime.");
                     IMNNRealtimeSessionRuntime runtime;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -8,6 +9,17 @@ namespace MNN.Unity.Tests
 {
     public sealed class AcousticFrontendTests
     {
+        [Test]
+        public void DefaultFactoryRejectsUninstalledDirectoriesBeforeAnyNativeLoad()
+        {
+            string directory = Path.GetFullPath(Path.Combine("TestArtifacts~", "MissingAcousticModel-" + Guid.NewGuid().ToString("N")));
+            var factory = new MNNAcousticMnnModelFactory();
+            Assert.Throws<DirectoryNotFoundException>(() => factory.CreateEnhancer(directory));
+            Assert.Throws<DirectoryNotFoundException>(() => factory.CreateKeyword(directory));
+            Assert.Throws<DirectoryNotFoundException>(() => factory.CreateSeparator(directory));
+            Assert.Throws<DirectoryNotFoundException>(() => factory.CreateSpeaker(directory));
+        }
+
         [Test]
         public void WakeHandoffPreservesFramesCursorAndRevision()
         {

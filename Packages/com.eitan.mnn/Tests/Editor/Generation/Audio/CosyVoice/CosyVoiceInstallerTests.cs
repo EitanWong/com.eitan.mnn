@@ -53,6 +53,24 @@ namespace MNN.Unity.Tests
             Assert.IsFalse(Directory.Exists(Path.Combine(_root, ".cosyvoice-extracting")));
         }
 
+        [TestCase("")]
+        [TestCase("release/")]
+        public void DeclaredEmptyFilesAreInstalledAndCanRetry(string prefix)
+        {
+            _required["config.json"] = 0;
+            using (var zip = ZipFile.Open(_archive, ZipArchiveMode.Create))
+            {
+                using (var writer = new StreamWriter(zip.CreateEntry(prefix + "llm.mnn").Open(), new UTF8Encoding(false)))
+                    writer.Write("weights");
+                zip.CreateEntry(prefix + "config.json");
+            }
+            Install();
+            Install();
+            Assert.AreEqual("weights", File.ReadAllText(Path.Combine(_root, "model/llm.mnn")));
+            Assert.AreEqual(0, new FileInfo(Path.Combine(_root, "model/config.json")).Length);
+            Assert.IsTrue(File.Exists(_archive));
+        }
+
         [TestCase("../llm.mnn")]
         [TestCase("..\\llm.mnn")]
         [TestCase("/llm.mnn")]

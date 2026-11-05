@@ -226,6 +226,18 @@ namespace MNN.Unity.Tests
             Assert.AreEqual("second", catalog.DiscoveryWarnings.Single());
         }
 
+        [Test] public void MalformedSuccessfulDiscoveryCompletesWithAnErrorAndAllowsRetry() => Run(async () =>
+        {
+            int attempts = 0;
+            var cache = new MNNOnlineModelCache(Path.Combine(_root, "malformed.json"), _ =>
+                Task.FromResult(new MNNOnlineModelCache.Discovery
+                { Succeeded = true, Models = ++attempts == 1 ? null : new[] { Model() } }));
+            var failed = cache.LoadAsync();
+            Assert.Throws<InvalidDataException>(() => failed.GetAwaiter().GetResult());
+            Assert.AreEqual(1, (await cache.LoadAsync(true)).models.Length);
+            Assert.AreEqual(2, attempts);
+        });
+
         [Test] public void TransferOptionsAreSnapshotsAndRejectInvalidBudgets()
         {
             var original = new MNNModelTransferOptions { MaxConnections = 2, RetryCount = 1 };

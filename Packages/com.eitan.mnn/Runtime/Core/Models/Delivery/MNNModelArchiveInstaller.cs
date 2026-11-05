@@ -81,7 +81,8 @@ namespace MNN.Unity
             long total = 0;
             foreach (var file in required)
             {
-                if (file == null || file.bytes < 1) throw new InvalidDataException("Archive file sizes must be positive.");
+                if (file == null || file.bytes < 0 || hashes && file.bytes == 0)
+                    throw new InvalidDataException(hashes ? "Archive file sizes must be positive." : "Archive file sizes cannot be negative.");
                 string path = ValidatePath(file.path);
                 MNNModelAssetDownloader.ResolvePath(destination, path);
                 if (files.ContainsKey(path)) throw new InvalidDataException("Duplicate archive file target: " + path);
@@ -114,7 +115,7 @@ namespace MNN.Unity
                     if (entry.Length != 0) throw new InvalidDataException("An archive directory entry contains data.");
                     continue;
                 }
-                if (entry.Length < 1 || entry.Length > maximumBytes - expanded) throw new InvalidDataException("Model archive exceeds its expanded byte budget.");
+                if (entry.Length < 0 || entry.Length > maximumBytes - expanded) throw new InvalidDataException("Model archive exceeds its expanded byte budget.");
                 expanded += entry.Length;
                 entries.Add(path, entry);
             }

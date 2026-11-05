@@ -25,6 +25,12 @@ namespace MNN.Unity.Editor
         [MenuItem("GameObject/MNN/Realtime/Unity Microphone Capture", false, 10)]
         private static void AddUnityMicrophoneCapture(MenuCommand command) => AddToSelection<MNNUnityMicrophoneCapture>(command);
 
+        [MenuItem("GameObject/MNN/Realtime/Speech Output Filter", false, 10)]
+        private static void AddSpeechOutputFilter(MenuCommand command) => AddToSelection<MNNSpeechOutputFilter>(command);
+
+        [MenuItem("GameObject/MNN/Realtime/Unity Echo Reference Tap", false, 10)]
+        private static void AddUnityEchoReferenceTap(MenuCommand command) => AddToSelection<MNNUnityEchoReferenceTap>(command);
+
         /// <summary>
         /// Adds once per editable scene object. An unselected context targets only that object;
         /// otherwise multi-selection is preserved. With no scene target, creates in the current stage.

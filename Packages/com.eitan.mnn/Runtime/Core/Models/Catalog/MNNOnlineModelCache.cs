@@ -203,6 +203,9 @@ namespace MNN.Unity
                 discovery = new Discovery { Warnings = new[] { "Online model search failed: " + error.Message } };
             }
 
+            if (discovery == null || discovery.Succeeded && discovery.Models == null)
+                throw new InvalidDataException("A successful model discovery must supply its model array.");
+
             var models = new Dictionary<MNNModelRepositoryIdentity, MNNRemoteModel>();
             if (previous != null) foreach (var model in previous.models)
                     if (MNNModelRepositoryIdentity.TryCreate(model, out var key)) models[key] = model;

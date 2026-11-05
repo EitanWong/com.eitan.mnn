@@ -67,17 +67,20 @@ namespace MNN.Unity
                 return true;
             }
         }
+        /// <summary>Dequeues one queued stage with its response identity. The caller must check the response
+        /// before presenting it; use TryReadStage to discard stale stages automatically.</summary>
+        public bool TryReadQueuedStage(out MNNConversationNotification notification)
+        {
+            lock (_gate)
+            {
+                if (_stages.Count == 0) { notification = default; return false; }
+                notification = _stages.Dequeue(); return true;
+            }
+        }
         public bool TryReadStage(out MNNConversationNotification notification)
         {
-            for (int i = 0; i < _stageCapacity; ++i)
-            {
-                lock (_gate)
-                {
-                    if (_stages.Count == 0) break;
-                    notification = _stages.Dequeue();
-                }
+            for (int i = 0; i < _stageCapacity && TryReadQueuedStage(out notification); ++i)
                 if (Current(notification.Response)) return true;
-            }
             notification = default; return false;
         }
         public bool TryPublishUserText(string text) => PublishText(default, text);
