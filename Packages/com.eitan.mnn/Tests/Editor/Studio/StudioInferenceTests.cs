@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Text.RegularExpressions;
 using MNN.Unity.Editor;
 using NUnit.Framework;
 using UnityEngine.TestTools;
@@ -81,10 +82,31 @@ namespace MNN.Unity.Tests
                 });
                 TestContext.WriteLine("Studio SmolLM2: " + result.Text + "; tokens=" + result.Tokens + "; seconds=" + timer.Elapsed.TotalSeconds);
                 Assert.IsNotEmpty(result.Text);
-                StringAssert.Contains("4", result.Text);
+                Assert.IsTrue(IsFourArithmeticAnswer(result.Text), "Expected an arithmetic answer of 4 or four; actual: " + result.Text);
                 Assert.That(result.Tokens, Is.InRange(1, 16));
             }
         }
+
+        [TestCase("4", true)]
+        [TestCase("Four.", true)]
+        [TestCase("Two plus two equals four.", true)]
+        [TestCase("2 + 2 = 4", true)]
+        [TestCase("The answer is FOUR.", true)]
+        [TestCase("", false)]
+        [TestCase("5", false)]
+        [TestCase("14", false)]
+        [TestCase("fourteen", false)]
+        [TestCase("4.5", false)]
+        [TestCase("Two plus two equals five.", false)]
+        [TestCase("It is not four.", false)]
+        public void ArithmeticAnswerRequiresFourInDigitsOrWords(string answer, bool expected)
+        {
+            Assert.AreEqual(expected, IsFourArithmeticAnswer(answer));
+        }
+
+        private static bool IsFourArithmeticAnswer(string answer) => answer != null && Regex.IsMatch(answer,
+            @"^\s*(?:(?:two\s+plus\s+two|2\s*\+\s*2)\s*(?:equals?|is|=)\s*|the\s+answer\s+is\s+)?(?:4|four)\s*[.!]?\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         [Test, Explicit("Uses a locally prepared official Qwen2.5-0.5B MNN profile; no download.")]
         public void OfficialQwen25SmallAnswersThroughStudioChat()
