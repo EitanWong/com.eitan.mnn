@@ -136,9 +136,8 @@ namespace MNN.Unity.Editor
                             };
                         }
 
-                    int local = _models.Count(task.Accepts);
-                    int ready = _models.Count(task.CanRun);
-                    GUILayout.Label(!task.Runnable ? "Model setup" : ready > 0 && MNNPlatformSupport.IsSupported ? ready + " ready" : "Choose model", MNNStudioUI.Caption);
+                    int local = _taskCatalog?.Local(task.Task) ?? 0;
+                    GUILayout.Label(CatalogStatus(task), MNNStudioUI.Caption);
                     GUILayout.FlexibleSpace();
                     GUILayout.Label(local + " local", MNNStudioUI.Caption, GUILayout.Width(60));
                 }

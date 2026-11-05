@@ -13,10 +13,12 @@ namespace MNN.Unity.Editor
         {
             internal readonly List<MNNStudioModel> Models;
             internal readonly string Error;
-            internal Snapshot(List<MNNStudioModel> models, string error = null)
+            internal readonly MNNStudioTaskCatalog Catalog;
+            internal Snapshot(List<MNNStudioModel> models, string error = null, MNNStudioTaskCatalog catalog = null)
             {
                 Models = models;
                 Error = error;
+                Catalog = catalog;
             }
         }
 
@@ -106,7 +108,8 @@ namespace MNN.Unity.Editor
                 token.ThrowIfCancellationRequested();
                 model.PrepareForDisplay(task);
             }
-            return new Snapshot(models, errors.Count > 0 ? string.Join("\n", errors) : null);
+            var catalog = task == MNNStudioTask.Other ? MNNStudioTaskCatalog.Prepare(models, token) : null;
+            return new Snapshot(models, errors.Count > 0 ? string.Join("\n", errors) : null, catalog);
         }
     }
 }

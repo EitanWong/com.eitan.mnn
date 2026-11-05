@@ -14,6 +14,7 @@ namespace MNN.Unity.Editor
         private string _historyPath, _activeChatId;
         private Vector2 _sidebarScroll;
         private Rect _workspaceRect;
+        private Rect _catalogNavigationRect;
         private float WorkspaceWidth => position.width - (_sidebarOpen ? SidebarWidth : 0);
         private void DrawSidebar()
         {
@@ -44,7 +45,11 @@ namespace MNN.Unity.Editor
                 {
                     GUILayout.Space(10);
                     using (new EditorGUI.DisabledScope(Busy))
-                        if (MNNStudioUI.Navigation("Tasks & models", _taskIndex == (int)MNNStudioTask.Other, SidebarWidth - 20, "Browse tasks and prepare their models"))
+                        if (MNNStudioUI.Navigation("Tasks & models", _taskIndex == (int)MNNStudioTask.Other, SidebarWidth - 20, "Browse tasks and prepare their models", rect =>
+                        {
+                            if (Event.current.type == EventType.Repaint)
+                                _catalogNavigationRect = new Rect(GUIUtility.GUIToScreenPoint(rect.position) - position.position, rect.size);
+                        }))
                             SelectTask((int)MNNStudioTask.Other);
                 }
 
@@ -83,6 +88,8 @@ namespace MNN.Unity.Editor
             ResetWorkspaceForModelChange();
             _activeChatId = null;
             _taskIndex = task;
+            if (CurrentTask.Task == MNNStudioTask.Other && _taskCatalog?.IsComplete != true)
+                RefreshModels();
             FilterModels();
             _focusComposer = task == 0;
             _query = TaskExample;

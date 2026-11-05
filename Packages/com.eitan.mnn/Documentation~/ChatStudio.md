@@ -52,6 +52,12 @@ Embedding/Reranker 及专用 pipeline 按安装标记中的仓库 ID 或目录�
 重复刷新会取消旧请求，关闭窗口不等待磁盘扫描，旧请求也不会回写已关闭窗口。
 Unity 路径、偏好设置、控件和资源仍由主线程处理；这里的后台工作不加载推理模型。
 
+点击 `Tasks & models` 时先显示任务目录和已知本地数量，完整管线校验在后台使用独立模型快照。
+校验期间可运行状态显示 `Checking…`，完成后一次更新各任务的 `N ready` / `Choose model`；
+失败时保留已知模型并显示 `Check failed`。任务行绘制只读取缓存计数，不读取配置或校验权重。
+Piper 字典覆盖设置在结果发布时由 Editor 主线程读取；再次进入目录复用已完成的计数，
+显式刷新、下载完成或更改模型目录时重新检查，重复刷新替换旧请求和计数。
+
 长对话保留完整消息，但只为可见区域及少量预留区域创建消息控件；屏幕外使用已测量高度保留
 滚动范围，搜索仍可跳转到任意消息。首次打开对话、改变内容宽度、主题或显示缩放时重新测量；
 追加消息复用已有布局。侧栏只绘制可见会话行，每次布局统一分组历史记录，保留文件夹折叠与拖放。
@@ -72,6 +78,9 @@ XML 与日志位于 runner 的输出目录。这是 Editor UI 回归，不测量
 启动生命周期与失败恢复由 `StudioModelDiscoveryTests` 和 `StudioStartupTests` 覆盖。
 显式选择 `StudioStartupTests.OpeningWithInstalledModelsDoesNotBlockTheEditor` 可使用开发仓库
 已有的模型目录测量窗口打开、首帧、扫描完成和最慢启动更新；该用例不会下载模型。
+`StudioCatalogTests` 覆盖真实侧栏点击、后台可运行计数、失败恢复和 Piper 字典覆盖设置。
+显式选择 `StudioCatalogTests.ClickingCatalogWithInstalledModelsKeepsTheEditorResponsive`，
+可测量已有模型下的任务目录点击、后台检查完成和最慢发布更新；不下载模型、不执行推理。
 
 ## 按任务准备模型
 

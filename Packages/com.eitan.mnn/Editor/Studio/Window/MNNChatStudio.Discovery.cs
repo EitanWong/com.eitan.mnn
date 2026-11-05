@@ -10,6 +10,8 @@ namespace MNN.Unity.Editor
 
         private void RefreshModels()
         {
+            if (CurrentTask.Task == MNNStudioTask.Other)
+                InvalidateTaskCatalog();
             _modelDiscovery.Refresh(new[]
             {
                 Path.Combine(Application.streamingAssetsPath, "MNN", "Models"),
@@ -29,6 +31,8 @@ namespace MNN.Unity.Editor
             {
                 if (snapshot?.Error != null)
                     _error = snapshot.Error;
+                if (CurrentTask.Task == MNNStudioTask.Other)
+                    _catalogFailed = true;
                 Repaint();
                 return;
             }
@@ -36,6 +40,8 @@ namespace MNN.Unity.Editor
             // another known model while a refresh is running. Workers never edit UI state.
             string previous = Selected?.Directory ?? _history.Conversations.Find(item => item.Id == _activeChatId)?.ModelDirectory;
             _models = snapshot.Models;
+            _taskCatalog = snapshot.Catalog;
+            _taskCatalog?.CompleteEditorSettings(_models);
             if (snapshot.Error != null)
                 _error = snapshot.Error;
             FilterModels();
