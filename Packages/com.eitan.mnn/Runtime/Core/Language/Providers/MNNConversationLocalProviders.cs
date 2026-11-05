@@ -160,11 +160,6 @@ namespace MNN.Unity
                     ThreadCount = _settings.Threads,
                     BackendType = Backend
                 };
-                if (!_settings.UseDeviceLanguageDefaults)
-                {
-                    performance.PrecisionMode = MNNPrecisionMode.Low;
-                    performance.PowerMode = MNNPowerMode.High;
-                }
 #if UNITY_ANDROID && !UNITY_EDITOR
                 // The PJA110 real-chat comparison did not establish a Low/High
                 // speed advantage. Preserve the existing Android CPU profile.
@@ -174,6 +169,7 @@ namespace MNN.Unity
                     performance.PowerMode = MNNPowerMode.Normal;
                 }
 #endif
+                performance = performance.Resolve(Directory);
                 _performance = performance;
                 if (!string.IsNullOrEmpty(_buildIdentity))
                     _cache = MNNLlmCache.Acquire(_cacheRoot, Directory, _buildIdentity, _deviceIdentity, performance);

@@ -76,6 +76,29 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void ConversationProviderPreservesQualifiedCpuArithmeticPrecision()
+        {
+            string directory = Environment.GetEnvironmentVariable("MNN_TEST_MODEL_DIRECTORY") ?? Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "Qwen3.5-0.8B-MNN");
+            using (var provider = MNNConversationLocalProviders.Create(MNNConversationModelAdapter.Language, directory,
+                new MNNConversationLocalModelOptions {
+                    Backend = MNNBackendType.CPU, Threads = 4, MaximumReplyTokens = 16,
+                    DeterministicDecisions = true, CacheDirectory = Path.Combine(_cache, "conversation-precision")
+                }))
+            {
+                provider.PrepareAsync(default).GetAwaiter().GetResult();
+                var text = new System.Text.StringBuilder();
+                var history = new[]{new MNNOpenAIMessage(MNNChatRole.User, "What is 1 + 1? Answer with just the number.")};
+                ((IMNNConversationTextProvider)provider).GenerateAsync(history, null, 16000, delta =>
+                {
+                    text.Append(delta); return System.Threading.Tasks.Task.CompletedTask;
+                }, default).GetAwaiter().GetResult();
+                TestContext.WriteLine("Conversation CPU arithmetic output: " + text);
+                StringAssert.Contains("2", text.ToString());
+                StringAssert.Contains("Normal", ((IMNNConversationProviderDiagnostics)provider).RuntimeBackend);
+            }
+        }
+
+        [Test]
         public void Generate_ProcessesLongerChineseContext()
         {
             var prompt = new System.Text.StringBuilder();
