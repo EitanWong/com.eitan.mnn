@@ -1,0 +1,85 @@
+{
+  "extraInfo": {
+    "version": "3.6.1"
+  },
+  "oplists": [
+    {
+      "main_type": "Input",
+      "main": {
+        "dims": [
+          1,
+          4
+        ],
+        "dformat": "NCHW"
+      },
+      "name": "input",
+      "outputIndexes": [
+        0
+      ],
+      "type": "Input"
+    },
+    {
+      "main_type": "Input",
+      "main": {
+        "dims": [
+          1
+        ],
+        "dformat": "NCHW"
+      },
+      "name": "scale",
+      "outputIndexes": [
+        1
+      ],
+      "type": "Input"
+    },
+    {
+      "inputIndexes": [
+        0,
+        1
+      ],
+      "main_type": "BinaryOp",
+      "main": {
+        "opType": "MUL"
+      },
+      "name": "BinaryOp3",
+      "outputIndexes": [
+        2
+      ],
+      "type": "BinaryOp"
+    },
+    {
+      "main_type": "Input",
+      "main": {
+        "dims": [
+          1
+        ],
+        "dformat": "NCHW"
+      },
+      "name": "bias",
+      "outputIndexes": [
+        3
+      ],
+      "type": "Input"
+    },
+    {
+      "inputIndexes": [
+        2,
+        3
+      ],
+      "main_type": "BinaryOp",
+      "main": {},
+      "name": "output",
+      "outputIndexes": [
+        4
+      ],
+      "type": "BinaryOp"
+    }
+  ],
+  "tensorName": [
+    "input",
+    "scale",
+    "BinaryOp3",
+    "bias",
+    "output"
+  ]
+}

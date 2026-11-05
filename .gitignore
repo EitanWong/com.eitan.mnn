@@ -142,6 +142,8 @@ pytorch_model*.bin.meta
 !/Packages/com.eitan.mnn.meta
 !Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn
 !Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn.meta
+!Packages/com.eitan.mnn/Tests/Fixtures/affine-inputs.mnn
+!Packages/com.eitan.mnn/Tests/Fixtures/affine-inputs.mnn.meta
 
 # Interrupted downloads and local credentials
 *.part
