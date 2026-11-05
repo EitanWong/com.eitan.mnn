@@ -210,12 +210,10 @@ namespace MNN.Unity
             Interlocked.Add(ref _renderedOutputFrames, destination.Length / output.Format.Channels);
         }
 
-        /// <summary>Approximate Unity DSP buffering only; hardware and operating-system tail are not included.</summary>
+        /// <summary>Approximate Unity DSP buffering, available before pipeline binding. Hardware and operating-system tail are not included.</summary>
         public double GetUnityDspBufferMilliseconds()
         {
             EnsureMainThread();
-            if (_output == null)
-                throw new InvalidOperationException("Bind an output pipeline before reading its DSP budget.");
             AudioSettings.GetDSPBufferSize(out int framesPerBuffer, out int bufferCount);
             return (double)framesPerBuffer * bufferCount * 1000.0 / AudioSettings.outputSampleRate;
         }

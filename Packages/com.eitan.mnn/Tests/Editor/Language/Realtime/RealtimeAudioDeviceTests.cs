@@ -24,6 +24,33 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void UnityDspBudgetIsAvailableBeforeBindingOrStartingOutput()
+        {
+            AudioSettings.GetDSPBufferSize(out int frames, out int buffers);
+            double expected = frames * (double)buffers * 1000 / AudioSettings.outputSampleRate;
+            Assert.AreEqual(expected, _device.GetUnityDspBufferMilliseconds());
+            Assert.False(_device.IsOutputRunning);
+        }
+
+        [Test]
+        public void FreshUnityBindingCanReadStartupStateBeforeNegotiatingOutput()
+        {
+            var input = new GameObject("Fresh microphone endpoint");
+            try
+            {
+                var microphone = input.AddComponent<MNNUnityMicrophoneCapture>();
+                var binding = new MNNUnityAudioDeviceBinding(microphone, _device);
+                binding.ValidateFresh();
+                var state = binding.ReadState();
+                Assert.True(state.Active);
+                Assert.False(state.OutputRunning);
+                Assert.AreEqual(_device.GetUnityDspBufferMilliseconds(), state.PresentationTailMilliseconds);
+                Assert.AreEqual(0, _device.MaximumCaptureSamples, "Startup inspection must not bind or allocate capture queues.");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(input); }
+        }
+
+        [Test]
         public void CaptureGateRejectsBeforePublishingAndReopeningMarksGap()
         {
             _device.Bind(new MNNRealtimeOutputPipeline(new MNNPcmFormat(16000, 1), 160),
