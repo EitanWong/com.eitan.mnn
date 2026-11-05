@@ -16,6 +16,43 @@ namespace MNN.Unity.Tests
             Assert.Throws<ArgumentException>(() => new MNNConversationCommandBindings(input, new MNNConversationRecording(new MNNConversationInputState())));
         }
 
+        [UnityTest]
+        public IEnumerator NewRecordingDrainsPreviousCaptureBeforeAcceptingItsFirstSamples()
+        {
+            var input = new MNNConversationInputState();
+            var previous = new float[512]; Array.Fill(previous, .1f);
+            var current = new float[4096]; Array.Fill(current, .25f);
+            var release = new TaskCompletionSource<bool>();
+            bool capture = false;
+            float[] submitted = null;
+            var recording = new MNNConversationRecording(input)
+            {
+                PauseCaptureAsync = _ => { capture = false; return Task.CompletedTask; },
+                FlushInputAsync = () => release.Task
+            };
+            var commands = new MNNConversationCommands(new MNNConversationCommandBindings(input, recording)
+            {
+                SessionState = () => MNNRealtimeSessionState.Running,
+                SupportsRecordedVoice = () => true,
+                SetCaptureEnabled = enabled => capture = enabled,
+                SubmitAudioAsync = (audio, _) => { submitted = audio; return Task.CompletedTask; }
+            });
+            Task<bool> start = commands.BeginRecordingAsync();
+            bool waitingForOldCapture = !start.IsCompleted && !input.Recording && !capture;
+            // Already captured PCM can finish processing after the user's next hold.
+            input.Consume(previous);
+            release.TrySetResult(true);
+            while (!start.IsCompleted) yield return null;
+            Assert.True(start.GetAwaiter().GetResult());
+            Assert.True(capture);
+            input.Consume(current, discontinuity: true);
+            Task<string> finish = commands.FinishRecordingAsync(false);
+            while (!finish.IsCompleted) yield return null;
+            Assert.False(finish.IsFaulted, finish.Exception?.ToString());
+            Assert.True(waitingForOldCapture, "The old processing tail must drain before the new recording opens.");
+            CollectionAssert.AreEqual(current, submitted, "Only PCM captured for the new hold may be submitted.");
+        }
+
         [Test]
         public void CaptureCallbackFailureStillCompletesAllOwnedReservations()
         {
@@ -51,6 +88,54 @@ namespace MNN.Unity.Tests
         }
 
         [UnityTest]
+        public IEnumerator CancelDuringRecordingPreparationCannotReopenCapture()
+        {
+            var input = new MNNConversationInputState();
+            var release = new TaskCompletionSource<bool>();
+            bool capture = false;
+            var recording = new MNNConversationRecording(input) { FlushInputAsync = () => release.Task };
+            var commands = new MNNConversationCommands(new MNNConversationCommandBindings(input, recording)
+            {
+                SessionState = () => MNNRealtimeSessionState.Running,
+                SupportsRecordedVoice = () => true,
+                SetCaptureEnabled = enabled => capture = enabled
+            });
+            Task<bool> start = commands.BeginRecordingAsync();
+            commands.CancelRecording();
+            release.TrySetResult(true);
+            while (!start.IsCompleted) yield return null;
+            Assert.False(start.GetAwaiter().GetResult());
+            Assert.False(input.Recording);
+            Assert.False(capture);
+        }
+
+        [UnityTest]
+        public IEnumerator PreviousCaptureLossDoesNotInvalidateTheNextRecording()
+        {
+            var input = new MNNConversationInputState();
+            long losses = 1;
+            var recording = new MNNConversationRecording(input)
+            {
+                LostInputFrames = () => losses,
+                FlushInputAsync = () => { if (!input.Recording) ++losses; return Task.CompletedTask; }
+            };
+            var commands = new MNNConversationCommands(new MNNConversationCommandBindings(input, recording)
+            {
+                SessionState = () => MNNRealtimeSessionState.Running,
+                SupportsRecordedVoice = () => true,
+                SubmitAudioAsync = (audio, _) => Task.CompletedTask
+            });
+            Task<bool> start = commands.BeginRecordingAsync();
+            while (!start.IsCompleted) yield return null;
+            Assert.True(start.GetAwaiter().GetResult());
+            input.Consume(new float[4096], discontinuity: true);
+            Task<string> finish = commands.FinishRecordingAsync(false);
+            while (!finish.IsCompleted) yield return null;
+            Assert.False(finish.IsFaulted, finish.Exception?.ToString());
+            Assert.AreEqual(2, losses, "Only the old processing tail lost a frame.");
+        }
+
+        [UnityTest]
         public IEnumerator EntranceIsPublishedBeforeEffectsAndCancellationCannotEnableCapture()
         {
             var input = new MNNConversationInputState();
@@ -82,7 +167,7 @@ namespace MNN.Unity.Tests
             var input = new MNNConversationInputState();
             var pause = new TaskCompletionSource<bool>();
             var asr = new TaskCompletionSource<string>();
-            var recording = new MNNConversationRecording(input) { PauseCaptureAsync = token => pause.Task };
+            var recording = new MNNConversationRecording(input) { PauseCaptureAsync = token => input.Recording ? pause.Task : Task.CompletedTask };
             var bindings = new MNNConversationCommandBindings(input, recording)
             {
                 SessionState = () => MNNRealtimeSessionState.Running,
@@ -121,7 +206,7 @@ namespace MNN.Unity.Tests
         public IEnumerator DuplicateFinishCannotClearTheRecordingOwnedByItsFirstDrain()
         {
             var input = new MNNConversationInputState(); var pause = new TaskCompletionSource<bool>();
-            var recording = new MNNConversationRecording(input) { PauseCaptureAsync = _ => pause.Task };
+            var recording = new MNNConversationRecording(input) { PauseCaptureAsync = _ => input.Recording ? pause.Task : Task.CompletedTask };
             var commands = new MNNConversationCommands(new MNNConversationCommandBindings(input, recording)
             { SessionState = () => MNNRealtimeSessionState.Running, SupportsRecordedVoice = () => true, SubmitAudioAsync = (pcm, token) => Task.CompletedTask });
             Assert.True(commands.BeginRecordingAsync().GetAwaiter().GetResult()); input.Consume(new float[4096]);

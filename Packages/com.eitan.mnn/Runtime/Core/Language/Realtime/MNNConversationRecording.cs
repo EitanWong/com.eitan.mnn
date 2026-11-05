@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 
 namespace MNN.Unity
 {
-    /// <summary>Owns the manual-recording capture boundary. Physical tail drains before the gate closes;
-    /// the processing flush and lost-frame check complete before another recording may begin.</summary>
+    /// <summary>Owns manual-recording capture boundaries. Previous input drains before a recording opens;
+    /// its physical tail, processing flush and lost-frame check finish before it is submitted.</summary>
     public sealed class MNNConversationRecording
     {
         private readonly MNNConversationInputState _input;
@@ -27,15 +27,18 @@ namespace MNN.Unity
         {
             EnsureDrained(); _lossBaseline = LostInputFrames?.Invoke() ?? 0; _input.BeginRecording();
         }
-        public Task DrainAsync(CancellationToken token)
+        /// <summary>Drains previous-mode audio before Begin. Loss outside the new recording does not invalidate it.</summary>
+        public Task PrepareAsync(CancellationToken token) => DrainAsync(token, false);
+        public Task DrainAsync(CancellationToken token) => DrainAsync(token, true);
+        private Task DrainAsync(CancellationToken token, bool checkForLoss)
         {
             EnsureDrained();
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Volatile.Write(ref _drain, completion.Task);
-            _ = CompleteDrainAsync(completion, token);
+            _ = CompleteDrainAsync(completion, token, checkForLoss);
             return completion.Task;
         }
-        private async Task CompleteDrainAsync(TaskCompletionSource<bool> completion, CancellationToken token)
+        private async Task CompleteDrainAsync(TaskCompletionSource<bool> completion, CancellationToken token, bool checkForLoss)
         {
             try
             {
@@ -54,7 +57,7 @@ namespace MNN.Unity
                     await flush;
                 }
                 token.ThrowIfCancellationRequested();
-                if ((LostInputFrames?.Invoke() ?? 0) != _lossBaseline)
+                if (checkForLoss && (LostInputFrames?.Invoke() ?? 0) != _lossBaseline)
                     throw new InvalidOperationException("Recording contains missing microphone samples. Please record again.");
                 completion.TrySetResult(true);
             }

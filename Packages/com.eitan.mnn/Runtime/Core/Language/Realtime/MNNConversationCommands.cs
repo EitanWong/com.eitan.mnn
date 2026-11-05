@@ -163,15 +163,20 @@ namespace MNN.Unity
                 try { await _realtimePreparationTask; } catch (Exception) { }
                 if (!Current(command)) return false;
                 bool interruptWhileRecording = _ports.CanInterrupt();
+                Input.SetRealtime(false);
                 if (!interruptWhileRecording)
                 {
                     bool waitForSpeaker = _ports.SpeakerAudible();
-                    Input.SetRealtime(false); _ports.SetCaptureEnabled(false);
+                    _ports.SetCaptureEnabled(false);
                     _voiceInterruption = _ports.InterruptAsync(); await _voiceInterruption;
                     if (!Current(command)) return false;
                     if (waitForSpeaker) await Task.Delay(_ports.CaptureTailMilliseconds(), _ports.Lifetime());
                     if (!Current(command)) return false;
                 }
+                // Enqueue time cannot identify PCM still being processed from an earlier mode.
+                // Quiesce that producer and worker before accepting any samples for this hold.
+                await _ports.Recording.PrepareAsync(_ports.Lifetime());
+                if (!Current(command)) return false;
                 _ports.Recording.Begin(); _ports.SetCaptureEnabled(true);
                 long deadline = System.Diagnostics.Stopwatch.GetTimestamp() + System.Diagnostics.Stopwatch.Frequency * 2;
                 while (!_ports.CaptureReady())
