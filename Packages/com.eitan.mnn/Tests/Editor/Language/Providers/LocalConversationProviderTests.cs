@@ -7,6 +7,38 @@ namespace MNN.Unity.Tests
 {
     public sealed class LocalConversationProviderTests
     {
+        [Test]
+        public void OmniDoesNotAdvertiseAnUnavailableWaveformOrContinuousNativeSession()
+        {
+            var capabilities = MNNConversationLocalProviders.DescribeCapabilities(MNNConversationModelAdapter.Omni);
+            const MNNRealtimeFeature unavailable = MNNRealtimeFeature.BufferedSpeech | MNNRealtimeFeature.StreamingSpeech |
+                MNNRealtimeFeature.ContinuousUnderstanding | MNNRealtimeFeature.BoundedScheduling |
+                MNNRealtimeFeature.BoundedCancellation | MNNRealtimeFeature.SustainedRtfBelowOne;
+            Assert.AreEqual(MNNRealtimeFeature.None, capabilities.Features & unavailable);
+            Assert.AreNotEqual(MNNRealtimeFeature.None, capabilities.Features & MNNRealtimeFeature.MemoryAudioInput,
+                "Turn-based file-backed audio input remains available through the managed PCM adapter.");
+            var tts = MNNConversationLocalProviders.DescribeCapabilities(MNNConversationModelAdapter.Kokoro);
+            Assert.AreNotEqual(MNNRealtimeFeature.None, tts.Features & MNNRealtimeFeature.BufferedSpeech,
+                "Independent waveform synthesizers retain their implemented output capability.");
+        }
+
+        [Test]
+        public void OmniSpeechSelectionRequiresAnIndependentImplementedSynthesizer()
+        {
+            if (!MNNPlatformSupport.IsSupported) Assert.Ignore("Route requires an implemented local inference ABI.");
+            var model = MNNConversationLocalProviders.DescribeCapabilities(MNNConversationModelAdapter.Omni);
+            var device = new MNNRealtimeCapabilities(MNNRealtimeFeature.DuplexDevice | MNNRealtimeFeature.PresentationClock |
+                MNNRealtimeFeature.HalfDuplexDevice, "Test duplex device", "Managed route qualification only.", execution: MNNRealtimeExecution.Managed);
+            var vad = MNNConversationStageRegistration.Energy.Capabilities;
+            Assert.False(MNNRealtimeRouteSelector.SelectBest(model, device, vad: vad,
+                requireMeasuredSpeech: false, allowBufferedSpeech: true).CanStart,
+                "An Omni model name cannot substitute for an unavailable waveform callback ABI.");
+            var tts = MNNConversationLocalProviders.DescribeCapabilities(MNNConversationModelAdapter.Kokoro);
+            var selection = MNNRealtimeRouteSelector.SelectBest(model, device, tts, vad: vad,
+                requireMeasuredSpeech: false, allowBufferedSpeech: true);
+            Assert.AreEqual(MNNRealtimeRoute.AudioTextToSpeech, selection.RequireSelected().Route);
+        }
+
         [TestCase(MNNConversationModelAdapter.Language, typeof(IMNNConversationTextProvider))]
         [TestCase(MNNConversationModelAdapter.Omni, typeof(IMNNConversationSpeechModelProvider))]
         [TestCase(MNNConversationModelAdapter.Paraformer, typeof(IMNNConversationStreamingAsrProvider))]

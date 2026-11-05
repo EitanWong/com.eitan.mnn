@@ -96,7 +96,7 @@ namespace MNN.Unity
                 case MNNConversationModelAdapter.Language:
                 case MNNConversationModelAdapter.Omni:
                     features |= MNNRealtimeFeature.TextInput | MNNRealtimeFeature.StableSpokenText | MNNRealtimeFeature.ContextRecovery;
-                    if (kind == MNNConversationModelAdapter.Omni) features |= MNNRealtimeFeature.MemoryAudioInput | MNNRealtimeFeature.BufferedSpeech;
+                    if (kind == MNNConversationModelAdapter.Omni) features |= MNNRealtimeFeature.MemoryAudioInput;
                     break;
                 case MNNConversationModelAdapter.SpeechSynthesis:
                 case MNNConversationModelAdapter.Kokoro:

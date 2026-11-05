@@ -26,6 +26,8 @@ namespace MNN.Unity
                 throw new InvalidOperationException("The created provider capabilities do not match the preflight registration.");
             if (Install != null) await Install(token).ConfigureAwait(false);
             await provider.PrepareAsync(token).ConfigureAwait(false);
+            if (!Matches(provider.Capabilities, Capabilities))
+                throw new InvalidOperationException("The prepared provider capabilities no longer match the preflight registration.");
             Prepared?.Invoke();
         }
 

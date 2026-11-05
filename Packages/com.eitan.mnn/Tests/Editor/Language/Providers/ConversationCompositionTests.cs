@@ -27,6 +27,27 @@ namespace MNN.Unity.Tests
             public void Dispose() { ++Disposed; if (FailRelease) throw new InvalidOperationException("fixture release"); }
         }
         private static MNNRealtimeCapabilities Caps => new MNNRealtimeCapabilities(MNNRealtimeFeature.SpeechRecognition, "composition fixture", "Managed behavior only", execution: MNNRealtimeExecution.Managed);
+        private sealed class PreparingProvider : IMNNConversationProvider
+        {
+            internal MNNRealtimeCapabilities Actual = Caps;
+            public MNNRealtimeCapabilities Capabilities => Actual;
+            public Task PrepareAsync(CancellationToken token)
+            {
+                Actual = new MNNRealtimeCapabilities(MNNRealtimeFeature.None, "unavailable after load", null,
+                    "The loaded model cannot provide the registered task.", execution: MNNRealtimeExecution.Managed);
+                return Task.CompletedTask;
+            }
+            public void Dispose() { }
+        }
+        [Test]
+        public void PreparedCapabilitiesMustStillMatchBeforePublishingAUsableStage()
+        {
+            var provider = new PreparingProvider(); int prepared = 0;
+            var registration = new MNNConversationStageRegistration(Caps, () => provider) { Prepared = () => ++prepared };
+            Assert.Throws<InvalidOperationException>(() => registration.PrepareAsync(provider, CancellationToken.None).GetAwaiter().GetResult());
+            Assert.Zero(prepared, "A preflight claim that is lost during native loading cannot become an active route stage.");
+        }
+
         [Test]
         public void OptionalTranscriptionReusesPreparedProviderAndReleasesOnce()
         {
