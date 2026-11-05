@@ -9,6 +9,39 @@
 以下每一组结果只覆盖自己的平台、源码快照和测试范围，不能合并成全平台通过。
 完整原始证据和行动日志位于仓库 `TestArtifacts~/SiriAICompletion/`；
 验收索引为该目录的 `acceptance.md`，行动日志为 `actions.md`。
+后续内存、原生故障与 JobTemp 调查单独记录在 `Followup/report.md`、
+`Followup/summary.json` 和 `Followup/actions.md`，不覆盖先前失败证据。
+
+## 2026-11-06 后续修复
+
+- Kokoro 的已释放 owner 仍被 UI 或完成的 Task 引用时，原先保留模型字节和词典。
+  真实模型回归从残留 146862080 B 降至 -4096 B；负数表示 GC 采样波动。
+  此结果验证托管数据释放，不代表整个进程 RSS 已达标。
+- 多输入图固化改为只分配一个结果。16 MiB 三输入用例从分配 50334456 B
+  降至 16779952 B，原图保持不变；真实 Unity 图执行、重复输入拒绝和零输入复制
+  契约通过。单输入和多输入两项分配回归已加入独立 host Mono CI 步骤。
+- 本地对话适配器不再用桌面通用 Low 精度覆盖已验证的模型默认值。
+  Qwen3.5 CPU 公开 provider 的 `1+1` 从错误的 `1` 修复为 `2`，使用 Normal；
+  四项真实模型回归通过。原场景 Auto/Metal 的 `3+5=7` 仍可复现，未宣称解决。
+  仅将当前场景语言后端改为 CPU 的独立对照也失败，不能将该场景缺陷唯一归因于 Metal。
+- 最终源码通过 24 次真实 Kokoro 加载／合成／释放、三项真实图行为测试、
+  两项 host Mono 分配门禁、62 项 Python 工具测试、包结构和 actionlint 检查。
+  所有必需程序集编译通过，可选 Burst 未安装；没有新的全平台／全模型通过结论。
+
+后续调查仍开放：
+
+- Editor 原日志存在 JobTempAlloc 的一组三行警告。四次带分配诊断的场景回放，
+  包含当前工作区 Siri 场景和图形 Metal，均未复现该警告；各场景测试保留原有
+  算术语义失败。尚无分配栈证明根因，因此不能称 JobTempAlloc 已修复。
+- 原 Omni＋外部 Cosy 场景重现过 Kokoro `CPUInterp/CPUBilinearSampleC4` 的
+  SIGBUS。随后两次原路径通过，独立预加载对照也通过；偶发崩溃根因仍未证明。
+- Piper 探针显示大量 malloc 空闲容量仍驻留。独立 Module 候选虽减少原生分配器
+  保留容量，仍在短程原门槛验收中出现 145899520 B（约 139 MiB）RSS 增长，
+  超过 128 MiB，托管增长也高；候选没有合入。此前约 533 MiB 的长稳增长仍未关闭。
+- 官方波形回调使用的 `std::function` 没有已支持的托管编组契约，未验证原生连续
+  PCM 全双工接口。遵守 `AGENTS.md` 的无新增 C++／bridge／自定义导出限制，
+  未构造假 std::function、私有对象布局或虚表调用来伪造支持。
+- crapper、dryer、mutator 和 Unity coverage 仍不可用；没有相应指标达标结论。
 
 ## 已交付和未关闭边界
 
