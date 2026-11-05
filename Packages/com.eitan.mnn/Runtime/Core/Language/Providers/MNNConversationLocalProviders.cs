@@ -126,6 +126,10 @@ namespace MNN.Unity
                 supported ? "Turn-based inference; cancellation between native operations. No continuous-audio, progressive-waveform or realtime-throughput claim." : MNNPlatformSupport.UnsupportedReason);
         }
 
+        // Omni preparation qualifies audio input. Independent TTS owns reply waveform generation;
+        // an explicit model-speech request is checked separately by MNNLlm's waveform ABI/capability gate.
+        internal static MNNModelCapabilities OmniPreparationCapabilities => MNNModelCapabilities.AudioInput;
+
         private sealed class Language : Provider, IMNNConversationTextProvider, IMNNConversationSpeechModelProvider, IMNNConversationVoiceIntentProvider, IMNNConversationRequestPlanner
         {
             protected override string ReadBackend() => _model == null ? "Not loaded" :
@@ -175,7 +179,7 @@ namespace MNN.Unity
                     _cache = MNNLlmCache.Acquire(_cacheRoot, Directory, _buildIdentity, _deviceIdentity, performance);
                 _model = _settings.DeterministicDecisions ? MNNLlm.Load(Directory, performance, _settings.Thinking, cacheDirectory: _cache?.DirectoryPath ?? _settings.CacheDirectory) :
                     MNNLlm.LoadForConversation(Directory, performance, _settings.Temperature, _settings.Thinking, cacheDirectory: _cache?.DirectoryPath ?? _settings.CacheDirectory);
-                var required = MNNModelCapabilities.AudioInput | (_settings.SpeechOutput ? MNNModelCapabilities.SpeechOutput : 0);
+                var required = OmniPreparationCapabilities;
                 if (_omni && (_model.Capabilities & required) != required)
                     throw new InvalidOperationException("The selected Omni model does not support the configured audio input/output features.");
             }

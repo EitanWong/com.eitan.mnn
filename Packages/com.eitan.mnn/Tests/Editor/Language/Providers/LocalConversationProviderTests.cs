@@ -8,6 +8,19 @@ namespace MNN.Unity.Tests
     public sealed class LocalConversationProviderTests
     {
         [Test]
+        public void OmniPreparationAcceptsAudioInputWhenExternalTtsProvidesSpeech()
+        {
+            var settings = new MNNConversationOptions { speechOutput = true, endRealtimeOnExitIntent = false };
+            var stages = MNNConversationStagePlan.ForRoute(settings, MNNRealtimeRoute.AudioTextToSpeech, allowBufferedSpeech: true);
+            Assert.IsTrue(stages.Tts, "The selected route delegates waveform generation to its independent TTS provider.");
+            var available = MNNModelCapabilities.AudioInput;
+            var required = MNNConversationLocalProviders.OmniPreparationCapabilities;
+            Assert.AreEqual(required, available & required,
+                "Preparing an audio-to-text model must not require the independent synthesizer's native waveform capability.");
+            Assert.AreNotEqual(required, (MNNModelCapabilities)0 & required, "A model without audio input must still be rejected.");
+        }
+
+        [Test]
         public void OmniDoesNotAdvertiseAnUnavailableWaveformOrContinuousNativeSession()
         {
             var capabilities = MNNConversationLocalProviders.DescribeCapabilities(MNNConversationModelAdapter.Omni);
