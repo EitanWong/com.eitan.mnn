@@ -10,7 +10,8 @@ namespace MNN.Unity
     {
         internal static byte[] FreezeInputs(byte[] source, params MNNGenerationGraph.Input[] inputs)
         {
-            byte[] result = (byte[])source.Clone();
+            // FreezeInput writes a new result; do not clone the model-sized source first.
+            byte[] result = inputs.Length == 0 ? (byte[])source.Clone() : source;
             foreach (var input in inputs)
                 result = FreezeInput(result, input);
             return result;

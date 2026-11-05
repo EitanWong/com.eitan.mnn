@@ -121,6 +121,33 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void GraphSpecializationDoesNotDuplicateTheEntireSourceBeforeWritingItsResult()
+        {
+            long probeStart = GC.GetAllocatedBytesForCurrentThread();
+            var probe = new byte[4096]; GC.KeepAlive(probe);
+            if (GC.GetAllocatedBytesForCurrentThread() - probeStart < probe.Length)
+                Assert.Ignore("The runtime allocation counter is unavailable; run this case under host Mono.");
+            string path = Environment.GetEnvironmentVariable("MNN_TEST_AFFINE_GRAPH") ?? Path.Combine(
+                UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(AdditionalTtsUnitTests).Assembly).resolvedPath,
+                "Tests/Fixtures/affine.mnn");
+            var source = new byte[16 * 1024 * 1024];
+            byte[] fixture = File.ReadAllBytes(path);
+            Buffer.BlockCopy(fixture, 0, source, 0, fixture.Length);
+            var input = new MNNGenerationGraph.Input("input", new[] { 1f, 2f, 3f, 4f }, 1, 4);
+            MNNGraphConstant.FreezeInputs(fixture, input); // Warm metadata/JIT before measuring.
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            byte[] frozen = MNNGraphConstant.FreezeInputs(source, input);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            TestContext.WriteLine("Graph specialization allocated bytes: " + allocated);
+            Assert.AreNotSame(source, frozen);
+            Assert.Greater(frozen.Length, source.Length);
+            CollectionAssert.AreEqual(fixture, source.Take(fixture.Length));
+            Assert.Less(allocated, source.Length + 64L * 1024,
+                "One specialization needs one result buffer; model-sized intermediate clones waste the weight memory budget.");
+            GC.KeepAlive(frozen);
+        }
+
+        [Test]
         public void GraphConstantsPreserveSourceAndPublicFlatbufferSemantics()
         {
             string path = Path.Combine(UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(AdditionalTtsUnitTests).Assembly).resolvedPath, "Tests/Fixtures/affine.mnn");
