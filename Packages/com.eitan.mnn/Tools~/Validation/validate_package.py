@@ -103,7 +103,7 @@ def inspect(package):
         for model in models:
             require((audio / task / model).is_dir(),
                     "Audio model belongs in task folder: " + task + "/" + model)
-    audio_folders = set(AUDIO_TASK_MODELS) | {"Analysis", "Common", "KeywordSpotting", "Realtime", "SpeakerEmbedding"}
+    audio_folders = set(AUDIO_TASK_MODELS) | {"Acoustics", "Analysis", "Common", "KeywordSpotting", "Realtime", "SpeakerEmbedding"}
     for folder in audio.iterdir():
         if folder.is_dir():
             require(folder.name in audio_folders, "Unclassified audio task or model: " + folder.name)
