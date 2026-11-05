@@ -173,6 +173,29 @@ turns those conditions into a passing skip. It validates the shared device path,
 including DSP-budget reads before output binding; it does not establish speaker
 perception, ASR accuracy, acoustic AEC or native continuous-audio inference.
 
+`MNNStandaloneHardwareAcceptanceTests.cs` additionally exercises the imported
+Basic Inference sample's actual `MNNStandaloneConversationExample` component.
+Import the sample into the isolated project and add the
+`MNN.Unity.Samples.BasicExample` reference to the acceptance test assembly above.
+Copy this fixture into that assembly and configure three existing local directories
+using `MNN_STANDALONE_MODEL`, `MNN_STANDALONE_ASR` and `MNN_STANDALONE_TTS`.
+`MNN_STANDALONE_MICROPHONE` optionally selects an exact name advertised by
+`Microphone.devices`; the fixture rejects an unavailable selection.
+Run the same PlayMode command with filter
+`MNN.Unity.AudioAcceptance.MNNStandaloneHardwareAcceptanceTests`.
+
+This calls the component's public UI commands, records at least half a second of
+actual microphone frames, drains capture and completes local ASR without adding
+the draft to the visible conversation. It then generates local text/TTS, observes
+finite nonzero output in both the response's post-filter waveform and Unity's
+actual listener mix, waits for presentation and
+checks the history consumed by the built-in GUI. It closes and repeats with a
+fresh application owner. The GUI component stays enabled; pixel layout and button
+hit testing are not asserted. Uncontrolled microphone content is not an accuracy
+oracle, and estimated presentation receipts do not establish perceived sound or
+native duplex. Device startup, real inference and lifecycle failures remain
+failures, including on machines where the smaller device-only fixture passed.
+
 Completed standalone runs also support a latency distribution report:
 
 ```sh
