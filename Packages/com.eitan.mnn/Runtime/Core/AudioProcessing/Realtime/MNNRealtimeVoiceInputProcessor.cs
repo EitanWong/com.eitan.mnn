@@ -66,8 +66,6 @@ namespace MNN.Unity
                 ThrowIfFaulted();
                 if (_completed)
                     throw new InvalidOperationException("The stream is complete; call Reset before processing input.");
-                if (discontinuity)
-                    ResetCore();
                 if (inputFrames > MaximumInputBlockFrames)
                     throw new ArgumentOutOfRangeException(nameof(inputFrames), "Split oversized input into bounded blocks.");
                 if (onUpdate == null)
@@ -75,6 +73,8 @@ namespace MNN.Unity
                 ValidateInput(monoPcm, offset, inputFrames);
 
                 stateMayHaveAdvanced = true;
+                if (discontinuity)
+                    ResetCore();
                 _resampler.Process(monoPcm, offset, inputFrames, _resampled, 0, _resampled.Length,
                     out int consumed, out int produced);
                 if (consumed != inputFrames)
