@@ -36,7 +36,7 @@ namespace MNN.Unity
             for (int attempt = 0; ; ++attempt)
             {
                 await WaitForSlotAsync(origin, authority, cancellationToken).ConfigureAwait(false);
-                var response = await client.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 if ((int)response.StatusCode != 429)
                 {
                     if (response.IsSuccessStatusCode)

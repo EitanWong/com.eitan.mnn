@@ -30,8 +30,8 @@ namespace MNN.Unity
     public partial class MNNModelCatalog
     {
         // Union organization, format tag and name searches: neither tags nor names alone are complete.
-        private static readonly string[] ModelScopeSearches = {"owner=MNN", "filter.library=mnn", "search=mnn"};
-        private static readonly string[] HuggingFaceSearches = {"author=taobao-mnn", "filter=mnn", "search=mnn"};
+        private static readonly string[] ModelScopeSearches = { "owner=MNN", "filter.library=mnn", "search=mnn" };
+        private static readonly string[] HuggingFaceSearches = { "author=taobao-mnn", "filter=mnn", "search=mnn" };
         private const int ModelScopePageSize = 50;
         private readonly List<string> _discoveryWarnings = new List<string>();
         public IReadOnlyList<string> DiscoveryWarnings => _discoveryWarnings;
@@ -47,17 +47,27 @@ namespace MNN.Unity
                 var result = await FetchModelScopeSearchPageAsync(stream, page, query, httpClient,
                     modelScopeApiRoot, cancellationToken).ConfigureAwait(false);
                 bool nextStream = !searching && result.NextPage == 0 && stream + 1 < ModelScopeSearches.Length;
-                return new MNNModelCatalogPage { Models = result.Models, Warnings = result.Warnings,
-                    NextStream = nextStream ? stream + 1 : stream, NextPage = nextStream ? 1 : result.NextPage,
-                    HasMore = nextStream || result.NextPage > 0 };
+                return new MNNModelCatalogPage
+                {
+                    Models = result.Models,
+                    Warnings = result.Warnings,
+                    NextStream = nextStream ? stream + 1 : stream,
+                    NextPage = nextStream ? 1 : result.NextPage,
+                    HasMore = nextStream || result.NextPage > 0
+                };
             }
             if (source == MNNModelSource.HuggingFace)
             {
                 var result = await FetchHuggingFaceSearchPageAsync(stream, cursor, query, httpClient,
                     mirrorPool, cancellationToken).ConfigureAwait(false);
                 bool nextStream = !searching && result.NextCursor == null && stream + 1 < HuggingFaceSearches.Length;
-                return new MNNModelCatalogPage { Models = result.Models, NextStream = nextStream ? stream + 1 : stream,
-                    NextCursor = result.NextCursor, HasMore = nextStream || result.NextCursor != null };
+                return new MNNModelCatalogPage
+                {
+                    Models = result.Models,
+                    NextStream = nextStream ? stream + 1 : stream,
+                    NextCursor = result.NextCursor,
+                    HasMore = nextStream || result.NextCursor != null
+                };
             }
             throw new ArgumentOutOfRangeException(nameof(source));
         }
@@ -89,7 +99,7 @@ namespace MNN.Unity
                         using (var response = await MNNModelCatalogRequests.Shared.GetAsync(client, url, cancellationToken).ConfigureAwait(false))
                         {
                             response.EnsureSuccessStatusCode();
-                            var body = (await response.Content.ReadAsStringAsync().ConfigureAwait(false)).Trim();
+                            var body = (await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false)).Trim();
                             if (!body.StartsWith("[", StringComparison.Ordinal) || !body.EndsWith("]", StringComparison.Ordinal))
                                 throw new InvalidDataException("Hugging Face returned an invalid search result.");
                             var items = JsonUtility.FromJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
@@ -105,13 +115,25 @@ namespace MNN.Unity
                                 string revision = MNNBertEmbeddingModel.IsRepository(item.id) ? MNNBertEmbeddingModel.Revision(item.id) : string.IsNullOrWhiteSpace(item.sha) ? "main" : item.sha;
                                 var model = new MNNRemoteModel
                                 {
-                                    id = "hf:" + item.id, provider = MNNModelSource.HuggingFace, repositoryId = item.id,
-                                    revision = revision, name = name, displayName = name, author = item.author ?? item.id.Split('/')[0], version = revision,
-                                    category = Classify(item.id, name, tasks: item.pipeline_tag == null ? null : new[] {item.pipeline_tag}, tags: item.tags),
-                                    family = GetFamily(name), generation = GetGeneration(name), description = "Hugging Face " + (item.pipeline_tag ?? "MNN") + " repository",
-                                    tags = item.tags ?? Array.Empty<string>(), tasks = item.pipeline_tag == null ? Array.Empty<string>() : new[] {item.pipeline_tag},
-                                    parameterCount = InferParameterCount(name), parameterCountInferred = InferParameterCount(name) > 0,
-                                    downloadCount = item.downloads, isRepository = true, downloadUrl = mirror.FileRoot + "/" + item.id + "/resolve/" + revision
+                                    id = "hf:" + item.id,
+                                    provider = MNNModelSource.HuggingFace,
+                                    repositoryId = item.id,
+                                    revision = revision,
+                                    name = name,
+                                    displayName = name,
+                                    author = item.author ?? item.id.Split('/')[0],
+                                    version = revision,
+                                    category = Classify(item.id, name, tasks: item.pipeline_tag == null ? null : new[] { item.pipeline_tag }, tags: item.tags),
+                                    family = GetFamily(name),
+                                    generation = GetGeneration(name),
+                                    description = "Hugging Face " + (item.pipeline_tag ?? "MNN") + " repository",
+                                    tags = item.tags ?? Array.Empty<string>(),
+                                    tasks = item.pipeline_tag == null ? Array.Empty<string>() : new[] { item.pipeline_tag },
+                                    parameterCount = InferParameterCount(name),
+                                    parameterCountInferred = InferParameterCount(name) > 0,
+                                    downloadCount = item.downloads,
+                                    isRepository = true,
+                                    downloadUrl = mirror.FileRoot + "/" + item.id + "/resolve/" + revision
                                 };
                                 ApplyArtifactEvidence(model, paths);
                                 models.Add(model);
@@ -172,14 +194,27 @@ namespace MNN.Unity
                             string name = item.id.Substring(item.id.LastIndexOf('/') + 1);
                             var model = new MNNRemoteModel
                             {
-                                id = item.id, provider = MNNModelSource.ModelScope, repositoryId = item.id, modelScopeId = item.id,
-                                revision = "master", name = name, displayName = string.IsNullOrWhiteSpace(item.display_name) ? name : item.display_name,
-                                category = Categorize(item), family = GetFamily(name), generation = GetGeneration(name), description = item.description,
-                                author = item.id.Split('/')[0], version = item.last_modified ?? "master", fileSize = files.Sum(file => Math.Max(0, file?.Size ?? 0)),
+                                id = item.id,
+                                provider = MNNModelSource.ModelScope,
+                                repositoryId = item.id,
+                                modelScopeId = item.id,
+                                revision = "master",
+                                name = name,
+                                displayName = string.IsNullOrWhiteSpace(item.display_name) ? name : item.display_name,
+                                category = Categorize(item),
+                                family = GetFamily(name),
+                                generation = GetGeneration(name),
+                                description = item.description,
+                                author = item.id.Split('/')[0],
+                                version = item.last_modified ?? "master",
+                                fileSize = files.Sum(file => Math.Max(0, file?.Size ?? 0)),
                                 parameterCount = item.@params > 0 ? item.@params : InferParameterCount(name),
                                 parameterCountInferred = item.@params <= 0 && InferParameterCount(name) > 0,
-                                downloadCount = item.downloads, tags = item.tags ?? Array.Empty<string>(), tasks = item.tasks ?? Array.Empty<string>(),
-                                isRepository = true, downloadUrl = root + "/api/v1/models/" + item.id + "/repo/files?Revision=master&Recursive=true"
+                                downloadCount = item.downloads,
+                                tags = item.tags ?? Array.Empty<string>(),
+                                tasks = item.tasks ?? Array.Empty<string>(),
+                                isRepository = true,
+                                downloadUrl = root + "/api/v1/models/" + item.id + "/repo/files?Revision=master&Recursive=true"
                             };
                             ApplyArtifactEvidence(model, paths);
                             return model;
@@ -188,7 +223,8 @@ namespace MNN.Unity
                     })).ConfigureAwait(false);
                     return new MNNModelScopePage
                     {
-                        Models = found.Where(model => model != null).ToArray(), Warnings = warnings.ToArray(),
+                        Models = found.Where(model => model != null).ToArray(),
+                        Warnings = warnings.ToArray(),
                         NextPage = result.models.Length > 0 && (result.total_count > 0 ? (long)page * pageSize < result.total_count : result.models.Length == pageSize) ? page + 1 : 0
                     };
                 }
@@ -237,16 +273,27 @@ namespace MNN.Unity
                             string name = item.id.Substring(item.id.LastIndexOf('/') + 1);
                             var model = new MNNRemoteModel
                             {
-                                id = item.id, provider = MNNModelSource.ModelScope, repositoryId = item.id,
-                                modelScopeId = item.id, revision = "master", name = name,
+                                id = item.id,
+                                provider = MNNModelSource.ModelScope,
+                                repositoryId = item.id,
+                                modelScopeId = item.id,
+                                revision = "master",
+                                name = name,
                                 displayName = string.IsNullOrWhiteSpace(item.display_name) ? name : item.display_name,
-                                category = Categorize(item), family = GetFamily(name), generation = GetGeneration(name),
-                                description = item.description, author = item.id.Split('/')[0], version = item.last_modified ?? "master",
+                                category = Categorize(item),
+                                family = GetFamily(name),
+                                generation = GetGeneration(name),
+                                description = item.description,
+                                author = item.id.Split('/')[0],
+                                version = item.last_modified ?? "master",
                                 fileSize = files.Sum(file => Math.Max(0, file?.Size ?? 0)),
                                 parameterCount = item.@params > 0 ? item.@params : InferParameterCount(name),
                                 parameterCountInferred = item.@params <= 0 && InferParameterCount(name) > 0,
-                                downloadCount = item.downloads, tags = item.tags ?? Array.Empty<string>(), tasks = item.tasks ?? Array.Empty<string>(),
-                                isRepository = true, downloadUrl = root + "/api/v1/models/" + item.id + "/repo/files?Revision=master&Recursive=true"
+                                downloadCount = item.downloads,
+                                tags = item.tags ?? Array.Empty<string>(),
+                                tasks = item.tasks ?? Array.Empty<string>(),
+                                isRepository = true,
+                                downloadUrl = root + "/api/v1/models/" + item.id + "/repo/files?Revision=master&Recursive=true"
                             };
                             ApplyArtifactEvidence(model, paths);
                             return model;
@@ -327,7 +374,7 @@ namespace MNN.Unity
             using (var response = await MNNModelCatalogRequests.Shared.GetAsync(client, $"{root}/openapi/v1/models?{query}&page_size={pageSize}&sort={sort}&page_number={page}", cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                var result = JsonUtility.FromJson<ModelSearchResponse>(await response.Content.ReadAsStringAsync().ConfigureAwait(false));
+                var result = JsonUtility.FromJson<ModelSearchResponse>(await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false));
                 if (result == null || !result.success || result.data?.models == null)
                     throw new InvalidDataException("ModelScope returned an invalid search result.");
                 return result.data;
@@ -391,7 +438,7 @@ namespace MNN.Unity
                         using (var response = await MNNModelCatalogRequests.Shared.GetAsync(client, url, cancellationToken).ConfigureAwait(false))
                         {
                             response.EnsureSuccessStatusCode();
-                            var body = (await response.Content.ReadAsStringAsync().ConfigureAwait(false)).Trim();
+                            var body = (await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false)).Trim();
                             if (!body.StartsWith("[", StringComparison.Ordinal) || !body.EndsWith("]", StringComparison.Ordinal))
                                 throw new InvalidDataException("Hugging Face returned an invalid search result.");
                             var items = JsonUtility.FromJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
@@ -408,15 +455,24 @@ namespace MNN.Unity
                                 string revision = MNNBertEmbeddingModel.IsRepository(item.id) ? MNNBertEmbeddingModel.Revision(item.id) : string.IsNullOrWhiteSpace(item.sha) ? "main" : item.sha;
                                 var model = new MNNRemoteModel
                                 {
-                                    id = "hf:" + item.id, provider = MNNModelSource.HuggingFace, repositoryId = item.id,
-                                    revision = revision, name = name, displayName = name,
-                                    author = item.author ?? item.id.Split('/')[0], version = revision,
-                                    category = Classify(item.id, name, tasks: item.pipeline_tag == null ? null : new[] {item.pipeline_tag}, tags: item.tags),
-                                    family = GetFamily(name), generation = GetGeneration(name),
+                                    id = "hf:" + item.id,
+                                    provider = MNNModelSource.HuggingFace,
+                                    repositoryId = item.id,
+                                    revision = revision,
+                                    name = name,
+                                    displayName = name,
+                                    author = item.author ?? item.id.Split('/')[0],
+                                    version = revision,
+                                    category = Classify(item.id, name, tasks: item.pipeline_tag == null ? null : new[] { item.pipeline_tag }, tags: item.tags),
+                                    family = GetFamily(name),
+                                    generation = GetGeneration(name),
                                     description = "Hugging Face " + (item.pipeline_tag ?? "MNN") + " repository",
-                                    tags = item.tags ?? Array.Empty<string>(), tasks = item.pipeline_tag == null ? Array.Empty<string>() : new[] {item.pipeline_tag},
-                                    parameterCount = InferParameterCount(name), parameterCountInferred = InferParameterCount(name) > 0,
-                                    downloadCount = item.downloads, isRepository = true,
+                                    tags = item.tags ?? Array.Empty<string>(),
+                                    tasks = item.pipeline_tag == null ? Array.Empty<string>() : new[] { item.pipeline_tag },
+                                    parameterCount = InferParameterCount(name),
+                                    parameterCountInferred = InferParameterCount(name) > 0,
+                                    downloadCount = item.downloads,
+                                    isRepository = true,
                                     downloadUrl = mirror.FileRoot + "/" + item.id + "/resolve/" + revision
                                 };
                                 ApplyArtifactEvidence(model, paths);
@@ -474,18 +530,18 @@ namespace MNN.Unity
             Regex.IsMatch(id ?? "", @"(?<![A-Za-z])MNN") ||
             (tags ?? Array.Empty<string>()).Any(tag => string.Equals(tag, "mnn", StringComparison.OrdinalIgnoreCase) || string.Equals(tag, "library:mnn", StringComparison.OrdinalIgnoreCase));
 
-        private static bool IsArchive(string path) => path != null && new[] {".zip", ".tar.gz", ".tgz", ".7z"}.Any(extension => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+        private static bool IsArchive(string path) => path != null && new[] { ".zip", ".tar.gz", ".tgz", ".7z" }.Any(extension => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
         private static void ApplyArtifactEvidence(MNNRemoteModel model, string[] paths)
         {
             var files = new HashSet<string>(paths, StringComparer.Ordinal);
             bool hasGraph = paths.Any(path => path.EndsWith(".mnn", StringComparison.OrdinalIgnoreCase));
-            model.mnnFiles = paths.Where(path => HasMnnArtifacts(new[] {path}) || HasMnnLabel(model.repositoryId, model.tags) && IsArchive(path)).OrderBy(path => path, StringComparer.Ordinal).ToArray();
+            model.mnnFiles = paths.Where(path => HasMnnArtifacts(new[] { path }) || HasMnnLabel(model.repositoryId, model.tags) && IsArchive(path)).OrderBy(path => path, StringComparer.Ordinal).ToArray();
             model.category = Classify(model.repositoryId ?? model.id, model.name, model.description, model.tasks, model.tags, paths);
             // A graph is not evidence of a complete tokenizer, preprocessing or task decoder.
             model.runtimeAvailable = model.category != MNNModelCatalogCategory.SpeechRecognition.ToString() && model.category != MNNModelCatalogCategory.SpeechSynthesis.ToString() && files.Contains("llm_config.json") && (files.Contains("tokenizer.txt") || files.Contains("tokenizer.mtok")) && hasGraph ||
                 files.Contains("mnn_models/tts.json") && files.Contains("mnn_models/unicode_indexer.json") ||
-                new[] {"text_encoder.mnn", "unet.mnn", "vae_decoder.mnn"}.All(file => files.Contains(file) || files.Contains("general/" + file)) ||
+                new[] { "text_encoder.mnn", "unet.mnn", "vae_decoder.mnn" }.All(file => files.Contains(file) || files.Contains("general/" + file)) ||
                 files.Contains("llm/meta_queries.mnn") && files.Contains("transformer.mnn") && files.Contains("vae_decoder.mnn") ||
                 files.Contains("common/mnn_models/chinese_bert.mnn") || paths.Any(path => path.EndsWith("_fp16_public.mnn", StringComparison.Ordinal));
             model.supportSummary = model.mnnFiles.Length == 0 ? "Official auxiliary resource; no MNN graph or MNN archive found."

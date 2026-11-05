@@ -23,7 +23,7 @@ namespace MNN.Unity
         public MNNModelFileTransfer(HttpClient client, MNNModelTransferOptions options = null)
         {
             _httpClient = client ?? throw new ArgumentNullException(nameof(client));
-            _options = options ?? new MNNModelTransferOptions();
+            _options = (options ?? new MNNModelTransferOptions()).Snapshot();
             if (_options.MaxConnections < 1 || _options.MaxConnections > 16 || _options.RetryCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(options));
             _connections = new SemaphoreSlim(_options.MaxConnections);
@@ -62,11 +62,11 @@ namespace MNN.Unity
                 }
 
                 Directory.CreateDirectory(partsDirectory);
-                File.WriteAllText(checkpointPath, JsonUtility.ToJson(new Checkpoint{Identity = identity, Parts = count}));
+                File.WriteAllText(checkpointPath, JsonUtility.ToJson(new Checkpoint { Identity = identity, Parts = count }));
                 if (count > 1)
                 {
                     var progress = new long[count];
-                    var progressLock = new object ();
+                    var progressLock = new object();
                     using (var group = CancellationTokenSource.CreateLinkedTokenSource(token))
                     {
                         var tasks = Enumerable.Range(0, count).Select(async index =>
@@ -101,13 +101,13 @@ namespace MNN.Unity
                             count = 1;
                             Directory.Delete(partsDirectory, true);
                             Directory.CreateDirectory(partsDirectory);
-                            File.WriteAllText(checkpointPath, JsonUtility.ToJson(new Checkpoint{Identity = identity, Parts = 1}));
+                            File.WriteAllText(checkpointPath, JsonUtility.ToJson(new Checkpoint { Identity = identity, Parts = 1 }));
                         }
                     }
                 }
 
                 if (count == 1)
-                    await DownloadPartAsync(urlProvider, Path.Combine(partsDirectory, "0.part"), 0, file.Size > 0 ? file.Size - 1 : (long? )null, false, onProgress, token, sourceResult, retryLimit).ConfigureAwait(false);
+                    await DownloadPartAsync(urlProvider, Path.Combine(partsDirectory, "0.part"), 0, file.Size > 0 ? file.Size - 1 : (long?)null, false, onProgress, token, sourceResult, retryLimit).ConfigureAwait(false);
                 var temporary = Path.Combine(partsDirectory, "verified.tmp");
                 await Task.Run(async () =>
                 {
@@ -140,13 +140,13 @@ namespace MNN.Unity
 
         private async Task DownloadPartAsync(Func<string> urlProvider, string path, long start, long? end, bool requireRange, Action<long> onProgress, CancellationToken token, Action<bool> sourceResult = null, int retryLimit = -1)
         {
-            for (var attempt = 0;; attempt++)
+            for (var attempt = 0; ; attempt++)
             {
                 token.ThrowIfCancellationRequested();
                 await _connections.WaitAsync(token).ConfigureAwait(false);
                 try
                 {
-                    var length = end.HasValue ? end.Value - start + 1 : (long? )null;
+                    var length = end.HasValue ? end.Value - start + 1 : (long?)null;
                     var existing = File.Exists(path) ? new FileInfo(path).Length : 0;
                     if (length.HasValue && existing > length.Value)
                     {

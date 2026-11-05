@@ -45,13 +45,13 @@ namespace MNN.Unity
 
         public MNNModelDownloader(HttpClient httpClient = null, string apiRoot = null, MNNModelTransferOptions options = null, MNNHuggingFaceSourcePool mirrorPool = null)
         {
-            _options = options ?? new MNNModelTransferOptions {PreservePartialDownloads = true};
+            _options = (options ?? new MNNModelTransferOptions { PreservePartialDownloads = true }).Snapshot();
             if (_options.MaxConnections < 1 || _options.MaxConnections > 16)
                 throw new ArgumentOutOfRangeException(nameof(options), "MaxConnections must be between 1 and 16.");
             // Unity's MonoWebRequestHandler throws for MaxConnectionsPerServer on Android.
             // MNNModelFileTransfer bounds active requests with its own semaphore.
-            _httpClient = httpClient ?? new HttpClient(new HttpClientHandler{AllowAutoRedirect = true, AutomaticDecompression = DecompressionMethods.None})
-            {Timeout = TimeSpan.FromHours(2)};
+            _httpClient = httpClient ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = true, AutomaticDecompression = DecompressionMethods.None })
+            { Timeout = TimeSpan.FromHours(2) };
             if (_httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
                 _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("MNN-Unity-ModelManager/1.0");
             _ownsClient = httpClient == null;
@@ -77,7 +77,7 @@ namespace MNN.Unity
                 if (MNNDtlnAecModel.IsRepository(modelScopeId))
                     files = DtlnAecDownloadPlan(modelScopeId);
                 else if (MNNVerifiedTtsModel.IsRepository(modelScopeId))
-                    files = MNNVerifiedTtsModel.Files(modelScopeId).Select(file => new MNNModelRepositoryFile{Path = file.Path, Type = "blob", Size = file.Bytes, Sha256 = file.Hash, Revision = file.Revision}).ToArray();
+                    files = MNNVerifiedTtsModel.Files(modelScopeId).Select(file => new MNNModelRepositoryFile { Path = file.Path, Type = "blob", Size = file.Bytes, Sha256 = file.Hash, Revision = file.Revision }).ToArray();
                 else if (MNNQwen3AsrModel.IsModelScopeRepository(modelScopeId))
                     files = Qwen3AsrDownloadPlan(true);
                 else if (MNNParaformerModel.IsModelScopeRepository(modelScopeId))
@@ -85,7 +85,7 @@ namespace MNN.Unity
                 else if (MNNWhisperModel.IsModelScopeRepository(modelScopeId))
                 {
                     var profile = MNNWhisperModel.ForRepository(modelScopeId);
-                    files = profile.Paths.Select((path, i) => new MNNModelRepositoryFile{Path = path, Type = "blob", Size = profile.Sizes[i], Sha256 = profile.Hashes[i], Revision = profile.Revision}).ToArray();
+                    files = profile.Paths.Select((path, i) => new MNNModelRepositoryFile { Path = path, Type = "blob", Size = profile.Sizes[i], Sha256 = profile.Hashes[i], Revision = profile.Revision }).ToArray();
                 }
                 else if (_options.PreservePartialDownloads && File.Exists(manifestPath) && File.Exists(identityPath) && File.ReadAllText(identityPath) == identity)
                     files = JsonUtility.FromJson<FileListData>(File.ReadAllText(manifestPath)).Files;
@@ -109,13 +109,13 @@ namespace MNN.Unity
                 Directory.CreateDirectory(stagingDirectory);
                 if (_options.PreservePartialDownloads)
                 {
-                    File.WriteAllText(manifestPath, JsonUtility.ToJson(new FileListData{Files = blobs}));
+                    File.WriteAllText(manifestPath, JsonUtility.ToJson(new FileListData { Files = blobs }));
                     File.WriteAllText(identityPath, identity);
                 }
 
                 var total = blobs.Sum(file => Math.Max(0L, file.Size));
                 var received = new long[blobs.Length];
-                var progressLock = new object ();
+                var progressLock = new object();
                 var tasks = blobs.Select((file, index) => DownloadFileAsync(modelScopeId, file, destinations[index], bytes =>
                 {
                     lock (progressLock)
@@ -158,7 +158,7 @@ namespace MNN.Unity
             {
                 if (response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Gone)
                     throw new RepositoryUnavailableException(modelScopeId, response.StatusCode);
-                var body = response.Content == null ? string.Empty : await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var body = response.Content == null ? string.Empty : await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                     throw new HttpRequestException($"ModelScope file listing failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}. {body}");
                 var result = JsonUtility.FromJson<FileListResponse>(body);
@@ -176,7 +176,7 @@ namespace MNN.Unity
             return DownloadFileAsync(modelScopeId, file, destination, bytes => onProgress?.Invoke(bytes, Math.Max(0L, file.Size), file.Path), cancellationToken, () => $"{_apiRoot}/api/v1/models/{modelScopeId}/repo?Revision={Uri.EscapeDataString(string.IsNullOrWhiteSpace(file.Revision) ? "master" : file.Revision)}&FilePath={Uri.EscapeDataString(file.Path)}");
         }
 
-        private Task<long> DownloadFileAsync(string modelScopeId, MNNModelRepositoryFile file, string destination, Action<long> onProgress, CancellationToken token, Func<string> urlProvider, Action<bool> sourceResult = null, int retryLimit = -1) => _transfers.DownloadAsync(modelScopeId, new MNNModelTransferFile{Path = file.Path, Revision = file.Revision, Size = file.Size, Sha256 = file.Sha256}, destination, onProgress, token, urlProvider, sourceResult, retryLimit);
+        private Task<long> DownloadFileAsync(string modelScopeId, MNNModelRepositoryFile file, string destination, Action<long> onProgress, CancellationToken token, Func<string> urlProvider, Action<bool> sourceResult = null, int retryLimit = -1) => _transfers.DownloadAsync(modelScopeId, new MNNModelTransferFile { Path = file.Path, Revision = file.Revision, Size = file.Size, Sha256 = file.Sha256 }, destination, onProgress, token, urlProvider, sourceResult, retryLimit);
         private static string ValidateRepositoryPath(string path)
         {
             var normalized = (path ?? "").Replace('\\', '/');

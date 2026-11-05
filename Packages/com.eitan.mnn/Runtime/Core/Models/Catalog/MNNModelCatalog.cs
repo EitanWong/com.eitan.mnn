@@ -19,7 +19,7 @@ namespace MNN.Unity
         private const string ApiRoot = "https://www.modelscope.cn";
         internal List<MNNRemoteModel> models = new List<MNNRemoteModel>();
         public IReadOnlyList<MNNRemoteModel> Models => models;
-        public static readonly string[] FeaturedHuggingFaceRepositories = {MNNKwsModel.Repository, "VicenTrent/Cosy-Voice-MNN", MNNReferenceSpeechModel.IndexRepository, MNNReferenceSpeechModel.FireRedRepository};
+        public static readonly string[] FeaturedHuggingFaceRepositories = { MNNKwsModel.Repository, "VicenTrent/Cosy-Voice-MNN", MNNReferenceSpeechModel.IndexRepository, MNNReferenceSpeechModel.FireRedRepository };
         [Serializable]
         private class ModelSearchResponse
         {
@@ -60,8 +60,8 @@ namespace MNN.Unity
 
         // Keep handler options compatible with Unity's Android MonoWebRequestHandler;
         // repository discovery already limits concurrency with a semaphore.
-        private static HttpClient CreateDiscoveryClient() => new HttpClient(new HttpClientHandler{AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate})
-        {Timeout = TimeSpan.FromSeconds(45)};
+        private static HttpClient CreateDiscoveryClient() => new HttpClient(new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate })
+        { Timeout = TimeSpan.FromSeconds(45) };
         public async Task LoadModelScopeModelsAsync(HttpClient httpClient = null, string apiRoot = null, CancellationToken cancellationToken = default)
         {
             var client = httpClient ?? CreateDiscoveryClient();
@@ -84,7 +84,7 @@ namespace MNN.Unity
                 foreach (var item in items)
                 {
                     var repoName = item.id.Contains("/") ? item.id.Substring(item.id.LastIndexOf('/') + 1) : item.id;
-                    found.Add(new MNNRemoteModel{id = item.id, provider = MNNModelSource.ModelScope, repositoryId = item.id, revision = "master", modelScopeId = item.id, name = repoName, displayName = string.IsNullOrEmpty(item.display_name) ? repoName : item.display_name, category = Categorize(item), family = GetFamily(repoName), generation = GetGeneration(repoName), description = string.IsNullOrEmpty(item.description) ? item.license ?? "MNN model from ModelScope" : item.description, author = "MNN", version = string.IsNullOrEmpty(item.last_modified) ? "master" : item.last_modified, fileSize = item.file_size, parameterCount = item.@params > 0 ? item.@params : InferParameterCount(repoName), parameterCountInferred = item.@params <= 0 && InferParameterCount(repoName) > 0, downloadCount = item.downloads, tags = item.tags ?? Array.Empty<string>(), tasks = item.tasks ?? Array.Empty<string>(), isRepository = true, downloadUrl = root + "/api/v1/models/" + item.id + "/repo/files?Revision=master&Recursive=true"});
+                    found.Add(new MNNRemoteModel { id = item.id, provider = MNNModelSource.ModelScope, repositoryId = item.id, revision = "master", modelScopeId = item.id, name = repoName, displayName = string.IsNullOrEmpty(item.display_name) ? repoName : item.display_name, category = Categorize(item), family = GetFamily(repoName), generation = GetGeneration(repoName), description = string.IsNullOrEmpty(item.description) ? item.license ?? "MNN model from ModelScope" : item.description, author = "MNN", version = string.IsNullOrEmpty(item.last_modified) ? "master" : item.last_modified, fileSize = item.file_size, parameterCount = item.@params > 0 ? item.@params : InferParameterCount(repoName), parameterCountInferred = item.@params <= 0 && InferParameterCount(repoName) > 0, downloadCount = item.downloads, tags = item.tags ?? Array.Empty<string>(), tasks = item.tasks ?? Array.Empty<string>(), isRepository = true, downloadUrl = root + "/api/v1/models/" + item.id + "/repo/files?Revision=master&Recursive=true" });
                 }
 
                 // Publish only a complete catalog, so a failed refresh cannot replace it with a partial list.
@@ -106,7 +106,7 @@ namespace MNN.Unity
             }
 
             var shouldDiscoverMirrors = httpClient == null && mirrorPool == null;
-            var client = httpClient ?? new HttpClient{Timeout = TimeSpan.FromSeconds(45)};
+            var client = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
             var pool = mirrorPool ?? MNNHuggingFaceSourcePool.Shared;
             var found = new List<MNNRemoteModel>();
             try
@@ -152,7 +152,7 @@ namespace MNN.Unity
                         timeout.CancelAfter(TimeSpan.FromSeconds(12));
                         using (var response = await MNNModelCatalogRequests.Shared.GetAsync(httpClient, url, timeout.Token).ConfigureAwait(false))
                         {
-                            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            var body = await MNNModelMetadata.ReadTextAsync(response.Content, timeout.Token).ConfigureAwait(false);
                             if (!response.IsSuccessStatusCode)
                                 throw new HttpRequestException($"Hugging Face metadata failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
                             var item = JsonUtility.FromJson<HuggingFaceModel>(body);
@@ -163,7 +163,7 @@ namespace MNN.Unity
                             var revision = MNNBertEmbeddingModel.IsRepository(item.id) ? MNNBertEmbeddingModel.Revision(item.id) : MNNCosyVoiceModel.IsRepository(item.id) ? MNNCosyVoiceModel.Revision : MNNReferenceSpeechModel.IsRepository(item.id) ? MNNReferenceSpeechModel.Revision(item.id) : string.IsNullOrWhiteSpace(item.sha) ? "main" : item.sha;
                             var tags = item.tags ?? Array.Empty<string>();
                             var description = string.IsNullOrWhiteSpace(item.pipeline_tag) ? "Hugging Face model" : "Hugging Face " + item.pipeline_tag + " model";
-                            var model = new MNNRemoteModel{id = "hf:" + item.id, provider = MNNModelSource.HuggingFace, repositoryId = item.id, revision = revision, name = name, displayName = name, category = Classify(item.id, name, description, item.pipeline_tag == null ? null : new[]{item.pipeline_tag}, tags), family = GetFamily(name), generation = GetGeneration(name), description = description + (MNNCosyVoiceModel.IsRepository(item.id) ? ". CosyVoice3 default reference voice. Complete fp16 archive is automatically verified and extracted." : MNNReferenceSpeechModel.IsRepository(item.id) ? ". Chinese/English reference-audio synthesis. Includes pinned tokenizer dependencies; supply a 0.5–15 second WAV." : string.Empty), author = item.author ?? "Hugging Face", version = revision, fileSize = MNNReferenceSpeechModel.IsRepository(item.id) ? MNNReferenceSpeechModel.Files(MNNReferenceSpeechModel.IsIndex(item.id)).Sum(file => file.Bytes) : item.siblings == null ? 0 : item.siblings.Where(sibling => sibling != null && (!MNNCosyVoiceModel.IsRepository(item.id) || sibling.rfilename == MNNCosyVoiceModel.Archive || sibling.rfilename == "README.md" || sibling.rfilename == "release-manifest.json")).Sum(sibling => Math.Max(0L, sibling.lfs?.size ?? sibling.size)), downloadCount = item.downloads, tags = tags, tasks = item.pipeline_tag == null ? Array.Empty<string>() : new[]{item.pipeline_tag}, isRepository = true, runtimeAvailable = MNNCosyVoiceModel.IsRepository(item.id) || name.IndexOf("cosy", StringComparison.OrdinalIgnoreCase) < 0, downloadUrl = mirror.FileRoot + "/" + item.id + "/resolve/" + revision};
+                            var model = new MNNRemoteModel { id = "hf:" + item.id, provider = MNNModelSource.HuggingFace, repositoryId = item.id, revision = revision, name = name, displayName = name, category = Classify(item.id, name, description, item.pipeline_tag == null ? null : new[] { item.pipeline_tag }, tags), family = GetFamily(name), generation = GetGeneration(name), description = description + (MNNCosyVoiceModel.IsRepository(item.id) ? ". CosyVoice3 default reference voice. Complete fp16 archive is automatically verified and extracted." : MNNReferenceSpeechModel.IsRepository(item.id) ? ". Chinese/English reference-audio synthesis. Includes pinned tokenizer dependencies; supply a 0.5–15 second WAV." : string.Empty), author = item.author ?? "Hugging Face", version = revision, fileSize = MNNReferenceSpeechModel.IsRepository(item.id) ? MNNReferenceSpeechModel.Files(MNNReferenceSpeechModel.IsIndex(item.id)).Sum(file => file.Bytes) : item.siblings == null ? 0 : item.siblings.Where(sibling => sibling != null && (!MNNCosyVoiceModel.IsRepository(item.id) || sibling.rfilename == MNNCosyVoiceModel.Archive || sibling.rfilename == "README.md" || sibling.rfilename == "release-manifest.json")).Sum(sibling => Math.Max(0L, sibling.lfs?.size ?? sibling.size)), downloadCount = item.downloads, tags = tags, tasks = item.pipeline_tag == null ? Array.Empty<string>() : new[] { item.pipeline_tag }, isRepository = true, runtimeAvailable = MNNCosyVoiceModel.IsRepository(item.id) || name.IndexOf("cosy", StringComparison.OrdinalIgnoreCase) < 0, downloadUrl = mirror.FileRoot + "/" + item.id + "/resolve/" + revision };
                             if (item.siblings != null)
                                 ApplyArtifactEvidence(model, item.siblings.Where(file => file?.rfilename != null).Select(file => file.rfilename).ToArray());
                             if (MNNCosyVoiceModel.IsRepository(item.id) || MNNReferenceSpeechModel.IsRepository(item.id))
@@ -176,7 +176,7 @@ namespace MNN.Unity
                         }
                     }
                 }
-                catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
                 }
@@ -228,7 +228,7 @@ namespace MNN.Unity
             var normalizedFamily = NormalizeFamily(modelName);
             if (!string.IsNullOrEmpty(normalizedFamily))
                 return normalizedFamily;
-            var families = new[]{"DeepSeek", "ChatGLM", "MiniCPM", "InternLM", "StableLM", "GPT-OSS", "Qwen", "Llama", "Gemma", "Baichuan", "Mistral", "StarCoder", "CodeLlama", "Yi", "Phi", "BGE", "RWKV", "MobileNet", "ResNet", "YOLO", "DeepLab", "RetinaFace", "MoveNet", "ESRGAN", "LFM2", "Hunyuan", "InternVL", "FastVLM", "OpenELM", "SmolLM", "SmolVLM", "MobileLLM", "GLM", "ERNIE", "TinyLlama", "Reader-LM", "QwQ", "Lingshu", "MiMo", "MiniMind", "Nanbeige", "VibeThinker", "WebSailor", "Reader-LM", "Supertonic"};
+            var families = new[] { "DeepSeek", "ChatGLM", "MiniCPM", "InternLM", "StableLM", "GPT-OSS", "Qwen", "Llama", "Gemma", "Baichuan", "Mistral", "StarCoder", "CodeLlama", "Yi", "Phi", "BGE", "RWKV", "MobileNet", "ResNet", "YOLO", "DeepLab", "RetinaFace", "MoveNet", "ESRGAN", "LFM2", "Hunyuan", "InternVL", "FastVLM", "OpenELM", "SmolLM", "SmolVLM", "MobileLLM", "GLM", "ERNIE", "TinyLlama", "Reader-LM", "QwQ", "Lingshu", "MiMo", "MiniMind", "Nanbeige", "VibeThinker", "WebSailor", "Reader-LM", "Supertonic" };
             foreach (var family in families)
             {
                 if (modelName.StartsWith(family, StringComparison.OrdinalIgnoreCase))
