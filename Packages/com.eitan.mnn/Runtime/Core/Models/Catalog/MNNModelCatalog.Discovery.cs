@@ -532,7 +532,7 @@ namespace MNN.Unity
 
         private static bool IsArchive(string path) => path != null && new[] { ".zip", ".tar.gz", ".tgz", ".7z" }.Any(extension => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
-        private static void ApplyArtifactEvidence(MNNRemoteModel model, string[] paths)
+        internal static void ApplyArtifactEvidence(MNNRemoteModel model, string[] paths)
         {
             var files = new HashSet<string>(paths, StringComparer.Ordinal);
             bool hasGraph = paths.Any(path => path.EndsWith(".mnn", StringComparison.OrdinalIgnoreCase));

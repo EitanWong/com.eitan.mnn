@@ -50,12 +50,11 @@ namespace MNN.Unity.Tests
         public void CatalogUsesOnlyTheVerifiedProviderAndImmutablePlan(bool modelScope)
         {
             string repository = modelScope ? MNNQwen3AsrModel.ModelScopeRepository : MNNQwen3AsrModel.Repository;
-            foreach (var provider in new[] {MNNModelProvider.ModelScope, MNNModelProvider.HuggingFace})
+            foreach (var provider in new[] {MNNModelSource.ModelScope, MNNModelSource.HuggingFace})
             {
-                var model = new MNNModelInfo {repositoryId = repository, name = repository.Split('/').Last(), provider = provider};
-                typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
-                    .Invoke(null, new object[] {model, MNNQwen3AsrModel.Paths});
-                Assert.AreEqual(modelScope == (provider == MNNModelProvider.ModelScope), model.runtimeAvailable);
+                var model = new MNNRemoteModel {repositoryId = repository, name = repository.Split('/').Last(), provider = provider};
+                MNNModelCatalog.ApplyArtifactEvidence(model, MNNQwen3AsrModel.Paths);
+                Assert.AreEqual(modelScope == (provider == MNNModelSource.ModelScope), model.runtimeAvailable);
                 Assert.AreEqual("SpeechRecognition", model.category);
                 if (model.runtimeAvailable)
                     Assert.AreEqual(MNNQwen3AsrModel.Sizes.Sum() + (modelScope ? 1456 : 11357), model.fileSize);
