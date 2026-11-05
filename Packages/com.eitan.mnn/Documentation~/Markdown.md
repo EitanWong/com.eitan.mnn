@@ -112,10 +112,30 @@ stay on Unity's main thread and require `com.unity.modules.imageconversion`, alr
 by this package. WebGL without UnityWebRequest retains the alt placeholder because the
 managed socket fallback cannot provide browser networking.
 
-Both transports have a 20-second timeout, cancellation and a 16 MiB encoded-image limit.
-Player and Editor caches are capped at 32 URLs, Editor requests for one URL are coalesced,
-and decoded textures above 16M pixels are rejected. Failed or canceled requests preserve
-the alt placeholder; stale Editor subscriptions are removed before texture decoding.
+Both transports have a 20-second timeout and cancellation. Completed encoded images above
+16 MiB are rejected; UnityWebRequest also aborts oversized downloads when polled, which does
+not strictly bound peak receive-buffer size. Decoded textures above 16M pixels are rejected
+after decoding, so this check does not bound decode-time allocation. Failed or canceled
+requests preserve the alt placeholder; stale Editor subscriptions are removed before decoding.
+
+`MNNMarkdownImageCache` owns decoded runtime textures on Unity's main thread. SiriAI's Player
+and Editor adapters share one instance, with a default LRU limit of 32 cached URLs and 64 MiB
+of estimated native texture bytes. `TryStore(key, texture, out lease)` transfers texture ownership
+after argument validation, including on rejection: the cache destroys oversized or redundant
+downloads. `TryAcquire(key, out lease)` retains another displayed binding. A binding releases
+its lease when hidden, rebound or destroyed; borrowed external textures retain their caller's
+ownership. Cached eviction, `Clear`, and idempotent `Dispose` release cache ownership; an image
+still displayed by a lease survives until that last lease is disposed. Dispose on the creating
+thread, and never manually destroy a texture transferred to the cache.
+
+The estimate uses Unity's reported native allocation with an RGBA mip-size floor. It is
+platform-dependent accounting, not an exact GPU-memory measurement. Active leases can retain
+evicted images beyond the cache budget; `ResidentEstimatedBytes` and `ActiveLeaseCount` expose
+that retention separately from `CachedEstimatedBytes` and `CachedCount`. Applications control
+the number of visible image slots. Counters track ownership; Player texture destruction follows
+Unity's deferred end-of-frame semantics. SiriAI clears cached ownership on scene unload and disposes
+the shared cache on application quit or Editor domain reload; hidden slots restart their binding
+when shown again. No encoded-image transport or image decoder was moved into this cache API.
 Transcript paging bounds live UI objects. `MNNMarkdownRenderer.RenderSlices` parses a complete
 message before splitting rendered text into balanced slices of at most 1024 text units (and
 32 lines), excluding generated tags. This preserves code/emphasis/link context and surrogate
@@ -124,7 +144,11 @@ SiriAI caches the current render result per message, font size and theme (at mos
 replacing the previous streaming snapshot rather than retaining its full history in the cache.
 
 Regression tests live in `Tests/Editor/Language/Markdown` and the SiriAI presentation tests.
-They include per-language streaming-prefix checks, seeded malformed-input sweeps, deep
+Image ownership checks also live in `Tests/Runtime/Language/Markdown`: PlayMode verifies that
+eviction preserves displayed leases and final release uses Unity's deferred destruction.
+SiriAI's Runtime presentation test hides an in-flight loopback image request and shows the
+same URL again, exercising the actual Player coroutine and native texture release.
+Markdown parsing checks include per-language streaming-prefix checks, seeded malformed-input sweeps, deep
 nested comments, quote/hash/bracket/scalar-marker stress cases, concurrent themes, image-marker
 positions, slice boundaries and 120 adapted CommonMark emphasis examples. Runtime-facing
 TextGenerator checks exercise colors and glyph widths in both themes for multiple languages;

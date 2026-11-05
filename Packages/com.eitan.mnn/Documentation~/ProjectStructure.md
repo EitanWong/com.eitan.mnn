@@ -60,6 +60,7 @@ Packages/com.eitan.mnn/
 │   │   ├── Inference/            实际推理测试
 │   │   ├── Platform/             平台/后端支持与拒绝策略
 │   │   ├── Models/               Runtime 模型目录与下载 API 的确定性 HTTP 替身测试
+│   │   ├── Language/Markdown/    图片lease与Player延迟销毁生命周期
 │   │   └── Fixtures/             可在 Player 使用的内嵌测试数据
 │   └── Fixtures/                 提交到版本库的小型确定性测试资源
 ├── Tools~/
@@ -84,6 +85,15 @@ Packages/com.eitan.mnn/
 `KeywordSpotting`、`Analysis`、`Realtime` 和跨任务 `Common` 保持独立。
 模型目录保留各自原有 Unity GUID，跨任务共用代码不复制到模型目录。
 新增模型时将它放入对应任务目录，并更新包结构校验规则。
+
+`EchoCancellation/Common` 保存与模型无关的延迟估计、参考PCM时间线和自适应FIR；
+`AudioProcessing/Realtime` 保存增强/VAD/ASR输入路由、设备延迟校准及播报fade；
+`AudioProcessing/Common` 保存源贡献和说话人选择，`Analysis` 保存渲染波形/特征快照。
+这些是可独立使用的托管API，不依赖SiriAI、EasyMic或具体场景。
+共享图片资源缓存位于 `Language/Markdown`，UI组件只持有显示lease，Editor和Player不复制LRU。
+行为测试随实现放在 `Tests/Editor/AudioProcessing`、`Tests/Editor/Language/Markdown`；
+纯托管算法测试与实际权重/设备测试保持明确的验证范围；图片Player生命周期在
+`Tests/Runtime/Language/Markdown` 验证帧末销毁，不以Editor的立即销毁测试代替。
 
 模型的运行器、配置、模型资产描述、分词/特征提取和图适配代码放在同一个模型目录中。
 例如 `SpeechRecognition/Whisper` 包含 `MNNWhisperRecognizer`、`MNNWhisperConfig`、

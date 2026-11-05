@@ -1,0 +1,1849 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Editor/Presentation/SiriAIMarkdownImageEditorLoader.cs b/Assets/Samples/SiriAI/Scripts/Editor/Presentation/SiriAIMarkdownImageEditorLoader.cs
+--- a/Assets/Samples/SiriAI/Scripts/Editor/Presentation/SiriAIMarkdownImageEditorLoader.cs
++++ b/Assets/Samples/SiriAI/Scripts/Editor/Presentation/SiriAIMarkdownImageEditorLoader.cs
+@@ -5,7 +5,7 @@
+ 
+ namespace MNN.Samples.SiriAI.Editor
+ {
+-    /// <summary>Editor-only texture polling so Game View previews can display safe Markdown image URLs.</summary>
++    /// <summary>Editor-only polling; decoded images use the same package cache and leases as Player.</summary>
+     [InitializeOnLoad]
+     internal static class SiriAIMarkdownImageEditorLoader
+     {
+@@ -13,15 +13,8 @@
+         {
+             internal string Url;
+             internal SiriAIMarkdownImageRequest Request;
+-            internal readonly List<SiriAIMarkdownImageLoader> Loaders =
+-                new List<SiriAIMarkdownImageLoader>();
++            internal readonly List<SiriAIMarkdownImageLoader> Loaders = new List<SiriAIMarkdownImageLoader>();
+         }
+-
+-        private const int MaxCachedImages = 32;
+-        private static readonly Dictionary<string, Texture2D> Cache = new Dictionary<string, Texture2D>();
+-        private static readonly LinkedList<string> CacheOrder = new LinkedList<string>();
+-        private static readonly Dictionary<string, LinkedListNode<string>> CacheNodes =
+-            new Dictionary<string, LinkedListNode<string>>();
+         private static readonly List<Pending> PendingRequests = new List<Pending>();
+ 
+         static SiriAIMarkdownImageEditorLoader()
+@@ -29,6 +22,7 @@
+             SiriAIMarkdownImageLoader.EditorLoadRequested += Request;
+             EditorApplication.update += Update;
+             AssemblyReloadEvents.beforeAssemblyReload += Dispose;
++            EditorApplication.quitting += Dispose;
+         }
+ 
+         private static void Request(SiriAIMarkdownImageLoader loader, string url)
+@@ -44,13 +38,11 @@
+                     PendingRequests.RemoveAt(i);
+                 }
+             }
+-
+-            if (TryGetCached(url, out Texture2D cached))
++            if (SiriAIMarkdownImageLoader.SharedCache.TryAcquire(url, out var cached))
+             {
+-                loader.ApplyExternalTexture(cached, url);
++                loader.ApplyCachedTexture(cached, url);
+                 return;
+             }
+-
+             for (int i = 0; i < PendingRequests.Count; ++i)
+             {
+                 Pending pending = PendingRequests[i];
+@@ -58,9 +50,7 @@
+                 if (!pending.Loaders.Contains(loader)) pending.Loaders.Add(loader);
+                 return;
+             }
+-
+-            var request = new SiriAIMarkdownImageRequest(url);
+-            var created = new Pending { Url = url, Request = request };
++            var created = new Pending { Url = url, Request = new SiriAIMarkdownImageRequest(url) };
+             created.Loaders.Add(loader);
+             PendingRequests.Add(created);
+         }
+@@ -81,70 +71,31 @@
+                 }
+                 if (!pending.Request.IsDone) continue;
+                 PendingRequests.RemoveAt(i);
+-                try
+-                {
+-                    if (pending.Request.TryGetTexture(out Texture2D texture))
+-                    {
+-                        StoreCached(pending.Url, texture);
+-                        for (int j = 0; j < pending.Loaders.Count; ++j)
+-                            pending.Loaders[j]?.ApplyExternalTexture(texture, pending.Url);
+-                    }
+-                }
++                try { Complete(pending); }
+                 finally { pending.Request.Dispose(); }
+             }
+         }
+ 
++        private static void Complete(Pending pending)
++        {
++            if (!pending.Request.TryGetTexture(out Texture2D texture)) return;
++            var cache = SiriAIMarkdownImageLoader.SharedCache;
++            if (!cache.TryStore(pending.Url, texture, out var retained)) return;
++            using (retained)
++                foreach (var loader in pending.Loaders)
++                    if (loader != null && cache.TryAcquire(pending.Url, out var lease))
++                        loader.ApplyCachedTexture(lease, pending.Url);
++        }
++
+         private static void Dispose()
+         {
+-            for (int i = 0; i < PendingRequests.Count; ++i)
+-            {
+-                PendingRequests[i].Request.Dispose();
+-            }
++            foreach (var pending in PendingRequests) pending.Request.Dispose();
+             PendingRequests.Clear();
++            SiriAIMarkdownImageLoader.ReleaseSharedCache();
+             EditorApplication.update -= Update;
+             AssemblyReloadEvents.beforeAssemblyReload -= Dispose;
++            EditorApplication.quitting -= Dispose;
+             SiriAIMarkdownImageLoader.EditorLoadRequested -= Request;
+-        }
+-
+-        private static bool TryGetCached(string url, out Texture2D texture)
+-        {
+-            if (Cache.TryGetValue(url, out texture) && texture != null)
+-            {
+-                if (CacheNodes.TryGetValue(url, out LinkedListNode<string> node))
+-                {
+-                    CacheOrder.Remove(node);
+-                    CacheOrder.AddLast(node);
+-                }
+-                return true;
+-            }
+-
+-            Cache.Remove(url);
+-            if (CacheNodes.TryGetValue(url, out LinkedListNode<string> stale))
+-            {
+-                CacheNodes.Remove(url);
+-                CacheOrder.Remove(stale);
+-            }
+-            texture = null;
+-            return false;
+-        }
+-
+-        private static void StoreCached(string url, Texture2D texture)
+-        {
+-            Cache[url] = texture;
+-            if (CacheNodes.TryGetValue(url, out LinkedListNode<string> existing))
+-            {
+-                CacheOrder.Remove(existing);
+-                CacheOrder.AddLast(existing);
+-            }
+-            else CacheNodes[url] = CacheOrder.AddLast(url);
+-
+-            while (CacheOrder.Count > MaxCachedImages)
+-            {
+-                LinkedListNode<string> oldest = CacheOrder.First;
+-                CacheOrder.RemoveFirst();
+-                CacheNodes.Remove(oldest.Value);
+-                Cache.Remove(oldest.Value);
+-            }
+         }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/AssemblyInfo.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/AssemblyInfo.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/AssemblyInfo.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/AssemblyInfo.cs
+@@ -2,3 +2,4 @@
+ 
+ [assembly: InternalsVisibleTo("MNN.Samples.SiriAI.Tests")]
+ [assembly: InternalsVisibleTo("MNN.Samples.SiriAI.Editor")]
++[assembly: InternalsVisibleTo("MNN.Samples.SiriAI.Presentation.Runtime.Tests")]
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIMarkdownImageLoader.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIMarkdownImageLoader.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIMarkdownImageLoader.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIMarkdownImageLoader.cs
+@@ -1,26 +1,47 @@
+ using System;
+ using System.Collections;
+-using System.Collections.Generic;
+ using MNN.Unity;
+ using UnityEngine;
++using UnityEngine.SceneManagement;
+ using UnityEngine.UI;
+ 
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Loads safe Markdown images with the shared transport in Player and Editor previews.</summary>
++    /// <summary>Loads Markdown images; each displayed binding leases the shared package cache.</summary>
++    [ExecuteAlways]
+     [DisallowMultipleComponent]
+     internal sealed class SiriAIMarkdownImageLoader : MonoBehaviour
+     {
+ #if UNITY_EDITOR
+         internal static event Action<SiriAIMarkdownImageLoader, string> EditorLoadRequested;
+ #endif
+-        private const int MaxCachedImages = 32;
+-        private static readonly Dictionary<string, Texture2D> Cache = new Dictionary<string, Texture2D>();
+-        private static readonly LinkedList<string> CacheOrder = new LinkedList<string>();
+-        private static readonly Dictionary<string, LinkedListNode<string>> CacheNodes =
+-            new Dictionary<string, LinkedListNode<string>>();
++        private static MNNMarkdownImageCache _sharedCache;
++        internal static MNNMarkdownImageCache SharedCache
++        {
++            get
++            {
++                if (_sharedCache != null) return _sharedCache;
++                _sharedCache = new MNNMarkdownImageCache();
++                Application.quitting += ReleaseSharedCache;
++                SceneManager.sceneUnloaded += ClearSceneCache;
++                return _sharedCache;
++            }
++        }
++        internal static void ReleaseSharedCache()
++        {
++            _sharedCache?.Dispose();
++            _sharedCache = null;
++            Application.quitting -= ReleaseSharedCache;
++            SceneManager.sceneUnloaded -= ClearSceneCache;
++        }
++        private static void ClearSceneCache(Scene scene) => _sharedCache?.Clear();
++        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
++        private static void ResetSharedCache() => ReleaseSharedCache();
++
+         private SiriAIMarkdownImageRequest _request;
+         private Coroutine _loading;
++        private MNNMarkdownImageCache.Lease _lease;
++        private Texture2D _borrowedTexture;
+         private RawImage _target;
+         private string _url;
+         private int _generation;
+@@ -30,39 +51,56 @@
+             if (_target == target && string.Equals(_url, url, StringComparison.Ordinal)) return;
+             ++_generation;
+             CancelRequest();
++            ReleaseBinding();
++            _borrowedTexture = null;
+             _target = target;
+             _url = url;
+             if (_target == null) return;
+-            // One owner for loading presentation: an unchanged binding preserves the decoded image.
+-            _target.texture = null;
+-            _target.color = new Color(1f, 1f, 1f, .12f);
+-            var aspect = _target.GetComponent<AspectRatioFitter>();
+-            if (aspect != null) aspect.aspectRatio = 1f;
+-            if (!MNNMarkdownRenderer.IsSafeImageUrl(url)) return;
+-            if (TryGetCached(url, out Texture2D cached))
++            ResetTarget();
++            if (isActiveAndEnabled) BeginLoading();
++        }
++
++        private void BeginLoading()
++        {
++            if (_target == null) return;
++            if (_borrowedTexture != null) { Apply(_borrowedTexture); return; }
++            if (!MNNMarkdownRenderer.IsSafeImageUrl(_url)) return;
++            if (SharedCache.TryAcquire(_url, out var lease))
+             {
+-                Apply(cached);
++                ApplyCachedTexture(lease, _url);
+                 return;
+             }
+-
+-            // Editor uses its update loop; Player uses a coroutine with the same transport.
+             if (!Application.isPlaying)
+             {
+ #if UNITY_EDITOR
+-                EditorLoadRequested?.Invoke(this, url);
++                EditorLoadRequested?.Invoke(this, _url);
+ #endif
+                 return;
+             }
+-            _loading = StartCoroutine(LoadAsync(url, _generation));
++            _loading = StartCoroutine(LoadAsync(_url, _generation));
+         }
+ 
+-        internal bool IsConfiguredFor(string url) => _target != null &&
+-            string.Equals(_url, url, StringComparison.Ordinal);
++        internal bool IsConfiguredFor(string url) => isActiveAndEnabled && _target != null &&
++            _borrowedTexture == null && string.Equals(_url, url, StringComparison.Ordinal);
+ 
++        internal void ApplyCachedTexture(MNNMarkdownImageCache.Lease lease, string url)
++        {
++            if (lease == null) return;
++            if (!IsConfiguredFor(url)) { lease.Dispose(); return; }
++            ReleaseBinding();
++            _lease = lease;
++            Apply(lease.Texture);
++        }
++
++        /// <summary>External textures are borrowed. The caller keeps ownership and must release them.</summary>
+         internal void ApplyExternalTexture(Texture2D texture, string url)
+         {
+             if (texture == null || !string.Equals(_url, url, StringComparison.Ordinal)) return;
+-            Apply(texture);
++            ++_generation;
++            CancelRequest();
++            ReleaseBinding();
++            _borrowedTexture = texture;
++            if (isActiveAndEnabled) Apply(texture);
+         }
+ 
+         private IEnumerator LoadAsync(string url, int generation)
+@@ -70,59 +108,32 @@
+             using (var request = new SiriAIMarkdownImageRequest(url))
+             {
+                 _request = request;
+-                while (!request.IsDone) yield return null;
+-                if (ReferenceEquals(_request, request)) _request = null;
+-                if (generation != _generation || _target == null) yield break;
+-                if (!request.TryGetTexture(out Texture2D texture)) yield break;
+-                StoreCached(url, texture);
+-                Apply(texture);
++                try
++                {
++                    while (!request.IsDone) yield return null;
++                    if (generation != _generation || !IsConfiguredFor(url)) yield break;
++                    if (!request.TryGetTexture(out Texture2D texture)) yield break;
++                    if (SharedCache.TryStore(url, texture, out var lease)) ApplyCachedTexture(lease, url);
++                }
++                finally
++                {
++                    if (ReferenceEquals(_request, request)) _request = null;
++                    if (generation == _generation) _loading = null;
++                }
+             }
+         }
+ 
+-        private static bool TryGetCached(string url, out Texture2D texture)
++        private void ResetTarget()
+         {
+-            if (Cache.TryGetValue(url, out texture) && texture != null)
+-            {
+-                if (CacheNodes.TryGetValue(url, out LinkedListNode<string> node))
+-                {
+-                    CacheOrder.Remove(node);
+-                    CacheOrder.AddLast(node);
+-                }
+-                return true;
+-            }
+-
+-            Cache.Remove(url);
+-            if (CacheNodes.TryGetValue(url, out LinkedListNode<string> stale))
+-            {
+-                CacheNodes.Remove(url);
+-                CacheOrder.Remove(stale);
+-            }
+-            texture = null;
+-            return false;
+-        }
+-
+-        private static void StoreCached(string url, Texture2D texture)
+-        {
+-            Cache[url] = texture;
+-            if (CacheNodes.TryGetValue(url, out LinkedListNode<string> existing))
+-            {
+-                CacheOrder.Remove(existing);
+-                CacheOrder.AddLast(existing);
+-            }
+-            else CacheNodes[url] = CacheOrder.AddLast(url);
+-
+-            while (CacheOrder.Count > MaxCachedImages)
+-            {
+-                LinkedListNode<string> oldest = CacheOrder.First;
+-                CacheOrder.RemoveFirst();
+-                CacheNodes.Remove(oldest.Value);
+-                Cache.Remove(oldest.Value);
+-            }
++            _target.texture = null;
++            _target.color = new Color(1f, 1f, 1f, .12f);
++            var aspect = _target.GetComponent<AspectRatioFitter>();
++            if (aspect != null) aspect.aspectRatio = 1f;
+         }
+ 
+         private void Apply(Texture2D texture)
+         {
+-            if (_target == null) return;
++            if (_target == null || texture == null) return;
+             _target.texture = texture;
+             _target.color = Color.white;
+             var aspect = _target.GetComponent<AspectRatioFitter>();
+@@ -132,14 +143,31 @@
+             if (caption != null) caption.gameObject.SetActive(false);
+         }
+ 
+-        private void OnDestroy()
++        private void OnEnable()
++        {
++            if (_target == null) return;
++            ResetTarget();
++            BeginLoading();
++        }
++        private void OnDisable()
+         {
+             ++_generation;
+             CancelRequest();
++            ReleaseBinding();
++        }
++        private void OnDestroy()
++        {
++            OnDisable();
++            _borrowedTexture = null;
+             _target = null;
+             _url = null;
+         }
+-
++        private void ReleaseBinding()
++        {
++            if (_target != null) _target.texture = null;
++            _lease?.Dispose();
++            _lease = null;
++        }
+         private void CancelRequest()
+         {
+             _request?.Dispose();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAcousticInputProcessor.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAcousticInputProcessor.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAcousticInputProcessor.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAcousticInputProcessor.cs
+@@ -3,85 +3,24 @@
+ 
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>One capture worker owns resampling, enhancement and VAD. No device callback runs inference.</summary>
++    /// <summary>Compatibility facade for the package's enhanced capture/VAD/recognition routing.</summary>
+     internal sealed class SiriAIAcousticInputProcessor : IMNNRealtimeVoiceInputProcessor
+     {
+-        private readonly MNNRealtimeVoiceInputProcessor _input;
+-        private readonly IMNNRealtimeVoiceActivity _vad;
+-        private readonly Action<float[], int> _enhance;
+-        private readonly Action _reset;
+-        private readonly Action<float[], int, float[]> _observe;
+-        private readonly bool _enhanceRecognition;
+-        private readonly bool _enhanceVoiceActivity;
+-        private readonly float[] _frame = new float[512], _silence = new float[512];
+-        private readonly MNNRealtimeFrameVoiceActivity _activity;
+-        private bool _hasInput, _completed;
+-        public MNNPcmFormat InputFormat => _input.InputFormat;
+-        public int MaximumInputBlockFrames => _input.MaximumInputBlockFrames;
+-
++        private readonly MNNAcousticInputProcessor _shared;
++        public MNNPcmFormat InputFormat => _shared.InputFormat;
++        public int MaximumInputBlockFrames => _shared.MaximumInputBlockFrames;
+         internal SiriAIAcousticInputProcessor(MNNPcmFormat format, int capacity, IMNNRealtimeVoiceActivity vad,
+-            Action<float[], int> enhance, Action reset, Action<float[], int, float[]> observe, bool enhanceRecognition = true,
+-            bool enhanceVoiceActivity = true)
++            Action<float[], int> enhance, Action reset, Action<float[], int, float[]> observe,
++            bool enhanceRecognition = true, bool enhanceVoiceActivity = true)
+         {
+-            _vad = vad;
+-            _enhance = enhance;
+-            _reset = reset;
+-            _observe = observe;
+-            _enhanceRecognition = enhanceRecognition;
+-            _enhanceVoiceActivity = enhanceVoiceActivity;
+-            _activity = new MNNRealtimeFrameVoiceActivity(Detect, reset: ResetModels);
+-            _input = new MNNRealtimeVoiceInputProcessor(format, _activity, capacity);
++            _shared = new MNNAcousticInputProcessor(format, capacity, vad, enhance, reset, observe,
++                enhanceRecognition, enhanceVoiceActivity);
+         }
+-
+-        private MNNRealtimeVadUpdate Detect(float[] samples, int offset)
+-        {
+-            Array.Copy(samples, offset, _frame, 0, 512);
+-            _enhance?.Invoke(_frame, 0);
+-            // Keep the recognition waveform unless this exact enhancement/ASR combination
+-            // has passed a task-quality comparison. Detectors select their waveform independently.
+-            for (int i = 0; i < 512; ++i)
+-            {
+-                float value = _frame[i];
+-                if (float.IsNaN(value) || float.IsInfinity(value))
+-                    throw new InvalidOperationException("Acoustic enhancement returned non-finite PCM.");
+-                _frame[i] = Math.Max(-1, Math.Min(1, value));
+-            }
+-            // Detectors can choose their own waveform. Publish the original before an
+-            // opt-in enhanced ASR route replaces this worker-owned output buffer.
+-            _observe?.Invoke(samples, offset, _frame);
+-            var update = _enhanceVoiceActivity ? _vad.ProcessFrame(_frame, 0) : _vad.ProcessFrame(samples, offset);
+-            if (_enhanceRecognition) Array.Copy(_frame, 0, samples, offset, 512);
+-            return update;
+-        }
+-
+-        private void ResetModels() { _reset?.Invoke(); _vad.Reset(); }
+-
+         public void Process(float[] pcm, int offset, int frames, Action<MNNRealtimeVadUpdate> update,
+-            bool discontinuity = false, Action<float[], int, MNNRealtimeVadUpdate> onFrame = null)
+-        {
+-            if (_completed) throw new InvalidOperationException("Reset a completed acoustic stream before reuse.");
+-            _input.Process(pcm, offset, frames, update, discontinuity, onFrame);
+-            _hasInput |= frames > 0;
+-        }
+-
+-        public bool Complete(Action<MNNRealtimeVadUpdate> update, Action<float[], int, MNNRealtimeVadUpdate> onFrame = null)
+-        {
+-            if (_completed) return false;
+-            bool emitted = _input.Complete(update, onFrame);
+-            _completed = true;
+-            // DTLN delays 384 samples. Complete first drains resampling/partial input, then
+-            // one 512-sample zero frame drains the neural tail before the recorder closes.
+-            if (_hasInput && _enhance != null)
+-            {
+-                Array.Clear(_silence, 0, _silence.Length);
+-                var result = _activity.ProcessFrame(_silence, 0);
+-                onFrame?.Invoke(_silence, 0, result);
+-                update(result);
+-                emitted = true;
+-            }
+-            return emitted;
+-        }
+-
+-        public void Reset() { _input.Reset(); _hasInput = _completed = false; }
++            bool discontinuity = false, Action<float[], int, MNNRealtimeVadUpdate> onFrame = null) =>
++            _shared.Process(pcm, offset, frames, update, discontinuity, onFrame);
++        public bool Complete(Action<MNNRealtimeVadUpdate> update, Action<float[], int, MNNRealtimeVadUpdate> onFrame = null) =>
++            _shared.Complete(update, onFrame);
++        public void Reset() => _shared.Reset();
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAdaptiveEchoFilter.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAdaptiveEchoFilter.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAdaptiveEchoFilter.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAdaptiveEchoFilter.cs
+@@ -1,105 +1,16 @@
+-using System;
++using MNN.Unity;
+ 
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Improved proportionate NLMS (alpha=0) estimates the linear room response after bulk-delay alignment.
+-    /// Its residual power bounds suppression of DTLN output. One processing worker owns this state.</summary>
++    /// <summary>Compatibility facade; the shared package owns the adaptive filter and all working storage.</summary>
+     internal sealed class SiriAIAdaptiveEchoFilter
+     {
+-        // 128 ms acoustic tail, separate from the estimator's 0–500 ms bulk device delay.
+-        private const int Taps = 16000 * 128 / 1000;
+-        // Refresh the proportionate preconditioner every 1 ms. Prediction, normalized
+-        // projection and coefficient updates still run for every sample, including double talk.
+-        private const int ProportionInterval = 16;
+-        private const double MinimumMeanSquareEnergy = 1e-7;
+-        private readonly float[] _history = new float[Taps * 2], _weights = new float[Taps], _proportions = new float[Taps];
+-        private int _head, _untilProportions;
+-        private double _power;
+-        internal float ResidualPowerRatio { get; private set; } = 1;
+-        internal void Reset()
+-        {
+-            Array.Clear(_history, 0, _history.Length); Array.Clear(_weights, 0, _weights.Length);
+-            _head = _untilProportions = 0; _power = 0; ResidualPowerRatio = 1;
+-        }
+-        // Measure on the same causal reference used by the adaptive filter, including
+-        // its stored samples. A zero-lag comparison against the bulk-aligned neural
+-        // reference mistakes permitted delay error for double talk and freezes tracking.
+-        // Call before Process appends the current reference hop. No lookahead or allocation.
+-        internal float EstimateCoherence(float[] microphone, float[] reference, int maximumLag)
+-        {
+-            double microphonePower = 0, best = 0;
+-            for (int i = 0; i < microphone.Length; ++i) microphonePower += microphone[i] * (double)microphone[i];
+-            if (microphonePower <= microphone.Length * MinimumMeanSquareEnergy) return 0;
+-            for (int lag = 0; lag <= maximumLag; ++lag)
+-            {
+-                double cross = 0, referencePower = 0;
+-                int stored = Math.Min(lag, microphone.Length);
+-                for (int i = 0; i < stored; ++i)
+-                {
+-                    float value = _history[_head + lag - i - 1];
+-                    cross += microphone[i] * (double)value; referencePower += value * (double)value;
+-                }
+-                for (int i = stored; i < microphone.Length; ++i)
+-                {
+-                    float value = reference[i - lag];
+-                    cross += microphone[i] * (double)value; referencePower += value * (double)value;
+-                }
+-                if (referencePower > microphone.Length * MinimumMeanSquareEnergy)
+-                    best = Math.Max(best, cross * cross / (microphonePower * referencePower));
+-            }
+-            return (float)Math.Min(1, best);
+-        }
+-
+-        internal void Process(float[] microphone, float[] reference, float[] residual, float adaptation = 1)
+-        {
+-            double microphonePower = 0, residualPower = 0;
+-            for (int sample = 0; sample < microphone.Length; ++sample)
+-            {
+-                if (--_head < 0) _head = Taps - 1;
+-                double previous = _history[_head], value = reference[sample];
+-                _power = Math.Max(0, _power + value * value - previous * previous);
+-                _history[_head] = _history[_head + Taps] = (float)value;
+-                double estimate = 0;
+-                for (int tap = 0; tap < Taps; ++tap)
+-                {
+-                    estimate += _weights[tap] * (double)_history[_head + tap];
+-                }
+-                double error = microphone[sample] - estimate;
+-                residual[sample] = (float)Math.Max(-1, Math.Min(1, error));
+-                microphonePower += microphone[sample] * (double)microphone[sample];
+-                residualPower += residual[sample] * (double)residual[sample];
+-                // Normalized projection step in [0,1], within the NLMS stability interval (0,2).
+-                // Freeze without excitation; the caller reduces adaptation during double talk.
+-                if (adaptation == 0 || _power <= Taps * MinimumMeanSquareEnergy) continue;
+-                if (_untilProportions == 0)
+-                {
+-                    RefreshProportions();
+-                    _untilProportions = ProportionInterval;
+-                }
+-                --_untilProportions;
+-                double normalizedPower = 0;
+-                for (int tap = 0; tap < Taps; ++tap)
+-                {
+-                    value = _history[_head + tap];
+-                    normalizedPower += _proportions[tap] * value * value;
+-                }
+-                if (normalizedPower <= 0) continue;
+-                float correction = adaptation * (float)(error / normalizedPower);
+-                for (int tap = 0; tap < Taps; ++tap)
+-                    _weights[tap] += correction * _proportions[tap] * _history[_head + tap];
+-            }
+-            ResidualPowerRatio = microphonePower > 0 ? (float)Math.Min(1, residualPower / microphonePower) : 1;
+-        }
+-
+-        private void RefreshProportions()
+-        {
+-            // IPNLMS alpha=0, with the common .5 / sum(abs(weights)) scale cancelled.
+-            // Cache only the preconditioner; never cache prediction or skip frozen-path echo removal.
+-            double magnitude = 0;
+-            for (int tap = 0; tap < Taps; ++tap) magnitude += Math.Abs(_weights[tap]);
+-            float uniform = (float)(magnitude / Taps);
+-            for (int tap = 0; tap < Taps; ++tap)
+-                _proportions[tap] = magnitude > 0 ? uniform + Math.Abs(_weights[tap]) : 1;
+-        }
++        private readonly MNNAdaptiveEchoFilter _shared = new MNNAdaptiveEchoFilter();
++        internal float ResidualPowerRatio => _shared.ResidualPowerRatio;
++        internal void Reset() => _shared.Reset();
++        internal float EstimateCoherence(float[] microphone, float[] reference, int maximumLag) =>
++            _shared.EstimateCoherence(microphone, reference, maximumLag);
++        internal void Process(float[] microphone, float[] reference, float[] residual, float adaptation = 1) =>
++            _shared.Process(microphone, reference, residual, adaptation);
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAecDelayCalibration.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAecDelayCalibration.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAecDelayCalibration.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAecDelayCalibration.cs
+@@ -1,36 +1,11 @@
+-using System;
+-
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Qualifies a stable host buffer-delay window, never the duration of AEC convergence.</summary>
++    /// <summary>Compatibility adapter; the reusable implementation is owned by the MNN package.</summary>
+     public sealed class SiriAIAecDelayCalibration
+     {
+-        private readonly int[] _samples = new int[32];
+-        private int _count, _generation;
+-        private long _lastFrame = -1;
+-        private double _started;
+-
+-        public void Reset() { _count = 0; _lastFrame = -1; }
+-
++        private readonly MNN.Unity.MNNAecDelayCalibration _core = new MNN.Unity.MNNAecDelayCalibration();
++        public void Reset() => _core.Reset();
+         public bool Add(int milliseconds, long captureFrame, int generation, double now, out int delay)
+-        {
+-            delay = 0;
+-            if (milliseconds < 0 || milliseconds > 500 || captureFrame < 0 || double.IsNaN(now) || double.IsInfinity(now))
+-            { Reset(); return false; }
+-            if (_count > 0 && (generation != _generation || captureFrame < _lastFrame || now < _started)) Reset();
+-            if (captureFrame == _lastFrame) return false;
+-            if (_count > 0 && Math.Abs(milliseconds - _samples[0]) > 5) Reset();
+-            if (_count == 0) { _started = now; _generation = generation; }
+-            _lastFrame = captureFrame;
+-            _samples[Math.Min(_count, _samples.Length - 1)] = milliseconds;
+-            _count = Math.Min(_count + 1, _samples.Length);
+-            if (_count < 12 || now - _started < .55) return false;
+-            var sorted = new int[_count];
+-            Array.Copy(_samples, sorted, _count);
+-            Array.Sort(sorted);
+-            if (sorted[_count - 1] - sorted[0] > 5) { Reset(); return false; }
+-            delay = sorted[_count / 2];
+-            return true;
+-        }
++            => _core.Add(milliseconds, captureFrame, generation, now, out delay);
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAutomaticSpeakerSelector.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAutomaticSpeakerSelector.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAutomaticSpeakerSelector.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAutomaticSpeakerSelector.cs
+@@ -1,31 +1,12 @@
+-using System;
+-
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Contribution is relative source energy, not a speech probability. Slot numbers never represent identity.</summary>
++    /// <summary>Compatibility adapter; the reusable implementation is owned by the MNN package.</summary>
+     internal sealed class SiriAIAutomaticSpeakerSelector
+     {
+-        private readonly float _minimum, _margin;
+-        private double _lastSelection = double.NegativeInfinity;
+-        internal SiriAIAutomaticSpeakerSelector(float minimum, float margin) { _minimum = minimum; _margin = margin; }
+-        internal int Select(float[] contribution, float[] similarity, double seconds)
+-        {
+-            if (contribution == null || contribution.Length == 0 || similarity != null && similarity.Length != contribution.Length)
+-                throw new ArgumentException("Supply matching candidate contribution and identity evidence.");
+-            int best = -1;
+-            float first = float.NegativeInfinity, second = float.NegativeInfinity;
+-            for (int i = 0; i < contribution.Length; ++i)
+-            {
+-                if (float.IsNaN(contribution[i]) || contribution[i] < _minimum || contribution[i] > 1) continue;
+-                float continuity = similarity != null && seconds - _lastSelection < 10 && similarity[i] >= .6f ? .12f : 0;
+-                float score = contribution[i] + continuity;
+-                if (score > first) { second = first; first = score; best = i; }
+-                else second = Math.Max(second, score);
+-            }
+-            if (best < 0 || first - second < _margin) return -1;
+-            _lastSelection = seconds;
+-            return best;
+-        }
+-        internal void Reset() => _lastSelection = double.NegativeInfinity;
++        private readonly MNN.Unity.MNNAutomaticSpeakerSelector _core;
++        internal SiriAIAutomaticSpeakerSelector(float minimum, float margin)
++            => _core = new MNN.Unity.MNNAutomaticSpeakerSelector(minimum, margin);
++        internal int Select(float[] contribution, float[] similarity, double seconds) => _core.Select(contribution, similarity, seconds);
++        internal void Reset() => _core.Reset();
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIEchoDelayEstimator.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIEchoDelayEstimator.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIEchoDelayEstimator.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIEchoDelayEstimator.cs
+@@ -1,151 +1,17 @@
+-using System;
++using MNN.Unity;
+ 
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Managed correlation estimator inspired by AEC3's decimation, excitation gating and lag voting.
+-    /// This is not a port of WebRTC's adaptive matched-filter bank. Inputs share a 16 kHz timeline.</summary>
++    /// <summary>Compatibility facade for the package's worker-owned echo delay estimator.</summary>
+     public sealed class SiriAIEchoDelayEstimator
+     {
+-        private const int SampleRate = 16000, Decimation = 8, EstimateRate = SampleRate / Decimation;
+-        // All time bounds use the decimated clock. The power-of-two ring covers window + maximum lag.
+-        private const int Capacity = 4096, Mask = Capacity - 1;
+-        private const int Window = EstimateRate * 192 / 1000, MaximumLag = EstimateRate / 2;
+-        private const int EstimateInterval = EstimateRate * 64 / 1000, EvidenceLifetime = EstimateRate * 5;
+-        internal const int AlignmentToleranceSamples = SampleRate * 4 / 1000;
+-        private const int DelayTolerance = AlignmentToleranceSamples / Decimation, PeakExclusion = EstimateRate * 8 / 1000;
+-        // The returned bulk delay may retain one hysteresis band beyond a winning
+-        // candidate, which itself may lie one aggregation band beyond the observed
+-        // peak. Reserve both independent bands and one coarse sample bin so the
+-        // causal FIR can represent an earlier direct path without extra buffering.
+-        internal const int AlignmentHeadroomSamples = AlignmentToleranceSamples + DelayTolerance * Decimation + Decimation;
+-        // Confidence policy: reject below -70 dBFS, correlation below 0.5, or competing squared
+-        // correlations within 0.08. Require five estimates at 64 ms intervals. These gates are
+-        // regression-checked on silence, unrelated near-end input, delayed signals and paired recordings;
+-        // they do not establish universal acoustic qualification.
+-        private const double MinimumMeanSquareEnergy = 1e-7, MinimumSquaredCorrelation = .25, MinimumPeakSeparation = .08;
+-        private const int RequiredVotes = 5;
+-        // A bounded lag histogram tolerates occasional competing speech/reflection peaks,
+-        // instead of requiring uninterrupted identical candidates (AEC3 uses lag aggregation).
+-        private const int VoteLifetime = EstimateRate;
+-        private static readonly double HighPassAlpha = 1 - Math.Exp(-2 * Math.PI * 80 / SampleRate);
+-        private readonly float[] _mic = new float[Capacity], _reference = new float[Capacity];
+-        private readonly double[] _scores = new double[MaximumLag + 1];
+-        private readonly int[] _lags = new int[VoteLifetime / EstimateInterval + 1];
+-        private readonly long[] _lagTimes = new long[VoteLifetime / EstimateInterval + 1];
+-        private long _written, _excitedSamples, _lastEvidence;
+-        private int _phase, _nextLag, _lagCount, _untilEstimate;
+-        private double _micSum, _referenceSum, _micLow, _referenceLow;
+-        private bool _locked;
+-        public int DelaySamples { get; private set; }
+-        public float Confidence { get; private set; }
+-        // Retain a qualified route through brief double talk; one competing peak cannot revoke it.
+-        // Silence cannot disprove a measured route. Age evidence only while render is excited,
+-        // as adaptive echo estimators freeze their route estimate without an observable input.
+-        public bool IsLocked => _locked && _excitedSamples - _lastEvidence < EvidenceLifetime;
+-
+-        public void Reset()
+-        {
+-            Array.Clear(_mic, 0, Capacity); Array.Clear(_reference, 0, Capacity);
+-            _written = _excitedSamples = _lastEvidence = 0;
+-            _phase = _nextLag = _lagCount = _untilEstimate = DelaySamples = 0;
+-            _micSum = _referenceSum = _micLow = _referenceLow = Confidence = 0;
+-            _locked = false;
+-        }
+-
+-        public void Process(float[] microphone, float[] reference)
+-        {
+-            if (microphone == null || reference == null || microphone.Length != reference.Length)
+-                throw new ArgumentException("Supply synchronized mono samples.");
+-            for (int i = 0; i < microphone.Length; ++i)
+-            {
+-                // Matched 80 Hz DC/high-pass conditioning, then box decimation for the coarse estimator only.
+-                // DTLN receives the full-band sinc-resampled PCM, without AGC ahead of the echo model.
+-                _micLow += HighPassAlpha * (microphone[i] - _micLow);
+-                _referenceLow += HighPassAlpha * (reference[i] - _referenceLow);
+-                _micSum += microphone[i] - _micLow;
+-                _referenceSum += reference[i] - _referenceLow;
+-                if (++_phase != Decimation) continue;
+-                int index = (int)(_written++ & Mask);
+-                _mic[index] = (float)(_micSum / Decimation);
+-                _reference[index] = (float)(_referenceSum / Decimation);
+-                _phase = 0; _micSum = _referenceSum = 0;
+-                // A short route is observable before the longest supported route's history
+-                // exists. Search only complete windows; grow the range as samples arrive.
+-                if (++_untilEstimate < EstimateInterval || _written < Window) continue;
+-                _untilEstimate = 0;
+-                Estimate();
+-            }
+-        }
+-
+-        private void Estimate()
+-        {
+-            double microphoneEnergy = 0, renderEnergy = 0;
+-            for (int i = 0; i < Window; ++i)
+-            {
+-                float value = _mic[(int)((_written - Window + i) & Mask)];
+-                microphoneEnergy += value * value;
+-                value = _reference[(int)((_written - Window + i) & Mask)];
+-                renderEnergy += value * value;
+-            }
+-            if (renderEnergy < Window * MinimumMeanSquareEnergy) return;
+-            _excitedSamples += EstimateInterval;
+-            if (microphoneEnergy < Window * MinimumMeanSquareEnergy) return;
+-            int best = 0;
+-            double bestScore = 0;
+-            int maximumLag = (int)Math.Min(MaximumLag, _written - Window);
+-            double energy = renderEnergy;
+-            for (int lag = 0; lag <= maximumLag; ++lag)
+-            {
+-                // Adjacent lag windows differ by one sample. Slide the reference energy
+-                // instead of recomputing the same 192 ms sum for every candidate.
+-                if (lag > 0)
+-                {
+-                    float entering = _reference[(int)((_written - Window - lag) & Mask)];
+-                    float leaving = _reference[(int)((_written - lag) & Mask)];
+-                    energy = Math.Max(0, energy + entering * entering - leaving * leaving);
+-                }
+-                double cross = 0;
+-                for (int i = 0; i < Window; ++i)
+-                {
+-                    float mic = _mic[(int)((_written - Window + i) & Mask)];
+-                    float render = _reference[(int)((_written - Window + i - lag) & Mask)];
+-                    cross += mic * render;
+-                }
+-                double score = energy < Window * MinimumMeanSquareEnergy ? 0 : cross * cross / (microphoneEnergy * energy);
+-                _scores[lag] = score;
+-                if (score > bestScore) { bestScore = score; best = lag; }
+-            }
+-            double second = 0;
+-            for (int lag = 0; lag <= maximumLag; ++lag)
+-                if (Math.Abs(lag - best) > PeakExclusion) second = Math.Max(second, _scores[lag]);
+-            Confidence = (float)Math.Sqrt(bestScore);
+-            // Ambiguous/weak evidence (silence, periodic tones or double talk) cannot move the delay.
+-            if (bestScore < MinimumSquaredCorrelation || bestScore - second < MinimumPeakSeparation) return;
+-            _lags[_nextLag] = best;
+-            _lagTimes[_nextLag] = _excitedSamples;
+-            _nextLag = (_nextLag + 1) % _lags.Length;
+-            _lagCount = Math.Min(_lagCount + 1, _lags.Length);
+-            int winner = best, winnerVotes = 0, competingVotes = 0;
+-            for (int candidate = 0; candidate < _lagCount; ++candidate)
+-            {
+-                if (_excitedSamples - _lagTimes[candidate] > VoteLifetime) continue;
+-                int votes = 0;
+-                for (int i = 0; i < _lagCount; ++i)
+-                    if (_excitedSamples - _lagTimes[i] <= VoteLifetime && Math.Abs(_lags[i] - _lags[candidate]) <= DelayTolerance) ++votes;
+-                if (votes > winnerVotes) { winnerVotes = votes; winner = _lags[candidate]; }
+-            }
+-            for (int i = 0; i < _lagCount; ++i)
+-                if (_excitedSamples - _lagTimes[i] <= VoteLifetime && Math.Abs(_lags[i] - winner) > PeakExclusion) ++competingVotes;
+-            if (winnerVotes >= RequiredVotes && winnerVotes > competingVotes)
+-            {
+-                // Small room-response peak motion must not keep resetting DTLN's recurrent states.
+-                if (!_locked || Math.Abs(winner * Decimation - DelaySamples) > DelayTolerance * Decimation)
+-                    DelaySamples = winner * Decimation;
+-                _locked = true;
+-                _lastEvidence = _excitedSamples;
+-            }
+-            else if (_locked && Math.Abs(best * Decimation - DelaySamples) <= DelayTolerance * Decimation)
+-                _lastEvidence = _excitedSamples;
+-        }
++        private readonly MNNEchoDelayEstimator _shared = new MNNEchoDelayEstimator();
++        internal const int AlignmentToleranceSamples = MNNEchoDelayEstimator.AlignmentToleranceSamples;
++        internal const int AlignmentHeadroomSamples = MNNEchoDelayEstimator.AlignmentHeadroomSamples;
++        public int DelaySamples => _shared.DelaySamples;
++        public float Confidence => _shared.Confidence;
++        public bool IsLocked => _shared.IsLocked;
++        public void Reset() => _shared.Reset();
++        public void Process(float[] microphone, float[] reference) => _shared.Process(microphone, reference);
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIMixtureContribution.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIMixtureContribution.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIMixtureContribution.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIMixtureContribution.cs
+@@ -1,63 +1,10 @@
+-using System;
+-
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Recovers relative source energy from a mixture despite independent output gains.</summary>
++    /// <summary>Compatibility adapter; the reusable implementation is owned by the MNN package.</summary>
+     internal static class SiriAIMixtureContribution
+     {
+-        // These are evidence gates, not calibrated confidence probabilities.
+-        private const double MaximumSquaredCorrelation = .95 * .95, MinimumExplainedEnergy = .6;
+-
+         internal static float[] Estimate(float[] mixture, float[] first, float[] second)
+-        {
+-            if (mixture == null || first == null || second == null ||
+-                mixture.Length != first.Length || mixture.Length != second.Length)
+-                throw new ArgumentException("Mixture and separated sources must have the same sample clock and length.");
+-            if (mixture.Length < 4) return null;
+-            double meanMix = Mean(mixture), meanFirst = Mean(first), meanSecond = Mean(second);
+-            double mixtureEnergy = 0, firstEnergy = 0, secondEnergy = 0, cross = 0, firstMix = 0, secondMix = 0;
+-            for (int i = 0; i < mixture.Length; ++i)
+-            {
+-                double x = mixture[i] - meanMix, a = first[i] - meanFirst, b = second[i] - meanSecond;
+-                mixtureEnergy += x * x; firstEnergy += a * a; secondEnergy += b * b;
+-                cross += a * b; firstMix += a * x; secondMix += b * x;
+-            }
+-            if (mixtureEnergy <= 1e-12) return null;
+-            // A separator may return one source plus silence/DC. Use the same
+-            // explained-energy contract; it does not require another speech detector.
+-            if (firstEnergy <= 1e-12 || secondEnergy <= 1e-12)
+-            {
+-                bool firstPresent = firstEnergy > 1e-12;
+-                double energy = firstPresent ? firstEnergy : secondEnergy;
+-                double covariance = firstPresent ? firstMix : secondMix;
+-                if (energy <= 1e-12 || covariance * covariance / energy / mixtureEnergy < MinimumExplainedEnergy)
+-                    return null;
+-                return firstPresent ? new[] { 1f, 0f } : new[] { 0f, 1f };
+-            }
+-            double product = firstEnergy * secondEnergy;
+-            if (cross * cross >= MaximumSquaredCorrelation * product)
+-                return null;
+-            double determinant = product - cross * cross;
+-            // Joint least squares accounts for correlation between the two candidate waveforms.
+-            double gainFirst = (firstMix * secondEnergy - secondMix * cross) / determinant;
+-            double gainSecond = (secondMix * firstEnergy - firstMix * cross) / determinant;
+-            double explained = gainFirst * firstMix + gainSecond * secondMix;
+-            if (explained / mixtureEnergy < MinimumExplainedEnergy) return null;
+-            double energyFirst = gainFirst * gainFirst * firstEnergy, energySecond = gainSecond * gainSecond * secondEnergy;
+-            double total = energyFirst + energySecond;
+-            if (total <= 1e-12) return null;
+-            return new[] { (float)(energyFirst / total), (float)(energySecond / total) };
+-        }
+-
+-        private static double Mean(float[] samples)
+-        {
+-            double sum = 0;
+-            foreach (float value in samples)
+-            {
+-                if (float.IsNaN(value) || float.IsInfinity(value)) throw new ArgumentException("Supply finite audio.");
+-                sum += value;
+-            }
+-            return sum / samples.Length;
+-        }
++            => MNN.Unity.MNNAudioMixtureContribution.TryEstimate(mixture, first, second, out float a, out float b)
++                ? new[] { a, b } : null;
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIPlaybackWaveform.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIPlaybackWaveform.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIPlaybackWaveform.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIPlaybackWaveform.cs
+@@ -1,109 +1,29 @@
+-using System;
+-using System.Diagnostics;
+-using System.Threading;
+-using MNN.Unity;
+-
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>One render writer and one UI reader. Bounded, nonblocking snapshots; no callback allocations.</summary>
++    /// <summary>Compatibility adapter; the reusable implementation is owned by the MNN package.</summary>
+     public sealed class SiriAIPlaybackWaveform
+     {
+-        public const int PointCount = 64;
+-        private readonly float[] _points = new float[PointCount];
+-        private int _revision;
+-        private long _timestamp;
+-        private MNNResponseId _response;
+-        private float _rms;
+-        private readonly SiriAIVoiceAnalysis _analysis = new SiriAIVoiceAnalysis();
+-        private SiriAIVoiceFeatures _features;
+-
+-        /// <summary>Perceptual loudness with a silence gate and bounded consonant-peak contribution.</summary>
++        public const int PointCount = MNN.Unity.MNNPlaybackWaveform.PointCount;
++        private readonly MNN.Unity.MNNPlaybackWaveform _core = new MNN.Unity.MNNPlaybackWaveform();
+         public static float SpeechEnvelope(float rms, float peak, float sensitivity)
+-            => MNNAudioEnvelope.Measure(rms, peak, sensitivity);
+-
+-        public void Publish(float[] samples, int count, int channels, MNNResponseId response, int sampleRate = 48000)
++            => MNN.Unity.MNNPlaybackWaveform.SpeechEnvelope(rms, peak, sensitivity);
++        public void Publish(float[] samples, int count, int channels, MNN.Unity.MNNResponseId response, int sampleRate = 48000)
++            => _core.Publish(samples, count, channels, response, sampleRate);
++        public bool TryRead(float[] destination, MNN.Unity.MNNResponseId response, out float rms)
++            => _core.TryRead(destination, response, out rms);
++        public bool TryRead(float[] destination, MNN.Unity.MNNResponseId response, out float rms, out SiriAIVoiceFeatures features)
+         {
+-            // Analyze on the existing render writer, downstream of fade and before publication.
+-            if (!_response.Equals(response)) _analysis.Clear();
+-            var features = _analysis.Analyze(samples, count, channels, sampleRate);
+-            Interlocked.Increment(ref _revision);
+-            _features = features;
+-            _rms = Reduce(samples, count, channels, _points);
+-            _response = response;
+-            _timestamp = Stopwatch.GetTimestamp();
+-            Interlocked.Increment(ref _revision);
++            bool read = _core.TryRead(destination, response, out rms, out var snapshot);
++            features = new SiriAIVoiceFeatures(snapshot);
++            return read;
+         }
+-
+-        public bool TryRead(float[] destination, MNNResponseId response, out float rms) =>
+-            TryRead(destination, response, out rms, out _);
+-
+-        public bool TryRead(float[] destination, MNNResponseId response, out float rms, out SiriAIVoiceFeatures features)
++        public bool TryReadFeatures(MNN.Unity.MNNResponseId response, out SiriAIVoiceFeatures features)
+         {
+-            RequireDestination(destination);
+-            return TrySnapshot(destination, response, out rms, out features);
++            bool read = _core.TryReadFeatures(response, out var snapshot);
++            features = new SiriAIVoiceFeatures(snapshot);
++            return read;
+         }
+-
+-        public bool TryReadFeatures(MNNResponseId response, out SiriAIVoiceFeatures features) =>
+-            TrySnapshot(null, response, out _, out features);
+-
+-        private bool TrySnapshot(float[] destination, MNNResponseId response, out float rms, out SiriAIVoiceFeatures features)
+-        {
+-            for (int attempt = 0; attempt < 2; ++attempt)
+-            {
+-                int before = Volatile.Read(ref _revision);
+-                if (before == 0 || (before & 1) != 0) continue;
+-                long timestamp = _timestamp;
+-                var recordedResponse = _response;
+-                float level = _rms;
+-                var snapshot = _features;
+-                if (destination != null) Array.Copy(_points, destination, PointCount);
+-                Thread.MemoryBarrier();
+-                if (before != Volatile.Read(ref _revision)) continue;
+-                if (!response.IsValid || !recordedResponse.Equals(response) ||
+-                    Stopwatch.GetTimestamp() - timestamp > Stopwatch.Frequency / 5) break;
+-                rms = level; features = snapshot;
+-                return true;
+-            }
+-            if (destination != null) Array.Clear(destination, 0, PointCount);
+-            rms = 0; features = default;
+-            return false;
+-        }
+-
+-        /// <summary>Preserve signed peaks in each bin so consonants survive reduction; energy uses all samples.</summary>
+         public static float Reduce(float[] samples, int count, int channels, float[] destination)
+-        {
+-            RequireDestination(destination);
+-            if (samples == null || count <= 0 || count > samples.Length || channels <= 0 || count % channels != 0)
+-                throw new ArgumentException("Supply complete interleaved PCM frames.");
+-            int frames = count / channels;
+-            double energy = 0;
+-            for (int point = 0; point < PointCount; ++point)
+-            {
+-                int start = point * frames / PointCount;
+-                int energyEnd = (point + 1) * frames / PointCount;
+-                int end = Math.Max(start + 1, energyEnd);
+-                float peak = 0;
+-                for (int frame = start; frame < end; ++frame)
+-                {
+-                    float mono = 0;
+-                    for (int channel = 0; channel < channels; ++channel)
+-                    {
+-                        float value = samples[frame * channels + channel];
+-                        if (!float.IsNaN(value) && !float.IsInfinity(value)) mono += value / channels;
+-                    }
+-                    if (Math.Abs(mono) > Math.Abs(peak)) peak = mono;
+-                    // When there are fewer than 64 frames, repeated points are visual only.
+-                    if (frame < energyEnd) energy += mono * mono;
+-                }
+-                destination[point] = Math.Max(-1f, Math.Min(1f, peak));
+-            }
+-            return (float)Math.Sqrt(energy / frames);
+-        }
+-
+-        private static void RequireDestination(float[] destination)
+-        {
+-            if (destination == null || destination.Length != PointCount)
+-                throw new ArgumentException("A playback waveform requires exactly 64 points.", nameof(destination));
+-        }
++            => MNN.Unity.MNNPlaybackWaveform.Reduce(samples, count, channels, destination);
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIReferenceTimeline.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIReferenceTimeline.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIReferenceTimeline.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIReferenceTimeline.cs
+@@ -1,35 +1,14 @@
+-using System;
++using MNN.Unity;
+ 
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Worker-owned bounded reference history indexed by monotonic 16 kHz sample time.</summary>
++    /// <summary>Compatibility facade for the package's bounded reference timeline.</summary>
+     internal sealed class SiriAIReferenceTimeline
+     {
+-        private const int Capacity = 32768, Mask = Capacity - 1;
+-        private readonly float[] _samples = new float[Capacity];
+-        private long _start, _end;
+-        private bool _initialized;
+-        public long EndSample => _end;
+-        public void Reset() { _initialized = false; _start = _end = 0; }
+-        public void Write(long firstSample, float[] samples, int count)
+-        {
+-            if (!_initialized || firstSample != _end)
+-            {
+-                _start = _end = firstSample;
+-                _initialized = true;
+-            }
+-            for (int i = 0; i < count; ++i) _samples[(int)(_end++ & Mask)] = samples[i];
+-            _start = Math.Max(_start, _end - Capacity);
+-        }
+-        public bool Read(long firstSample, float[] destination)
+-        {
+-            if (!_initialized || firstSample < _start || firstSample + destination.Length > _end)
+-            {
+-                Array.Clear(destination, 0, destination.Length);
+-                return false;
+-            }
+-            for (int i = 0; i < destination.Length; ++i) destination[i] = _samples[(int)((firstSample + i) & Mask)];
+-            return true;
+-        }
++        private readonly MNNAudioReferenceTimeline _shared = new MNNAudioReferenceTimeline();
++        public long EndSample => _shared.EndSample;
++        public void Reset() => _shared.Reset();
++        public void Write(long firstSample, float[] samples, int count) => _shared.Write(firstSample, samples, count);
++        public bool Read(long firstSample, float[] destination) => _shared.Read(firstSample, destination);
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAISpeechFade.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAISpeechFade.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAISpeechFade.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAISpeechFade.cs
+@@ -1,64 +1,12 @@
+-using System;
+-using System.Diagnostics;
+-using System.Threading;
+-using System.Threading.Tasks;
+-using MNN.Unity;
+-
+ namespace MNN.Samples.SiriAI
+ {
+-    /// <summary>Single render-thread gain ramp; requests may come from UI or VAD workers.</summary>
++    /// <summary>Compatibility adapter; the reusable implementation is owned by the MNN package.</summary>
+     public sealed class SiriAISpeechFade
+     {
+-        public const int DurationMilliseconds = 24;
+-        private MNNResponseId _renderResponse;
+-        private sealed class Request
+-        {
+-            internal readonly MNNResponseId Response;
+-            internal int Completed;
+-            internal Request(MNNResponseId response) { Response = response; }
+-        }
+-        private Request _request;
+-        private int _remainingFrames;
+-        private float _gain = 1f;
+-        public Task FadeOutAsync(MNNResponseId response)
+-        {
+-            if (!response.IsValid) return Task.CompletedTask;
+-            var request = new Request(response);
+-            Volatile.Write(ref _request, request);
+-            return WaitForRenderAsync(request);
+-        }
+-        private static async Task WaitForRenderAsync(Request request)
+-        {
+-            // Wait for the actual ramp, including the route's DSP block size. Never wait indefinitely
+-            // for a device that stopped rendering; session teardown must still be able to cancel.
+-            long deadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 2;
+-            while (Volatile.Read(ref request.Completed) == 0 && Stopwatch.GetTimestamp() < deadline)
+-                await Task.Delay(5).ConfigureAwait(false);
+-        }
+-        public void Process(float[] samples, int count, int channels, int sampleRate, MNNResponseId response)
+-        {
+-            if (response != _renderResponse)
+-            {
+-                _renderResponse = response;
+-                _gain = 1f;
+-                _remainingFrames = 0;
+-            }
+-            var request = Volatile.Read(ref _request);
+-            bool fading = response.IsValid && request?.Response == response;
+-            if (fading && _remainingFrames == 0 && _gain > 0f)
+-                _remainingFrames = Math.Max(1, sampleRate * DurationMilliseconds / 1000);
+-            for (int i = 0; i < count; i += channels)
+-            {
+-                if (fading && _remainingFrames > 0)
+-                {
+-                    _gain = Math.Max(0f, _gain - _gain / _remainingFrames);
+-                    --_remainingFrames;
+-                }
+-                // Smoothstep keeps the beginning and end of the fade soft.
+-                float gain = _gain * _gain * (3f - 2f * _gain);
+-                for (int c = 0; c < channels; ++c) samples[i + c] *= gain;
+-            }
+-            if (fading && _gain == 0f) Volatile.Write(ref request.Completed, 1);
+-        }
++        public const int DurationMilliseconds = MNN.Unity.MNNSpeechFade.DurationMilliseconds;
++        private readonly MNN.Unity.MNNSpeechFade _core = new MNN.Unity.MNNSpeechFade();
++        public System.Threading.Tasks.Task FadeOutAsync(MNN.Unity.MNNResponseId response) => _core.FadeOutAsync(response);
++        public void Process(float[] samples, int count, int channels, int sampleRate, MNN.Unity.MNNResponseId response)
++            => _core.Process(samples, count, channels, sampleRate, response);
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridProvider.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridProvider.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridProvider.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridProvider.cs
+@@ -18,7 +18,8 @@
+         private readonly string _instructions;
+         private readonly IDisposable _transport;
+         private ISiriAITextProvider _cloud;
+-        private bool _cloudPrepared, _disposed;
++        private bool _cloudPrepared, _releaseStarted, _disposed;
++        private List<IDisposable> _releasedResources;
+         private string _route = "Hybrid · not requested";
+         public MNNRealtimeCapabilities Capabilities => _local.Capabilities;
+         public string RuntimeBackend => Volatile.Read(ref _route) + "\n" +
+@@ -38,7 +39,11 @@
+                 _tools.Add(tool.Name, tool);
+             }
+         }
+-        public Task PrepareAsync(CancellationToken token) => _local.PrepareAsync(token);
++        public Task PrepareAsync(CancellationToken token)
++        {
++            RequireActive();
++            return _local.PrepareAsync(token);
++        }
+         public Task GenerateResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, string instructions,
+             Func<string, Task> delta, CancellationToken token) => GenerateCoreAsync(history, 16000, instructions, delta, token);
+ 
+@@ -52,7 +57,7 @@
+         private async Task GenerateCoreAsync(IReadOnlyList<MNNOpenAIMessage> history, int sampleRate, string instructions,
+             Func<string, Task> delta, CancellationToken token)
+         {
+-            if (_disposed) throw new ObjectDisposedException(nameof(SiriAIHybridProvider));
++            RequireActive();
+             if (delta == null) throw new ArgumentNullException(nameof(delta));
+             if (instructions == null || instructions.Length > 32768) throw new ArgumentException("Response instructions exceed their budget.");
+             token.ThrowIfCancellationRequested();
+@@ -115,9 +120,17 @@
+             await publish(result).ConfigureAwait(false);
+         }
+ 
+-        public Task ClassifyVoiceIntentAsync(IReadOnlyList<MNNOpenAIMessage> prompt, Func<string, Task> delta, CancellationToken token) =>
+-            _local is ISiriAIVoiceIntentProvider classifier ? classifier.ClassifyVoiceIntentAsync(prompt, delta, token) :
++        public Task ClassifyVoiceIntentAsync(IReadOnlyList<MNNOpenAIMessage> prompt, Func<string, Task> delta, CancellationToken token)
++        {
++            RequireActive();
++            return _local is ISiriAIVoiceIntentProvider classifier ? classifier.ClassifyVoiceIntentAsync(prompt, delta, token) :
+                 _local.GenerateAsync(prompt, null, 16000, delta, token);
++        }
++
++        private void RequireActive()
++        {
++            if (_releaseStarted) throw new ObjectDisposedException(nameof(SiriAIHybridProvider));
++        }
+ 
+         private void SetRoute(string route) => Volatile.Write(ref _route, "Hybrid · " + route);
+         private Task DeniedAsync(Func<string, Task> publish)
+@@ -128,14 +141,32 @@
+         public void Dispose()
+         {
+             if (_disposed) return;
++            _releaseStarted = true;
++            if (_releasedResources == null) _releasedResources = new List<IDisposable>(3);
++            var attempted = new List<IDisposable>(3);
++            List<Exception> failures = null;
++            ReleaseOwned(_cloud, attempted, ref failures);
++            ReleaseOwned(_local, attempted, ref failures);
++            ReleaseOwned(_transport, attempted, ref failures);
++            if (_cloud != null && ContainsReference(_releasedResources, _cloud)) _cloud = null;
++            if (failures != null) throw new AggregateException("Hybrid provider cleanup failed; failed resources remain owned for retry.", failures);
+             _disposed = true;
+-            try { _cloud?.Dispose(); }
+-            finally
+-            {
+-                _cloud = null;
+-                try { _local.Dispose(); }
+-                finally { _transport?.Dispose(); }
+-            }
++            _releasedResources = null;
++        }
++
++        private void ReleaseOwned(IDisposable resource, List<IDisposable> attempted, ref List<Exception> failures)
++        {
++            if (resource == null || ContainsReference(_releasedResources, resource) || ContainsReference(attempted, resource)) return;
++            attempted.Add(resource);
++            try { resource.Dispose(); _releasedResources.Add(resource); }
++            catch (Exception error) { (failures ?? (failures = new List<Exception>())).Add(error); }
++        }
++
++        private static bool ContainsReference(List<IDisposable> resources, IDisposable resource)
++        {
++            foreach (var item in resources)
++                if (ReferenceEquals(item, resource)) return true;
++            return false;
+         }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIOnlineModelCache.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIOnlineModelCache.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIOnlineModelCache.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIOnlineModelCache.cs
+@@ -147,6 +147,29 @@
+ 
+         private async Task RefreshAsync(TaskCompletionSource<Snapshot> completion, bool next)
+         {
++            Snapshot result = null;
++            Exception failure = null;
++            try { result = await RefreshSnapshotAsync(next).ConfigureAwait(false); }
++            catch (Exception error) { failure = error; }
++            finally
++            {
++                lock (_gate)
++                {
++                    // Publish completion and release the shared operation together. A continuation
++                    // may immediately request an explicit retry, including after a processing failure.
++                    _inFlight = null;
++                    if (failure == null)
++                    {
++                        _snapshot = result;
++                        completion.TrySetResult(result);
++                    }
++                    else completion.TrySetException(failure);
++                }
++            }
++        }
++
++        private async Task<Snapshot> RefreshSnapshotAsync(bool next)
++        {
+             Snapshot previous;
+             lock (_gate) previous = _snapshot;
+             Discovery discovery;
+@@ -179,18 +202,13 @@
+             if (discovery.Succeeded)
+             {
+                 try { _store.Save(result); _readWarning = null; }
+-                catch (Exception error) when (error is IOException || error is UnauthorizedAccessException || error is ArgumentException)
++                catch (Exception error) when (error is InvalidDataException || error is IOException || error is UnauthorizedAccessException || error is ArgumentException)
+                 {
+                     warnings.Add("Model catalog is available for this session, but could not be saved: " + error.Message);
+                     result.warnings = warnings.ToArray();
+                 }
+             }
+-            lock (_gate)
+-            {
+-                _snapshot = result;
+-                _inFlight = null;
+-                completion.SetResult(result);
+-            }
++            return result;
+         }
+ 
+         private static async Task<Snapshot> WaitAsync(Task<Snapshot> task, CancellationToken token)
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIHybridLifetimeTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIHybridLifetimeTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIHybridLifetimeTests.cs
+@@ -0,0 +1,109 @@
++using System;
++using System.Collections.Generic;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++using NUnit.Framework;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIHybridLifetimeTests
++    {
++        private sealed class ReleaseProbe : IDisposable
++        {
++            internal int Failures, Attempts, Successes;
++            public void Dispose()
++            {
++                ++Attempts;
++                if (Failures-- > 0) throw new InvalidOperationException("Fixture release failed.");
++                ++Successes;
++            }
++        }
++
++        private sealed class Model : ISiriAITextProvider
++        {
++            internal readonly ReleaseProbe Release = new ReleaseProbe();
++            public MNNRealtimeCapabilities Capabilities => new MNNRealtimeCapabilities(
++                MNNRealtimeFeature.TextInput, "Managed lifetime fixture", "No native inference.", execution: MNNRealtimeExecution.Managed);
++            public Task PrepareAsync(CancellationToken token) => Task.CompletedTask;
++            public Task GenerateAsync(IReadOnlyList<MNNOpenAIMessage> history, float[] audio, int rate,
++                Func<string, Task> delta, CancellationToken token) => delta("fixture reply");
++            public void Dispose() => Release.Dispose();
++        }
++
++        private static void LoadCloud(SiriAIHybridProvider provider)
++        {
++            provider.GenerateAsync(new[] { new MNNOpenAIMessage(MNNChatRole.User, "Give a rigorous proof.") },
++                null, 16000, _ => Task.CompletedTask, CancellationToken.None).GetAwaiter().GetResult();
++        }
++
++        [TestCase("local")]
++        [TestCase("cloud")]
++        [TestCase("transport")]
++        public void FailedReleaseCanRetryWithoutReleasingSuccessfulChildrenAgain(string failedChild)
++        {
++            var local = new Model();
++            var cloud = new Model();
++            var transport = new ReleaseProbe();
++            var failure = failedChild == "local" ? local.Release : failedChild == "cloud" ? cloud.Release : transport;
++            failure.Failures = 1;
++            var provider = new SiriAIHybridProvider(local, new SiriAIHybridConfiguration { allowCloud = true },
++                () => cloud, transport: transport);
++            LoadCloud(provider);
++            Assert.Catch(provider.Dispose);
++            Assert.AreEqual(1, local.Release.Attempts);
++            Assert.AreEqual(1, cloud.Release.Attempts);
++            Assert.AreEqual(1, transport.Attempts);
++            provider.Dispose();
++            Assert.AreEqual(2, failure.Attempts, "The failed owner must survive for a later release attempt.");
++            foreach (var resource in new[] { local.Release, cloud.Release, transport })
++            {
++                Assert.AreEqual(1, resource.Successes);
++                Assert.AreEqual(ReferenceEquals(resource, failure) ? 2 : 1, resource.Attempts);
++            }
++            provider.Dispose();
++            Assert.AreEqual(2, failure.Attempts, "Completed release remains idempotent.");
++        }
++
++        [Test]
++        public void EveryReleaseFailureIsReportedAndFailedChildrenRemainOwned()
++        {
++            var local = new Model();
++            var cloud = new Model();
++            var transport = new ReleaseProbe { Failures = 1 };
++            local.Release.Failures = cloud.Release.Failures = 1;
++            var provider = new SiriAIHybridProvider(local, new SiriAIHybridConfiguration { allowCloud = true },
++                () => cloud, transport: transport);
++            LoadCloud(provider);
++            var failure = Assert.Throws<AggregateException>(provider.Dispose);
++            Assert.AreEqual(3, failure.InnerExceptions.Count);
++            Assert.Catch<ObjectDisposedException>(() => LoadCloud(provider), "A partially released provider cannot accept another request.");
++            Assert.Throws<ObjectDisposedException>(() => provider.PrepareAsync(CancellationToken.None));
++            Assert.Throws<ObjectDisposedException>(() => provider.ClassifyVoiceIntentAsync(
++                Array.Empty<MNNOpenAIMessage>(), _ => Task.CompletedTask, CancellationToken.None));
++            provider.Dispose();
++            provider.Dispose();
++            foreach (var resource in new[] { local.Release, cloud.Release, transport })
++            {
++                Assert.AreEqual(2, resource.Attempts);
++                Assert.AreEqual(1, resource.Successes);
++            }
++        }
++
++        [Test]
++        public void AliasedOwnedResourcesAreReleasedOnceEvenAfterAReleaseFailure()
++        {
++            var model = new Model();
++            model.Release.Failures = 1;
++            var provider = new SiriAIHybridProvider(model, new SiriAIHybridConfiguration { allowCloud = true },
++                () => model, transport: model);
++            LoadCloud(provider);
++            Assert.Catch(provider.Dispose);
++            Assert.AreEqual(1, model.Release.Attempts, "One owner cannot be retried through another role in the same cleanup pass.");
++            provider.Dispose();
++            provider.Dispose();
++            Assert.AreEqual(2, model.Release.Attempts);
++            Assert.AreEqual(1, model.Release.Successes);
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIHybridLifetimeTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIHybridLifetimeTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIHybridLifetimeTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: a71fb6d386fd46ffb460ae39d51b33a7
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIMarkdownImageTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIMarkdownImageTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIMarkdownImageTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIMarkdownImageTests.cs
+@@ -143,6 +143,89 @@
+             finally { UnityEngine.Object.DestroyImmediate(root); }
+         }
+ 
++        [UnityTest]
++        public IEnumerator EvictedPreviewImageReleasesItsUnboundNativeTexture()
++        {
++            var root = new GameObject("Markdown cache eviction", typeof(RectTransform), typeof(RawImage),
++                typeof(SiriAIMarkdownImageLoader));
++            var textures = new System.Collections.Generic.List<Texture2D>();
++            try
++            {
++                var raw = root.GetComponent<RawImage>();
++                var loader = root.GetComponent<SiriAIMarkdownImageLoader>();
++                for (int i = 0; i < 33; ++i)
++                {
++                    string path = Path.Combine(_directory, "eviction-" + i + ".png");
++                    File.WriteAllBytes(path, _png);
++                    loader.Configure(raw, new Uri(path).AbsoluteUri);
++                    double deadline = UnityEditor.EditorApplication.timeSinceStartup + 10;
++                    while (raw.texture == null && UnityEditor.EditorApplication.timeSinceStartup < deadline) yield return null;
++                    Assert.IsNotNull(raw.texture, "Every input image must load before advancing the eviction test.");
++                    textures.Add((Texture2D)raw.texture);
++                }
++                Assert.IsTrue(textures[0] == null, "An evicted image with no visible binding must release its native texture.");
++                Assert.IsNotNull(raw.texture, "The current visible binding must remain valid during eviction.");
++            }
++            finally
++            {
++                UnityEngine.Object.DestroyImmediate(root);
++                foreach (var texture in textures)
++                    if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
++            }
++        }
++
++        [UnityTest]
++        public IEnumerator HiddenPreviewReleasesItsBindingAndReloadsTheSameUrl()
++        {
++            var root = new GameObject("Markdown hidden binding", typeof(RectTransform), typeof(RawImage),
++                typeof(SiriAIMarkdownImageLoader));
++            try
++            {
++                var raw = root.GetComponent<RawImage>();
++                root.GetComponent<SiriAIMarkdownImageLoader>().Configure(raw, _fileUrl);
++                double deadline = UnityEditor.EditorApplication.timeSinceStartup + 10;
++                while (raw.texture == null && UnityEditor.EditorApplication.timeSinceStartup < deadline) yield return null;
++                Assert.IsNotNull(raw.texture);
++                var old = raw.texture;
++                root.SetActive(false);
++                Assert.IsNull(raw.texture);
++                SiriAIMarkdownImageLoader.SharedCache.Clear();
++                Assert.IsTrue(old == null, "Hidden bindings no longer retain evicted native resources.");
++                root.SetActive(true);
++                deadline = UnityEditor.EditorApplication.timeSinceStartup + 10;
++                while (raw.texture == null && UnityEditor.EditorApplication.timeSinceStartup < deadline) yield return null;
++                Assert.IsNotNull(raw.texture, "The unchanged URL must restart after its binding is enabled again.");
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void ExternalTextureRemainsBorrowedAcrossHideRebindAndDestruction()
++        {
++            var root = new GameObject("Markdown borrowed binding", typeof(RectTransform), typeof(RawImage),
++                typeof(SiriAIMarkdownImageLoader));
++            var texture = new Texture2D(2, 2);
++            try
++            {
++                var raw = root.GetComponent<RawImage>();
++                var loader = root.GetComponent<SiriAIMarkdownImageLoader>();
++                loader.Configure(raw, "file:///missing/borrowed.png");
++                loader.ApplyExternalTexture(texture, "file:///missing/borrowed.png");
++                Assert.AreSame(texture, raw.texture);
++                root.SetActive(false);
++                root.SetActive(true);
++                Assert.AreSame(texture, raw.texture);
++                loader.Configure(raw, "file:///missing/new-binding.png");
++                UnityEngine.Object.DestroyImmediate(root);
++                Assert.IsTrue(texture != null, "External callers keep native texture ownership.");
++            }
++            finally
++            {
++                if (root != null) UnityEngine.Object.DestroyImmediate(root);
++                UnityEngine.Object.DestroyImmediate(texture);
++            }
++        }
++
+         [Test]
+         public void OldImageCannotOverwriteReboundSlot()
+         {
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnlineModelCacheTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnlineModelCacheTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnlineModelCacheTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnlineModelCacheTests.cs
+@@ -199,6 +199,50 @@
+         }
+ 
+         [Test]
++        public void DiskBudgetFailureKeepsMetadataAvailableAndManualRefreshCanRecover()
++        {
++            int requests = 0;
++            var cache = new SiriAIOnlineModelCache(_path, _ =>
++            {
++                var result = Found(bytes: ++requests * 100);
++                if (requests == 2) result.Warnings = new[] { new string('x', 16 * 1024 * 1024) };
++                return Task.FromResult(result);
++            });
++            cache.LoadAsync().GetAwaiter().GetResult();
++            string saved = File.ReadAllText(_path);
++            var overBudget = cache.LoadAsync(true);
++            Assert.IsTrue(overBudget.IsCompleted, "A cache persistence failure must complete the shared request.");
++            var available = overBudget.GetAwaiter().GetResult();
++            Assert.AreEqual(200, available.models.Single().fileSize);
++            Assert.IsTrue(available.warnings.Any(warning => warning.Contains("could not be saved")));
++            Assert.AreEqual(saved, File.ReadAllText(_path), "Keep the previous valid disk cache.");
++            var retry = cache.LoadAsync(true);
++            Assert.IsTrue(retry.IsCompleted, "The failed save must not leave an in-flight request behind.");
++            Assert.AreEqual(300, retry.GetAwaiter().GetResult().models.Single().fileSize);
++            Assert.AreEqual(300, new SiriAIOnlineModelCache(_path).Read().models.Single().fileSize);
++        }
++
++        [Test]
++        public void MetadataProcessingFailureCompletesRequestAndAllowsExplicitRetry()
++        {
++            int requests = 0;
++            var cache = new SiriAIOnlineModelCache(_path, _ =>
++            {
++                var result = Found();
++                if (++requests == 1) result.Models = null;
++                return Task.FromResult(result);
++            });
++            var failed = cache.LoadAsync();
++            Assert.IsTrue(failed.IsCompleted, "Every shared operation must complete even if metadata processing fails.");
++            Assert.IsTrue(failed.IsFaulted, "Processing errors must reach the caller.");
++            Assert.Catch(() => failed.GetAwaiter().GetResult());
++            var retry = cache.LoadAsync(true);
++            Assert.IsTrue(retry.IsCompleted);
++            Assert.AreEqual(1, retry.GetAwaiter().GetResult().models.Length);
++            Assert.AreEqual(2, requests);
++        }
++
++        [Test]
+         public void FailedRefreshRetainsLastGoodDiskSnapshotAndPartialResultsMergeWithoutDuplicateModels()
+         {
+             int requests = 0;
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Fixtures/SiriAIDelayedImageServer.cs b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Fixtures/SiriAIDelayedImageServer.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Fixtures/SiriAIDelayedImageServer.cs
+@@ -0,0 +1,106 @@
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Net;
++using System.Net.Sockets;
++using System.Text;
++using System.Threading;
++using System.Threading.Tasks;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    /// <summary>Two loopback requests. The first remains pending so hiding a real Player binding cancels it.</summary>
++    public sealed class SiriAIDelayedImageServer : IDisposable
++    {
++        private readonly TcpListener _listener = new TcpListener(IPAddress.Loopback, 0);
++        private readonly CancellationTokenSource _stop = new CancellationTokenSource();
++        private readonly TaskCompletionSource<bool> _firstAccepted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
++        private readonly TaskCompletionSource<bool> _holdFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
++        private readonly List<TcpClient> _clients = new List<TcpClient>();
++        private int _requests, _disposed;
++        public string Url { get; }
++        public Task FirstRequestAccepted => _firstAccepted.Task;
++        public Task Completion { get; }
++        public int Requests => Volatile.Read(ref _requests);
++
++        public SiriAIDelayedImageServer(byte[] png)
++        {
++            if (png == null || png.Length == 0) throw new ArgumentException("Supply a local PNG body.", nameof(png));
++            _listener.Start();
++            Url = "http://127.0.0.1:" + ((IPEndPoint)_listener.LocalEndpoint).Port + "/image.png";
++            Completion = AcceptAsync(png, _stop.Token);
++        }
++
++        private async Task AcceptAsync(byte[] png, CancellationToken token)
++        {
++            var responses = new List<Task>(2);
++            try
++            {
++                for (int request = 0; request < 2; ++request)
++                {
++                    var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
++                    lock (_clients)
++                    {
++                        if (Volatile.Read(ref _disposed) != 0) { client.Dispose(); break; }
++                        _clients.Add(client);
++                    }
++                    responses.Add(RespondAsync(client, request == 0, png, token));
++                }
++            }
++            catch (ObjectDisposedException) { }
++            catch (SocketException) when (token.IsCancellationRequested) { }
++            finally { await Task.WhenAll(responses).ConfigureAwait(false); }
++        }
++
++        private async Task RespondAsync(TcpClient client, bool first, byte[] png, CancellationToken token)
++        {
++            try
++            {
++                using (client)
++                using (var stream = client.GetStream())
++                {
++                    await ReadHeadersAsync(stream, token).ConfigureAwait(false);
++                    Interlocked.Increment(ref _requests);
++                    if (first)
++                    {
++                        _firstAccepted.TrySetResult(true);
++                        await _holdFirst.Task.ConfigureAwait(false);
++                    }
++                    byte[] response = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: " +
++                        png.Length + "\r\nConnection: close\r\n\r\n");
++                    await stream.WriteAsync(response, 0, response.Length, token).ConfigureAwait(false);
++                    await stream.WriteAsync(png, 0, png.Length, token).ConfigureAwait(false);
++                }
++            }
++            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
++            catch (ObjectDisposedException) { }
++            catch (IOException) { }
++            catch (SocketException) { }
++            finally { lock (_clients) _clients.Remove(client); }
++        }
++
++        private static async Task ReadHeadersAsync(Stream stream, CancellationToken token)
++        {
++            var buffer = new byte[1024];
++            var headers = new StringBuilder();
++            while (headers.ToString().IndexOf("\r\n\r\n", StringComparison.Ordinal) < 0)
++            {
++                int read = await stream.ReadAsync(buffer, 0, buffer.Length, token).ConfigureAwait(false);
++                if (read == 0 || headers.Length + read > 8192) throw new IOException("Incomplete local image request.");
++                headers.Append(Encoding.ASCII.GetString(buffer, 0, read));
++            }
++        }
++
++        public void Dispose()
++        {
++            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
++            _stop.Cancel();
++            _holdFirst.TrySetCanceled();
++            _listener.Stop();
++            TcpClient[] clients;
++            lock (_clients) clients = _clients.ToArray();
++            foreach (var client in clients) client.Dispose();
++            _stop.Dispose();
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Fixtures/SiriAIDelayedImageServer.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Fixtures/SiriAIDelayedImageServer.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Fixtures/SiriAIDelayedImageServer.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: 893ef2f75aed404da82f5a2aba25c366
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/MNN.Samples.SiriAI.Presentation.Runtime.Tests.asmdef b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/MNN.Samples.SiriAI.Presentation.Runtime.Tests.asmdef
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/MNN.Samples.SiriAI.Presentation.Runtime.Tests.asmdef
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/MNN.Samples.SiriAI.Presentation.Runtime.Tests.asmdef
+@@ -1,7 +1,16 @@
+ {
+   "name": "MNN.Samples.SiriAI.Presentation.Runtime.Tests",
+-  "references": ["MNN.Samples.SiriAI.Presentation", "UnityEngine.UI"],
+-  "optionalUnityReferences": ["TestAssemblies"],
++  "references": [
++    "MNN.Samples.SiriAI.Presentation",
++    "UnityEngine.UI",
++    "MNN.Unity",
++    "MNN.Samples.SiriAI.TestFixtures"
++  ],
++  "optionalUnityReferences": [
++    "TestAssemblies"
++  ],
+   "autoReferenced": false,
+-  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
++  "defineConstraints": [
++    "UNITY_INCLUDE_TESTS"
++  ]
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/SiriAIMarkdownImagePlayerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/SiriAIMarkdownImagePlayerTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/SiriAIMarkdownImagePlayerTests.cs
+@@ -0,0 +1,62 @@
++using System.Collections;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.TestTools;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIMarkdownImagePlayerTests
++    {
++        [UnityTest]
++        [UnityPlatform(exclude = new[] { RuntimePlatform.WebGLPlayer })]
++        public IEnumerator HiddenPendingImageRestartsItsPlayerCoroutineAndReleasesItsTexture()
++        {
++            Assert.True(Application.isPlaying, "This check must exercise the Player coroutine rather than the Editor poller.");
++            var source = new Texture2D(3, 2, TextureFormat.RGBA32, false);
++            byte[] png = source.EncodeToPNG();
++            UnityEngine.Object.Destroy(source);
++            var server = new SiriAIDelayedImageServer(png);
++            var root = new GameObject("Markdown Player lifecycle", typeof(RectTransform), typeof(RawImage),
++                typeof(SiriAIMarkdownImageLoader));
++            try
++            {
++                var raw = root.GetComponent<RawImage>();
++                root.GetComponent<SiriAIMarkdownImageLoader>().Configure(raw, server.Url);
++                float deadline = Time.realtimeSinceStartup + 10;
++                while (!server.FirstRequestAccepted.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
++                Assert.True(server.FirstRequestAccepted.IsCompleted, "The first real request must be in flight before hiding.");
++                server.FirstRequestAccepted.GetAwaiter().GetResult();
++                Assert.IsNull(raw.texture, "The first local response is deliberately held pending.");
++                root.SetActive(false);
++                yield return null;
++                Assert.IsNull(raw.texture);
++                root.SetActive(true);
++                deadline = Time.realtimeSinceStartup + 10;
++                while (raw.texture == null && Time.realtimeSinceStartup < deadline) yield return null;
++                Assert.IsNotNull(raw.texture, "Showing the unchanged binding must start a new Player coroutine.");
++                Assert.AreEqual(2, server.Requests, "The delayed first request cannot supply the displayed image.");
++                Assert.AreEqual(3, raw.texture.width);
++                Assert.AreEqual(2, raw.texture.height);
++                var texture = raw.texture;
++                root.SetActive(false);
++                SiriAIMarkdownImageLoader.SharedCache.Clear();
++                Assert.IsTrue(texture != null, "Native destruction is deferred until Unity completes the frame.");
++                yield return null;
++                Assert.IsTrue(texture == null, "Hiding the binding and clearing cache ownership release the native image.");
++                server.Dispose();
++                deadline = Time.realtimeSinceStartup + 10;
++                while (!server.Completion.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
++                Assert.True(server.Completion.IsCompleted, "The local request owner must quiesce.");
++                server.Completion.GetAwaiter().GetResult();
++            }
++            finally
++            {
++                root.SetActive(false);
++                UnityEngine.Object.Destroy(root);
++                SiriAIMarkdownImageLoader.ReleaseSharedCache();
++                server.Dispose();
++            }
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/SiriAIMarkdownImagePlayerTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/SiriAIMarkdownImagePlayerTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/Presentation/SiriAIMarkdownImagePlayerTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: 237b4665718d48c299d380bc380d2b0b
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
