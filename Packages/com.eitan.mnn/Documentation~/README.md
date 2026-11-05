@@ -10,7 +10,8 @@ that every platform or model pipeline is implemented.
 - [Chat Studio](ChatStudio.md): conversations, model preparation, media and task limits.
 - [Managed Markdown](Markdown.md): shared C# Markdown parsing and Editor/Player rendering boundary.
 - [共享声学处理](AcousticPipeline.md): 可独立组合的输入增强、回声、说话人、fade与波形API。
-- [SiriAI复用审查](SiriAIReuseReview.md): 分域边界、已下沉能力、剩余迁移单元与验证门槛。
+- [AI应用架构](ConversationApplicationArchitecture.md): 最小装配、共享能力入口、线程与资源所有权。
+- [SiriAI复用审查](SiriAIReuseReview.md): 完整下沉单元、兼容迁移、回归与性能证据。
 - [DTLN AEC 回声消除](DtlnAec.md): 三个规格、双音频输入、流式 API 与可选 Burst FFT。
 - [Candy 风格迁移](StyleTransfer.md): 固定风格、模型转换和平台验证范围。
 - [DeepLab 语义分割](Segmentation.md): 类别掩码、坐标约定和平台验证范围。

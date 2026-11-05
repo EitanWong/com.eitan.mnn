@@ -19,3 +19,7 @@
 CPU 与 Metal 的实际覆盖见 [加速说明](../../Documentation~/Acceleration.md)。其他平台和 IL2CPP 的推理入口
 尚未实现。示例导入后能够编译，不代表目标平台具备推理能力。
 平台与 ABI 限制见 [包说明](../../README.md) 和 [测试说明](../../Documentation~/Testing.md)。
+
+## AI会话装配
+
+`Scripts/MNNConversationExample.cs`展示共享工厂的最小装配。应用提供已安装模型目录、实际设备能力、capture/output和session组件；共享工厂负责阶段选择、准备与执行。先await组件StopSessionAsync，再尝试factory.ReleaseAsync，清理失败保留owner重试。设备连接、通知消费与权限仍需接入真实设备。详见[应用架构](../../Documentation~/ConversationApplicationArchitecture.md)。

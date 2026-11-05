@@ -106,6 +106,7 @@ are excluded from source control. Tests do not automatically download large mode
 
 - [Documentation index](Documentation~/README.md)
 - [API reference](Documentation~/API.md)
+- [Reusable AI application architecture](Documentation~/ConversationApplicationArchitecture.md)
 - [DTLN AEC and optional Burst FFT](Documentation~/DtlnAec.md)
 - [Acceleration and fallback](Documentation~/Acceleration.md)
 - [Inference evidence and reproduction](Documentation~/Testing.md)

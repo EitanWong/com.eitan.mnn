@@ -2,6 +2,9 @@
 
 `MNNConversationRuntime` 位于 `Runtime/Core/Language/Realtime`。它由 SiriAI 的实时对话核心提取而来；SiriAI 和 MNN Studio 使用同一个实现。应用层负责设备、模型选择和界面，无需再写一套录音轮次、识别、生成和播报循环。
 
+推荐新应用使用 `MNNConversationRuntimeFactory` 的惰性stage注册，完整入口和可编译示例见
+[AI应用架构](ConversationApplicationArchitecture.md)。下面的低层直接组合入口继续兼容。
+
 ## 组合会话
 
 以下代码在设备已经协商 PCM 格式、绑定 `output` 后执行。`capture` 是 `IMNNAudioCaptureSource`；Unity 应用可使用 `MNNRealtimeAudioDevice` 和 `MNNUnityMicrophoneCapture`。具体设备必须持续消费输出并提交播放回执。

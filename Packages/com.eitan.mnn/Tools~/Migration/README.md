@@ -48,3 +48,24 @@ python3 Packages/com.eitan.mnn/Tools~/Testing/run_conversation_tests.py \
 
 缺少本地Siri导入时使用 `--package-only` 和包fixture筛选。Unity运行时不提供有效分配计数器时，
 分配断言会跳过；组合hop计时仍执行并明确输出 `allocation_bytes=unavailable`。
+
+## 完整能力迁移
+
+已经应用 `reuse` 的本轮基线（`9b5ec11` 对应本地导入源码）运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage full
+```
+
+`SiriAIFullCapabilities.patch` 包含模型资源/安装、完整provider与Agent、会话输入/命令、
+声学与设备控制、历史/Markdown及通用布局/平台能力的Siri薄适配与行为回归。
+不包含模型、凭据、产品视觉资产、并行视觉测试修改或项目设置。
+`SiriAIFullCapabilities.files.json` 对每个受影响文件记录迁移前后SHA-256；脚本在任何
+写入前检查所有受影响文件的完整bytes。部分迁移或独立编辑会拒绝，不能靠相邻hunk
+匹配猜测兼容。完全匹配迁移后版本时重复运行零写入。原有meta内容保持不变。
+
+三个stage是顺序演进且各有固定基线；不能在已演进版本上强行回放旧stage。
+工作区的本地Siri已经迁移，不需要再执行。没有本地Siri导入时，新应用可直接使用包，
+无需先导入Siri或EasyMic。实用接入与所有权见[AI应用架构](../../Documentation~/ConversationApplicationArchitecture.md)。
+完整回归可使用 `run_conversation_tests.py --sample-source` 指定仓库 `TestArtifacts~` 中的
+完整Siri资产快照；`--package-only` 单独验证共享实现，不隐式依赖本地被忽略的示例。

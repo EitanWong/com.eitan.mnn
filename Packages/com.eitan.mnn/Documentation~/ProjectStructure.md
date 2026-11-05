@@ -11,10 +11,10 @@
 Packages/com.eitan.mnn/
 ├── Runtime/
 │   ├── Core/
-│   │   ├── Common/                Types、Platform、Security、Settings、Audio、Numerics
+│   │   ├── Common/                Types、Platform、Security、Settings、Audio、Numerics、Layout、Diagnostics
 │   │   ├── Inference/             Backend、Loading、Interpreter、Session、Tensor
 │   │   ├── Models/                Configuration、Catalog、Downloads、Delivery、Transfer、Serialization、Profiles
-│   │   ├── Language/              Llm、Decisions、Tokenization、Realtime、Remote
+│   │   ├── Language/              Llm、Decisions、Tokenization、Realtime、Remote、Providers、Agent、Markdown
 │   │   ├── Retrieval/             Bert、Embedding、ImageEmbedding、Reranking、Tokenization
 │   │   ├── Vision/                Common、YoloV8、PaddleOcr、DocumentLayout、ImageTasks
 │   │   ├── AudioProcessing/       按音频任务及模型细分（见下文）
@@ -221,3 +221,9 @@ SiriAI 的同名兼容入口只做装配/转发；不要在示例或 Studio 再�
 Studio 的 `MNNStudioRealtimeConversation` 只管理 Editor 设备与异步生命周期，
 Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有权见
 [共享实时对话](RealtimeConversations.md)。
+
+完整应用能力组合见[AI应用架构](ConversationApplicationArchitecture.md)。`AudioProcessing/Acoustics`
+拥有跨声学任务的模型角色、前端和唤醒；`Realtime`拥有可注入设备会话控制；
+`Language/Providers`拥有惰性阶段工厂，`Agent`拥有计划、工具和权限注入。
+`Common/Layout`仅放通用几何/运动，`Common/Diagnostics`放可复用系统采样，
+平台公开导出统一声明在对应`MNNInterop.*`文件。不得把Siri的产品视觉或业务默认值放进这些目录。

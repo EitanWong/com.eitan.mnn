@@ -67,16 +67,11 @@ def main():
             metadata = subprocess.run([str(monodis), "--implmap", str(assembly)],
                                       capture_output=True, text=True, check=True, timeout=30).stdout
             (output / (label + "-imports.txt")).write_text(metadata, encoding="utf-8")
-            platform_api_names = (
-                "SecItemCopyMatching", "SecItemUpdate", "SecItemAdd", "SecItemDelete",
-                "CFDictionaryCreateMutable", "CFDictionarySetValue", "CFStringCreateWithCString",
-                "CFDataCreate", "CFDataGetLength", "CFDataGetBytePtr", "CFRelease",
-                "AppleDlopen", "AppleDlsym", "AppleDlclose", "NNDeviceCount", "NNGetDevice", "NNDeviceName", "NNDeviceType", "NNDeviceFeatureLevel", "CryptProtectData",
-                "CryptUnprotectData", "LocalFree",
-            )
-            imports = sum(1 for line in metadata.splitlines()
-                          if re.match(r"\d+:", line)
-                          and not any(name + "(" in line for name in platform_api_names))
+            # Count the existing MNN/STL ABI symbols by exported symbol, rather than
+            # subtracting an ever-growing allowlist of unrelated public OS APIs.
+            exports = [match.group(1) for line in metadata.splitlines()
+                       if (match := re.search(r"\)\s+\d+\s+\((\S+)\s+.+\)$", line))]
+            imports = sum(symbol.startswith(("_Z", "MNN_")) for symbol in exports)
         success = compiled.returncode == 0 and imports == expected
         summary.append({"case": label, "compiled": compiled.returncode == 0,
                         "mnn_imports": imports, "expected_mnn_imports": expected, "passed": success})

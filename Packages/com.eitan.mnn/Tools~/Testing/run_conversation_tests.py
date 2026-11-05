@@ -16,6 +16,7 @@ def main():
     parser.add_argument('--graphics', action='store_true', help='Enable the GPU for shader rendering and visual regression tests')
     parser.add_argument('--filter', default='MNN.Unity.Tests.ConversationReuseTests;MNN.Unity.Tests.StudioPerformanceRegressionTests')
     parser.add_argument('--package-source', type=Path, help='Optional package snapshot under TestArtifacts~ for before/after measurement')
+    parser.add_argument('--sample-source', type=Path, help='Optional complete SiriAI snapshot under TestArtifacts~ for before/after regression')
     parser.add_argument('--runtime-source', type=Path, help='Optional saved Runtime tree for a before/after benchmark')
     parser.add_argument('--include-package-tests', action='store_true', help='Enable package test assemblies for managed/native integration checks')
     parser.add_argument('--benchmarks-only', action='store_true', help='Compile only benchmarks, without newer regression tests')
@@ -27,7 +28,9 @@ def main():
     if not args.label.replace('-', '').replace('_', '').isalnum():
         parser.error('label must contain only letters, digits, hyphens or underscores')
     repo = Path(__file__).resolve().parents[4]
-    sample = repo / 'Assets/Samples/SiriAI'
+    sample = args.sample_source.resolve() if args.sample_source else repo / 'Assets/Samples/SiriAI'
+    if args.sample_source and repo / 'TestArtifacts~' not in sample.parents:
+        parser.error('sample-source must be under the repository TestArtifacts~')
     output = args.output.resolve() if args.output else repo / 'TestArtifacts~/ConversationTests'
     if repo / 'TestArtifacts~' not in output.parents:
         parser.error('output must be under the repository TestArtifacts~')
