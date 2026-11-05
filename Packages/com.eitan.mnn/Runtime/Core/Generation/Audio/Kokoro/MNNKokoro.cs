@@ -13,11 +13,11 @@ namespace MNN.Unity
     {
         private readonly object _gate = new object();
         private readonly string _directory;
-        private readonly byte[] _graph;
+        private byte[] _graph;
         private readonly int _threads;
         private readonly bool _sherpa;
         private readonly string _graphPath;
-        private readonly MNNKokoroText _text;
+        private MNNKokoroText _text;
         private readonly Dictionary<string, float[]> _styles = new Dictionary<string, float[]>(StringComparer.Ordinal);
         private MNNSingleInputModule _module;
         private string _voice;
@@ -149,6 +149,8 @@ namespace MNN.Unity
                 _module?.Dispose();
                 _module = null;
                 _styles.Clear();
+                _graph = null;
+                _text = null;
             }
         }
     }
