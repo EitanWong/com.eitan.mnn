@@ -10,15 +10,16 @@ import subprocess
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
-    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full'], default='conversation',
-                        help='Apply the conversation, first reuse, or complete capability migration')
+    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance'], default='conversation',
+                        help='Apply conversation, reuse, full capability, or current acceptance-contract migration')
     args = parser.parse_args()
     root = args.root.resolve()
     patch = Path(__file__).with_name({'conversation': 'SiriAISharedConversation.patch',
                                     'reuse': 'SiriAIReusableCapabilities.patch',
-                                    'full': 'SiriAIFullCapabilities.patch'}[args.stage]).resolve()
+                                    'full': 'SiriAIFullCapabilities.patch',
+                                    'acceptance': 'SiriAIAcceptanceContracts.patch'}[args.stage]).resolve()
     command = ['git', '-C', str(root), 'apply', '--whitespace=nowarn']
-    if args.stage == 'full':
+    if args.stage in ('full', 'acceptance'):
         # git apply checks surrounding lines, not every byte in changed files.
         # Reject a partial or independently edited import before any mutation.
         records = json.loads(patch.with_suffix('.files.json').read_text())['files']
@@ -27,11 +28,11 @@ def main():
             target = root / record['path']
             actual[record['path']] = hashlib.sha256(target.read_bytes()).hexdigest() if target.exists() else None
         if all(actual[item['path']] == item['after'] for item in records):
-            print('SiriAI already uses the complete shared capabilities.')
+            print('SiriAI already uses the checked ' + args.stage + ' migration.')
             return
         mismatched = [item['path'] for item in records if actual[item['path']] != item['before']]
         if mismatched:
-            raise SystemExit('The local SiriAI version differs from the full migration baseline. No files changed.\n' +
+            raise SystemExit('The local SiriAI version differs from the checked ' + args.stage + ' migration baseline. No files changed.\n' +
                              '\n'.join(mismatched))
     if subprocess.run(command + ['--reverse', '--check', str(patch)], capture_output=True).returncode == 0:
         print('SiriAI already uses the shared ' + ('conversation engine.' if args.stage == 'conversation' else 'reusable capabilities.'))

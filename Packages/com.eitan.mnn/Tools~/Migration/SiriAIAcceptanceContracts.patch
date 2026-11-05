@@ -1,0 +1,553 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/EasyMic/SiriAIConversationTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/EasyMic/SiriAIConversationTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Runtime/EasyMic/SiriAIConversationTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Runtime/EasyMic/SiriAIConversationTests.cs
+@@ -16,24 +16,111 @@
+ {
+     public sealed class SiriAIConversationTests
+     {
+-        [UnityTest]
++        private SiriAIChat _chat;
++        private GameObject _root;
++        private MNNRealtimeSession _session;
++        private SiriAIBackendRegistration _registration;
++        private MNNKokoro _promptModel;
++        private Task _promptTask;
++        private MNNConversationRuntimeFactory _injectedFactory;
++        private Exception _sceneConfigurationFailure;
++
++        [UnityTearDown]
++        public IEnumerator ReleaseOwnedResources()
++        {
++            Exception cleanupFailure = null;
++            if (_chat != null) yield return CaptureCleanup(_chat.StopConversationAsync(), error => cleanupFailure = Combine(cleanupFailure, error));
++            if (_session != null) yield return CaptureCleanup(_session.StopAsync(), error => cleanupFailure = Combine(cleanupFailure, error));
++            bool sessionReleased = _session == null || _session.ResourcesReleased;
++            if (sessionReleased && _registration?.ReleaseAsync != null) yield return CaptureCleanup(_registration.ReleaseAsync(), error => cleanupFailure = Combine(cleanupFailure, error));
++            if (sessionReleased && _injectedFactory != null) yield return CaptureCleanup(_injectedFactory.ReleaseAsync(), error => cleanupFailure = Combine(cleanupFailure, error));
++            if (_promptTask != null && !_promptTask.IsCompleted) yield return CaptureCleanup(_promptTask, error => cleanupFailure = Combine(cleanupFailure, error));
++            bool promptJoined = _promptTask == null || _promptTask.IsCompleted;
++            if (promptJoined) { _promptModel?.Dispose(); _promptModel = null; }
++            if (sessionReleased && promptJoined && _root != null) UnityEngine.Object.Destroy(_root);
++            bool chatReleased = _chat == null || _chat.SessionComponent?.Session == null || _chat.SessionComponent.Session.ResourcesReleased;
++            if (_chat != null && chatReleased) { AudioSystem.Instance.Stop(); UnityEngine.Object.Destroy(_chat.gameObject); }
++            _chat = null; _root = null; _session = null; _registration = null; _promptTask = null; _injectedFactory = null;
++            yield return null;
++            if (cleanupFailure != null) throw cleanupFailure;
++        }
++
++        private static string Artifacts
++        {
++            get
++            {
++                string folder = Environment.GetEnvironmentVariable("SIRIAI_TEST_ARTIFACTS");
++                if (string.IsNullOrWhiteSpace(folder)) folder = Path.GetFullPath("TestArtifacts~/SiriAICompletion/SiriConversation");
++                Directory.CreateDirectory(folder);
++                return folder;
++            }
++        }
++
++        private static void IsolateProfile(SiriAIConfigurableBackend backend)
++        {
++            typeof(SiriAIConfigurableBackend).GetField("profile", BindingFlags.NonPublic | BindingFlags.Instance)
++                .SetValue(backend, "acceptance-" + Guid.NewGuid().ToString("N"));
++        }
++
++        private void ConfigureLoadedScene(Scene scene, LoadSceneMode mode)
++        {
++            try
++            {
++                _chat = UnityEngine.Object.FindObjectOfType<SiriAIChat>();
++                Assert.NotNull(_chat);
++                typeof(SiriAIChat).GetField("startOnEnable", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(_chat, false);
++                var backend = _chat.Backend as SiriAIConfigurableBackend;
++                Assert.NotNull(backend);
++                IsolateProfile(backend);
++                var config = backend.GetConfiguration();
++                config.mode = SiriAIConversationMode.Cascaded;
++                config.temperature = 0;
++                config.maximumReplyTokens = 128;
++                backend.ApplyConfiguration(config);
++                // Test the checked-in scene, independent of a user's saved acoustic/wake preferences.
++                _chat.SetAcousticSettings(_chat.AcousticProcessing.ReadSceneSettings());
++                Assert.IsInstanceOf<SiriAIAudioBackendRouter>(_chat.AudioEndpoint);
++                var audio = new SiriAIAudioSettings();
++                audio.SelectBackend("easymic");
++                var access = _chat.AudioEndpoint.GetAudioSettingsAccess(audio);
++                Assert.IsNotEmpty(access.inputs, "The EasyMic scene test requires an advertised microphone.");
++                Assert.IsNotEmpty(access.outputs, "The EasyMic scene test requires an advertised speaker.");
++                var input = access.inputs.Find(value => value.id == "") ?? access.inputs[0];
++                var output = access.outputs.Find(value => value.id == "") ?? access.outputs[0];
++                Assert.IsNotEmpty(input.channels, "The chosen microphone must advertise capture channels.");
++                audio.inputDevice = input.id;
++                audio.inputChannels = input.channels[0];
++                audio.outputDevice = output.id;
++                _chat.AudioEndpoint.StageAudioSettings(audio);
++            }
++            catch (Exception error) { _sceneConfigurationFailure = error; }
++        }
++        [UnityTest, Timeout(1800 * 1000)]
+         public IEnumerator OriginalSceneLoadsAndChatsThroughEasyMic()
+         {
++            SceneManager.sceneLoaded += ConfigureLoadedScene;
++            try
++            {
+ #if UNITY_EDITOR
+             yield return UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(UnityEditor.AssetDatabase.GUIDToAssetPath("2207489d881774de6ba909e41f282d7e"),
+                 new LoadSceneParameters(LoadSceneMode.Single));
+ #else
+             yield return SceneManager.LoadSceneAsync("SiriAI");
+ #endif
+-            var chat = UnityEngine.Object.FindObjectOfType<SiriAIChat>();
++            }
++            finally { SceneManager.sceneLoaded -= ConfigureLoadedScene; }
++            if (_sceneConfigurationFailure != null) throw _sceneConfigurationFailure;
++            var chat = _chat;
+             Assert.NotNull(chat);
+             Assert.IsInstanceOf<SiriAIConfigurableBackend>(chat.Backend);
+-            Assert.IsInstanceOf<SiriAIEasyMicAudio>(chat.AudioEndpoint);
++            Assert.IsInstanceOf<SiriAIAudioBackendRouter>(chat.AudioEndpoint);
++            Assert.AreEqual("easymic", chat.AudioEndpoint.ReadAudioSettings().EffectiveBackendId);
+             var replies = new List<string>();
+             chat.OnAssistantText.AddListener(text => { replies.Add(text); Debug.Log("SiriAI reply: " + text); });
+             Task start = chat.StartConversationAsync();
+             yield return Await(start, 120);
+-            Assert.AreEqual(MNNRealtimeRoute.AudioTextToSpeech, chat.Runtime.CurrentReport.Route);
++            Assert.AreEqual(MNNRealtimeRoute.CascadedSpeech, chat.Runtime.CurrentReport.Route);
++            Assert.IsNotNull(chat.AudioEndpoint.GetComponentInChildren<SiriAIEasyMicAudio>(true));
+             Task first = chat.SendTextAsync("请记住我叫小明。只需回复一句你好小明。");
+             yield return Await(first, 90);
+             yield return WaitPresented(chat, 30);
+@@ -46,7 +133,7 @@
+             string secondReply = replies[replies.Count - 1];
+             StringAssert.Contains("小明", secondReply);
+             Assert.False(chat.AudioEndpoint.CanInterruptSpeech, "No active AEC is configured on the default test rig.");
+-            string folder = Environment.GetEnvironmentVariable("SIRIAI_TEST_ARTIFACTS");
++            string folder = Artifacts;
+             var report = new List<string> { firstReply, secondReply };
+             foreach (string question in new[] { "三加五是多少？只回答结果。", "我改名为小红了，现在喜欢香蕉。请记住。", "我现在叫什么名字，喜欢什么水果？" })
+             {
+@@ -60,32 +147,86 @@
+             StringAssert.Contains("小红", report[4]);
+             StringAssert.Contains("香蕉", report[4]);
+             File.WriteAllText(Path.Combine(folder, "original-chat.txt"), string.Join("\n", report));
+-            yield return Await(chat.StopConversationAsync(), 30);
+-            AudioSystem.Instance.Stop();
+-        }
+-
+-        [UnityTest]
++            yield return Await(chat.StopConversationAsync(), 90);
++        }
++
++        [UnityTest, Timeout(1200 * 1000)]
+         public IEnumerator OmniAudioWithExternalSpeechNeedsNoAsr()
+         {
+             yield return ModelConversation(SiriAIConversationMode.OmniWithTts, false);
+         }
+ 
+-        [UnityTest]
++        [UnityTest, Timeout(120 * 1000)]
+         public IEnumerator OmniOwnSpeechUsesSameOutputPipeline()
+         {
++            // An explicitly qualified injected waveform producer verifies the shared pipeline.
++            // This is independent of the local MNN adapter, whose unavailable waveform ABI is tested below.
++            var model = new InjectedSpeechModel();
++            var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(16000, 1), 160, blockCapacity: 16);
++            MNNRealtimeSession session = null;
++            var ports = new MNNConversationPorts(new Capture(), () => session);
++            var registrations = new MNNConversationRegistrations
++            {
++                Model = new MNNConversationStageRegistration(model.Capabilities, () => model),
++                Vad = MNNConversationStageRegistration.Energy,
++                AllowBufferedSpeech = true
++            };
++            var factory = _injectedFactory = new MNNConversationRuntimeFactory(ports,
++                new MNNConversationOptions { endRealtimeOnExitIntent = false }, registrations);
++            var device = new MNNRealtimeCapabilities(MNNRealtimeFeature.DuplexDevice | MNNRealtimeFeature.PresentationClock |
++                MNNRealtimeFeature.HalfDuplexDevice, "injected speech renderer", "Managed waveform/presentation contract only.",
++                execution: MNNRealtimeExecution.Managed);
++            var excluded = new[] { MNNRealtimeRoute.NativeDuplexSpeech, MNNRealtimeRoute.NativeDuplexTextToSpeech,
++                MNNRealtimeRoute.AudioTextToSpeech, MNNRealtimeRoute.CascadedSpeech };
++            var fallback = factory.CreateFallback(output, device, excluded, requireMeasuredSpeech: false);
++            session = _session = new MNNRealtimeSession(fallback, output);
++            yield return Await(session.StartAsync(), 30);
++            Assert.AreEqual(MNNRealtimeRoute.EndToEndSpeech, fallback.CurrentReport.Route);
++            yield return Await(factory.SubmitTextAsync("injected spoken response", CancellationToken.None), 30);
++            Assert.AreEqual(1, model.SpeechCalls);
++            Assert.AreEqual(1, output.SegmentCount);
++            Assert.False(output.CanBeginNextResponse(output.CurrentResponse), "Completed inference is not physical presentation.");
++            var scratch = new float[160];
++            long frames = 0;
++            bool nonzero = false;
++            for (int i = 0; i < 30; ++i)
++            {
++                output.Render(scratch, 0, scratch.Length);
++                foreach (float sample in scratch) nonzero |= sample != 0;
++                frames += scratch.Length;
++                output.DrainReceipts(128);
++                output.AcknowledgePresentation(frames, true);
++                yield return null;
++            }
++            Assert.True(nonzero, "The model waveform must reach the shared audio renderer.");
++            Assert.True(output.CanBeginNextResponse(output.CurrentResponse));
++            string answer = null;
++            while (ports.TryRead(out var notification)) if (notification.Assistant) answer = notification.Text;
++            Assert.AreEqual("injected spoken reply", answer);
++            yield return Await(session.StopAsync(), 30);
++            Assert.AreEqual(1, model.DisposeCalls);
++        }
++
++        [UnityTest, Timeout(120 * 1000)]
++        public IEnumerator OmniOwnSpeechRejectsUnavailableNativeWaveform()
++        {
+             yield return ModelConversation(SiriAIConversationMode.RealtimeSpeech, true);
+         }
+ 
+-        private static IEnumerator ModelConversation(SiriAIConversationMode mode, bool ownSpeech)
+-        {
+-            var root = new GameObject("Omni model integration");
++        private IEnumerator ModelConversation(SiriAIConversationMode mode, bool ownSpeech)
++        {
++            var root = _root = new GameObject("Omni model integration");
+             var backend = root.AddComponent<SiriAIConfigurableBackend>();
++            IsolateProfile(backend);
+             var config = backend.GetConfiguration();
+             config.mode = mode;
+             config.model.model = "Qwen2.5-Omni-3B-MNN";
+             config.tts.model = "Cosy-Voice-MNN";
+             config.asr.model = "ASR must never be used";
+             config.allowFallback = false;
++            config.endRealtimeOnExitIntent = false;
++            config.filterVoiceInput = false;
++            config.useTurnDetectionModel = false;
+             config.vadMode = SiriAIVadMode.Provider;
+             config.turnMode = SiriAITurnMode.Provider;
+             config.maximumReplyTokens = 48;
+@@ -98,26 +239,35 @@
+                 MNNRealtimeFeature.HalfDuplexDevice, "integration render simulator", "Actual model output is rendered and acknowledged by test.", execution: MNNRealtimeExecution.Managed);
+             var capture = new Capture();
+             var context = new SiriAIChatContext(capture, () => session, device);
+-            var registration = backend.CreateRegistration(context);
++            var registration = _registration = backend.CreateRegistration(context);
+             Assert.IsNull(registration.Asr);
+             var selection = MNNRealtimeRouteSelector.SelectBest(registration.Model, registration.Device, registration.Tts,
+                 registration.Asr, registration.Vad, registration.ExcludedRoutes, false, true);
+-            selection.RequireSelected();
++            if (ownSpeech)
++            {
++                Assert.False(selection.CanStart, "The current native MNN adapter has no waveform callback ABI; a model name cannot qualify speech output.");
++                Assert.AreEqual(MNNRealtimeFeature.None, registration.Model.Features &
++                    (MNNRealtimeFeature.BufferedSpeech | MNNRealtimeFeature.StreamingSpeech));
++                Assert.Throws<NotSupportedException>(() => selection.RequireSelected());
++                yield break;
++            }
++            Assert.AreEqual(MNNRealtimeRoute.AudioTextToSpeech, selection.RequireSelected().Route);
+             var fallback = new MNNRealtimeFallbackRuntime(registration.Factory, output, registration.Model, device,
+                 registration.Tts, registration.Asr, registration.Vad, registration.ExcludedRoutes, false, true);
+-            session = new MNNRealtimeSession(fallback, output);
++            session = _session = new MNNRealtimeSession(fallback, output);
+             yield return Await(session.StartAsync(), 180);
+             // A generated spoken prompt enters the actual microphone/VAD/turn pipeline; no ASR stage is available.
+-            var kokoro = MNNKokoro.Load(Path.Combine(Application.streamingAssetsPath, "MNN/Models/Jeryuk--kokoro-v1_0-MNN"));
++            var kokoro = _promptModel = MNNKokoro.Load(Path.Combine(Application.streamingAssetsPath, "MNN/Models/Jeryuk--kokoro-v1_0-MNN"));
+             Task<MNNGeneratedAudio> prompt = kokoro.SynthesizeAsync("你好，请问你是谁？", "zf_xiaoxiao");
++            _promptTask = prompt;
+             yield return Await(prompt, 45);
+             var raw = prompt.Result.Waveform;
+-            var resample = new MNNStreamingResampler(new MNNPcmFormat(24000, 1), new MNNPcmFormat(16000, 1));
++            var resample = new MNNStreamingResampler(new MNNPcmFormat(prompt.Result.SampleRate, 1), new MNNPcmFormat(16000, 1));
+             var mono = new float[raw.Length];
+             resample.Process(raw, 0, raw.Length, mono, 0, mono.Length, out int used, out int made);
+             Assert.AreEqual(raw.Length, used);
+             capture.Set(mono, made);
+-            kokoro.Dispose();
++            kokoro.Dispose(); _promptModel = null;
+             float deadline = Time.realtimeSinceStartup + 240;
+             long frames = 0;
+             long nextRender = System.Diagnostics.Stopwatch.GetTimestamp();
+@@ -142,11 +292,10 @@
+             }
+             Assert.True(started, "No model speech was published before timeout. " + answer);
+             Assert.IsNotEmpty(answer);
+-            string folder = Environment.GetEnvironmentVariable("SIRIAI_TEST_ARTIFACTS");
++            string folder = Artifacts;
+             File.WriteAllText(Path.Combine(folder, ownSpeech ? "omni-speech.txt" : "omni-cosy.txt"), answer);
+             File.WriteAllBytes(Path.Combine(folder, ownSpeech ? "omni-speech.wav" : "omni-cosy.wav"), MNNWaveAudio.EncodePcm16(rendered.ToArray(), 24000));
+             yield return Await(session.StopAsync(), 60);
+-            UnityEngine.Object.Destroy(root);
+         }
+ 
+         private static IEnumerator WaitPresented(SiriAIChat chat, float seconds)
+@@ -162,6 +311,49 @@
+             Assert.True(task.IsCompleted, "Timed out waiting for model/session task.");
+             if (task.IsFaulted) throw task.Exception.GetBaseException();
+             Assert.False(task.IsCanceled);
++        }
++        private static IEnumerator CaptureCleanup(Task task, Action<Exception> failure, float seconds = 90)
++        {
++            float until = Time.realtimeSinceStartup + seconds;
++            while (!task.IsCompleted && Time.realtimeSinceStartup < until) yield return null;
++            if (!task.IsCompleted) { failure(new TimeoutException("Timed out waiting for cleanup task.")); yield break; }
++            if (task.IsFaulted) failure(task.Exception.GetBaseException());
++            else if (task.IsCanceled) failure(new TaskCanceledException(task));
++        }
++        private static Exception Combine(Exception first, Exception second)
++        {
++            if (first == null) return second;
++            if (second == null || ReferenceEquals(first, second)) return first;
++            return new AggregateException(first, second);
++        }
++        private sealed class InjectedSpeechModel : IMNNConversationSpeechModelProvider, IMNNConversationTextProvider
++        {
++            public int SpeechCalls, DisposeCalls;
++            public MNNRealtimeCapabilities Capabilities { get; } = new MNNRealtimeCapabilities(
++                MNNRealtimeFeature.TextInput | MNNRealtimeFeature.MemoryAudioInput | MNNRealtimeFeature.StableSpokenText |
++                MNNRealtimeFeature.ContextRecovery | MNNRealtimeFeature.BufferedSpeech,
++                "injected waveform provider", "Generated fixed PCM for managed pipeline acceptance only.", execution: MNNRealtimeExecution.Managed);
++            public Task PrepareAsync(CancellationToken token) { token.ThrowIfCancellationRequested(); return Task.CompletedTask; }
++            public Task GenerateAsync(IReadOnlyList<MNNOpenAIMessage> history, float[] audio, int rate, Func<string, Task> delta,
++                CancellationToken token) => throw new InvalidOperationException("This test requires the model speech route.");
++            public async Task<MNNMultimodalResult> GenerateSpeechAsync(IReadOnlyList<MNNOpenAIMessage> history,
++                Func<string, Task> delta, CancellationToken token)
++            {
++                token.ThrowIfCancellationRequested(); ++SpeechCalls;
++                const string text = "injected spoken reply";
++                await delta(text);
++                var pcm = new float[1600];
++                for (int i = 0; i < pcm.Length; ++i) pcm[i] = .1f;
++                // Result creation is internal to the package; invoke that DTO constructor only in this fixture.
++                var constructor = typeof(MNNMultimodalResult).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)[0];
++                var parameters = constructor.GetParameters();
++                var values = new object[parameters.Length];
++                object[] required = { text, 1, false, pcm, 16000, 0L, 0L, 0f };
++                Array.Copy(required, values, required.Length);
++                for (int i = required.Length; i < values.Length; ++i) values[i] = parameters[i].DefaultValue;
++                return (MNNMultimodalResult)constructor.Invoke(values);
++            }
++            public void Dispose() { ++DisposeCalls; }
+         }
+         private sealed class Capture : IMNNAudioCaptureSource
+         {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs
+@@ -7,12 +7,20 @@
+     {
+         private async Task ReleaseSessionResourcesAsync(bool releaseAcoustics = true)
+         {
+-            // Failed quiescence may leave a capture worker live. Keep its acoustic
+-            // resources until the session can stop safely instead of disposing under it.
+-            if (_session != null) await _session.StopSessionAsync();
+             Exception failure = null;
++            if (_session != null)
++            {
++                try { await _session.StopSessionAsync(); }
++                catch (Exception error)
++                {
++                    // A retained runtime fault can coexist with successful shutdown.
++                    // Failed quiescence still owns resources used by its live workers.
++                    if (_session.Session?.ResourcesReleased != true) throw;
++                    failure = error;
++                }
++            }
+             try { if (_registration?.ReleaseAsync != null) await _registration.ReleaseAsync(); }
+-            catch (Exception error) { failure = error; }
++            catch (Exception error) { failure = CombineFailures("Session and auxiliary release failed.", failure, error); }
+             try { if (releaseAcoustics) await DisposeAcousticsAsync(); }
+             catch (Exception error) { failure = CombineFailures("Auxiliary and acoustic release failed.", failure, error); }
+             if (failure != null) throw failure;
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs
+@@ -0,0 +1,105 @@
++using System;
++using System.Collections;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.TestTools;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIChatResourceTests
++    {
++        [UnityTest]
++        public IEnumerator ReleasedSessionFaultStillReleasesAuxiliaryModelsAndAcoustics()
++        { return StopAfterFault(false); }
++
++        [UnityTest]
++        public IEnumerator FailedQuiescenceRetainsResourcesUntilASuccessfulRetry()
++        { return StopAfterFault(true); }
++
++        private static IEnumerator StopAfterFault(bool failQuiescence)
++        {
++            var root = new GameObject("Faulted chat resource ownership");
++            var chat = root.AddComponent<SiriAIChat>();
++            var component = root.AddComponent<MNNRealtimeSessionComponent>();
++            var acoustic = chat.AcousticProcessing;
++            var runtime = new FaultRuntime { FailQuiescence = failQuiescence };
++            var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(16000, 1), 160);
++            var session = new MNNRealtimeSession(runtime, output);
++            int releases = 0;
++            var original = new InvalidOperationException("Injected synthesis failure.");
++            try
++            {
++                SiriAITestAccess.Set(acoustic, "preferencesKey", "");
++                acoustic.StageSettings(new SiriAIAcousticSettings { enabled = true });
++                Task prepared = acoustic.PrepareAsync(CancellationToken.None);
++                yield return Join(prepared); Assert.False(prepared.IsFaulted, prepared.Exception?.ToString());
++                Assert.NotNull(acoustic.Frontend);
++                SiriAITestAccess.Set(component, "_mainThreadId", Thread.CurrentThread.ManagedThreadId);
++                SiriAITestAccess.Set(component, "_session", session);
++                SiriAITestAccess.Set(chat, "_session", component);
++                var caps = new MNNRealtimeCapabilities(MNNRealtimeFeature.None, "managed ownership test", "Injected resources; no native inference.", execution: MNNRealtimeExecution.Managed);
++                SiriAITestAccess.Set(chat, "_registration", new SiriAIBackendRegistration(new UnusedFactory(), caps, caps,
++                    releaseAsync: () => { ++releases; return Task.CompletedTask; }));
++
++                Task faulted = session.ReportFaultAsync(original); yield return Join(faulted);
++                Assert.True(faulted.IsFaulted); StringAssert.Contains(original.Message, session.Fault.ToString());
++                Assert.AreEqual(!failQuiescence, session.ResourcesReleased);
++                Task stopped = chat.StopConversationAsync(); yield return Join(stopped);
++                Assert.True(stopped.IsFaulted, "The original runtime failure must remain observable.");
++                StringAssert.Contains(original.Message, stopped.Exception.ToString());
++                if (failQuiescence)
++                {
++                    Assert.AreEqual(0, releases, "Auxiliary providers may still be used by unjoined workers.");
++                    Assert.NotNull(acoustic.Frontend, "Capture may still use the acoustic owner.");
++                    Assert.AreEqual(0, runtime.Disposals);
++                    runtime.FailQuiescence = false;
++                    stopped = chat.StopConversationAsync(); yield return Join(stopped);
++                    Assert.True(stopped.IsFaulted); StringAssert.Contains(original.Message, stopped.Exception.ToString());
++                    Assert.True(session.ResourcesReleased);
++                }
++                Assert.AreEqual(1, releases, "A released runtime's retained fault must not abandon auxiliary ownership.");
++                Assert.IsNull(acoustic.Frontend);
++                Assert.AreEqual(1, runtime.Disposals);
++            }
++            finally
++            {
++                runtime.FailQuiescence = false;
++                SiriAITestAccess.Set(chat, "_session", null);
++                SiriAITestAccess.Set(chat, "_registration", null);
++                SiriAITestAccess.Set(component, "_session", null);
++                acoustic.Release();
++                UnityEngine.Object.DestroyImmediate(root);
++            }
++        }
++
++        private static IEnumerator Join(Task task)
++        {
++            double until = UnityEditor.EditorApplication.timeSinceStartup + 10;
++            while (!task.IsCompleted && UnityEditor.EditorApplication.timeSinceStartup < until) yield return null;
++            Assert.True(task.IsCompleted, "Managed ownership transition did not finish in ten seconds.");
++        }
++
++        private sealed class UnusedFactory : IMNNRealtimeRuntimeFactory
++        {
++            public Task<IMNNRealtimeSessionRuntime> CreateAsync(MNNRealtimeReport report,
++                MNNRealtimeOutputPipeline output, CancellationToken token) => throw new NotSupportedException();
++        }
++
++        private sealed class FaultRuntime : IMNNRealtimeSessionRuntime
++        {
++            public bool FailQuiescence;
++            public int Disposals;
++            public Task PrepareAsync(CancellationToken token) => Task.CompletedTask;
++            public Task StartListeningAsync(CancellationToken token) => Task.CompletedTask;
++            public Task RequestCancellationAsync(MNNResponseId response) => Task.CompletedTask;
++            public Task WaitForInferenceQuiescenceAsync(MNNResponseId response) => Task.CompletedTask;
++            public Task RestoreContextAsync(MNNResponseId response) => Task.CompletedTask;
++            public Task StopListeningAsync() => Task.CompletedTask;
++            public Task WaitForQuiescenceAsync() => FailQuiescence ? Task.FromException(new InvalidOperationException("Worker is still live.")) : Task.CompletedTask;
++            public Task DisposeAsync() { ++Disposals; return Task.CompletedTask; }
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 5e69b577876144c28a15dfd45f58dac1
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs
+@@ -92,6 +92,12 @@
+         private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
+         private static T Field<T>(object target, string name) => (T)target.GetType().GetField(name, Flags).GetValue(target);
+         private static void Call(object target, string name, params object[] args) => target.GetType().GetMethod(name, Flags).Invoke(target, args);
++        private static void ConfigureManagedBackend(SiriAIChat chat, SiriAIRetryTestBackend backend)
++        {
++            chat.SetBackend(backend);
++            // This fixture exercises lifecycle doubles, independent of saved native acoustic/wake models.
++            chat.SetAcousticSettings(new SiriAIAcousticSettings { enabled = false });
++        }
+         private static IEnumerator Join(Task task, string phase = "operation")
+         {
+             double deadline = UnityEditor.EditorApplication.timeSinceStartup + 10;
+@@ -108,7 +114,7 @@
+             {
+                 var chat = root.AddComponent<SiriAIChat>(); var audio = root.AddComponent<SiriAIRetryTestAudio>();
+                 var backend = root.AddComponent<SiriAIRetryTestBackend>(); backend.FailuresRemaining = 0;
+-                chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>()); chat.SetBackend(backend);
++                chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>()); ConfigureManagedBackend(chat, backend);
+                 chat.SetAcousticSettings(new SiriAIAcousticSettings { enabled = true });
+                 yield return Join(chat.StartConversationAsync());
+                 audio.CloseFailuresRemaining = 1;
+@@ -133,7 +139,7 @@
+             {
+                 var chat = root.AddComponent<SiriAIChat>(); var audio = root.AddComponent<SiriAIRetryTestAudio>();
+                 var backend = root.AddComponent<SiriAIRetryTestBackend>(); backend.FailuresRemaining = 0;
+-                chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>()); chat.SetBackend(backend);
++                chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>()); ConfigureManagedBackend(chat, backend);
+                 chat.SetAcousticSettings(new SiriAIAcousticSettings { enabled = false });
+                 Task start = chat.StartConversationAsync(); yield return Join(start, "start");
+                 Assert.False(start.IsFaulted, start.Exception?.ToString());
+@@ -175,7 +181,7 @@
+                 backend.FailuresRemaining = 0;
+                 var original = root.AddComponent<MNNRealtimeSessionComponent>();
+                 chat.Configure(audio, original);
+-                chat.SetBackend(backend);
++                ConfigureManagedBackend(chat, backend);
+                 var view = root.AddComponent<SiriAIChatView>();
+                 Call(view, "InitializeView", false);
+                 var start = chat.StartConversationAsync();
+@@ -233,7 +239,7 @@
+                 backend.FailuresRemaining = 0;
+                 var original = root.AddComponent<MNNRealtimeSessionComponent>();
+                 chat.Configure(audio, original);
+-                chat.SetBackend(backend);
++                ConfigureManagedBackend(chat, backend);
+                 var view = root.AddComponent<SiriAIChatView>();
+                 Call(view, "InitializeView", false);
+                 var start = chat.StartConversationAsync();
+@@ -306,7 +312,7 @@
+                 backend.FailuresRemaining = 2;
+                 var original = root.AddComponent<MNNRealtimeSessionComponent>();
+                 chat.Configure(audio, original);
+-                chat.SetBackend(backend);
++                ConfigureManagedBackend(chat, backend);
+                 var view = root.AddComponent<SiriAIChatView>();
+                 Call(view, "InitializeView", false);
+                 var input = Field<InputField>(view, "_input");
+@@ -374,7 +380,7 @@
+                 var backend = root.AddComponent<SiriAIRetryTestBackend>();
+                 backend.FailuresRemaining = 0;
+                 chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>());
+-                chat.SetBackend(backend);
++                ConfigureManagedBackend(chat, backend);
+                 yield return Join(chat.StartConversationAsync());
+                 var oldOutput = audio.Output;
+                 var response = oldOutput.BeginResponse();
+@@ -415,7 +421,7 @@
+                 var backend = root.AddComponent<SiriAIRetryTestBackend>();
+                 backend.FailuresRemaining = 0;
+                 chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>());
+-                chat.SetBackend(backend);
++                ConfigureManagedBackend(chat, backend);
+                 var start = chat.StartConversationAsync();
+                 yield return Join(start);
+                 Assert.False(start.IsFaulted, start.Exception?.ToString());

@@ -69,3 +69,29 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 无需先导入Siri或EasyMic。实用接入与所有权见[AI应用架构](../../Documentation~/ConversationApplicationArchitecture.md)。
 完整回归可使用 `run_conversation_tests.py --sample-source` 指定仓库 `TestArtifacts~` 中的
 完整Siri资产快照；`--package-only` 单独验证共享实现，不隐式依赖本地被忽略的示例。
+
+## 当前验收契约迁移
+
+对已经完成上述共享能力迁移、且验收文件精确匹配本轮基线的 Siri 导入，运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage acceptance
+```
+
+`SiriAIAcceptanceContracts.patch` 更新三处过期契约：场景通过稳定 audio router 选择 EasyMic、
+当前级联路线使用 `CascadedSpeech`；无 ASR 的 Omni + 外部 TTS 测试关闭需要 ASR 的可选退出意图/过滤；
+原 `OmniOwnSpeechUsesSameOutputPipeline` 使用显式具备完整波形能力的注入 producer 验证共享 ledger/render/presentation；
+本地 Omni 自有波形仍由 `OmniOwnSpeechRejectsUnavailableNativeWaveform` 按当前真实能力明确拒绝。
+测试使用独立模型设置 profile，在 sceneLoaded、Start 之前选择设备实际公布的 EasyMic 输入/通道/输出，
+隔离用户持久化声学偏好，并在失败后完成其余安全清理再报告原始异常。
+模型输出、记忆和渲染/呈现断言继续保留；真实模型/设备结果由实际 PlayMode 执行验证。
+
+该 patch 同时修复 Siri 的停止资源边界：当 session 已完成资源释放但保留运行故障时，仍释放辅助模型和声学 owner，
+并向调用者保留该故障；若 worker 未完成 quiescence，则继续保留它可能使用的资源。
+新增两项注入故障测试覆盖这两种情况及失败后的成功重试。
+托管准备/重试 fixture 显式配置不依赖原生模型的声学设置，避免继承用户保存的唤醒偏好；
+声学资源所有权测试仍单独启用 frontend。此隔离不修改真实 KWS 资产的 SHA-256 校验。
+
+该 stage 同时校验所有修改源码完整字节和原 meta GUID，并校验新增测试原本不存在，版本不同、部分迁移或独立编辑均零写入拒绝；
+重复运行零写入。它不把当前不受支持的原生 waveform 能力标成支持。
+对应包修复把 Omni 模型准备要求限制为音频输入，外部 TTS 拥有语音输出；显式模型语音请求仍需通过原生 ABI/能力检查。
