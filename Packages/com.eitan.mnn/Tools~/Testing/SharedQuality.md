@@ -8,6 +8,11 @@ filter option. SiriAI, EasyMic and APM are absent. The separate native/model int
 assembly and Player inference assembly remain the responsibility of
 `run_platform_tests.py` and the model runners; this gate does not claim native
 inference or Player coverage.
+For a complete large-model Player scope, `run_platform_tests.py
+--run-timeout-seconds 7200` sets an explicit total build/run deadline. Its default
+remains 1800 seconds; this is separate from `--player-heartbeat-timeout`.
+Choose the total budget before launch. Extending it does not relax model
+assertions or turn elapsed time into a performance pass.
 The complete Editor assembly also contains texture and Studio inference tests.
 Run it with `--graphics` on a supported graphics host, using the required existing
 native binaries and model/reference assets. The workflow enables graphics.
