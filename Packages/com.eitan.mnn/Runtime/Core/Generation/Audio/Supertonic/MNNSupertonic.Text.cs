@@ -121,9 +121,12 @@ namespace MNN.Unity
             var ids = new List<int>();
             foreach (char c in text)
             {
-                if (c >= indexer.Length || indexer[c] < 0)
+                // An ideographic period can follow otherwise supported text (for example "8。").
+                // Keep a native vocabulary entry when available; only fold this punctuation to its ASCII equivalent.
+                char token = c == '\u3002' && (c >= indexer.Length || indexer[c] < 0) ? '.' : c;
+                if (token >= indexer.Length || indexer[token] < 0)
                     throw new NotSupportedException("This Supertonic model has no token for U+" + ((int)c).ToString("X4") + ". Use text supported by this model vocabulary.");
-                ids.Add(indexer[c]);
+                ids.Add(indexer[token]);
             }
 
             return ids.ToArray();
