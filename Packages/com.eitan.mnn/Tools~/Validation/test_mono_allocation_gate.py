@@ -20,11 +20,11 @@ class MonoAllocationGateTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
 
-    def xml(self, state="Passed", names=None):
+    def xml(self, state="Passed", names=None, assembly="MNN.Unity.Tests.dll"):
         names = self.gate.CASES if names is None else names
         cases = "".join(f'<test-case fullname="{name}" result="{state}"/>' for name in names)
         path = self.root / "result.xml"
-        path.write_text(f'<test-suite type="Assembly" name="MNN.Unity.Tests.dll" total="{len(names)}" '
+        path.write_text(f'<test-suite type="Assembly" name="{assembly}" total="{len(names)}" '
                         f'passed="{len(names)}" failed="0" skipped="0" inconclusive="0" result="Passed">{cases}</test-suite>')
         return path
 
@@ -34,6 +34,21 @@ class MonoAllocationGateTests(unittest.TestCase):
         self.assertTrue(report["host_mono_allocation_verified"])
         self.assertFalse(report["unity_allocation_verified"])
         self.assertFalse(report["native_inference_verified"])
+
+    def test_graph_allocation_suite_requires_both_real_integration_cases(self):
+        names = ("MNN.Unity.Tests.AdditionalTtsUnitTests.GraphSpecializationDoesNotDuplicateTheEntireSourceBeforeWritingItsResult",
+                 "MNN.Unity.Tests.AdditionalTtsUnitTests.MultipleGraphInputsShareOneResultBuffer")
+        path = self.xml(names=names, assembly="MNN.Unity.Integration.Tests.dll")
+        report = self.gate.evaluate_results(path, 0, suite="graph-specialization")
+        self.assertTrue(report["passed"], report)
+        self.assertFalse(report["unity_allocation_verified"])
+        self.assertFalse(report["native_inference_verified"])
+        for selected in (names[:1], names[:1] * 2):
+            path = self.xml(names=selected, assembly="MNN.Unity.Integration.Tests.dll")
+            self.assertFalse(self.gate.evaluate_results(path, 0, suite="graph-specialization")["passed"])
+        path = self.xml("Skipped", names=names, assembly="MNN.Unity.Integration.Tests.dll")
+        self.assertFalse(self.gate.evaluate_results(path, 0, suite="graph-specialization")["passed"])
+        self.assertFalse(self.gate.evaluate_results(self.xml(), 0, suite="graph-specialization")["passed"])
 
     def test_a_skip_or_failure_cannot_hide_behind_green_counts(self):
         for state in ("Skipped", "Failed", "Inconclusive"):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the original eight GC/allocation tests under host Mono and the real NUnit API.
+"""Run GC/allocation tests under host Mono and the real NUnit API.
 
 This is a separate runtime measurement. It never clears or replaces Unity skips.
 No Unity process, model download, native inference or dependency installation.
@@ -27,9 +27,18 @@ CASES = tuple("MNN.Unity.Tests." + name for name in (
     "RealtimeTransportTests.CaptureAndRenderTransportAllocateNothingAfterWarmup",
     "SharedFreeRegionSolverTests.RepeatedLayoutSolvesDoNotAllocateManagedMemory",
 ))
+GRAPH_CASES = tuple("MNN.Unity.Tests.AdditionalTtsUnitTests." + name for name in (
+    "GraphSpecializationDoesNotDuplicateTheEntireSourceBeforeWritingItsResult",
+    "MultipleGraphInputsShareOneResultBuffer",
+))
+SUITES = {
+    "shared": ("MNN.Unity.Tests.dll", CASES),
+    "graph-specialization": ("MNN.Unity.Integration.Tests.dll", GRAPH_CASES),
+}
 
 
-def evaluate_results(path, exit_code):
+def evaluate_results(path, exit_code, suite="shared"):
+    assembly_name, expected_cases = SUITES[suite]
     report = {"kind": "host_mono_allocation_gate", "passed": False, "host_mono_allocation_verified": False,
               "unity_allocation_verified": False, "native_inference_verified": False, "errors": [], "cases": 0}
     errors = report["errors"]
@@ -37,13 +46,13 @@ def evaluate_results(path, exit_code):
         errors.append("The host Mono test process failed.")
     try:
         root = ET.parse(path).getroot()
-        if root.get("type") != "Assembly" or root.get("name") != "MNN.Unity.Tests.dll":
-            errors.append("Expected the actual shared test assembly result.")
+        if root.get("type") != "Assembly" or root.get("name") != assembly_name:
+            errors.append("Expected the actual selected test assembly result: " + assembly_name)
         cases = list(root.iter("test-case"))
         report["cases"] = len(cases)
         names = [case.get("fullname") for case in cases]
-        if len(names) != len(CASES) or set(names) != set(CASES):
-            errors.append("Exactly the original eight allocation cases must execute.")
+        if len(names) != len(expected_cases) or set(names) != set(expected_cases):
+            errors.append("Exactly the selected allocation cases must execute.")
         for case in cases:
             if case.get("result") != "Passed":
                 errors.append("Allocation case failed or did not execute: " + str(case.get("fullname")))
@@ -51,7 +60,7 @@ def evaluate_results(path, exit_code):
             errors.append("NUnit allocation run did not pass.")
         if any(int(root.get(name, "-1")) != 0 for name in ("failed", "skipped", "inconclusive")):
             errors.append("Allocation results contain failure, skip or inconclusive counters.")
-        if int(root.get("total", "-1")) != len(CASES) or int(root.get("passed", "-1")) != len(CASES):
+        if int(root.get("total", "-1")) != len(expected_cases) or int(root.get("passed", "-1")) != len(expected_cases):
             errors.append("Allocation case counters are incomplete.")
     except (OSError, ET.ParseError, ValueError):
         errors.append("Allocation NUnit XML is missing or invalid.")
@@ -76,6 +85,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--unity", required=True, type=Path, help="Installed Unity used for compiler/reference paths only; never launched")
     parser.add_argument("--output", type=Path, default=ROOT / "TestArtifacts~/MonoAllocationTests")
+    parser.add_argument("--suite", choices=tuple(SUITES), default="shared")
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--compiled-assemblies", type=Path, help="Existing check_assembly_compilation output; otherwise compile current package")
     source.add_argument("--unity-project", type=Path, help="Use this already compiled Unity project's actual ScriptAssemblies and package references")
@@ -104,14 +114,15 @@ def main():
         if compilation.returncode:
             print("Package assembly compilation failed; inspect " + str(output / "compilation.log"))
             return 1
-    assembly = compiled / "MNN.Unity.Tests.dll"
+    assembly_name, selected_cases = SUITES[args.suite]
+    assembly = compiled / assembly_name
     if not assembly.is_file():
-        parser.error("The selected compilation has no actual shared test assembly.")
+        parser.error("The selected compilation has no actual test assembly: " + assembly_name)
     if args.unity_project is None:
         if not (compiled / "summary.json").is_file() or not complete_compilation(json.loads((compiled / "summary.json").read_text())):
             parser.error("Provide complete successful check_assembly_compilation output, including its summary.")
     case_file, executable, results = output / "cases.txt", output / "MNNMonoAllocationRunner.exe", output / "results.xml"
-    case_file.write_text("\n".join(CASES) + "\n")
+    case_file.write_text("\n".join(selected_cases) + "\n")
     results.unlink(missing_ok=True)
     with (output / "runner-build.log").open("w") as log:
         build = subprocess.run([args.csc, "-nologo", "-langversion:latest", "-r:" + str(nunit),
@@ -123,6 +134,8 @@ def main():
     environment = os.environ.copy()
     environment["MONO_PATH"] = os.pathsep.join((str(compiled), str(nunit.parent), str(test_runner.parent),
                                                str(contents / "Managed"), str(contents / "Managed/UnityEngine")))
+    environment["MNN_TEST_AFFINE_GRAPH"] = str(ROOT / "Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn")
+    environment["MNN_TEST_AFFINE_INPUTS_GRAPH"] = str(ROOT / "Packages/com.eitan.mnn/Tests/Fixtures/affine-inputs.mnn")
     with (output / "runner.log").open("w") as log:
         try:
             completed = subprocess.run([args.mono, str(executable), str(assembly), str(case_file), str(results)],
@@ -130,7 +143,8 @@ def main():
             exit_code = completed.returncode
         except subprocess.TimeoutExpired:
             exit_code = 124
-    report = evaluate_results(results, exit_code)
+    report = evaluate_results(results, exit_code, args.suite)
+    report["suite"] = args.suite
     report.update(assembly=str(assembly), assembly_sha256=hashlib.sha256(assembly.read_bytes()).hexdigest(),
                   compilation_summary=str(compiled / "summary.json") if args.unity_project is None else None,
                   actual_unity_project=str(args.unity_project.resolve()) if args.unity_project else None, results=str(results),
