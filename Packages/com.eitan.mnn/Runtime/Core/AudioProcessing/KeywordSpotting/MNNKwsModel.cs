@@ -59,6 +59,9 @@ namespace MNN.Unity
         internal static void Prepare(string directory)
         {
             Verify(directory);
+            // Keep the language of an existing verified English export.
+            if (File.Exists(Path.Combine(directory, MNNKeywordSpotterConfig.FileName)) &&
+                MNNKeywordSpotterConfig.Read(directory).Language == MNNKeywordLanguage.English) return;
             File.WriteAllText(Path.Combine(directory, MNNKeywordSpotterConfig.FileName), JsonUtility.ToJson(new MNNKeywordSpotterConfig(), true));
         }
 
