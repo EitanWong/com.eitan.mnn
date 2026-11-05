@@ -54,7 +54,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void CatalogueAndStudioExecuteTheOriginalWaveform()
         {
-            Assert.AreEqual("AudioProcessing", MNNModelRepository.Classify("owner/Resemble-Denoiser-44K-MNN"));
+            Assert.AreEqual("SpeechEnhancement", MNNModelRepository.Classify("owner/Resemble-Denoiser-44K-MNN"));
             MNNStudioModel model = MNNStudioModel.Read(Directory); Assert.True(model.HasAudioProcessingPipeline);
             using (var backend = MNNStudioNativeBackend.Load(model, 8, false))
             {

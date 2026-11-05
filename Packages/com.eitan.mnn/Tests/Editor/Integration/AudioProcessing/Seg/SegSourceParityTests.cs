@@ -43,7 +43,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void CatalogueAndStudioDiscoverGesturePipeline()
         {
-            Assert.AreEqual("AudioProcessing", MNNModelRepository.Classify("owner/SEG-YGD-16K-MNN"));
+            Assert.AreEqual("TargetSpeakerExtraction", MNNModelRepository.Classify("owner/SEG-YGD-16K-MNN"));
             var model = MNNStudioModel.Read(Directory);
             Assert.True(model.HasAudioProcessingPipeline); Assert.True(model.IsSeg); Assert.False(model.RequiresVisualFrames); Assert.False(model.IsSpExPlus);
         }

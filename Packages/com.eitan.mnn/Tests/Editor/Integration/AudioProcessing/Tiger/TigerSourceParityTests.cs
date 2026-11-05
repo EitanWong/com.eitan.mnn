@@ -99,7 +99,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void CatalogAndStudioExecuteTheOriginalWav()
         {
-            Assert.AreEqual("AudioProcessing", MNNModelRepository.Classify("owner/" + _modelName));
+            Assert.AreEqual("SpeechSeparation", MNNModelRepository.Classify("owner/" + _modelName));
             var profile = MNNStudioModel.Read(Directory);
             Assert.True(profile.HasAudioProcessingPipeline);
             using (var backend = MNNStudioNativeBackend.Load(profile, 4, false))

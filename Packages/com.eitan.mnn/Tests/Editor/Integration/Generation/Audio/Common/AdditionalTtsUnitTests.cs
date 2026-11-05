@@ -158,9 +158,11 @@ namespace MNN.Unity.Tests
                     File.WriteAllBytes(path, new byte[1]);
                 }
 
+                model = MNNStudioModel.Read(root);
                 Assert.True(model.HasGenerationPipeline);
                 CollectionAssert.AreEqual(new[]{"en_US-amy-low"}, model.TtsVoices);
                 File.Delete(Path.Combine(root, "espeak-ng-data/phondata"));
+                model = MNNStudioModel.Read(root);
                 Assert.False(model.HasGenerationPipeline);
                 File.WriteAllText(Path.Combine(root, "config.json"), "{\"model_type\":\"bertvits\"}");
                 model = MNNStudioModel.Read(root);

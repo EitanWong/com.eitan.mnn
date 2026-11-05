@@ -28,7 +28,7 @@ namespace MNN.Unity.Tests
         public void CatalogCategorizesVoxTurn()
         {
             Assert.That(MNNModelCatalog.Classify("example/VoxTurn-v1-MNN"),
-                Is.EqualTo(MNNModelCatalogCategory.AudioProcessing.ToString()));
+                Is.EqualTo(MNNModelCatalogCategory.TurnDetection.ToString()));
         }
 
         [Test]

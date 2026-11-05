@@ -23,7 +23,7 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(MNNStudioTask.AudioProcessing, model.Task, "Missing TurnSense Studio discovery");
             Assert.True(model.HasAudioProcessingPipeline);
             Assert.True(MNNStudioTasks.Get((int)model.Task).CanRun(model));
-            Assert.AreEqual(MNNModelCatalogCategory.AudioProcessing.ToString(), MNNModelCatalog.Classify("example/TurnSense-SmolLM2-135M-MNN"));
+            Assert.AreEqual(MNNModelCatalogCategory.TurnDetection.ToString(), MNNModelCatalog.Classify("example/TurnSense-SmolLM2-135M-MNN"));
             using (var backend = MNNStudioNativeBackend.Load(model, 1, false))
             {
                 var reference = JsonUtility.FromJson<Reference>(File.ReadAllText(Path.Combine(root, "reference-v407", "cases.json")));

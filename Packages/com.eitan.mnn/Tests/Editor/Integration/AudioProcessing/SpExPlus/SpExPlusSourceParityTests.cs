@@ -34,8 +34,8 @@ namespace MNN.Unity.Tests
         [Test]
         public void CatalogueClassifiesTargetExtractionFamily()
         {
-            Assert.AreEqual("AudioProcessing", MNNModelRepository.Classify("owner/SpExPlus-WSJ02Mix-8K-MNN"));
-            Assert.AreEqual("AudioProcessing", MNNModelRepository.Classify("owner/SpEx-plus-MNN"));
+            Assert.AreEqual("TargetSpeakerExtraction", MNNModelRepository.Classify("owner/SpExPlus-WSJ02Mix-8K-MNN"));
+            Assert.AreEqual("TargetSpeakerExtraction", MNNModelRepository.Classify("owner/SpEx-plus-MNN"));
         }
         [Test]
         public void PublicApiSupportsReusableReferenceEncoding()

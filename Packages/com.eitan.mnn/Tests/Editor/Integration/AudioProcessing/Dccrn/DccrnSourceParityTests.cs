@@ -85,7 +85,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void CatalogAndStudioExecuteOriginalFloatWav()
         {
-            Assert.AreEqual("AudioProcessing", MNNModelRepository.Classify("owner/DCCRN-Mayavoz-VCTK-16K-MNN"));
+            Assert.AreEqual("SpeechEnhancement", MNNModelRepository.Classify("owner/DCCRN-Mayavoz-VCTK-16K-MNN"));
             var profile = MNNStudioModel.Read(Directory);
             Assert.True(profile.HasAudioProcessingPipeline);
             using (var backend = MNNStudioNativeBackend.Load(profile, 4, false))
