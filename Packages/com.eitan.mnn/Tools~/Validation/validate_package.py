@@ -37,6 +37,10 @@ ASSEMBLIES = {
         "Samples~/BasicExample/Editor/MNN.Unity.Samples.BasicExample.Editor.asmdef",
         {"MNN.Unity", "MNN.Unity.Editor", "MNN.Unity.Samples.BasicExample"}
     ),
+    "MNN.Unity.Samples.BasicExample.Tests": (
+        "Samples~/BasicExample/Tests/Runtime/MNN.Unity.Samples.BasicExample.Tests.asmdef",
+        {"MNN.Unity", "MNN.Unity.Samples.BasicExample"}
+    ),
 }
 ROOT_DIRECTORIES = {
     "Runtime", "Editor", "Tests", "Samples~", "Documentation~", "Native~", "Tools~"
@@ -55,7 +59,7 @@ EDITOR_ASSEMBLIES = {
 }
 TEST_ASSEMBLIES = {
     "MNN.Unity.Tests", "MNN.Unity.Integration.Tests", "MNN.Unity.Tests.Fixtures",
-    "MNN.Unity.Runtime.Tests"
+    "MNN.Unity.Runtime.Tests", "MNN.Unity.Samples.BasicExample.Tests"
 }
 MODEL_DOMAINS = {
     ("Runtime", "Core", "SpeechRecognition"),

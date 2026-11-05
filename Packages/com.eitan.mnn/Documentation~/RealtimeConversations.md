@@ -29,6 +29,30 @@ ports.SetRealtime(true);
 
 自定义本地或远程 provider 实现 `IMNNConversationTextProvider`、`IMNNConversationAsrProvider`、`IMNNConversationTtsProvider`；可选接口支持增量识别、VAD、轮次检测、意图判断、模型直接生成语音和响应路由。`IMNNConversationContext` 是声学前处理、说话人选择、唤醒交接和通知的扩展边界。SiriAI 通过这个边界保留其现有声学和混合路由装配。
 
+## 官方 Omni 音频接口边界
+
+当前包的 MNN 3.6.2 官方 C++ API 接收完整的 `PromptAudioPart`（音频文件或 waveform VARP），
+再执行音频编码和请求 prefill。本地对话适配器的 `MemoryAudioInput` 接受托管 PCM，
+将一轮音频写为临时 WAV 后调用官方文件输入；它不承诺原生 PCM 流或零复制。
+Thinker/Talker 的交错生成描述输出阶段，不表示生成过程中能够持续接收新的麦克风 PCM。
+
+官方 `setWavformCallback` 的参数是 `std::function<bool(const float*, size_t, bool)>`。
+随包 macOS、Android ARM64、iOS ARM64 二进制存在相应符号，但本项目尚无可验证的
+托管构造、回调所有权和 AOT 调用契约。因此所有平台的该波形输出入口均在调用前明确拒绝；
+Omni provider 不声明 `BufferedSpeech` 或 `StreamingSpeech`。语音回复需要组合已实现的独立
+TTS provider，预检可选择 `AudioTextToSpeech`。它不会把 Omni 选为端到端语音或原生全双工路由。
+
+本轮核对的官方公开头文件、实现与二进制没有建立连续 PCM 会话、确定取消时限、
+调度时限或 RTF < 1 的契约；这些能力不会由持续采集或符号存在自动推导。
+预检注册的能力在 provider 完成准备后再次核对，实际能力变化会在发布可用 stage 前失败。
+当前行为是拒绝不再成立的注册，调用方须重新注册并预检后再启动。
+
+这些直接调用受 [移动端 ABI 契约](MobileInterop.md) 和 `MNNPlatformSupport` 限制：
+macOS 64 位 Mono、Android ARM64 IL2CPP、iOS ARM64 IL2CPP。
+它们是本项目维护的固定编译器/二进制契约；MNN 没有提供通用、跨 STL 的官方 C# ABI。
+2026-11-05 的当前插件哈希、逐符号结果、官方源码锚点和复现脚本保存在开发仓库
+`TestArtifacts~/SiriAICompletion/Audio/`；静态符号审计与托管回归均不替代真机推理和实时性能测量。
+
 ## 主线程与音频线程
 
 - 主线程协商麦克风，轮询 `ports.TryRead` 更新界面。文本更新按相邻同一响应合并，用户轮次保持 FIFO 顺序；工作线程不会为每个 token 创建完整显示字符串。

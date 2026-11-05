@@ -137,6 +137,7 @@ prefab 资产。导入示例后，示例组件的菜单由 sample 内独立 Edit
 | `MNN.Unity.Runtime.Tests` | `Tests/Runtime/MNN.Unity.Runtime.Tests.asmdef` | Runtime | PlayMode/Player、`UNITY_INCLUDE_TESTS` |
 | `MNN.Unity.Samples.BasicExample` | `Samples~/BasicExample/MNN.Unity.Samples.BasicExample.asmdef` | Runtime | 导入 sample 后的 Editor 与 Player |
 | `MNN.Unity.Samples.BasicExample.Editor` | `Samples~/BasicExample/Editor/MNN.Unity.Samples.BasicExample.Editor.asmdef` | Runtime、Editor、BasicExample | 导入 sample 后的 Editor |
+| `MNN.Unity.Samples.BasicExample.Tests` | `Samples~/BasicExample/Tests/Runtime/MNN.Unity.Samples.BasicExample.Tests.asmdef` | Runtime、BasicExample | 导入 sample 后的 PlayMode/Player、`UNITY_INCLUDE_TESTS` |
 
 Runtime 不依赖 Editor 或测试程序集。测试辅助代码分别归属对应程序集；
 跨 Editor/Player 的静态资源放 `Tests/Fixtures`，不使用源码目录隐式共享测试代码。

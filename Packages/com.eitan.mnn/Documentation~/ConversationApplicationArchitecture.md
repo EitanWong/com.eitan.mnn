@@ -3,7 +3,13 @@
 SiriAI 的通用执行代码由 MNN Unity Package 的托管 C# 层维护。新应用直接配置共享
 provider、模型目录和设备端口，再将 mailbox 通知投影成自己的 UI。不要复制 Siri 的
 会话、安装、声学、Agent 或历史实现。可编译的最小装配见
-[示例](../Samples~/BasicExample/Scripts/MNNConversationExample.cs)。
+[示例](../Samples~/BasicExample/Scripts/MNNStandaloneConversationExample.cs)。
+
+一般应用直接使用核心 `MNNConversationApplication`，提供设备 binding、能力快照、
+stage registrations 与临时历史目录。调用 `StartAsync()` 后通过 `Commands` 发送输入，
+每帧 `Tick()` 投影通知与推进设备呈现，退出时等待 `StopAsync()`。
+共享 owner 负责启动取消、命令 join、模型释放、失败清理重试与临时历史关闭。
+`MNNStandaloneConversation` 是 sample 中的兼容构造壳，新应用无需复制它。
 
 ## 接入顺序
 
@@ -30,6 +36,7 @@ provider、模型目录和设备端口，再将 mailbox 通知投影成自己的
 
 | 能力 | 共享入口 | 应用提供 |
 | --- | --- | --- |
+| 应用生命周期与装配 | `MNNConversationApplication` | binding、能力、registrations、历史目录与UI调用 |
 | 对话执行和资源组合 | `MNNConversationRuntimeFactory`、`MNNRealtimeSession` | 阶段注册、prompt 和产品选项 |
 | 本地任务适配 | `MNNConversationLocalProviders`、`MNNConversationLocalModelOptions` | 目录、backend、语言、音色与缓存身份 |
 | 云协议 | `MNNOpenAIConversationProvider`、`MNNCloudSpeechProvider` | 凭据、协议/model preset、网络授权 |

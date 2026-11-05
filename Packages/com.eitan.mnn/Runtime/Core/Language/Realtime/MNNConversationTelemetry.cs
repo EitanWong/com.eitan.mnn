@@ -11,6 +11,7 @@ namespace MNN.Unity
         private readonly MNNConversationTiming[] _history = new MNNConversationTiming[Capacity];
         private readonly double[] _percentileScratch = new double[Capacity];
         private int _next, _count;
+        private long _completedCount;
         private string _summary, _bottleneck;
 
         public class Trace
@@ -57,6 +58,12 @@ namespace MNN.Unity
         public MNNConversationTiming Latest
         {
             get { lock (_gate) return _count == 0 ? default : _history[(_next - 1 + Capacity) % Capacity]; }
+        }
+
+        /// <summary>Lifetime count of distinct completed traces, independent of the bounded timing history.</summary>
+        public long CompletedCount
+        {
+            get { lock (_gate) return _completedCount; }
         }
 
         public string Summary
@@ -112,6 +119,7 @@ namespace MNN.Unity
             {
                 if (Interlocked.CompareExchange(ref trace.Recorded, 1, 0) != 0) return;
                 _history[_next] = item; _next = (_next + 1) % Capacity; _count = Math.Min(Capacity, _count + 1);
+                ++_completedCount;
                 _summary = _bottleneck = null;
             }
         }

@@ -13,5 +13,8 @@ namespace MNN.Examples.Editor
 
         [MenuItem("GameObject/MNN/Examples/Unified Inference Example", false, 10)]
         private static void AddUnifiedExample(MenuCommand command) => MNNComponentMenu.AddToSelection<MNNUnifiedExample>(command);
+
+        [MenuItem("GameObject/MNN/Examples/Standalone Conversation Example", false, 10)]
+        private static void AddConversationExample(MenuCommand command) => MNNComponentMenu.AddToSelection<MNNStandaloneConversationExample>(command);
     }
 }

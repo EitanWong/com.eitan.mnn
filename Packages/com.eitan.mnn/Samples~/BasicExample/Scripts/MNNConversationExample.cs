@@ -13,15 +13,20 @@ namespace MNN.Examples
         {
             ports = new MNNConversationPorts(capture, () => owner.Session);
             var factory = new MNNConversationRuntimeFactory(ports,
-                new MNNConversationOptions(), new MNNConversationRegistrations
-                {
-                    Model = Local(MNNConversationModelAdapter.Language, modelDirectory),
-                    Asr = Local(MNNConversationModelAdapter.SpeechRecognition, recognitionDirectory),
-                    Tts = Local(MNNConversationModelAdapter.SpeechSynthesis, speechDirectory)
-                });
+                new MNNConversationOptions(), CreateLocalRegistrations(modelDirectory, recognitionDirectory, speechDirectory));
             owner.Configure(factory.CreateFallback(output, deviceCapabilities, requireMeasuredSpeech: false));
             return factory;
         }
+
+        public static MNNConversationRegistrations CreateLocalRegistrations(string modelDirectory, string recognitionDirectory, string speechDirectory) =>
+            new MNNConversationRegistrations
+            {
+                Model = Local(MNNConversationModelAdapter.Language, modelDirectory),
+                Asr = Local(MNNConversationModelAdapter.SpeechRecognition, recognitionDirectory),
+                Tts = Local(MNNConversationModelAdapter.SpeechSynthesis, speechDirectory),
+                Vad = MNNConversationStageRegistration.Energy,
+                AllowBufferedSpeech = true
+            };
 
         private static MNNConversationStageRegistration Local(MNNConversationModelAdapter task, string directory) =>
             new MNNConversationStageRegistration(MNNConversationLocalProviders.DescribeCapabilities(task),
