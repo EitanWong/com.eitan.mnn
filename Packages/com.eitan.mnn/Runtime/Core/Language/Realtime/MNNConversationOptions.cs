@@ -15,7 +15,7 @@ namespace MNN.Unity
         internal MNNConversationOptions Snapshot()
         {
             if (minimumSpeechMilliseconds < 20 || minimumSpeechMilliseconds > 2000 || silenceMilliseconds < 100 || silenceMilliseconds > 5000 ||
-                turnRetryMilliseconds < 100 || turnRetryMilliseconds > 5000 || maximumUtteranceSeconds < 2 || maximumUtteranceSeconds > 120 ||
+                turnRetryMilliseconds < 100 || turnRetryMilliseconds > 5000 || maximumUtteranceSeconds < 2 || maximumUtteranceSeconds > MNNRealtimeUtteranceBuffer.MaximumSeconds ||
                 maximumHistoryMessages < 2 || maximumHistoryMessages > 512 || maximumResponseCharacters < 128 || maximumResponseCharacters > 65536 ||
                 speechSegmentCharacters < 8 || speechSegmentCharacters > 512 || maximumResponseSeconds < 5 || maximumResponseSeconds > 1800 ||
                 realtimeInactivitySeconds < 0 || realtimeInactivitySeconds > 1800 || float.IsNaN(energyThreshold) || energyThreshold <= 0 || energyThreshold > 1 ||

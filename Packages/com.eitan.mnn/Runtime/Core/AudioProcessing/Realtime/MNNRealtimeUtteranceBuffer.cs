@@ -9,6 +9,7 @@ namespace MNN.Unity
     /// </summary>
     public sealed class MNNRealtimeUtteranceBuffer
     {
+        internal const int MaximumSeconds = 120;
         private readonly float[] _audio;
         private readonly float[] _preRoll;
         private readonly int _minimumSpeech;
@@ -24,7 +25,7 @@ namespace MNN.Unity
         public bool IsFull => _length == _audio.Length;
         public MNNRealtimeUtteranceBuffer(int minimumSpeechMilliseconds = 140, int silenceMilliseconds = 550, int maximumSeconds = 30, int preRollMilliseconds = 96)
         {
-            if (minimumSpeechMilliseconds < 20 || minimumSpeechMilliseconds > 2000 || silenceMilliseconds < 100 || silenceMilliseconds > 5000 || maximumSeconds < 2 || maximumSeconds > 120)
+            if (minimumSpeechMilliseconds < 20 || minimumSpeechMilliseconds > 2000 || silenceMilliseconds < 100 || silenceMilliseconds > 5000 || maximumSeconds < 2 || maximumSeconds > MaximumSeconds)
                 throw new ArgumentOutOfRangeException(nameof(maximumSeconds));
             if (preRollMilliseconds < 0 || preRollMilliseconds > 2000) throw new ArgumentOutOfRangeException(nameof(preRollMilliseconds));
             int preRollSamples = ((preRollMilliseconds * 16 + 511) / 512) * 512;

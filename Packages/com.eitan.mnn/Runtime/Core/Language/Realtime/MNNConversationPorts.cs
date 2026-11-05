@@ -59,7 +59,10 @@ namespace MNN.Unity
         public void PublishInputWarning(string message) => Interlocked.Exchange(ref _warning, message);
         public string TakeInputWarning() => Interlocked.Exchange(ref _warning, null);
         public void PublishRecognitionPreview(int revision, string text)
-        { lock (_textGate) { _partialRevision = revision; _partial = text; } }
+        {
+            if (text == null || text.Length > 65536) return;
+            lock (_textGate) { _partialRevision = revision; _partial = text; }
+        }
         public string TakeRecognitionPreview()
         {
             int revision = RealtimeRevision;
