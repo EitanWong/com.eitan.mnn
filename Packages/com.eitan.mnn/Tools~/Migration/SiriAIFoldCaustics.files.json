@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc",
+      "before": "39b933350479c8ff8eaceb3dc3f19a953bd6300b86d83a22a1a70ddb94497d50",
+      "after": "1ee1cde40f539341b6a6443c5f5861aa56a27159a88da10fab41c398ef9ebf6e"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc.meta",
+      "before": "a12ebd05b879bed3842b86a5d9ede1142c369b7adf58fb77a11b75e17bdfdf94",
+      "after": "a12ebd05b879bed3842b86a5d9ede1142c369b7adf58fb77a11b75e17bdfdf94"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/OrbStyles.md",
+      "before": "7b0f2230b182bb6d8cb77b5a736b40d45e9898263a4381ab0a1fc9687469576a",
+      "after": "66bc144495aff24cfe585089833930c9675206180f03289589e8f864dcb3f68a"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs",
+      "before": "baa4175b29835f7bf2af48921e99a6cbe5f83b1954568c0fb5e03a78345f6d94",
+      "after": "9de1b131c4f49960ddffd8535d9fed9402361148fe22c3dc9ede1c156582879d"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs.meta",
+      "before": "1c6737fb9863ee3d79182a20a0bb357bb389940b3270240a13f0106ea18c24b9",
+      "after": "1c6737fb9863ee3d79182a20a0bb357bb389940b3270240a13f0106ea18c24b9"
+    }
+  ]
+}

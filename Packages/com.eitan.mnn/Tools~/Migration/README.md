@@ -185,3 +185,25 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 SHA-256 清单检查全部修改文件及原 meta GUID；完整应用字节一致，重复零写入，
 基线不同或部分应用时零写入拒绝。本地工作区已应用。该补丁只保存此次四文件差异，
 早前视觉基线不包含在内。
+
+## 折边光量跟随光片形态
+
+对 optical 修订后的精确本地基线，可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage caustics
+```
+
+`SiriAIFoldCaustics.patch` 保存方向性光量、实际曝光回归与说明。移除独立的快速左右
+光量摆动，使亮折边与局部色散共用同一光片截面和解析切线。保持归一化光量，保留
+现有球壳、介质、光片轮廓/薄层/色温，以及 Thinking 和独立 Talking 实现。
+
+相关 Editor GPU、语音和状态回归 222/222 通过。104 帧固定时间/投影中，六列亮折边
+高度误差约下降 61%，柔光肩部 RGB 误差约下降 12%，白色亮区面积误差也降低；
+色散分位误差略增。31 帧待机、20 组隔离球壳、
+10 组隔离 Talking 主光核均与本轮基线完全相同。仍存在局部遮叠、焦散和色散残差，
+不宣称与官方逐像素一致。连续语音、状态往返和动作记录位于本地
+`Assets/Samples/SiriAI/TestArtifacts~/FoldCaustics20261107/`，验证环境为 Editor Metal。
+
+SHA-256 清单检查修改文件和原 meta GUID；完整应用字节一致，重复零写入，基线
+不同或部分应用时零写入拒绝。本地工作区已应用。补丁仅保存本轮三文件差异。

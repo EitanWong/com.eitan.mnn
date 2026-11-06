@@ -1,0 +1,139 @@
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
+@@ -205,22 +205,26 @@
+     return 0.84900000;
+ }
+ 
+-// The projected face alternates from one edge to the other along the turn.
++// Illumination follows the same section and tangent as refraction. An unrelated
++// fast left/right oscillator made the brightest fold turn against the surface.
++float siriSheetPhotonBias(float4 section)
++{
++    return clamp((.08949111 + 1.19365659 * section.x - 1.73219638 * section.y
++        + .5225142 * section.z + .00528174 * section.w) * siriSheetOpening(), -3.8, 3.8);
++}
++
+ // Grazing paths brighten the folds while the face remains translucent. Normalize
+ // this directional response before summing, including the even Bessel moments.
+-float3 siriSheetPhotonDensity(float3 x, float u)
++float siriSheetPhotonDensity(float bias, float u)
+ {
+     float opening = siriSheetOpening();
+-    float turn = siriSheetPhase() * .246592830;
+-    float3 bias = clamp((tanh(x * 12.0) * (2.8 * cos(siriSheetPhase() - .8))
+-        - .0896 * cos(turn) + .056 * sin(turn)) * opening, -3.8, 3.8);
+-    float3 q = bias * bias * .25;
+-    float3 normalization = 1.0 + q * (1.0 + q * (.25 + q * (1.0 / 36.0 + q / 576.0)));
+-    float3 i2 = q * .5 * (1.0 + q * (1.0 / 3.0 + q * (1.0 / 24.0
++    float q = bias * bias * .25;
++    float normalization = 1.0 + q * (1.0 + q * (.25 + q * (1.0 / 36.0 + q / 576.0)));
++    float i2 = q * .5 * (1.0 + q * (1.0 / 3.0 + q * (1.0 / 24.0
+         + q * (1.0 / 360.0 + q / 8640.0))));
+-    float3 i4 = q * q / 24.0 * (1.0 + q * (.2 + q * (1.0 / 60.0
++    float i4 = q * q / 24.0 * (1.0 + q * (.2 + q * (1.0 / 60.0
+         + q * (1.0 / 1260.0 + q / 40320.0))));
+-    float grazing = 4.166 * opening;
++    float grazing = 3.686 * opening;
+     float z = 2.0 * u - 1.0;
+     normalization = normalization * (1.0 + grazing * .375) + grazing * (.5 * i2 + .125 * i4);
+     return exp(bias * z) * (1.0 + grazing * z * z * z * z) / normalization;
+@@ -258,9 +262,8 @@
+ 
+ // The local optical path follows the same folded sheet, not a separate color
+ // oscillator. Section/slope are analytic, including the pointed-tip envelope.
+-float siriSheetGeometryDispersion(float x)
+-{
+-    float4 section = siriSpeechSheetDifferential(x * (_StrandFrequency / 2.98));
++float siriSheetGeometryDispersion(float x, float4 section)
++{
+     float path = clamp(-.00044554 - .04472846 * section.x - .00426810 * section.y
+         + .00471212 * section.z + .00074424 * section.w
+         + .11108587 * section.z * section.y, -.018, .018);
+@@ -345,7 +348,9 @@
+     float3 front = float3(red.b, green.b, blue.b);
+     float widthScale = lerp(1.0, .37548, opening);
+     float weakWidthScale = lerp(1.0, 3.026556142805, opening);
+-    float chromaticPath = siriSheetGeometryDispersion(x.g);
++    float4 section = siriSpeechSheetDifferential(x.g * (_StrandFrequency / 2.98));
++    float chromaticPath = siriSheetGeometryDispersion(x.g, section);
++    float photonBias = siriSheetPhotonBias(section);
+     float3 radiance = siriSourceLinear(siriStrandProfile(x, y, weakHeight,
+         rimSoft, dispersion, colorTime, widthScale * weakWidthScale, chromaticPath))
+         * (siriSheetWeakFraction() / weakWidthScale);
+@@ -360,7 +365,7 @@
+         float3 height = lerp(back, front, sample.x) + offset;
+         float3 light = siriStrandProfile(x, y, height, rimSoft, dispersion, colorTime,
+             widthScale, chromaticPath);
+-        radiance += siriSourceLinear(light) * siriSheetPhotonDensity(x, sample.x)
++        radiance += siriSourceLinear(light) * siriSheetPhotonDensity(photonBias, sample.x)
+             * ((1.0 - siriSheetWeakFraction()) * sample.y);
+     }
+     // The sheet's direct view is partially transmitting; volume/wall scattering
+diff --git a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+--- a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
++++ b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+@@ -125,3 +125,11 @@
+ 本轮未改变球壳光学、固定散射介质或独立 Talking 实现。首秒 31 帧中 30 帧与本轮基线完全相同，另一帧仅一个通道有量化差；20 组隔离球壳和 10 组隔离 Talking 主光核完全相同。相关 Editor GPU、声音与状态回归 220/220 通过；新增实际曝光色散检查先在桌面/移动路径失败，再通过。正常说话音量下的内缘接触曾失败，修正端点后通过，未降低检查标准。
+ 
+ 104 个原始时间的固定投影对照中，局部色散 90% 分位指标的平均绝对误差 `.052442 → .027067`（约下降 48%），光片外侧柔光肩部 RGB 误差 `.176350 → .157021`（约下降 11%）。留出的 12 帧中对应指标也改善。既有源窗口 RGB 误差 `.137107 → .136057`；更窄中央窗口 `.126956 → .127522`，略有增加，不能把局部指标改善描述为所有区域改善。主亮折边的走向、白色面积、细窄反射和舞台环境仍有差异，逐像素一致为 false。完整口径、未采纳候选、连续实测语音与官方对照见 `TestArtifacts~/OpticalDetail20261106/`。
++
++## 折边光量跟随光片形态（2026-11-07）
++
++移除方向性光量中独立的快速左右摆动。亮折边与色散现在共用同一截面的中心、开口和解析切线，沿表面归一化分配既有光量，避免亮折边朝实际折叠的反方向转动。截面在光片积分循环外求值。未改变光片轮廓、厚度、色温、直射剂量、球壳、散射介质、Thinking 或独立 Talking 实现，运行时仍为纯 Shader。
++
++104 个原始时间、固定投影下，六列亮折边高度 MAE `.032028 → .012436`（约下降 61%），柔光肩部 RGB MAE `.157021 → .138910`（约下降 12%），中央源窗口 RGB MAE `.127522 → .121916`。近白亮区比例误差 `.114260 → .101471`；色散分位误差 `.027067 → .028602` 略增，不能称为全面改善或逐像素一致。31 帧待机、20 组隔离球壳、10 组隔离 Talking 主光核均与本轮基线完全一致。
++
++参数校准使用 23 帧、12 个交错留出帧，最终重新比较全部 104 帧。新增桌面/移动实际曝光回归要求第 4 秒亮折边沿参考方向下降；修改前两条路径均失败，最终相关 Editor GPU、语音与状态回归 222/222 通过。连续 PCM 输入、状态往返、比较口径和剩余差异见 `TestArtifacts~/FoldCaustics20261107/`。这是保留原样式的程序化光学近似，仍有多层遮叠、局部焦散与色散残差；Editor Metal 检查不代表手机设备实测。
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
+@@ -7,6 +7,48 @@
+     public sealed class SiriAIWovenRibbonTests
+     {
+         private const int Size = 256;
++
++        [TestCase(false)]
++        [TestCase(true)]
++        public void BrightFoldFollowsTheReferenceTurnAfterExposure(bool mobile)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            {
++                if (mobile) view.Material.shader = Shader.Find("Hidden/SiriAI/OrbMobile");
++                view.EnableCameraQuality();
++                var quality = SiriAIGraphicsQuality.Selection;
++                var tonemapping = SiriAIGraphicsQuality.TonemappingMode;
++                try
++                {
++                    SiriAIGraphicsQuality.Apply(SiriAIQualityTier.Ultra, SiriAITonemappingMode.Aces);
++                    view.SetScale(1);
++                    view.Material.SetFloat("_StrandWidth", 1.54f * 1.8f);
++                    view.Material.SetFloat("_StrandSaturation", .38f);
++                    view.Material.SetFloat("_StrandLevel", .802f);
++                    var pixels = view.Render(4f, level: 1, motionTime: 4f * 6.37f / 3.05f);
++                    float fall = BrightFoldHeight(pixels, -1) - BrightFoldHeight(pixels, 1);
++                    Assert.That(fall, Is.InRange(.07f, .16f),
++                        "The measured 4 s reference bright ridge falls .116 sphere radii from left to right; illumination must follow that turn.");
++                }
++                finally { SiriAIGraphicsQuality.Apply(quality, tonemapping); }
++            }
++        }
++
++        private static float BrightFoldHeight(Color[] pixels, int side)
++        {
++            double moment = 0, weight = 0;
++            int size = SiriAIOrbStyleView.Size;
++            for (int y = 0; y < size; ++y)
++            for (int x = 0; x < size; ++x)
++            {
++                Vector2 p = new Vector2(x + .5f - size * .5f, y + .5f - size * .5f) * (2.36f / size);
++                if (p.x * side < .20f || p.x * side > .45f || Mathf.Abs(p.y) > .3f) continue;
++                float w = Mathf.Pow(Mathf.Max(DisplayLuminance(pixels[y * size + x]) - .5f, 0), 2);
++                moment += p.y * w; weight += w;
++            }
++            Assert.Greater(weight, 1, "Measure a visible luminous fold.");
++            return (float)(moment / weight);
++        }
+ 
+         [TestCase(false)]
+         [TestCase(true)]
