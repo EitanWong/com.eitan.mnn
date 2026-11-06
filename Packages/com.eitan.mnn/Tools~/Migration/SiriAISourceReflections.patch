@@ -1,0 +1,334 @@
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc b/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc
+@@ -270,14 +270,13 @@
+     return lerp(luminance, radiance, saturate(_ChromaticAberration * 50.0)) / 2.75450558;
+ }
+ 
+-float3 siriGlassEdge(float2 disc, float facing, float3 tint, float intensity)
+-{
+-    // The shell is one material in every state. Source opening and speech
+-    // color affect the emitter, never its persistent front/rear wall image.
+-    float sine, cosine;
+-    sincos(siriSheetPhase(), sine, cosine);
+-    float3 wall = siriGlassRibbonWall(disc, sine, cosine)
+-        * siriSourceLinear(tint * (intensity * .5));
++float3 siriGlassEdge(float2 disc, float facing, float3 tint, float intensity, float3 sourceResponse)
++{
++    // Preserve the calibrated wall's softness, radial paths, color and dose.
++    // Its moving component now comes from the current source geometry; the
++    // wall no longer runs an independent ribbon animation in compact states.
++    float3 wall = siriGlassRibbonWall(disc, sourceResponse.y, sourceResponse.x)
++        * sourceResponse.z * siriSourceLinear(tint * (intensity * .5));
+     return siriSourceEncoded(wall);
+ }
+ 
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+@@ -115,6 +115,9 @@
+                 [loop] for (int index = 0; index < 6; ++index)
+                     poses[index] = morph > 0.0 ? thinkingDroplet((float)index, t, morph) : 0.0;
+                 [unroll] for (int d = 0; d < 6; ++d) o.droplets[d] = poses[d];
++                float2 reflectionResponse=thinkingRibbonReflectionResponse();
++                o.droplets[0].w=reflectionResponse.x;
++                o.droplets[1].w=reflectionResponse.y;
+                 return o;
+             }
+             half4 frag(v2f i):SV_Target
+@@ -162,7 +165,8 @@
+                 half4 probe=UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0,reflectedWS,(1.0-_Smoothness)*6.0);
+                 float3 reflection=DecodeHDR(probe,unity_SpecCube0_HDR);
+ #endif
+-                float3 edge=siriGlassEdge(p,facing,_RimColor.rgb,_RimIntensity);
++                float3 edge=siriGlassEdge(p,facing,_RimColor.rgb,_RimIntensity,
++                    thinkingGlassReflectionResponse(p,i.droplets,float2(i.droplets[0].w,i.droplets[1].w)));
+                 SiriGlassLight interior = thinkingGlassLight(p * .5, radius, fresnel, i.droplets);
+                 float3 transport = _InteriorRefraction * saturate((_GlassIOR - 1.0) * 2.2) * saturate(_GlassThickness * 2.0)
+                     * transmission * smoothstep(0.0, .12, depth);
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+@@ -196,6 +196,11 @@
+             [unroll]
+             for (int index = 0; index < 6; index++)
+                 output.droplets[index] = poses[index];
++            // The fragment field uses xyz only. Reuse two spare w channels for
++            // the identical ribbon response shared by every vertex and pixel.
++            float2 reflectionResponse = thinkingRibbonReflectionResponse();
++            output.droplets[0].w = reflectionResponse.x;
++            output.droplets[1].w = reflectionResponse.y;
+ #endif
+             return output;
+         }
+@@ -299,19 +304,19 @@
+             energy *= interiorMask * transmittance * (1.0 - data.fresnel);
+             float3 internalLight = 0.0;
+             float3 wallLight = 0.0;
++            float4 poses[6];
++            float t = _ThinkingTime >= 0.0 ? _ThinkingTime : _Time.y;
++            [unroll] for (int index = 0; index < 6; ++index)
++            {
++#if defined(SIRIAI_VERTEX_THINKING)
++                poses[index] = input.droplets[index];
++#else
++                poses[index] = thinkingBlend > 0.0 ? thinkingDroplet((float)index, t, thinkingBlend) : 0.0;
++#endif
++            }
+             UNITY_BRANCH
+             if (_InteriorRefraction > 0.0)
+             {
+-                float4 poses[6];
+-                float t = _ThinkingTime >= 0.0 ? _ThinkingTime : _Time.y;
+-                [unroll] for (int index = 0; index < 6; ++index)
+-                {
+-#if defined(SIRIAI_VERTEX_THINKING)
+-                    poses[index] = input.droplets[index];
+-#else
+-                    poses[index] = thinkingBlend > 0.0 ? thinkingDroplet((float)index, t, thinkingBlend) : 0.0;
+-#endif
+-                }
+                 SiriGlassLight interior = thinkingGlassLight(disc * .5, radius, data.fresnel, poses);
+                 float3 transport = _InteriorRefraction * saturate((_GlassIOR - 1.0) * 2.2) *
+                     saturate(_GlassThickness * 2.0) * transmittance * smoothstep(0.0, .12, interiorDepth);
+@@ -319,7 +324,13 @@
+                 wallLight = interior.wallRadiance * transport;
+             }
+ 
+-            float3 glassRim = siriGlassEdge(disc, facing, _RimColor.rgb, _RimIntensity);
++#if defined(SIRIAI_VERTEX_THINKING)
++            float2 ribbonResponse = float2(input.droplets[0].w, input.droplets[1].w);
++#else
++            float2 ribbonResponse = thinkingRibbonReflectionResponse();
++#endif
++            float3 glassRim = siriGlassEdge(disc, facing, _RimColor.rgb, _RimIntensity,
++                thinkingGlassReflectionResponse(disc, poses, ribbonResponse));
+             data.emission = siriGlassSourceLayers(energy, internalLight, glassRim, wallLight);
+             data.sceneLighting = reflection * reflectance;
+             return data;
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/ThinkingFormation.cginc b/Assets/Samples/SiriAI/Art/Shaders/ThinkingFormation.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/ThinkingFormation.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/ThinkingFormation.cginc
+@@ -377,6 +377,94 @@
+     return .56 * density * (.65 + .35 * saturate(.5 - p.y));
+ }
+ 
++// Convert the emitting surface's projected height and tilt into the existing
++// calibrated wall response. This preserves its appearance without giving the
++// wall its own clock. The small second-order terms belong to the quiet curve.
++float2 thinkingWallResponse(float height, float tilt)
++{
++    float2 observation = float2(height + .0114565980, tilt - .0101424932);
++    float2 response = float2(dot(observation, float2(-4.72539739, -3.64030394)),
++        dot(observation, float2(-7.09187648, 2.18105169)));
++    [unroll] for (int iteration = 0; iteration < 3; ++iteration)
++    {
++        response /= max(length(response), 1.0);
++        float cosine2 = response.x * response.x - response.y * response.y;
++        float sine2 = 2.0 * response.x * response.y;
++        float2 second = float2(.0002684393 * cosine2 - .0057132570 * sine2,
++            .0063189001 * cosine2 - .0047713661 * sine2);
++        float2 corrected = observation - second;
++        response = float2(dot(corrected, float2(-4.72539739, -3.64030394)),
++            dot(corrected, float2(-7.09187648, 2.18105169)));
++    }
++    return response / max(length(response), 1.0);
++}
++
++float2 thinkingRibbonReflectionResponse()
++{
++    float morph = saturate(_ThinkingBlend), talking = saturate(_TalkingBlend);
++    float3 phases = thinkingPhases(morph, talking);
++    UNITY_BRANCH
++    if (phases.y >= 1.0) return 0;
++    float time = _ThinkingTime >= 0.0 ? _ThinkingTime : _Time.y;
++    float scale = thinkingProjectionScale(time, phases.y, talking);
++    float extent = max(_StrandWidth * _StrandSize, .0001);
++    float2 left = thinkingRibbonPosition(float2(-.2 * extent, thinkingRibbonCenter(-.2 * extent)), morph, talking);
++    float2 center = thinkingRibbonPosition(float2(0, thinkingRibbonCenter(0)), morph, talking);
++    float2 right = thinkingRibbonPosition(float2(.2 * extent, thinkingRibbonCenter(.2 * extent)), morph, talking);
++    const float authoredHeight = 2.50 * .399 * .77;
++    return thinkingWallResponse(center.y * scale / authoredHeight,
++        (right.y - left.y) * scale / (authoredHeight * .4));
++}
++
++float3 thinkingGlassReflectionResponse(float2 disc, float4 poses[6], float2 ribbon)
++{
++    float morph = saturate(_ThinkingBlend), talking = saturate(_TalkingBlend);
++    float3 phases = thinkingPhases(morph, talking);
++    float time = _ThinkingTime >= 0.0 ? _ThinkingTime : _Time.y;
++    float scale = thinkingProjectionScale(time, phases.y, talking);
++    float2 compact = 0;
++    float illumination = 1.0;
++    UNITY_BRANCH
++    if (phases.y > 0.0)
++    {
++        // Nearby emitters contribute more to this patch of the wall. Their
++        // actual centers/radii carry Thinking motion and the Talking wander.
++        float3 wall = float3(disc, sqrt(saturate(1.0 - dot(disc, disc))));
++        float2 mean = 0;
++        float covariance = 0, weight = 0;
++        [unroll] for (int index = 0; index < 6; ++index)
++        {
++            float4 droplet = poses[index];
++            float2 position = droplet.xy * scale;
++            float dose = siriGlassEmitterIrradiance(wall,
++                float3(position * 2.0, _TalkingCenter.z * 2.0), droplet.z * scale * 2.0);
++            mean += position * dose;
++            covariance += (position.x - _TalkingCenter.x) * (position.y - _TalkingCenter.y) * dose;
++            weight += dose;
++        }
++        mean /= max(weight, .0001);
++        covariance /= max(weight, .0001);
++        float fusion = thinkingEase(.62, 1.0, thinkingConvergence(talking));
++        mean = lerp(mean, _TalkingCenter.xy, fusion);
++        covariance *= 1.0 - fusion;
++        compact = thinkingWallResponse(mean.y / (2.50 * .399 * .77), covariance * 12.0);
++        UNITY_BRANCH
++        if (fusion > 0.0)
++        {
++            // Preserve the centered profile. Relative finite-source irradiance
++            // redistributes its light when the nucleus moves sideways/in depth.
++            float3 source = _TalkingCenter.xyz * 2.0;
++            float radius = siriTalkingRadius() * 2.0;
++            float dose = siriGlassEmitterIrradiance(wall, source, radius);
++            float reference = siriGlassEmitterIrradiance(wall, float3(0, source.y, 0), radius);
++            illumination = lerp(1.0, dose / max(reference, .0001),
++                phases.y * fusion * saturate(_StrandIntensity / 2.05));
++        }
++    }
++    // Empty glass keeps the stationary part of the existing material only.
++    return float3(lerp(ribbon, compact, phases.y) * saturate(_StrandIntensity / 2.05), illumination);
++}
++
+ SiriGlassLight thinkingGlassLight(float2 p, float shellRadius, float fresnel, float4 poses[6])
+ {
+     float morph = saturate(_ThinkingBlend), talking = saturate(_TalkingBlend);
+diff --git a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+--- a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
++++ b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+@@ -107,3 +107,13 @@
+ 展开光片的方向性光强在掠射折边处增强，并对角向测度归一化；中间层降低直射剂量，细化焦点剖面并保留淡的光学肩部。色散限制在同一曲面附近，避免球壁附近分裂成独立 RGB 光带。两端单独保留收集光量，保证正常说话音量下仍接到玻璃内缘。所有调整通过既有连续展开权重进入，待机端点与独立 Talking 主光核保留原实现；运行时仍只计算 Shader，不读取参考视频或参考图。
+ 
+ 校验包含实际相机 ACES 曝光下的折边可读性，以及隔离内部发光源后，桌面/移动 Shader、明暗背景、三组相位、不同声音和状态权重下的球壳响应。连续实测语音和状态往返画面另行检查。该检查证明材质切换问题的修正，不能替代与官方视频的外观对照。详细结果、残差、完整补丁和动作记录见 `TestArtifacts~/GlassContinuity20261106/`。
++
++## 两侧柔和光影随内部光源联动（2026-11-06）
++
++保留上一轮已认可的三层球壁光影剖面、柔和度、颜色、亮度增益和厚度响应，仅移除其独立丝带时钟。待机与语音用实际丝带的投影高度和倾斜驱动同一光影；Thinking 按各球壁位置受到的六球光量加权其实际位置与分布；融合到 Talking 后连续使用原有光核位置。球壁不再在内部已经变为光球后继续播放无关丝带动画。背景折射、固定散射介质、内部丝带材质与独立 Talking 主光核保持原有实现。
++
++光核在横向或深度方向移动时，同一球壁光影按有限光源照度相对居中位置的比值重新分配光量。居中时比值为 1，保留既有外观；离两侧玻璃远近不同时产生对应的光量差，过渡沿用现有聚合权重。没有增加独立高光或提升全局反光增益。
++
++这里采用保留既有样式的解析光源反馈近似，并非完整多次反射光线追踪。原有球壁径向剖面仍是校准函数，改变的是其动态输入；没有增加亮环或重做外壳。桌面/移动路径复用同一反馈，公共丝带反馈在顶点缓存路径求值，不新增插值通道或材质控件。
++
++相关 Editor GPU、声音和状态回归 218/218 通过。新增检查验证固定内部物体时旧丝带时钟不能驱动球壁、移动内部物体时同一柔和光影必须变化，以及光核横向/深度移动时两侧光量变化方向正确；相应修改前均未通过。连续 PCM 输入、状态往返、原样式保持量化和最终限制记录于 `TestArtifacts~/SourceReflections20261106/`。这些验证不代表手机设备实测，亦不能证明与官方视频逐像素一致；多层光片、局部色散、光晕与舞台环境仍有差异。
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs
+@@ -5,6 +5,107 @@
+ {
+     public sealed class SiriAIOrbStyleRenderingTests
+     {
++        [TestCase(false, 0f)]
++        [TestCase(true, 0f)]
++        [TestCase(false, 1f)]
++        [TestCase(true, 1f)]
++        public void CompactWallLightDoesNotReplayTheRetiredRibbonClock(bool mobile, float talking)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            {
++                if (mobile) view.Material.shader = Shader.Find("Hidden/SiriAI/OrbMobile");
++                view.Material.DisableKeyword("SIRIAI_STRANDS_ONLY");
++                view.Material.EnableKeyword("SIRIAI_VERTEX_THINKING");
++                view.SetScale(1);
++                var frozen = view.Render(.7f, thinking: 1, talking: talking, level: .6f, motionTime: 0);
++                foreach (float clock in new[] { .4f, 1.1f, 2.3f })
++                    Assert.Less(Difference(frozen,
++                        view.Render(.7f, thinking: 1, talking: talking, level: .6f, motionTime: clock)), .00001f,
++                        "The existing soft wall light must follow the current compact source, not an unrelated ribbon animation.");
++            }
++        }
++
++        [TestCase(false, 0f)]
++        [TestCase(true, 0f)]
++        [TestCase(false, 1f)]
++        [TestCase(true, 1f)]
++        public void SoftSideReflectionFollowsTheCurrentEmitter(bool mobile, float talking)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            {
++                if (mobile) view.Material.shader = Shader.Find("Hidden/SiriAI/OrbMobile");
++                view.Material.DisableKeyword("SIRIAI_STRANDS_ONLY");
++                view.Material.EnableKeyword("SIRIAI_VERTEX_THINKING");
++                view.SetScale(1);
++                view.Material.SetVector("_TalkingCenter", new Vector4(0, -.08f * talking, 0, 0));
++                var first = IsolatedSoftWallReflection(view, .3f, talking);
++                view.Material.SetVector("_TalkingCenter", new Vector4(0, .08f * talking, 0, 0));
++                var moved = IsolatedSoftWallReflection(view, 1.4f, talking);
++                Assert.Greater(Difference(first, moved), .0002f,
++                    "With the retired ribbon clock frozen, moving the actual Thinking emitters or Talking center must change the same soft wall reflection.");
++            }
++        }
++
++        [TestCase(false, .08f, 0f)]
++        [TestCase(true, .08f, 0f)]
++        [TestCase(false, 0f, .1f)]
++        [TestCase(true, 0f, .1f)]
++        public void TalkingSideReflectionReceivesLightFromTheCurrentSourcePosition(bool mobile, float horizontal, float depth)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            {
++                if (mobile) view.Material.shader = Shader.Find("Hidden/SiriAI/OrbMobile");
++                view.Material.DisableKeyword("SIRIAI_STRANDS_ONLY");
++                view.Material.EnableKeyword("SIRIAI_VERTEX_THINKING");
++                view.SetScale(1);
++                view.Material.SetVector("_TalkingCenter", new Vector4(-horizontal, 0, -depth, 0));
++                var first = IsolatedSoftWallReflection(view, .7f, 1);
++                view.Material.SetVector("_TalkingCenter", new Vector4(horizontal, 0, depth, 0));
++                var moved = IsolatedSoftWallReflection(view, .7f, 1);
++                Assert.Greater(SideReflectionRadiance(moved, true), SideReflectionRadiance(first, true) * 1.01f,
++                    "The right wall must receive more light when the same source moves toward it or toward the visible wall.");
++                if (horizontal > 0)
++                    Assert.Less(SideReflectionRadiance(moved, false), SideReflectionRadiance(first, false) / 1.01f,
++                        "Horizontal motion must redistribute light between both sides of the same glass.");
++                else
++                    Assert.Greater(SideReflectionRadiance(moved, false), SideReflectionRadiance(first, false) * 1.01f,
++                        "Depth must affect the left wall too, without changing the glass material.");
++            }
++        }
++
++        private static float SideReflectionRadiance(Color[] pixels, bool right)
++        {
++            int size = SiriAIOrbStyleView.Size, count = 0;
++            float sum = 0;
++            for (int y = 0; y < size; ++y)
++            for (int x = 0; x < size; ++x)
++            {
++                Vector2 p = new Vector2(x + .5f - size * .5f, y + .5f - size * .5f) * (2.36f / size);
++                if (p.magnitude < .86f || p.magnitude > .985f || Mathf.Abs(p.y) > .35f
++                    || (right ? p.x < .75f : p.x > -.75f)) continue;
++                Color color = pixels[y * size + x];
++                sum += .2126f * color.r + .7152f * color.g + .0722f * color.b;
++                ++count;
++            }
++            Assert.Greater(count, 0);
++            return sum / count;
++        }
++
++        private static Color[] IsolatedSoftWallReflection(SiriAIOrbStyleView view, float time, float talking)
++        {
++            view.Material.SetFloat("_RimIntensity", 2);
++            var reflected = view.Render(time, thinking: 1, talking: talking, level: .6f, motionTime: 0);
++            view.Material.SetFloat("_RimIntensity", 0);
++            var without = view.ReadFrame();
++            for (int index = 0; index < reflected.Length; ++index)
++            {
++                if (QualitySettings.activeColorSpace == ColorSpace.Gamma)
++                    reflected[index] = reflected[index].linear - without[index].linear;
++                else reflected[index] -= without[index];
++            }
++            return reflected;
++        }
++
+         [TestCase(false, false)]
+         [TestCase(true, false)]
+         [TestCase(false, true)]

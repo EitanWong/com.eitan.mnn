@@ -10,8 +10,8 @@ import subprocess
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
-    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance', 'recording', 'glass'], default='conversation',
-                        help='Apply conversation, reuse, full capability, acceptance-contract, recording-gate, or glass-continuity migration')
+    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance', 'recording', 'glass', 'reflection'], default='conversation',
+                        help='Apply conversation, reuse, full capability, acceptance-contract, recording-gate, glass-continuity, or source-reflection migration')
     args = parser.parse_args()
     root = args.root.resolve()
     patch = Path(__file__).with_name({'conversation': 'SiriAISharedConversation.patch',
@@ -19,9 +19,10 @@ def main():
                                     'full': 'SiriAIFullCapabilities.patch',
                                     'acceptance': 'SiriAIAcceptanceContracts.patch',
                                     'recording': 'SiriAIRecordingGate.patch',
-                                    'glass': 'SiriAIGlassContinuity.patch'}[args.stage]).resolve()
+                                    'glass': 'SiriAIGlassContinuity.patch',
+                                    'reflection': 'SiriAISourceReflections.patch'}[args.stage]).resolve()
     command = ['git', '-C', str(root), 'apply', '--whitespace=nowarn']
-    if args.stage in ('full', 'acceptance', 'recording', 'glass'):
+    if args.stage in ('full', 'acceptance', 'recording', 'glass', 'reflection'):
         # git apply checks surrounding lines, not every byte in changed files.
         # Reject a partial or independently edited import before any mutation.
         records = json.loads(patch.with_suffix('.files.json').read_text())['files']
