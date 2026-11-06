@@ -46,6 +46,9 @@ class RepositoryValidationTests(unittest.TestCase):
         for path in (
             "Packages/com.eitan.mnn/Runtime/Plugins/macOS/libMNN.dylib",
             "Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn",
+            "Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn.meta",
+            "Packages/com.eitan.mnn/Tests/Fixtures/affine-inputs.mnn",
+            "Packages/com.eitan.mnn/Tests/Fixtures/affine-inputs.mnn.meta",
         ):
             self.write(path, "small fixture\n")
         self.git("add", ".")
@@ -66,6 +69,8 @@ class RepositoryValidationTests(unittest.TestCase):
             "Library/cache.bin",
             "TestArtifacts~/results.xml",
             "model.mnn",
+            "affine-inputs.mnn",
+            "Packages/com.eitan.mnn/Tests/Fixtures/downloaded.mnn",
         ):
             with self.subTest(path=path):
                 self.write(path, "local-only\n")
