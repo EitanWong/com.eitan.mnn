@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrandProfile.cginc",
+      "before": "d1b15b5eb4678547ff0e3db763e98a9b1a676d9b544bb9d5d720548ad88b4ecd",
+      "after": "d6e1d9f16c7692d1b48176092f4510b649485d37a052b0d0be91f887a47c4f78"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrandProfile.cginc.meta",
+      "before": "2006d513a38b79678f6a2acebd04773a32fa5de41d32c9b2f0868ab07eb4e31f",
+      "after": "2006d513a38b79678f6a2acebd04773a32fa5de41d32c9b2f0868ab07eb4e31f"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc",
+      "before": "6782e2865a3db14dd4360e1b0c0380dd1ec3319cfcf3ae6dab25e8368593310d",
+      "after": "39b933350479c8ff8eaceb3dc3f19a953bd6300b86d83a22a1a70ddb94497d50"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc.meta",
+      "before": "a12ebd05b879bed3842b86a5d9ede1142c369b7adf58fb77a11b75e17bdfdf94",
+      "after": "a12ebd05b879bed3842b86a5d9ede1142c369b7adf58fb77a11b75e17bdfdf94"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/OrbStyles.md",
+      "before": "96c3e60d203a9fa6be24901517854b4741cb8092eb5da2b4696ce57711729a41",
+      "after": "7b0f2230b182bb6d8cb77b5a736b40d45e9898263a4381ab0a1fc9687469576a"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs",
+      "before": "0404a6499610f2637522368430007098001c875cca4eef4218ff74cd4ca5b8a7",
+      "after": "baa4175b29835f7bf2af48921e99a6cbe5f83b1954568c0fb5e03a78345f6d94"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs.meta",
+      "before": "1c6737fb9863ee3d79182a20a0bb357bb389940b3270240a13f0106ea18c24b9",
+      "after": "1c6737fb9863ee3d79182a20a0bb357bb389940b3270240a13f0106ea18c24b9"
+    }
+  ]
+}

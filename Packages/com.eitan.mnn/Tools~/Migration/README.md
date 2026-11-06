@@ -160,3 +160,28 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 SHA-256 清单检查源码和原 meta GUID。精确应用字节一致，重复零写入；基线不符或
 部分应用时零写入拒绝。本地工作区已应用，无需再次运行。该补丁只保存此次六文件
 改动，早前基线不包含在内。
+
+## 活动光片的色散与柔光肩部
+
+对上述光源反馈修订后的精确本地基线，可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage optical
+```
+
+`SiriAIOpticalDetail.patch` 保存本轮共享光片/profile、实际曝光回归与说明。
+活动积分层共用局部 RGB 光路，色散由现有截面和解析导数驱动；各波长共用两端，
+端点色散收为零。折边光量保持归一化，细化薄层、半透明暗面与蓝金柔光肩部。
+球壳与固定介质实现不变，独立 Talking 主光核保持原样；运行时为纯 Shader。
+
+相关 Editor GPU、声音与状态回归 220/220 通过。104 帧固定时间/投影的对照中，
+局部色散 90% 分位指标误差约下降 48%，外侧柔光肩部 RGB 误差约下降 11%。
+更窄中央窗口 RGB 误差略增，主亮折边走向仍有差异；不宣称所有区域改善或逐像素
+等同官方。20 组隔离球壳和 10 组隔离 Talking 主光核完全一致，待机基本不变。
+完整比较口径、候选、连续 PCM 输入、状态往返和动作记录位于本地
+`Assets/Samples/SiriAI/TestArtifacts~/OpticalDetail20261106/`。验证限于 Editor Metal，
+移动 Shader 覆盖不等于手机设备实测。
+
+SHA-256 清单检查全部修改文件及原 meta GUID；完整应用字节一致，重复零写入，
+基线不同或部分应用时零写入拒绝。本地工作区已应用。该补丁只保存此次四文件差异，
+早前视觉基线不包含在内。

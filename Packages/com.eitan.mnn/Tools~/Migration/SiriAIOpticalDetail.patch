@@ -1,0 +1,250 @@
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrandProfile.cginc b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrandProfile.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrandProfile.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrandProfile.cginc
+@@ -5,7 +5,9 @@
+     float3 delta = y - bend * _StrandAmplitude;
+     // Turning the same surface reverses the warm/cool optical fringe. This
+     // is dispersion of white light, separate from voice-driven saturation.
+-    float separation = dispersion * 1.30 * cos(siriSheetPhase() + 1.01011376) * lerp(1.0, 1.0418518768, quiet) SIRIAI_PROFILE_DISPERSION;
++    float separation = dispersion * 1.30 * cos(siriSheetPhase() + 1.01011376) * 1.0418518768;
++    UNITY_BRANCH
++    if (quiet < 1.0) separation = lerp(-dispersion * chromaticPath / .0027, separation, quiet);
+     delta -= float3(separation, 0.0, -separation);
+     // Keep the reference ribbon thin while preserving the authored glow/color response.
+     // The opened sheet retains its independently calibrated thin material.
+@@ -29,7 +31,7 @@
+     float3 spectral = siriEnergySpectrum(hue + x.g * 2.0 + side * 1.57079633)
+         - float3(.78, .80, .81);
+     float saturation = saturate(_StrandSaturation) + dispersion * 5.0;
+-    float3 tint = max(1.0 + spectral * saturation * edge * lerp(4.0, 7.5549724233, quiet), .0);
++    float3 tint = max(1.0 + spectral * saturation * edge * (7.5549724233 * quiet), .0);
+     // Hue distributes existing light between channels; it does not own exposure.
+     // Normalize in radiance, as the glass edge already does, before encoding
+     // back into the shared authoring response used by every source path.
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
+@@ -59,10 +59,11 @@
+ // voice never reapplies amplitude/frequency/phase scaling to this projection.
+ // Center and aperture share one phase and one pair of pointed boundaries.
+ // Coefficients are source coordinates; no reference images enter the material.
+-float2 siriSpeechSheetSection(float x)
++float4 siriSpeechSheetDifferential(float x)
+ {
+     float u = x / .25;
+     float4 basis = float4(1.0, u, u * u, u * u * u);
++    float4 derivativeBasis = float4(0, 4.0, 8.0 * u, 12.0 * u * u);
+     const float4 centers[15] = {
+         float4(-0.013637886, 0.015304274, -0.020224895, -0.017809906),
+         float4(0.009637807, -0.046990855, -0.013618350, 0.055042937),
+@@ -103,18 +104,31 @@
+     float2 turn = float2(cosine, sine);
+     float2 harmonic = turn;
+     float2 section = float2(dot(centers[0], basis), dot(apertures[0], basis));
++    float2 derivative = float2(dot(centers[0], derivativeBasis), dot(apertures[0], derivativeBasis));
+     [unroll] for (int index = 1; index < 15; index += 2)
+     {
+         section += harmonic.x * float2(dot(centers[index], basis), dot(apertures[index], basis))
+             + harmonic.y * float2(dot(centers[index + 1], basis), dot(apertures[index + 1], basis));
++        derivative += harmonic.x * float2(dot(centers[index], derivativeBasis), dot(apertures[index], derivativeBasis))
++            + harmonic.y * float2(dot(centers[index + 1], derivativeBasis), dot(apertures[index + 1], derivativeBasis));
+         harmonic = float2(harmonic.x * turn.x - harmonic.y * turn.y,
+             harmonic.y * turn.x + harmonic.x * turn.y);
+     }
+-    section *= exp(-x * x * 7.25);
++    float falloff = exp(-x * x * 7.25);
++    derivative = (derivative - section * (14.5 * x)) * falloff;
++    section *= falloff;
+     // At the default active width, the two edges meet at 0.96 orb radii.
+-    section.y *= saturate(1.0 - x * x / (.225 * .225));
++    float aperture = saturate(1.0 - x * x / (.225 * .225));
++    derivative.y = derivative.y * aperture
++        - (aperture > 0.0 ? section.y * (2.0 * x / (.225 * .225)) : 0.0);
++    section.y *= aperture;
+     // Signed aperture carries surface orientation continuously through a turn.
+-    return section;
++    return float4(section, derivative);
++}
++
++float2 siriSpeechSheetSection(float x)
++{
++    return siriSpeechSheetDifferential(x).xy;
+ }
+ 
+ float3 siriSheetCurves(float x)
+@@ -197,14 +211,16 @@
+ float3 siriSheetPhotonDensity(float3 x, float u)
+ {
+     float opening = siriSheetOpening();
+-    float3 bias = tanh(x * 12.0) * (2.8 * opening * cos(siriSheetPhase() - .8));
++    float turn = siriSheetPhase() * .246592830;
++    float3 bias = clamp((tanh(x * 12.0) * (2.8 * cos(siriSheetPhase() - .8))
++        - .0896 * cos(turn) + .056 * sin(turn)) * opening, -3.8, 3.8);
+     float3 q = bias * bias * .25;
+     float3 normalization = 1.0 + q * (1.0 + q * (.25 + q * (1.0 / 36.0 + q / 576.0)));
+     float3 i2 = q * .5 * (1.0 + q * (1.0 / 3.0 + q * (1.0 / 24.0
+         + q * (1.0 / 360.0 + q / 8640.0))));
+     float3 i4 = q * q / 24.0 * (1.0 + q * (.2 + q * (1.0 / 60.0
+         + q * (1.0 / 1260.0 + q / 40320.0))));
+-    float grazing = 3.0 * opening;
++    float grazing = 4.166 * opening;
+     float z = 2.0 * u - 1.0;
+     normalization = normalization * (1.0 + grazing * .375) + grazing * (.5 * i2 + .125 * i4);
+     return exp(bias * z) * (1.0 + grazing * z * z * z * z) / normalization;
+@@ -240,13 +256,22 @@
+     return float3(LinearToGammaSpaceExact(radiance.r), LinearToGammaSpaceExact(radiance.g), LinearToGammaSpaceExact(radiance.b));
+ }
+ 
++// The local optical path follows the same folded sheet, not a separate color
++// oscillator. Section/slope are analytic, including the pointed-tip envelope.
++float siriSheetGeometryDispersion(float x)
++{
++    float4 section = siriSpeechSheetDifferential(x * (_StrandFrequency / 2.98));
++    float path = clamp(-.00044554 - .04472846 * section.x - .00426810 * section.y
++        + .00471212 * section.z + .00074424 * section.w
++        + .11108587 * section.z * section.y, -.018, .018);
++    return path * (1.0 - smoothstep(.12, .225, abs(x)));
++}
++
+ float3 siriStrandProfile(float3 x, float3 y, float3 bend, float rimSoft,
+-    float dispersion, float colorTime, float widthScale, float spectralScale)
+-{
+-#define SIRIAI_PROFILE_DISPERSION * spectralScale
++    float dispersion, float colorTime, float widthScale, float chromaticPath)
++{
+ #define SIRIAI_PROFILE_WIDTH * widthScale
+ #include "SpectrumStrandProfile.cginc"
+-#undef SIRIAI_PROFILE_DISPERSION
+ #undef SIRIAI_PROFILE_WIDTH
+ }
+ 
+@@ -293,11 +318,12 @@
+         return siriStrandQuietField(local, rimSoft, dispersion, colorTime);
+     // Keep chromatic paths close to the same folded surface. The former active
+     // offsets separated into three conspicuous RGB ribbons at the glass wall.
+-    dispersion *= lerp(1.0, .45, opening);
++    dispersion *= lerp(1.0, 1.52784, opening);
+     float2 extent = max(float2(_StrandWidth, 2.50 * _StrandHeight) * _StrandSize, float2(.0001, .0001));
+-    float3 channelScale = float3(1.0 + dispersion, 1.0, 1.0 - dispersion);
+-    float3 x = local.x / extent.x * channelScale;
+-    float3 y = local.y / extent.y * channelScale;
++    // All wavelengths share the same tips. Refraction displaces their optical
++    // paths across the local sheet instead of magnifying three separate sheets.
++    float3 x = local.x / extent.x;
++    float3 y = local.y / extent.y;
+     float3 red, green, blue;
+     float4 redWeave, greenWeave, blueWeave;
+ #if defined(SIRIAI_STRAND_LOOKUP)
+@@ -317,10 +343,11 @@
+     float3 weakHeight = float3(red.r, green.r, blue.r);
+     float3 back = float3(red.g, green.g, blue.g);
+     float3 front = float3(red.b, green.b, blue.b);
+-    float widthScale = lerp(1.0, .42, opening);
++    float widthScale = lerp(1.0, .37548, opening);
+     float weakWidthScale = lerp(1.0, 3.026556142805, opening);
++    float chromaticPath = siriSheetGeometryDispersion(x.g);
+     float3 radiance = siriSourceLinear(siriStrandProfile(x, y, weakHeight,
+-        rimSoft, dispersion, colorTime, widthScale * weakWidthScale, 1.0))
++        rimSoft, dispersion, colorTime, widthScale * weakWidthScale, chromaticPath))
+         * (siriSheetWeakFraction() / weakWidthScale);
+     // The same normalized continuous measure opens from its collapsed idle.
+     // Thickness changes do not expose a second discrete light distribution.
+@@ -332,7 +359,7 @@
+         float3 offset = float3(dot(redWeave, basis), dot(greenWeave, basis), dot(blueWeave, basis));
+         float3 height = lerp(back, front, sample.x) + offset;
+         float3 light = siriStrandProfile(x, y, height, rimSoft, dispersion, colorTime,
+-            widthScale, 1.0 + opening * (3.4 * sample.x - 1.8));
++            widthScale, chromaticPath);
+         radiance += siriSourceLinear(light) * siriSheetPhotonDensity(x, sample.x)
+             * ((1.0 - siriSheetWeakFraction()) * sample.y);
+     }
+@@ -341,10 +368,21 @@
+     // the bright folds do not merge into an opaque white band.
+     // The pointed tips keep enough collected light to meet the inner wall even
+     // at conversational levels, without refilling the translucent middle.
+-    float directDose = lerp(.5, .75, smoothstep(.12, .225, abs(x.g)));
++    float directDose = lerp(.30, .83, smoothstep(.12, .225, abs(x.g)));
+     radiance *= lerp(1.0, directDose, opening) / widthScale;
+     float luminance = dot(radiance, float3(.2126, .7152, .0722));
+-    radiance = lerp(luminance.xxx, radiance, lerp(1.0, .85, opening));
++    // Restrict the refracted white source to the reference's blue/amber family.
++    // Preserve luminance and a white focus while chromatic shoulders separate.
++    float peak = max(radiance.r, max(radiance.g, radiance.b));
++    float colorRange = peak - min(radiance.r, min(radiance.g, radiance.b));
++    float warmth = saturate(.5 + .5 * (radiance.r - radiance.b) / max(colorRange, .0001));
++    float3 temperature = siriSourceLinear(siriEnergyTemperature(warmth));
++    temperature /= max(dot(temperature, float3(.2126, .7152, .0722)), .0001);
++    float amount = smoothstep(.12, .85, saturate(1.5 * colorRange / max(peak, .0001)));
++    // The incandescent focus becomes white; softer refracted shoulders keep
++    // their spectral separation, without changing the source luminance.
++    amount /= 1.0 + luminance;
++    radiance = lerp(radiance, luminance * lerp(float3(1, 1, 1), temperature, amount), opening);
+     return siriSourceEncoded(radiance);
+ }
+ 
+diff --git a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+--- a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
++++ b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+@@ -117,3 +117,11 @@
+ 这里采用保留既有样式的解析光源反馈近似，并非完整多次反射光线追踪。原有球壁径向剖面仍是校准函数，改变的是其动态输入；没有增加亮环或重做外壳。桌面/移动路径复用同一反馈，公共丝带反馈在顶点缓存路径求值，不新增插值通道或材质控件。
+ 
+ 相关 Editor GPU、声音和状态回归 218/218 通过。新增检查验证固定内部物体时旧丝带时钟不能驱动球壁、移动内部物体时同一柔和光影必须变化，以及光核横向/深度移动时两侧光量变化方向正确；相应修改前均未通过。连续 PCM 输入、状态往返、原样式保持量化和最终限制记录于 `TestArtifacts~/SourceReflections20261106/`。这些验证不代表手机设备实测，亦不能证明与官方视频逐像素一致；多层光片、局部色散、光晕与舞台环境仍有差异。
++
++## 活动光片的局部色散与光学层次（2026-11-06）
++
++活动光片的不同积分层使用同一局部 RGB 光路，不再分配相反偏移、叠成均匀白带。色散由现有光片截面的中心、开口及解析空间导数驱动，不另设颜色动画时钟；各波长共用两端，色散偏移在端点连续收为零。折边的方向性光量继续归一化，薄层剖面略收窄，中间直射剂量降低，端点保留接触内缘所需的收集光量。输出限制到既有蓝/琥珀色温族并保持线性亮度，随同一源的局部辐射增强平滑恢复白色亮芯，保留半透明暗面与有颜色的柔光肩部。运行时仅计算数学函数。
++
++本轮未改变球壳光学、固定散射介质或独立 Talking 实现。首秒 31 帧中 30 帧与本轮基线完全相同，另一帧仅一个通道有量化差；20 组隔离球壳和 10 组隔离 Talking 主光核完全相同。相关 Editor GPU、声音与状态回归 220/220 通过；新增实际曝光色散检查先在桌面/移动路径失败，再通过。正常说话音量下的内缘接触曾失败，修正端点后通过，未降低检查标准。
++
++104 个原始时间的固定投影对照中，局部色散 90% 分位指标的平均绝对误差 `.052442 → .027067`（约下降 48%），光片外侧柔光肩部 RGB 误差 `.176350 → .157021`（约下降 11%）。留出的 12 帧中对应指标也改善。既有源窗口 RGB 误差 `.137107 → .136057`；更窄中央窗口 `.126956 → .127522`，略有增加，不能把局部指标改善描述为所有区域改善。主亮折边的走向、白色面积、细窄反射和舞台环境仍有差异，逐像素一致为 false。完整口径、未采纳候选、连续实测语音与官方对照见 `TestArtifacts~/OpticalDetail20261106/`。
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
+@@ -7,6 +7,47 @@
+     public sealed class SiriAIWovenRibbonTests
+     {
+         private const int Size = 256;
++
++        [TestCase(false)]
++        [TestCase(true)]
++        public void ActiveFoldKeepsVisibleLocalDispersionAfterExposure(bool mobile)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            {
++                if (mobile) view.Material.shader = Shader.Find("Hidden/SiriAI/OrbMobile");
++                view.EnableCameraQuality();
++                var quality = SiriAIGraphicsQuality.Selection;
++                var tonemapping = SiriAIGraphicsQuality.TonemappingMode;
++                try
++                {
++                    SiriAIGraphicsQuality.Apply(SiriAIQualityTier.Ultra, SiriAITonemappingMode.Aces);
++                    view.SetScale(1);
++                    view.Material.SetFloat("_StrandWidth", 1.54f * 1.8f);
++                    view.Material.SetFloat("_StrandSaturation", .38f);
++                    view.Material.SetFloat("_StrandLevel", .802f);
++                    var pixels = view.Render(4f, level: 1, motionTime: 4f * 6.37f / 3.05f);
++                    var chroma = new System.Collections.Generic.List<float>();
++                    int size = SiriAIOrbStyleView.Size;
++                    for (int y = 0; y < size; ++y)
++                    for (int x = 0; x < size; ++x)
++                    {
++                        Vector2 p = new Vector2(x + .5f - size * .5f, y + .5f - size * .5f) * (2.36f / size);
++                        if (Mathf.Abs(p.x) > .65f || Mathf.Abs(p.y) > .3f) continue;
++                        Color color = pixels[y * size + x];
++                        if (QualitySettings.activeColorSpace == ColorSpace.Linear) color = color.gamma;
++                        float luminance = .2126f * color.r + .7152f * color.g + .0722f * color.b;
++                        if (luminance > .1f && luminance < .85f)
++                            chroma.Add(Mathf.Max(color.r, Mathf.Max(color.g, color.b))
++                                - Mathf.Min(color.r, Mathf.Min(color.g, color.b)));
++                    }
++                    Assert.Greater(chroma.Count, size * size * .02f, "Measure a visible face and its optical shoulders.");
++                    chroma.Sort();
++                    Assert.Greater(chroma[Mathf.FloorToInt((chroma.Count - 1) * .9f)], .10f,
++                        "The 4 s reference fold has a measured .21 upper-decile RGB chroma; exposure must retain visible local blue/gold dispersion.");
++                }
++                finally { SiriAIGraphicsQuality.Apply(quality, tonemapping); }
++            }
++        }
+ 
+         [TestCase(false)]
+         [TestCase(true)]
