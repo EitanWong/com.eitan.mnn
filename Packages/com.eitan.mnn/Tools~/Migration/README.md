@@ -230,3 +230,26 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 
 SHA-256 清单检查本轮三个修改文件与原 meta GUID；完整应用字节一致，重复零写入，
 基线不同或部分应用时零写入拒绝。本地工作区已应用，无需再次运行。
+
+## 球壁折射与粗糙透射
+
+对 soft-ends 修订后的精确本地基线，可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage refraction
+```
+
+`SiriAIGlassRefraction.patch` 保存共享玻璃光学、桌面/移动调用、实际背景回归及说明。
+径向折射随折射率/壁厚连续变化，空气或零壁厚时不留固定压缩；高画质透射的模糊
+覆盖随投影球径和掠射深度变化。九点归一化采样保留平均光量，Balanced/Performance
+保留原先单采样路径。按官方首秒轻调已有内外壁光带的径向位置/宽度，保持原光量、
+色温与实时光源反馈；丝带形态、端点柔化和独立 Talking 实现不变。
+
+相关 Editor GPU、语音、状态回归 232/232 通过。31 帧固定时间/投影下球壁 RGB
+误差约下降 3%，同口径整球误差约下降 5%；仍非逐像素一致。官方暗背景不能唯一
+确定背景位移或 IOR，棋盘背景验证光学边界/连续性和粗糙透射，不能当作官方对应。
+高画质背景采样成本增加；验证限于 Editor Metal，不代表手机设备帧率。完整口径、
+连续画面、原始数据及日志位于本地 `Assets/Samples/SiriAI/TestArtifacts~/GlassRefraction20261107/`。
+
+SHA-256 清单检查本轮五个修改文件与原 meta GUID；完整应用字节一致，重复零写入，
+基线不同或部分应用时零写入拒绝。本地工作区已应用。
