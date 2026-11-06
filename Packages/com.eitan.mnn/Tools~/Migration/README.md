@@ -207,3 +207,26 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 
 SHA-256 清单检查修改文件和原 meta GUID；完整应用字节一致，重复零写入，基线
 不同或部分应用时零写入拒绝。本地工作区已应用。补丁仅保存本轮三文件差异。
+
+## 丝带左右端点的柔和玻璃接触
+
+对 caustics 修订后的精确本地基线，可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage soft-ends
+```
+
+`SiriAIRibbonSoftEdges.patch` 保存共享活动光片端点扩散、实际曝光/接触回归及说明。
+撤销端部锐利白线的直射增强，使同一光片的横截面靠近球壁时逐渐展宽、归一化，
+直射光平滑淡入原有散射场。中央折边、轮廓、色温、球壳、Thinking 和独立 Talking
+实现不变，运行时仍为纯 Shader。内缘接触按有/无光源的可见增量和有限柔光覆盖
+验证，替换与官方柔和端点相冲突的旧白峰阈值；另设绝对/相对梯度回归。
+
+相关 Editor GPU、语音及状态回归 224/224 通过。104 帧固定时间/投影下，端部
+最大梯度误差约下降 76%，峰值误差约下降 63%；端部完整光晕宽度误差仍增加，
+不能称为全方面改善或逐像素一致。31 帧待机、20 组隔离球壳、10 组隔离 Talking
+主光核均与本轮基线完全相同。连续语音、状态往返、全部口径和日志位于本地
+`Assets/Samples/SiriAI/TestArtifacts~/RibbonSoftEdges20261107/`，验证环境为 Editor Metal。
+
+SHA-256 清单检查本轮三个修改文件与原 meta GUID；完整应用字节一致，重复零写入，
+基线不同或部分应用时零写入拒绝。本地工作区已应用，无需再次运行。

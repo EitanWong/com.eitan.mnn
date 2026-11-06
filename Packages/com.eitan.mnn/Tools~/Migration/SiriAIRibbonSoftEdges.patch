@@ -1,0 +1,131 @@
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc
+@@ -346,7 +346,11 @@
+     float3 weakHeight = float3(red.r, green.r, blue.r);
+     float3 back = float3(red.g, green.g, blue.g);
+     float3 front = float3(red.b, green.b, blue.b);
+-    float widthScale = lerp(1.0, .37548, opening);
++    // The long grazing path near either end diffuses the same source. Broaden
++    // its transverse footprint before integration, rather than drawing a sharp
++    // white wire against the wall. The reciprocal width below conserves light.
++    float endPath = smoothstep(.12, .225, abs(x.g));
++    float widthScale = lerp(1.0, .37548 * lerp(1.0, 3.08, endPath), opening);
+     float weakWidthScale = lerp(1.0, 3.026556142805, opening);
+     float4 section = siriSpeechSheetDifferential(x.g * (_StrandFrequency / 2.98));
+     float chromaticPath = siriSheetGeometryDispersion(x.g, section);
+@@ -371,9 +375,10 @@
+     // The sheet's direct view is partially transmitting; volume/wall scattering
+     // keeps its own fixed glass response. Calibrate after the actual exposure so
+     // the bright folds do not merge into an opaque white band.
+-    // The pointed tips keep enough collected light to meet the inner wall even
+-    // at conversational levels, without refilling the translucent middle.
+-    float directDose = lerp(.30, .83, smoothstep(.12, .225, abs(x.g)));
++    // Contact with the wall comes from a diffuse footprint. The former .83 tip
++    // boost made that contact a hot needle; direct light now fades beneath the
++    // existing scattered field while the central sheet keeps its authored dose.
++    float directDose = lerp(.30, .01, endPath);
+     radiance *= lerp(1.0, directDose, opening) / widthScale;
+     float luminance = dot(radiance, float3(.2126, .7152, .0722));
+     // Restrict the refracted white source to the reference's blue/amber family.
+diff --git a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+--- a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
++++ b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+@@ -133,3 +133,11 @@
+ 104 个原始时间、固定投影下，六列亮折边高度 MAE `.032028 → .012436`（约下降 61%），柔光肩部 RGB MAE `.157021 → .138910`（约下降 12%），中央源窗口 RGB MAE `.127522 → .121916`。近白亮区比例误差 `.114260 → .101471`；色散分位误差 `.027067 → .028602` 略增，不能称为全面改善或逐像素一致。31 帧待机、20 组隔离球壳、10 组隔离 Talking 主光核均与本轮基线完全一致。
+ 
+ 参数校准使用 23 帧、12 个交错留出帧，最终重新比较全部 104 帧。新增桌面/移动实际曝光回归要求第 4 秒亮折边沿参考方向下降；修改前两条路径均失败，最终相关 Editor GPU、语音与状态回归 222/222 通过。连续 PCM 输入、状态往返、比较口径和剩余差异见 `TestArtifacts~/FoldCaustics20261107/`。这是保留原样式的程序化光学近似，仍有多层遮叠、局部焦散与色散残差；Editor Metal 检查不代表手机设备实测。
++
++## 丝带左右端点柔和地融入球壁（2026-11-07）
++
++根据“左右两端靠玻璃的位置过于清晰”的反馈，撤销端点直射光量 `.83` 的增强。活动光片靠近两端时，现有横截面沿同一表面连续扩散，最大宽度为原先约 3.08 倍，按宽度归一化；直射光量从中央 `.30` 平滑衰减至端点 `.01`，让现有体散射和球壁光影显现。中央轮廓、光量、颜色、折边方向、玻璃介质及独立 Thinking/Talking 实现不变；没有添加屏幕后处理模糊或额外光晕。
++
++旧“内缘接触”检查把两端可见等同于峰值大于 `.5`，与参考中约 `.07` 的柔和端点冲突，已改为比较同一状态有/无内部光源时的增量亮度，并同时要求正的峰值和有限积分光量。新增实际曝光回归同时约束绝对和相对亮度梯度，避免仅压暗或删除光源通过检查；修改前桌面/移动路径均失败。
++
++完整 104 帧、固定投影的八个端部截面中，最大梯度 MAE `28.0468 → 6.6717`（约下降 76%），端部峰值 MAE `.603879 → .222194`（约下降 63%）。待机 31 帧、隔离球壳 20 组、隔离 Talking 主光核 10 组与本轮基线完全相同。最终相关 Editor GPU、语音和状态回归 224/224 通过。端部亮度和光晕宽度仍与参考有差异；完整画面并非逐像素一致。原始帧、连续语音与状态往返、比较和动作记录见 `TestArtifacts~/RibbonSoftEdges20261107/`。
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs
+@@ -7,6 +7,53 @@
+     public sealed class SiriAIWovenRibbonTests
+     {
+         private const int Size = 256;
++
++        [TestCase(false)]
++        [TestCase(true)]
++        public void ActiveRibbonEndsDiffuseIntoTheGlassAfterExposure(bool mobile)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            {
++                if (mobile) view.Material.shader = Shader.Find("Hidden/SiriAI/OrbMobile");
++                view.EnableCameraQuality();
++                var quality = SiriAIGraphicsQuality.Selection;
++                var tonemapping = SiriAIGraphicsQuality.TonemappingMode;
++                try
++                {
++                    SiriAIGraphicsQuality.Apply(SiriAIQualityTier.Ultra, SiriAITonemappingMode.Aces);
++                    view.SetScale(1);
++                    view.Material.SetFloat("_StrandWidth", 1.54f * 1.8f);
++                    view.Material.SetFloat("_StrandSaturation", .38f);
++                    view.Material.SetFloat("_StrandLevel", .802f);
++                    var pixels = view.Render(4f, level: 1, motionTime: 4f * 6.37f / 3.05f);
++                    foreach (int side in new[] { -1, 1 })
++                        AssertSoftEndpoint(pixels, side);
++                }
++                finally { SiriAIGraphicsQuality.Apply(quality, tonemapping); }
++            }
++        }
++
++        private static void AssertSoftEndpoint(Color[] pixels, int side)
++        {
++            int size = SiriAIOrbStyleView.Size;
++            float pixel = 2.36f / size;
++            int x = Mathf.RoundToInt((size - 1) * .5f + side * .84f / pixel);
++            int bottom = Mathf.CeilToInt(size * .5f - .3f / pixel);
++            int top = Mathf.FloorToInt(size * .5f + .3f / pixel);
++            float slope = 0, peak = 0, floor = 1;
++            for (int y = bottom; y <= top; ++y)
++            {
++                float value = DisplayLuminance(pixels[y * size + x]);
++                peak = Mathf.Max(peak, value); floor = Mathf.Min(floor, value);
++                if (y > bottom)
++                    slope = Mathf.Max(slope, Mathf.Abs(value - DisplayLuminance(pixels[(y - 1) * size + x])) / pixel);
++            }
++            Assert.Greater(peak - floor, .03f, "Keep visible ribbon light at both inner-wall approaches.");
++            Assert.Less(slope, 12f,
++                "The reference's end at .84 sphere radii has a soft 3–4 luminance/radius falloff, not a sharp white wire.");
++            Assert.Less(slope / (peak - floor), 35f,
++                "Reduce the endpoint's relative sharpness as well as its brightness.");
++        }
+ 
+         [TestCase(false)]
+         [TestCase(true)]
+@@ -153,15 +200,25 @@
+                 view.SetScale(1f);
+                 view.Material.SetFloat("_RimIntensity", 0);
+                 var pixels = view.Render(3.5f * (6.37f / 3.05f), level: level);
++                view.Material.SetFloat("_StrandIntensity", 0);
++                var unlit = view.ReadFrame();
+                 int size = SiriAIOrbStyleView.Size;
+                 float radius = size / 2.36f, center = (size - 1) * .5f;
+                 foreach (int direction in new[] { -1, 1 })
+                 {
+                     int x = Mathf.RoundToInt(center + direction * radius * .91f);
+-                    float peak = 0;
++                    float peak = 0, signal = 0;
+                     for (int y = Mathf.RoundToInt(center - radius * .3f); y <= center + radius * .3f; ++y)
+-                        peak = Mathf.Max(peak, DisplayValue(pixels[y * size + x]));
+-                    Assert.Greater(peak, .5f, "Both luminous tips must meet the inner glass edge without a detached narrow ribbon.");
++                    {
++                        float light = Mathf.Max(DisplayLuminance(pixels[y * size + x])
++                            - DisplayLuminance(unlit[y * size + x]), 0);
++                        peak = Mathf.Max(peak, light);
++                        signal += light / radius;
++                    }
++                    // Reference tips reach the wall as a faint broad footprint:
++                    // at .91 radii the measured peak is about .07, not hot white.
++                    Assert.Greater(peak, .04f, "Both tips must remain visible at the inner glass edge.");
++                    Assert.Greater(signal, .004f, "Wall contact must have a finite soft footprint, not one bright pixel.");
+                 }
+             }
+         }
