@@ -115,3 +115,21 @@ processor, and recording state, plus an opt-in physical microphone check using
 an existing DTLN installation. No models are downloaded. File hashes are checked
 before any write; a repeated migration makes no changes, and a partial or edited
 baseline is rejected. Existing asset GUIDs are preserved.
+
+## 语音时的玻璃与光片连续性
+
+对本轮视觉基线完全匹配的本地 SiriAI 导入，可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage glass
+```
+
+`SiriAIGlassContinuity.patch` 保存共享球壳、固定散射介质、场景线性光谱归一化，以及
+更通透的活动光片、折边和内缘光量修正。它保留纯实时 Shader、原待机端点及独立
+Talking 主光核，不打包参考视频、参考纹理或模型。附带桌面/移动、明暗背景的球壳
+一致性回归和实际相机曝光下的折边回归。对照时区分运动积分时钟与颜色的实际时钟。
+
+SHA-256 清单检查全部修改文件和原 meta GUID；基线不同或部分修改时零写入拒绝，
+重复应用零写入。本地工作区已应用。相关 Editor GPU 回归 206/206 通过，样例结构
+校验通过；这些结果不代表手机设备实测或与官方视频逐像素一致。连续语音、状态往返、
+参考对照、残差与动作记录位于本地 `Assets/Samples/SiriAI/TestArtifacts~/GlassContinuity20261106/`。
