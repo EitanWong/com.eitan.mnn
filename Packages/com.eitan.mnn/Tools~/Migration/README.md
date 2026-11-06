@@ -95,3 +95,23 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 该 stage 同时校验所有修改源码完整字节和原 meta GUID，并校验新增测试原本不存在，版本不同、部分迁移或独立编辑均零写入拒绝；
 重复运行零写入。它不把当前不受支持的原生 waveform 能力标成支持。
 对应包修复把 Omni 模型准备要求限制为音频输入，外部 TTS 拥有语音输出；显式模型语音请求仍需通过原生 ABI/能力检查。
+
+## Recording capture gate
+
+For the current SiriAI import, apply the recording fix with:
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage recording
+```
+
+`SiriAIRecordingGate.patch` removes the Unity and EasyMic frame loops' repeated
+capture-enable requests. The shared device session owns capture while draining
+the delayed echo tail; re-enabling it during that pause added a discontinuity
+inside an otherwise complete recording. Explicit input commands still enable
+capture, and `Tick` supervises the session without replacing its request.
+
+The patch includes a regression through the Unity endpoint, echo worker, voice
+processor, and recording state, plus an opt-in physical microphone check using
+an existing DTLN installation. No models are downloaded. File hashes are checked
+before any write; a repeated migration makes no changes, and a partial or edited
+baseline is rejected. Existing asset GUIDs are preserved.

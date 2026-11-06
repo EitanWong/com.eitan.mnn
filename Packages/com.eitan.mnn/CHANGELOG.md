@@ -40,6 +40,7 @@ The package version is 3.6.2.
 
 ### Fixed
 
+- Added a checked SiriAI migration that prevents Unity and EasyMic frame updates from reopening capture during recording-tail drainage and marking complete recordings as missing samples.
 - Published Silero v5.1 is available to runtime catalog consumers; online discovery requires its deployment profile and FP32 graph.
 - Matching realtime and offline Silero consumers now share reference-counted inference resources while retaining independent stream state; resources unload with the last owner.
 
