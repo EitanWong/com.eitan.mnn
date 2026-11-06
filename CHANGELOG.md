@@ -25,6 +25,18 @@ Unreleased entries describe development work, not a published version.
 
 ### Changed
 
+- Saved the SiriAI development host settings: product identity, Android minimum
+  SDK 24, microphone usage text, frame timing, quality settings, scene templates,
+  and the local sample build-scene selection. Added uGUI and screen-capture module
+  dependencies; EasyMic remains a local-only dependency. See the
+  [development host snapshot](Packages/com.eitan.mnn/Documentation~/RepositoryManagement.md#development-host-snapshot-2026-11-07)
+  for clean-clone requirements and validation limits.
+- Expanded `AGENTS.md` with the default ub-mode workflow and the reusable local
+  model directory, `Assets/StreamingAssets/MNN/Models/`.
+- Saved checked SiriAI visual migration stages for source-driven reflections,
+  folded-sheet dispersion and light, soft ribbon endpoints, and glass refraction.
+  Their exact baselines, recorded Editor evidence and remaining limits are in the
+  [migration guide](Packages/com.eitan.mnn/Tools~/Migration/README.md).
 - Made the root README a concise English entry point with requirements, installation,
   platform limitations and contribution links. Moved the Chinese translation and
   branch guide into `Packages/com.eitan.mnn/Documentation~`; removed root `docs/`.
@@ -44,6 +56,11 @@ Unreleased entries describe development work, not a published version.
 
 ### Fixed
 
+- Repository validation now accepts both committed deterministic affine fixtures
+  and their metadata, while still rejecting downloaded models and same-named files
+  outside the fixture directory.
+- Markdown checks exclude the verbatim keyword-pronunciation license notice,
+  preserving its upstream text alongside the existing license exclusions.
 - Restored missing `.meta` files for two audio-test directories, preserving their
   existing local GUIDs, and repaired OmniVoice links to pages absent from the committed snapshot.
 
