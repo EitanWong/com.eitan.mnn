@@ -492,20 +492,33 @@
     },
     {
       "path": "Runtime/Plugins/Windows/x86_64/MNN.dll",
-      "sha256": "d9ba792c5d1709db8df3016ccfbc02c676d1058bba23ab926c3e7e4e6cd0db9f",
+      "sha256": "32fe998751b3044bebc25a6a9e7229b9e9b3a0dc9f0338b01fca72aa5995b268",
       "format": "PE32+ DLL",
       "architectures": [
         "x86_64"
       ],
-      "abi": "MSVC x64 release / _ITERATOR_DEBUG_LEVEL=0 / Mono",
-      "compiler": "MSVC 19.51.36260.0, confirmed by matching official release PDB",
-      "source_revision": null,
-      "provenance": "Unmodified official MNN 3.6.2 Windows x64 MT release; exact source revision is not established.",
-      "managed_scope": "Interpreter/Session/Tensor core only; no LLM/Express STL ownership binding.",
+      "abi": "GNU Itanium mangling / Win64 LLP64 / libstdc++ C++11 / Mono",
+      "compiler": "MinGW-w64 GCC 16.2.0 POSIX, MinGW-w64 14.0.0, C++17",
+      "source_revision": "7e3c6fb5225d3ccf22807ee641332669df34650d",
+      "provenance": "Rebuilt from pristine pinned official MNN source; static libstdc++, libgcc and winpthread; no bridge or source changes.",
+      "managed_scope": "Interpreter/Session/Tensor, Express/Module, LLM/text/chat/streaming/media input, embedding/reranking and existing CosyVoice token/logit declarations.",
       "official_symbol_audit": {
-        "required_imports_from_MNN": 27,
+        "required_imports_from_MNN": 74,
         "missing": [],
         "custom_exports": []
+      },
+      "built_on": "2026-11-07",
+      "build_script": "build-windows.py",
+      "minimum_os": "Windows 10 with UCRT",
+      "build_options": {
+        "MNN_BUILD_LLM": "ON",
+        "MNN_BUILD_LLM_OMNI": "ON",
+        "MNN_BUILD_AUDIO": "ON",
+        "MNN_BUILD_OPENCV": "ON",
+        "MNN_LOW_MEMORY": "ON",
+        "MNN_OPENCL": "OFF",
+        "MNN_VULKAN": "OFF",
+        "MNN_AVX512": "OFF"
       }
     },
     {
@@ -523,11 +536,12 @@
         "glibc": "2.38",
         "libstdcxx_symbol": "GLIBCXX_3.4.32"
       },
-      "managed_scope": "Interpreter/Session/Tensor core only; LLM/Express entry points remain guarded.",
+      "managed_scope": "Interpreter/Session/Tensor, Express/Module, LLM/text/chat/streaming/media input, embedding/reranking and existing CosyVoice token/logit declarations.",
       "build_script": "build-linux.sh",
       "inline_retention": "retain-linux-abi.cmake",
       "official_symbol_audit": {
-        "required_imports_from_MNN": 27,
+        "required_imports_from_MNN": 68,
+        "required_imports_from_system_libstdcxx": 6,
         "missing": [],
         "custom_exports": []
       }
@@ -539,9 +553,11 @@
     "Compiler-specific managed ABI maintained by this project; not an upstream portable C# API.",
     "macOS x86_64 Player was tested under Rosetta, not physical Intel hardware.",
     "iOS ARM64 simulator is built and symbol-audited only.",
-    "Windows x64, Linux x64 and Android ARMv7 binaries match official 3.6.2 release assets; importers disabled because their managed ABI is unsupported.",
     "Explicit Qwen3.5-0.8B Apple CPU Low precision at 4 threads fails arithmetic quality; the default CPU profile uses Normal.",
-    "Backend compilation does not certify every graph/operator on GPU/NPU."
+    "Backend compilation does not certify every graph/operator on GPU/NPU.",
+    "Windows/Linux advanced task execution verified with Wine Mono / container Mono, not Windows/Linux Unity Players.",
+    "Windows/Linux current builds enable CPU; no desktop GPU inference result is claimed.",
+    "Waveform callbacks remain unavailable; x64 conversation cache uses independent full prefill."
   ],
   "packaging_only_libraries": [
     {
@@ -552,24 +568,7 @@
       "sha256": "d07d529b5fbbdf4bdae0fba6bd4f7e41f45b78ea3b2234205a68380c3f7f7444",
       "inference_supported": false,
       "importer_enabled": false
-    },
-    {
-      "path": "Runtime/Plugins/Linux/x86_64/libMNN.so",
-      "archive": "mnn_3.6.2_linux_x64_cpu_opencl_vulkan.zip",
-      "archive_sha256": "2434b0c41b1666beee9fad15017e307e0b7fc3e625a671ab6303367327209092",
-      "member": "mnn_3.6.2_linux_x64_cpu_opencl_vulkan/lib/Release/libMNN.so",
-      "sha256": "7d0abae8c3a23dd17c5cd03499b7f5e00817b1ee09144d6815afe5f95de6288d",
-      "inference_supported": false,
-      "importer_enabled": false
-    },
-    {
-      "path": "Runtime/Plugins/Windows/x86_64/MNN.dll",
-      "archive": "mnn_3.6.2_windows_x64_cpu_opencl_vulkan_avx512.zip",
-      "archive_sha256": "e59f6fa07266ba6704275606f5720892634979cd34cf0b6b644bc937e42d98cb",
-      "member": "mnn_3.6.2_windows_x64_cpu_opencl_vulkan_avx512/lib/x64/Release/Dynamic/MT/MNN.dll",
-      "sha256": "d9ba792c5d1709db8df3016ccfbc02c676d1058bba23ab926c3e7e4e6cd0db9f",
-      "inference_supported": false,
-      "importer_enabled": false
     }
-  ]
+  ],
+  "desktop_validation_evidence": "Documentation~/DesktopMono.md"
 }

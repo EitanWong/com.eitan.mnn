@@ -1,4 +1,7 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_DESKTOP_TASK_ABI
+#endif
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_TASK_CPP_ABI
 #endif
 using System;
@@ -10,10 +13,12 @@ namespace MNN.Unity.Interop
     internal static partial class MNNInterop
     {
         // Official public Llm methods, using this package's existing bundled
-        // Apple clang/libc++ 64-bit Mono contract. No new virtual slots/layouts.
+        // pinned compiler/STL contracts. No new virtual slots/layouts.
 #if MNN_TASK_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm13generate_initEPNSt6__ndk113basic_ostreamIcNS2_11char_traitsIcEEEEPKc")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm13generate_initEPSoPKc")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm13generate_initEPNSt3__113basic_ostreamIcNS2_11char_traitsIcEEEEPKc")]
 #endif

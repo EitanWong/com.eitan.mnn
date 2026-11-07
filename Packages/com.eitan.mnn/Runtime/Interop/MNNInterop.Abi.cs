@@ -4,6 +4,9 @@
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
 #define MNN_MOBILE_LLM_CPP_ABI
 #endif
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_GNU_DESKTOP_CPP_ABI
+#endif
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -11,23 +14,24 @@ using System.Text;
 
 namespace MNN.Unity.Interop
 {
-    // STL ownership: pinned MNN 3.6.2, macOS Mono or ARM64 mobile IL2CPP.
+    // STL ownership: pinned MNN 3.6.2 desktop Mono or ARM64 mobile IL2CPP.
     // Apple libc++ / Android NDK r25c contracts are documented in MobileInterop.md.
     // These are compiler ABI representations, not a portable MNN C# interface.
     internal static partial class MNNInterop
     {
-#if MNN_MOBILE_LLM_CPP_ABI
+#if MNN_GNU_DESKTOP_CPP_ABI
+#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
+        private const string Cxx = Lib;
+#else
+        private const string Cxx = "libstdc++.so.6";
+#endif
+#elif MNN_MOBILE_LLM_CPP_ABI
         private const string Cxx = Lib;
 #else
         private const string Cxx = "/usr/lib/libc++.1.dylib";
 #endif
         private static PlatformNotSupportedException UnsupportedAbi() => new PlatformNotSupportedException(MNNPlatformSupport.UnsupportedReason ??
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
-            "This task is not implemented for the bundled Windows/Linux Mono ABI. Interpreter/Session/Tensor are available; LLM/Express/retrieval require a separate task ABI."
-#else
-            "This entry is unavailable under the bundled platform ABI. Use the documented pinned compiler ABI for this inference task."
-#endif
-            );
+            "This entry requires the bundled native binary and its documented compiler ABI.");
         internal static void RequireAbi()
         {
             MNNPlatformSupport.RequireSupported();
@@ -79,7 +83,9 @@ namespace MNN.Unity.Interop
             internal ushort Lanes;
         }
 
-#if MNN_LLM_CPP_ABI
+#if MNN_GNU_DESKTOP_CPP_ABI
+        private static void StringInit(ref CppString value, byte[] bytes, UIntPtr length) => throw new InvalidOperationException("GNU strings require stable native object storage.");
+#elif MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Cxx, CallingConvention = Conv, EntryPoint = "_ZNSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm")]
 #else
@@ -89,7 +95,9 @@ namespace MNN.Unity.Interop
 #else
         private static void StringInit(ref CppString value, byte[] bytes, UIntPtr length) => throw UnsupportedAbi();
 #endif
-#if MNN_LLM_CPP_ABI
+#if MNN_GNU_DESKTOP_CPP_ABI
+        private static void StringDestroy(ref CppString value) => throw new InvalidOperationException("Destroy owning GNU strings in their original DesktopStringResult storage.");
+#elif MNN_LLM_CPP_ABI
 #if UNITY_IOS && !UNITY_EDITOR
         // IL2CPP's C-linkage declaration of this untagged symbol collides with
         // Xcode 27 libc++ inline basic_string instantiations in the same unit.
@@ -119,7 +127,13 @@ namespace MNN.Unity.Interop
 #else
         private static void StringDestroy(ref CppString value) => throw UnsupportedAbi();
 #endif
-#if MNN_LLM_CPP_ABI
+#if MNN_GNU_DESKTOP_CPP_ABI
+        private static void IntVectorDestroy(ref CppVector value)
+        {
+            try { DesktopIntVectorDestroy(ref value); }
+            finally { value = default; }
+        }
+#elif MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNSt6__ndk16vectorIiNS_9allocatorIiEEED2Ev")]
 #else
@@ -129,7 +143,9 @@ namespace MNN.Unity.Interop
 #else
         private static void IntVectorDestroy(ref CppVector value) => throw UnsupportedAbi();
 #endif
-#if MNN_LLM_CPP_ABI
+#if MNN_GNU_DESKTOP_CPP_ABI
+        private static void SharedRelease(IntPtr control) => DesktopSharedRelease(control);
+#elif MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Cxx, CallingConvention = Conv, EntryPoint = "_ZNSt6__ndk119__shared_weak_count16__release_sharedEv")]
 #elif UNITY_IOS && !UNITY_EDITOR
@@ -144,13 +160,21 @@ namespace MNN.Unity.Interop
         internal sealed class NativeString : IDisposable
         {
             internal CppString Value;
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+#if MNN_GNU_DESKTOP_CPP_ABI
             private IntPtr _inputStorage;
 #endif
-            internal NativeString(string text)
+            internal NativeString(string text, bool filePath = false)
             {
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
-                Value = CreateDesktopInputString(text, out _inputStorage);
+#if MNN_GNU_DESKTOP_CPP_ABI
+#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
+                if (filePath)
+                {
+                    byte[] bytes = ToWindowsPathBytes(text);
+                    Value = CreateDesktopInputString(bytes, bytes.Length - 1, out _inputStorage);
+                }
+                else
+#endif
+                    Value = CreateDesktopInputString(text, out _inputStorage);
 #else
                 byte[] bytes = Encoding.UTF8.GetBytes(text);
                 StringInit(ref Value, bytes, (UIntPtr)(uint)bytes.Length);
@@ -159,9 +183,8 @@ namespace MNN.Unity.Interop
 
             public void Dispose()
             {
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
-                Marshal.FreeHGlobal(_inputStorage);
-                _inputStorage = IntPtr.Zero;
+#if MNN_GNU_DESKTOP_CPP_ABI
+                DestroyDesktopInputString(ref Value, ref _inputStorage);
 #else
                 StringDestroy(ref Value);
 #endif
@@ -180,7 +203,7 @@ namespace MNN.Unity.Interop
         // the caller-owned buffer is initialized; no native pointer survives the call.
         internal static unsafe int CopyStringBytes(ref CppString value, int start, ref byte[] buffer)
         {
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+#if MNN_GNU_DESKTOP_CPP_ABI
             return CopyDesktopInputStringBytes(ref value, start, ref buffer);
 #elif MNN_MOBILE_LLM_CPP_ABI
             // Use compiled libc++ members for SSO, long and embedded-NUL strings.

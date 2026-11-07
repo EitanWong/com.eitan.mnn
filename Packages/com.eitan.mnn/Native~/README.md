@@ -9,21 +9,21 @@ neither MNN sources nor models.
 Core Interpreter/Session/Tensor bindings support macOS ARM64/x64 Mono, Windows x64
 Mono and Linux x64 Mono. Their exact compiler contracts, binary hashes and observed
 execution scope are in [desktop Mono](../Documentation~/DesktopMono.md). Windows
-uses the official MSVC 19.51.36260.0 MT release binary; Linux uses the audited GCC
-13.3 build of the clean official source. These bindings are maintained by this
+uses MinGW-w64 GCC 16.2.0 with static libstdc++/winpthreads; Linux uses the audited
+GCC 13.3 build of the clean official source. These bindings are maintained by this
 project and are not an upstream portable MNN C# ABI. Compiler-specific STL layouts
 and aggregate returns must be revalidated when their dependencies change.
 
 Windows/Linux native task bindings for LLM, Express, retrieval and multimodal
-remain guarded; compiled native task symbols alone do not implement their managed
-ownership contracts. Existing macOS language/Express tasks use Apple clang /
+inputs use the bundled GNU compiler ABI and official C++ ownership functions.
+Existing macOS language/Express tasks use Apple clang /
 libc++ ABI v1. Android ARM64 IL2CPP and iOS ARM64 IL2CPP have their separate
 Interpreter/Session/Tensor and task contracts; see
 [mobile interop](../Documentation~/MobileInterop.md).
 
 Actual macOS CPU inference is tested in Unity 2021.3.45f2, including ARM64 Players
-and historical x64 Players under Rosetta. Windows core C# execution currently uses
-Wine Mono; Linux core C# execution uses host Mono's interpreter in an amd64 Docker
+and historical x64 Players under Rosetta. Windows C# execution currently uses
+Wine Mono; Linux C# execution uses host Mono's interpreter in an amd64 Docker
 container. They do not replace Windows/Linux Unity Player validation. Desktop
 IL2CPP and WebGL are rejected before inference. Metal and model-specific evidence
 is recorded in [acceleration](../Documentation~/Acceleration.md) and
@@ -76,7 +76,17 @@ and installs the matching plugins; see the mobile document for platform argument
 current plugins. Artifacts stay under `TestArtifacts~/MobileLlmDirectCpp/`.
 
 
-### Linux x64 Mono core
+### Windows x64 Mono
+
+Use `build-windows.py` with the pinned MinGW-w64 GCC 16.2.0 POSIX toolchain,
+CMake, Ninja, Git and Python 3. See [Windows build](README.Windows.md) for the
+complete compiler contract and command. The script prepares a candidate by
+default; `--install` explicitly replaces the audited package DLL while preserving
+its Unity metadata. It adds no C++ translation units and leaves official source
+bytes unchanged. The exported standard-library definitions own native strings
+and collections; all runtime libraries are statically linked into the MNN DLL.
+
+### Linux x64 Mono
 
 Build and audit the Linux CPU candidate from the same pinned clean official
 checkout, with Docker, Git and Python 3 installed:
@@ -91,15 +101,16 @@ script requires GCC 13.3, records source/header hashes, dependencies and exporte
 symbols, and rejects custom `MNN_*` exports. `retain-linux-abi.cmake` retains
 existing official inline definitions without adding C++ code or modifying sources.
 The distributed candidate needs GLIBC 2.38+ and GLIBCXX_3.4.32. OpenCL/Vulkan are
-disabled in this Linux build; its verified core backend is CPU. Native LLM/Omni
-build options do not enable the guarded Windows/Linux managed task APIs.
+disabled in this Linux build; its verified backend is CPU. Task bindings use the
+pinned GNU C++11 string ABI and the retained official ownership exports.
 
 ## Managed interop
 
 `Runtime/Interop/MNNInterop.cs` shares library/calling-convention settings.
 Partial files separate backend probing, Interpreter/Session, Tensor, LLM, Multimodal, Embedding,
-Reranker and Version. `Abi` owns task-specific libc++ marshalling and borrowed desktop core values.
-`DesktopSymbols` selects official MSVC/GNU/Apple core symbols; Windows/Linux and
+Reranker and Version. `Abi` and `DesktopAbi` own task-specific libc++/GNU marshalling
+and borrowed desktop core values. `DesktopSymbols` selects official GNU/Apple core
+symbols; `DesktopTaskSymbols` selects GNU/Apple task symbols. Windows/Linux and
 mobile tensor shapes use public scalar `Tensor::length` rather than owned STL returns;
 `Express` owns executor scopes and variable results, including official
 `Variable::load(path)` and `Variable::load(buffer, length)` for prepared serialized graphs.
@@ -110,11 +121,12 @@ core classes serialize inference and disposal.
 The ABI includes the official public `ScheduleConfig` (104 bytes, including nested Path padding), `BackendConfig`,
 `LlmContext` and `Variable::Info` layouts, libc++ alternate string layout and
 nontrivial aggregate return convention. Apple/GNU `halide_type_t` is 8 bytes
-(code enum: 4, bits: 1, lanes: 2 with padding). The official MSVC header instead
-uses a 4-byte value (code: 1, bits: 1, lanes: 2); its member return uses an explicit
-result buffer following `this`. The Windows binding converts these public fields
-to the shared managed representation. Compiler layouts, the matching Windows PDB
-and native execution establish these separate contracts. Strings use official libc++ initialization/destruction;
+(code enum: 4, bits: 1, lanes: 2 with padding). The bundled MinGW Windows build
+returns it directly in RAX. GNU owning member results pass their output pointer
+before `this`, verified in the actual DLL disassembly and Mono calls. Windows
+`size_t` mangles as `y`; Linux uses `m`. GNU strings use stable native object
+storage, official constructors/reserve/accessors/destructors and their pinned
+32-byte ABI. Apple strings use official libc++ initialization/destruction.
 VARP results use the official destructor. Private MNN object offsets are not read.
 Returned integer vectors use the STL destructor compiled into MNN. Calling
 system `operator delete` directly is unsafe in Unity Players, whose allocator
@@ -125,8 +137,8 @@ methods; no SSO layout is decoded. The public LlmContext prefix and aggregate re
 contract are checked for each mobile compiler. An iOS managed autorelease scope
 drains Foundation/Metal temporaries on worker threads.
 
-Implemented macOS/mobile Express/retrieval bindings share their classes and partials.
-Mobile vector<VARP> results use their exact official vector destructor. The legacy
+Implemented desktop/mobile Express/retrieval bindings share their classes and partials.
+Windows, Linux and mobile vector<VARP> results use their exact official vector destructor. The legacy
 macOS binary lacks this export: it destroys VARP elements and frees storage through
 the pinned libc++ default allocator's vector<int> destructor. This remains a
 compiler-specific allocator dependency, not a portable vector conversion.

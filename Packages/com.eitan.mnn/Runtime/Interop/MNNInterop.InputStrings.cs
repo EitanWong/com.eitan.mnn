@@ -1,6 +1,5 @@
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
 using System;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -8,48 +7,51 @@ namespace MNN.Unity.Interop
 {
     internal static partial class MNNInterop
     {
-        // Borrowed, read-only inputs for the exact bundled MSVC x64 / GCC 13 ABI.
-        // Always use external storage: no movable managed SSO self-pointer and no
-        // native allocator ownership. Only synchronous const APIs may receive this.
-        // This is a project-specific compiler contract, not an official MNN C# API.
+        // GNU strings are constructed and destroyed in stable native storage.
+        // Force heap storage before exposing read-only header copies to vectors;
+        // a copied SSO header would retain a pointer into the original object.
         private static CppString CreateDesktopInputString(string text, out IntPtr storage)
         {
             byte[] bytes = Encoding.UTF8.GetBytes(text ?? throw new ArgumentNullException(nameof(text)));
-            int capacity = Math.Max(16, bytes.Length);
-            storage = Marshal.AllocHGlobal(checked(capacity + 1));
+            return CreateDesktopInputString(bytes, bytes.Length, out storage);
+        }
+
+        private static CppString CreateDesktopInputString(byte[] bytes, int length, out IntPtr storage)
+        {
+            if (bytes == null) throw new ArgumentNullException(nameof(bytes));
+            if (length < 0 || length > bytes.Length) throw new ArgumentOutOfRangeException(nameof(length));
+            storage = Marshal.AllocHGlobal(Marshal.SizeOf<CppString>());
+            bool constructed = false;
             try
             {
-                Marshal.Copy(bytes, 0, storage, bytes.Length);
-                Marshal.WriteByte(storage, bytes.Length, 0);
-#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
-                return new CppString { Data = unchecked((ulong)storage.ToInt64()), Capacity = (ulong)bytes.Length, Extra = (ulong)capacity };
-#else
-                return new CppString { Data = unchecked((ulong)storage.ToInt64()), Length = (ulong)bytes.Length, Capacity = (ulong)capacity };
-#endif
+                byte allocator = 0;
+                DesktopStringConstruct(storage, bytes, (UIntPtr)(uint)length, ref allocator);
+                constructed = true;
+                DesktopStringReserve(storage, (UIntPtr)16u);
+                return Marshal.PtrToStructure<CppString>(storage);
             }
             catch
             {
-                Marshal.FreeHGlobal(storage);
-                storage = IntPtr.Zero;
+                try { if (constructed) DesktopStringDestroy(storage); }
+                finally { Marshal.FreeHGlobal(storage); storage = IntPtr.Zero; }
                 throw;
             }
         }
 
-        private static int CopyDesktopInputStringBytes(ref CppString value, int start, ref byte[] buffer)
+        private static void DestroyDesktopInputString(ref CppString value, ref IntPtr storage)
         {
-#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
-            ulong size = value.Capacity;
-#else
-            ulong size = value.Length;
-#endif
-            if (size > 64 * 1024 * 1024 || start < 0 || (ulong)start > size)
-                throw new InvalidDataException("Invalid borrowed desktop input string range.");
-            int count = (int)size - start;
-            if (buffer == null || buffer.Length < count)
-                buffer = new byte[count];
-            if (count != 0)
-                Marshal.Copy(IntPtr.Add(new IntPtr(unchecked((long)value.Data)), start), buffer, 0, count);
-            return count;
+            IntPtr owner = storage;
+            storage = IntPtr.Zero;
+            value = default;
+            if (owner == IntPtr.Zero) return;
+            try { DesktopStringDestroy(owner); }
+            finally { Marshal.FreeHGlobal(owner); }
+        }
+
+        private static unsafe int CopyDesktopInputStringBytes(ref CppString value, int start, ref byte[] buffer)
+        {
+            fixed (CppString* pointer = &value)
+                return CopyDesktopStringBytes((IntPtr)pointer, start, ref buffer);
         }
     }
 }

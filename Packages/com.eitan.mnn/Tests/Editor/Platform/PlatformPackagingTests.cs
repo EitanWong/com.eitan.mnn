@@ -16,7 +16,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void NativeImports_UseOnlyOfficialCppAndSystemSymbols()
         {
-            var imports = typeof(MNNInterop).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).Select(method => method.GetCustomAttribute<DllImportAttribute>()).Where(import => import != null && (import.Value == "MNN" || import.Value == "/usr/lib/libc++.1.dylib")).ToArray();
+            var imports = typeof(MNNInterop).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).Select(method => method.GetCustomAttribute<DllImportAttribute>()).Where(import => import != null && (import.Value == "MNN" || import.Value == "/usr/lib/libc++.1.dylib" || import.Value == "libstdc++.so.6")).ToArray();
             if (!MNNPlatformSupport.IsSupported)
             {
                 Assert.IsEmpty(imports, "Unsupported targets must not import Apple C++ symbols.");
@@ -24,7 +24,7 @@ namespace MNN.Unity.Tests
             }
 
 #if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX
-            Assert.AreEqual(27, imports.Length, "Desktop core calls only the audited official Interpreter/Tensor/version APIs.");
+            Assert.AreEqual(74, imports.Length, "Desktop core and task APIs include official GNU STL ownership operations.");
 #else
             Assert.AreEqual(70, imports.Length, "66 bundled MNN/STL and 4 system libc++ imports, including direct model loads and Express graph operations.");
 #endif
@@ -32,13 +32,9 @@ namespace MNN.Unity.Tests
             {
                 Assert.AreEqual(CallingConvention.Cdecl, import.CallingConvention, import.EntryPoint);
                 if (import.Value == MNNNative.LibraryName)
-#if UNITY_EDITOR_WIN
-                    StringAssert.StartsWith("?", import.EntryPoint, "MNN must expose official MSVC C++ APIs.");
-#else
-                    StringAssert.StartsWith("_ZN", import.EntryPoint, "MNN must expose official Itanium C++ APIs.");
-#endif
+                    StringAssert.StartsWith("_Z", import.EntryPoint, "MNN imports must name official C++ symbols, including the native allocator.");
                 else
-                    Assert.AreEqual("/usr/lib/libc++.1.dylib", import.Value, "Unexpected native dependency.");
+                    Assert.That(import.Value, Is.EqualTo("/usr/lib/libc++.1.dylib").Or.EqualTo("libstdc++.so.6"), "Unexpected native dependency.");
                 Assert.IsFalse(import.EntryPoint.StartsWith("MNN_", StringComparison.Ordinal));
             }
         }

@@ -26,24 +26,7 @@ namespace MNN.Unity.Interop
 #else
         internal static int MNN_Tensor_getDimensionType(IntPtr tensor) => throw UnsupportedAbi();
 #endif
-#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR && !ENABLE_IL2CPP)
-        // The official MSVC header uses a byte type code. Its non-POD member
-        // return places this in RCX and explicit result storage in RDX.
-        [StructLayout(LayoutKind.Sequential)]
-        private struct WindowsHalideType
-        {
-            internal byte Code, Bits;
-            internal ushort Lanes;
-        }
-
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorType)]
-        private static extern void ReadWindowsTensorType(IntPtr tensor, out WindowsHalideType value);
-        private static HalideType TensorType(IntPtr tensor)
-        {
-            ReadWindowsTensorType(tensor, out var value);
-            return new HalideType { Code = value.Code, Bits = value.Bits, Lanes = value.Lanes };
-        }
-#elif MNN_INFERENCE_CPP_ABI
+#if MNN_INFERENCE_CPP_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorType)]
         private static extern HalideType TensorType(IntPtr tensor);
 #else

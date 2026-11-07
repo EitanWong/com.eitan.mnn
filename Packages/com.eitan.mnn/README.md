@@ -7,20 +7,20 @@ the verified Unity version is 2021.3.45f2.
 ## Support and ABI
 
 C# P/Invoke calls official C++ symbols in the bundled libraries, without additional
-C++ sources, custom C exports or a companion bridge. **Interpreter/Session/Tensor
-supports desktop Mono on macOS ARM64/x64, Windows x64 and Linux x64.** Each target
+C++ sources, custom C exports or a companion bridge. **Core inference, Express, LLM and native retrieval
+support desktop Mono on macOS ARM64/x64, Windows x64 and Linux x64.** Each target
 uses its own pinned compiler ABI; see [desktop Mono](Documentation~/DesktopMono.md)
 for the binaries, system requirements and evidence.
 
 | Desktop Mono target | Implemented native binding | Current execution evidence |
 | --- | --- | --- |
 | macOS 11+ ARM64/x64 | Core inference and existing language/Express tasks, Apple clang / libc++ ABI v1 | ARM64 Unity Player; historical x64 Player under Rosetta |
-| Windows x64 | Core Interpreter/Session/Tensor, MSVC 19.51.36260.0 release ABI | Production C# core under Wine 9 / Wine Mono 9.4.0 |
-| Linux x64 | Core Interpreter/Session/Tensor, GCC 13.3 / GNU libstdc++ C++11 ABI | Production C# core under host Mono in an amd64 Linux container |
+| Windows x64 | Core, Express, LLM, retrieval and media input; MinGW-w64 GCC 16.2 | Production C# task APIs under Wine 9 / Wine Mono 9.4.0 |
+| Linux x64 | Core, Express, LLM, retrieval and media input; GCC 13.3 | Production C# task APIs under host Mono in an amd64 Linux container |
 
-Windows/Linux LLM, Express, native retrieval and multimodal entry points remain
-guarded. Their current evidence covers CPU affine inference, not Windows/Linux
-Unity Players or every model pipeline. Linux requires GLIBC 2.38+ and a
+Windows/Linux checks include real CPU Express, text/chat/streaming LLM, embedding,
+reranking and Omni image input. Windows/Linux Unity Players and every model
+pipeline have not been verified. Waveform callbacks remain unavailable. Linux requires GLIBC 2.38+ and a
 libstdc++.so.6 providing GLIBCXX_3.4.32. Windows path handling follows the bundled
 MNN FileLoader's ANSI code page and available DOS short paths; see the desktop guide.
 This is a project-maintained compiler-specific binding, not an official portable

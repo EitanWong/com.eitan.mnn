@@ -47,11 +47,11 @@ def main():
         backends = ["IL2CPP"] if platform in ("iOS", "WebGL") else ["Mono", "IL2CPP"]
         for backend in backends:
             cases.append((platform + "-" + backend, [symbol, "ENABLE_" + backend.upper()],
-                          70 if platform == "macOS" and backend == "Mono" else 27 if platform in ("Windows", "Linux") and backend == "Mono" else (73 if platform == "Android" and backend == "IL2CPP" else 72 if platform == "iOS" else 0)))
+                          70 if platform == "macOS" and backend == "Mono" else 74 if platform in ("Windows", "Linux") and backend == "Mono" else (73 if platform == "Android" and backend == "IL2CPP" else 72 if platform == "iOS" else 0)))
     # A macOS Editor may target an IL2CPP Player while running Mono itself.
     for platform in ("OSX", "WIN", "LINUX"):
         cases.append(("Editor-" + platform, ["UNITY_EDITOR", "UNITY_EDITOR_" + platform,
-                                            "ENABLE_IL2CPP"], 70 if platform == "OSX" else 27))
+                                            "ENABLE_IL2CPP"], 70 if platform == "OSX" else 74))
     summary = []
     for label, symbols, expected in cases:
         assembly = output / (label + ".dll")

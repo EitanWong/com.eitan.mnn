@@ -108,8 +108,8 @@ Player 清单位于 `StreamingAssets/MNN/model-delivery.json`。该路径由包�
 会阻止构建。清单只含相对路径与运行时配置，不含 Editor 绝对路径。
 
 模型发布与原生推理支持是独立条件。核心 Interpreter/Session/Tensor 已实现 macOS ARM64/x64、
-Windows x64 与 Linux x64 Mono 的各自编译器 ABI；Windows/Linux 的 LLM、Express、原生检索及多模态
-任务仍受保护，不因核心绑定可用而开放。Windows 路径受随包 MNN FileLoader 的 ANSI 码页及 DOS
+Windows x64 与 Linux x64 Mono 的各自编译器 ABI，包括 LLM、Express、原生检索及媒体输入。
+Windows/Linux 当前真实任务检查使用 Wine/容器 Mono，尚无对应 Unity Player 结果。Windows 路径受随包 MNN FileLoader 的 ANSI 码页及 DOS
 短路径能力约束，Linux 需要 GLIBC 2.38+ / GLIBCXX_3.4.32；详见[桌面 Mono](DesktopMono.md)。
 Android/iOS ARM64 IL2CPP 具有独立基础推理和任务绑定，设备证据见[移动 ABI](MobileInterop.md)。
 打包、下载或复制成功不能作为设备推理通过的证据。
