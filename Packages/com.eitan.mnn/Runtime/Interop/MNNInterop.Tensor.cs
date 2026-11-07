@@ -1,4 +1,4 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_OSX || UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_INFERENCE_CPP_ABI
 #endif
 using System;
@@ -9,25 +9,42 @@ namespace MNN.Unity.Interop
     internal static partial class MNNInterop
     {
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN6Tensor3mapENS0_7MapTypeENS0_13DimensionTypeE")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorMap)]
         internal static extern IntPtr MNN_Tensor_map(IntPtr tensor, MNNTensorMapType mapType, MNNDimensionType dimType);
 #else
         internal static IntPtr MNN_Tensor_map(IntPtr tensor, MNNTensorMapType mapType, MNNDimensionType dimType) => throw UnsupportedAbi();
 #endif
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN6Tensor5unmapENS0_7MapTypeENS0_13DimensionTypeEPv")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorUnmap)]
         internal static extern void MNN_Tensor_unmap(IntPtr tensor, MNNTensorMapType mapType, MNNDimensionType dimType, IntPtr pointer);
 #else
         internal static void MNN_Tensor_unmap(IntPtr tensor, MNNTensorMapType mapType, MNNDimensionType dimType, IntPtr pointer) => throw UnsupportedAbi();
 #endif
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN6Tensor16getDimensionTypeEv")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorDimensionType)]
         internal static extern int MNN_Tensor_getDimensionType(IntPtr tensor);
 #else
         internal static int MNN_Tensor_getDimensionType(IntPtr tensor) => throw UnsupportedAbi();
 #endif
-#if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN6Tensor7getTypeEv")]
+#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR && !ENABLE_IL2CPP)
+        // The official MSVC header uses a byte type code. Its non-POD member
+        // return places this in RCX and explicit result storage in RDX.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WindowsHalideType
+        {
+            internal byte Code, Bits;
+            internal ushort Lanes;
+        }
+
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorType)]
+        private static extern void ReadWindowsTensorType(IntPtr tensor, out WindowsHalideType value);
+        private static HalideType TensorType(IntPtr tensor)
+        {
+            ReadWindowsTensorType(tensor, out var value);
+            return new HalideType { Code = value.Code, Bits = value.Bits, Lanes = value.Lanes };
+        }
+#elif MNN_INFERENCE_CPP_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorType)]
         private static extern HalideType TensorType(IntPtr tensor);
 #else
         private static HalideType TensorType(IntPtr tensor) => throw UnsupportedAbi();
@@ -55,15 +72,15 @@ namespace MNN.Unity.Interop
         }
 
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN6Tensor10dimensionsEv")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorDimensions)]
         internal static extern int MNN_Tensor_getDimensions(IntPtr tensor);
 #else
         internal static int MNN_Tensor_getDimensions(IntPtr tensor) => throw UnsupportedAbi();
 #endif
-#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
-        // Read dimensions through the official inline scalar API. Mobile does
-        // not marshal std::vector return values or cross native allocators.
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN6Tensor6lengthEi")]
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+        // Read dimensions through the official scalar API on these compiler
+        // contracts, avoiding owned STL returns and allocator crossings.
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorLength)]
         private static extern int TensorLength(IntPtr tensor, int index);
         internal static void MNN_Tensor_getShape(IntPtr tensor, int[] shape, int count)
         {
@@ -90,25 +107,25 @@ namespace MNN.Unity.Interop
 #endif
 
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN6Tensor11elementSizeEv")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorElementSize)]
         internal static extern int MNN_Tensor_elementSize(IntPtr tensor);
 #else
         internal static int MNN_Tensor_elementSize(IntPtr tensor) => throw UnsupportedAbi();
 #endif
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN6Tensor4sizeEv")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorSize)]
         internal static extern int MNN_Tensor_size(IntPtr tensor);
 #else
         internal static int MNN_Tensor_size(IntPtr tensor) => throw UnsupportedAbi();
 #endif
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN6Tensor7destroyEPS0_")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorDestroy)]
         internal static extern void MNN_Tensor_destroy(IntPtr tensor);
 #else
         internal static void MNN_Tensor_destroy(IntPtr tensor) => throw UnsupportedAbi();
 #endif
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN6Tensor4waitENS0_7MapTypeEb")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.TensorWait)]
         internal static extern int MNN_Tensor_wait(IntPtr tensor, MNNTensorMapType mapType, [MarshalAs(UnmanagedType.I1)] bool finish);
 #else
         internal static int MNN_Tensor_wait(IntPtr tensor, MNNTensorMapType mapType, [MarshalAs(UnmanagedType.I1)] bool finish) => throw UnsupportedAbi();

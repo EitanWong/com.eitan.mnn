@@ -1,4 +1,4 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_OSX || UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_INFERENCE_CPP_ABI
 #endif
 using System;
@@ -12,7 +12,7 @@ namespace MNN.Unity.Interop
         // Official public pointer/scalar APIs. Uses the existing bundled
         // MNN 3.6.2 platform-specific ScheduleConfig ABI; no STL returns.
 #if MNN_INFERENCE_CPP_ABI
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Interpreter14getSessionInfoEPKNS_7SessionENS0_15SessionInfoCodeEPv")]
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = MNNCoreSymbols.GetSessionBackendInfo)]
         [return: MarshalAs(UnmanagedType.I1)]
         private static extern bool GetSessionBackendInfo(InterpreterHandle interpreter, IntPtr session, int code, [Out] int[] values);
 #else
@@ -72,7 +72,9 @@ namespace MNN.Unity.Interop
             var values = new[]{-1, -1};
             if (!GetSessionBackendInfo(interpreter, session, 2, values) || values[0] < 0)
                 throw new MNNException(MNNErrorCode.NoExecution, "Cannot query the actual MNN session backend.");
-            return (MNNBackendType)values[0];
+            // MNN_FORWARD_CPU_EXTENSION (13) is the official SIMD implementation
+            // selected for a CPU request on x86_64, not a separate managed device.
+            return values[0] == 13 ? MNNBackendType.CPU : (MNNBackendType)values[0];
         }
     }
 }

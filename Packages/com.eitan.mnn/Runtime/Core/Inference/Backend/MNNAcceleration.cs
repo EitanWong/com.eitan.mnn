@@ -53,7 +53,7 @@ namespace MNN.Unity
 
         // Platform constants avoid querying Unity APIs from inference workers.
         private static readonly MNNBackendType[] AutoCandidates =
-#if UNITY_ANDROID && !UNITY_EDITOR
+#if (UNITY_ANDROID && !UNITY_EDITOR) || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
             { MNNBackendType.OpenCL, MNNBackendType.Vulkan, MNNBackendType.CPU };
 #else
             { MNNBackendType.Metal, MNNBackendType.NN, MNNBackendType.CPU };

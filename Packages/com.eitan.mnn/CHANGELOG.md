@@ -13,6 +13,8 @@ The package version is 3.6.2.
 
 ### Added
 
+- Added Windows x86_64 and Linux x86_64 Mono Interpreter/Session/Tensor bindings, matching plugin import settings, a reproducible audited Linux build, and desktop ABI documentation. Windows/Linux LLM and Express bindings remain unavailable.
+
 - Managed language, multimodal, conversation streaming, Omni speech output, Qwen3 embedding and reranking APIs.
 - SD 1.5 image generation; Supertonic, Bert-VITS2 Chinese and Piper English speech synthesis.
   Piper uses upstream eSpeak-NG; Sana editing runs but has not met the semantic color-edit quality check.

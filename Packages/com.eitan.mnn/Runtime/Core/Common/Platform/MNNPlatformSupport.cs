@@ -19,6 +19,10 @@ namespace MNN.Unity
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Android NDK r25c libc++ (__ndk1) / ARM64 IL2CPP";
 #elif UNITY_IOS && !UNITY_EDITOR
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Apple libc++ ABI v1 / ARM64 IL2CPP";
+#elif UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
+                return $"MNN {MNNVersion.RequiredNativeVersion} / MSVC 19.51.36260 x64 release ABI / Windows x86_64 Mono (bundled binary only)";
+#elif UNITY_EDITOR_LINUX || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR)
+                return $"MNN {MNNVersion.RequiredNativeVersion} / GCC 13 libstdc++ C++11 ABI / Linux x86_64 Mono (bundled binary only)";
 #elif UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR)
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Apple libc++ ABI v1 / macOS 64-bit Mono";
 #else
@@ -51,6 +55,15 @@ namespace MNN.Unity
                     return "Direct mobile MNN C++ binding requires ARM64.";
                 if (!il2cpp)
                     return "Direct mobile MNN C++ binding requires IL2CPP.";
+                return null;
+            }
+            if (platform == RuntimePlatform.WindowsEditor || platform == RuntimePlatform.WindowsPlayer ||
+                platform == RuntimePlatform.LinuxEditor || platform == RuntimePlatform.LinuxPlayer)
+            {
+                if (il2cpp)
+                    return "Direct Windows/Linux MNN C++ binding requires Mono.";
+                if (architecture != Architecture.X64)
+                    return "Direct Windows/Linux MNN C++ binding requires x86_64.";
                 return null;
             }
             if (platform != RuntimePlatform.OSXEditor && platform != RuntimePlatform.OSXPlayer)

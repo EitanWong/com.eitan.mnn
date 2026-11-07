@@ -23,12 +23,20 @@ namespace MNN.Unity.Tests
                 return;
             }
 
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX
+            Assert.AreEqual(27, imports.Length, "Desktop core calls only the audited official Interpreter/Tensor/version APIs.");
+#else
             Assert.AreEqual(70, imports.Length, "66 bundled MNN/STL and 4 system libc++ imports, including direct model loads and Express graph operations.");
+#endif
             foreach (var import in imports)
             {
                 Assert.AreEqual(CallingConvention.Cdecl, import.CallingConvention, import.EntryPoint);
                 if (import.Value == MNNNative.LibraryName)
-                    StringAssert.StartsWith("_ZN", import.EntryPoint, "MNN must expose official C++ APIs.");
+#if UNITY_EDITOR_WIN
+                    StringAssert.StartsWith("?", import.EntryPoint, "MNN must expose official MSVC C++ APIs.");
+#else
+                    StringAssert.StartsWith("_ZN", import.EntryPoint, "MNN must expose official Itanium C++ APIs.");
+#endif
                 else
                     Assert.AreEqual("/usr/lib/libc++.1.dylib", import.Value, "Unexpected native dependency.");
                 Assert.IsFalse(import.EntryPoint.StartsWith("MNN_", StringComparison.Ordinal));
@@ -55,12 +63,22 @@ namespace MNN.Unity.Tests
             }
         }
 
-        [TestCase("Windows/x86_64/MNN.dll")]
         [TestCase("Android/libs/armeabi-v7a/libMNN.so")]
         public void UnsupportedAbi_PluginImporterIsDisabled(string relativePath)
         {
             string meta = File.ReadAllText(Path.Combine(Root, "Runtime/Plugins", relativePath) + ".meta");
             Assert.IsFalse(Regex.IsMatch(meta, @"enabled: 1"), "No managed ABI is implemented for " + relativePath);
+        }
+
+        [TestCase("Windows/x86_64/MNN.dll", "Win64", "Windows")]
+        [TestCase("Linux/x86_64/libMNN.so", "Linux64", "Linux")]
+        public void DesktopMono_PluginImporterEnablesMatchingEditorAndPlayer(string relativePath, string player, string editor)
+        {
+            string meta = File.ReadAllText(Path.Combine(Root, "Runtime/Plugins", relativePath) + ".meta");
+            StringAssert.IsMatch(@"Editor: Editor\s+second:\s+enabled: 1", meta);
+            StringAssert.IsMatch(@"Standalone: " + player + @"\s+second:\s+enabled: 1", meta);
+            StringAssert.Contains("OS: " + editor, meta);
+            StringAssert.Contains("CPU: x86_64", meta);
         }
 
         [Test]

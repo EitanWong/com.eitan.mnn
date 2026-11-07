@@ -2,11 +2,35 @@
 
 入口：`Window > MNN > Chat Studio`（Cmd/Ctrl + Shift + M）。需要 Unity 2021.3 或更新版本。
 Studio 高层任务的真实推理验证范围为 macOS 64 位 Mono，官方 MNN 3.6.2 与 Apple libc++ 的特定 ABI。
-这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API；Windows、Linux、
-WebGL 和 macOS IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
+这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API。Windows/Linux x64 Mono
+现有核心 Interpreter/Session/Tensor 绑定；其 LLM、Express、原生检索及多模态任务仍受保护。
+WebGL 与桌面 IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
 LLM 文本/媒体输入的历史设备验证见下节；Express/原生检索已接入共享 partial，
 当前修改尚无新的移动真机推理结果。Omni/Qwen3 原生波形回调在所有平台明确拒绝。
 没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
+
+
+## 三平台桌面 Mono 核心绑定（2026-11-07）
+
+核心范围为官方 C++ Interpreter/Session/Tensor，包括版本、会话配置、张量读写、resize、同步/异步
+执行及释放；Windows/Linux 的任务 API 没有因此开放。编译器与二进制契约见[桌面 Mono](DesktopMono.md)。
+本轮使用已提交的 584 字节 `2*x+1` 仿射图，没有下载模型，没有新增 C++、自定义 C 导出或修改官方源码。
+
+| 环境 | 观察到的结果 | 证据范围 |
+| --- | --- | --- |
+| macOS ARM64 Unity 2021.3.45f2 Mono Player | 118/118 通过，0 失败/跳过，含 11 项原生测试；CPU、Auto→Metal 仿射图通过 | 实际 Unity Player；不代表所有模型 |
+| Windows x64 Wine 9 / Wine Mono 9.4.0 JIT，Linux amd64 容器 | 生产 C# 核心 smoke 完成：CPU 1/4 线程、张量元数据、同步数值、UTF-8 saved tensor、resize、异步、释放、Unicode 文件路径及 Auto→CPU；exit 0 | Windows DLL 兼容执行，尚无 Windows Unity Player 结果 |
+| Linux x64 host Mono `--interpreter`，Linux amd64 容器 | 同一生产 C# 核心数值 smoke 完成，exit 0；CPU_EXTENSION(13) 归一到托管 CPU | 容器内 Mono 解释器与真实 Linux `.so`，尚无 Linux Unity Player 结果 |
+
+本轮前置 macOS Player 为 113/113；最终候选回归为上表 118/118。x64 macOS 沿用此前 Rosetta
+Player 证据，本轮未新增 Intel 硬件结果。Linux 宿主 Mono JIT 在当前容器翻译环境中的早期尝试崩溃，
+成功结果明确使用 `--interpreter`，不能记成 Linux JIT 或 Unity 验收。Windows 成功路径使用
+`LANG=C.UTF-8` 与生产路径适配；码页无法表示且无 DOS 短路径的文件仍显式拒绝。
+
+证据位于仓库 `TestArtifacts~/MonoSupport-2026-11-07/`：`CrossPlatform/mac-player.stdout`、
+`CrossPlatform/Windows/utf8-locale-run.stdout`、`CrossPlatform/Linux/run-mono.stdout`、
+`WindowsAudit/`、`WindowsRun/` 和 `LinuxBuild/`。早期失败和崩溃记录保留。Windows/Linux 核心
+当前仅有 CPU 数值证据；OpenCL/Vulkan 的探测回退或编译成功不代表 GPU 推理通过。
 
 ## DTLN AEC 与可选 Burst（2026-10-25）
 
@@ -980,3 +1004,5 @@ INT8 与多语言仍未验证，饱和的 act 概率不能证明原始 act logit
 30 分钟 deadline 恢复带相同 build id 的设备结果。本轮在修复前手动恢复 XML，
 原始超时／缺权重跳过记录保留，不能把这些过程的 runner 返回值当作成功。
 本地产物位于 TestArtifacts~/TaskIntegration/Depth/ 和 NLP/，后者含 Android-results.xml。
+
+本轮还运行了 macOS x64 / Rosetta Mono Player：118/118 通过，0 失败/跳过，11 项原生测试，CPU 与 Auto→Metal 仿射图通过；这不是实体 Intel 硬件结果。

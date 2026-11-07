@@ -21,7 +21,13 @@ namespace MNN.Unity.Interop
 #else
         private const string Cxx = "/usr/lib/libc++.1.dylib";
 #endif
-        private static PlatformNotSupportedException UnsupportedAbi() => new PlatformNotSupportedException(MNNPlatformSupport.UnsupportedReason ?? "This entry is unavailable under the bundled platform ABI. Use the documented pinned compiler ABI for this inference task.");
+        private static PlatformNotSupportedException UnsupportedAbi() => new PlatformNotSupportedException(MNNPlatformSupport.UnsupportedReason ??
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+            "This task is not implemented for the bundled Windows/Linux Mono ABI. Interpreter/Session/Tensor are available; LLM/Express/retrieval require a separate task ABI."
+#else
+            "This entry is unavailable under the bundled platform ABI. Use the documented pinned compiler ABI for this inference task."
+#endif
+            );
         internal static void RequireAbi()
         {
             MNNPlatformSupport.RequireSupported();
@@ -48,6 +54,9 @@ namespace MNN.Unity.Interop
         internal struct CppString
         {
             internal ulong Data, Length, Capacity;
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+            internal ulong Extra;
+#endif
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -135,15 +144,27 @@ namespace MNN.Unity.Interop
         internal sealed class NativeString : IDisposable
         {
             internal CppString Value;
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+            private IntPtr _inputStorage;
+#endif
             internal NativeString(string text)
             {
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+                Value = CreateDesktopInputString(text, out _inputStorage);
+#else
                 byte[] bytes = Encoding.UTF8.GetBytes(text);
                 StringInit(ref Value, bytes, (UIntPtr)(uint)bytes.Length);
+#endif
             }
 
             public void Dispose()
             {
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+                Marshal.FreeHGlobal(_inputStorage);
+                _inputStorage = IntPtr.Zero;
+#else
                 StringDestroy(ref Value);
+#endif
                 Value = default;
             }
         }
@@ -159,7 +180,9 @@ namespace MNN.Unity.Interop
         // the caller-owned buffer is initialized; no native pointer survives the call.
         internal static unsafe int CopyStringBytes(ref CppString value, int start, ref byte[] buffer)
         {
-#if MNN_MOBILE_LLM_CPP_ABI
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+            return CopyDesktopInputStringBytes(ref value, start, ref buffer);
+#elif MNN_MOBILE_LLM_CPP_ABI
             // Use compiled libc++ members for SSO, long and embedded-NUL strings.
             // The 24-byte storage size is pinned to the audited compiler ABI.
             ulong size = StringSize(ref value).ToUInt64();

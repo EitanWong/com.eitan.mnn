@@ -489,6 +489,48 @@
       "architectures": [
         "arm64"
       ]
+    },
+    {
+      "path": "Runtime/Plugins/Windows/x86_64/MNN.dll",
+      "sha256": "d9ba792c5d1709db8df3016ccfbc02c676d1058bba23ab926c3e7e4e6cd0db9f",
+      "format": "PE32+ DLL",
+      "architectures": [
+        "x86_64"
+      ],
+      "abi": "MSVC x64 release / _ITERATOR_DEBUG_LEVEL=0 / Mono",
+      "compiler": "MSVC 19.51.36260.0, confirmed by matching official release PDB",
+      "source_revision": null,
+      "provenance": "Unmodified official MNN 3.6.2 Windows x64 MT release; exact source revision is not established.",
+      "managed_scope": "Interpreter/Session/Tensor core only; no LLM/Express STL ownership binding.",
+      "official_symbol_audit": {
+        "required_imports_from_MNN": 27,
+        "missing": [],
+        "custom_exports": []
+      }
+    },
+    {
+      "path": "Runtime/Plugins/Linux/x86_64/libMNN.so",
+      "sha256": "4be060faab8603fd4f5c29498dec1033b7eef5afff9e6fe2ad6a6afd1fc16a40",
+      "built_on": "2026-11-07",
+      "format": "ELF64 shared object",
+      "architectures": [
+        "x86_64"
+      ],
+      "abi": "GNU Itanium x86_64 SysV / libstdc++ C++11 ABI / Mono",
+      "compiler": "GCC 13.3.0, Ubuntu 24.04",
+      "source_revision": "7e3c6fb5225d3ccf22807ee641332669df34650d",
+      "minimum_runtime": {
+        "glibc": "2.38",
+        "libstdcxx_symbol": "GLIBCXX_3.4.32"
+      },
+      "managed_scope": "Interpreter/Session/Tensor core only; LLM/Express entry points remain guarded.",
+      "build_script": "build-linux.sh",
+      "inline_retention": "retain-linux-abi.cmake",
+      "official_symbol_audit": {
+        "required_imports_from_MNN": 27,
+        "missing": [],
+        "custom_exports": []
+      }
     }
   ],
   "validation_evidence": "Documentation~/MNN362Upgrade.md",
