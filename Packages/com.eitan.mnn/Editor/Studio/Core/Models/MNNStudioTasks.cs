@@ -115,8 +115,9 @@ namespace MNN.Unity.Editor
                 return true; // Escape hatch for new tasks/resources in the official catalog.
             var category = model.category ?? MNNModelRepository.Classify(model.modelScopeId ?? model.name, model.displayName, model.description, model.tasks, model.tags);
             if (Task >= MNNStudioTask.VoiceActivityDetection && Task <= MNNStudioTask.SpeakerDiarization)
-                return category == MNNModelCategory.AudioProcessing.ToString() &&
-                    MNNStudioModel.AudioSubtaskForIdentity(model.repositoryId ?? model.modelScopeId ?? model.name, model.tasks) == Task;
+                return MNNStudioModel.AudioSubtaskForCategory(category,
+                    model.repositoryId ?? model.modelScopeId ?? model.name, model.tasks) == Task;
+            if (Task == MNNStudioTask.AudioProcessing && MNNModelCatalog.IsAudioProcessingCategory(category)) return true;
             return Categories.Any(value => value.ToString() == category);
         }
 
@@ -152,6 +153,7 @@ namespace MNN.Unity.Editor
         internal static MNNStudioTaskInfo Get(int index) => All[index >= 0 && index < All.Length ? index : 0];
         internal static MNNStudioTask FromCategory(string category)
         {
+            if (MNNModelCatalog.IsAudioProcessingCategory(category)) return MNNStudioTask.AudioProcessing;
             if (category == MNNModelCategory.VisionLanguageModel.ToString() || category == MNNModelCategory.AudioLanguageModel.ToString() || category == MNNModelCategory.OmniModel.ToString())
                 return MNNStudioTask.Chat;
             // Only identify dedicated model formats here. LLM media flags select their workspaces.
@@ -172,7 +174,14 @@ namespace MNN.Unity.Editor
         private static MNNStudioTaskInfo Llm(MNNStudioTask task, string name, string group, string description, string example, string model, params MNNModelCategory[] categories) => new MNNStudioTaskInfo(task, name, group, description, LlmFiles, example, model, string.IsNullOrEmpty(model) ? Array.Empty<string>() : new[]{"MNN/" + model}, categories, runnable: true);
         private static MNNStudioTaskInfo AudioSubtask(MNNStudioTask task, string name, string description, string example) =>
             new MNNStudioTaskInfo(task, name, "Audio", description, "Install a compatible verified profile with Model Manager and select a WAV recording.",
-                example, "", Array.Empty<string>(), new[] { MNNModelCategory.AudioProcessing }, MNNModelCapabilities.AudioInput, true);
+                example, "", Array.Empty<string>(), AudioSubtaskCategories(task), MNNModelCapabilities.AudioInput, true);
+
+        private static MNNModelCategory[] AudioSubtaskCategories(MNNStudioTask task)
+        {
+            var category = (MNNModelCategory)Enum.Parse(typeof(MNNModelCategory), task.ToString());
+            return task == MNNStudioTask.SpeechSeparation
+                ? new[] { category, MNNModelCategory.TargetSpeakerExtraction } : new[] { category };
+        }
         private static MNNStudioTaskInfo Media(MNNStudioTask task, string name, string group, string description, string example, string model, MNNModelCapabilities required, params MNNModelCategory[] categories)
         {
             if (task == MNNStudioTask.SpeechRecognition)

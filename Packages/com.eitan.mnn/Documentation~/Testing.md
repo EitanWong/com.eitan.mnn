@@ -2,11 +2,51 @@
 
 入口：`Window > MNN > Chat Studio`（Cmd/Ctrl + Shift + M）。需要 Unity 2021.3 或更新版本。
 Studio 高层任务的真实推理验证范围为 macOS 64 位 Mono，官方 MNN 3.6.2 与 Apple libc++ 的特定 ABI。
-这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API；Windows、Linux、
-WebGL 和 macOS IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
+这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API。Windows/Linux x64 Mono
+已接入核心 Interpreter/Session/Tensor、LLM、Express、原生检索及媒体输入。Windows/Linux 的新任务
+验证使用 Wine/容器 Mono 与真实原生库；尚无这两个平台的 Unity Player 结果。
+WebGL 与桌面 IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
 LLM 文本/媒体输入的历史设备验证见下节；Express/原生检索已接入共享 partial，
 当前修改尚无新的移动真机推理结果。Omni/Qwen3 原生波形回调在所有平台明确拒绝。
 没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
+
+## Windows/Linux 桌面 Mono 高级任务（2026-11-07）
+
+直接调用官方 C++，没有新增 C++、自定义导出或修改官方源码。Windows 更换为固定版本的
+MinGW-w64 GCC 16.2 GNU DLL；Linux 沿用 GCC 13.3 GNU 库。不能替换回同版本 MSVC DLL。
+完整 ABI、运行要求及限制见[桌面 Mono](DesktopMono.md)。
+
+生产 API 的真实原生测试包括：Express 常量/Module/图执行、动态 shape、独立所有权与 GC；
+SmolLM2-135M 文本/聊天/流式、取消恢复、分词与释放；BGE-small512 维归一化及检索；
+Qwen3 yes/no 重排；SmolVLM 图片输入。Windows/Linux 各 79 项高级任务检查通过，基础推理各 22 项通过。Windows 使用 Wine 9/Mono9.4，
+Linux 使用容器内 Mono 解释器，这些均不是 Windows/Linux Unity Player 结果。逐条命令、输入、stdout/stderr、
+退出码和失败修复保存在 `TestArtifacts~/MonoSupport-2026-11-07/Advanced/Tests/`。
+复现入口为 `Tools~/Testing/run_desktop_mono_tasks.py`，只复用本地模型，不下载资源。
+本轮 macOS ARM64 和 x64（Rosetta）Mono Player 按 core/platform/Express filter 各 120/120 通过，
+0 失败/跳过；聚焦 Editor 14/14 通过。13 种条件编译与基础 9 个包程序集编译通过，Burst 未安装。
+未配置模型/独立参考根目录的全量 Player 尝试含 95 项 fixture 失败，保留日志；它不构成全量模型通过。
+
+## 三平台桌面 Mono 核心绑定（2026-11-07）
+
+核心范围为官方 C++ Interpreter/Session/Tensor，包括版本、会话配置、张量读写、resize、同步/异步
+执行及释放；下表保留基础绑定阶段的历史结果，高级任务结果见上一节。编译器与二进制契约见[桌面 Mono](DesktopMono.md)。
+本轮使用已提交的 584 字节 `2*x+1` 仿射图，没有下载模型，没有新增 C++、自定义 C 导出或修改官方源码。
+
+| 环境 | 观察到的结果 | 证据范围 |
+| --- | --- | --- |
+| macOS ARM64 Unity 2021.3.45f2 Mono Player | 118/118 通过，0 失败/跳过，含 11 项原生测试；CPU、Auto→Metal 仿射图通过 | 实际 Unity Player；不代表所有模型 |
+| Windows x64 Wine 9 / Wine Mono 9.4.0 JIT，Linux amd64 容器 | 生产 C# 核心 smoke 完成：CPU 1/4 线程、张量元数据、同步数值、UTF-8 saved tensor、resize、异步、释放、Unicode 文件路径及 Auto→CPU；exit 0 | Windows DLL 兼容执行，尚无 Windows Unity Player 结果 |
+| Linux x64 host Mono `--interpreter`，Linux amd64 容器 | 同一生产 C# 核心数值 smoke 完成，exit 0；CPU_EXTENSION(13) 归一到托管 CPU | 容器内 Mono 解释器与真实 Linux `.so`，尚无 Linux Unity Player 结果 |
+
+本轮前置 macOS Player 为 113/113；最终候选回归为上表 118/118。x64 macOS 沿用此前 Rosetta
+Player 证据，本轮未新增 Intel 硬件结果。Linux 宿主 Mono JIT 在当前容器翻译环境中的早期尝试崩溃，
+成功结果明确使用 `--interpreter`，不能记成 Linux JIT 或 Unity 验收。Windows 成功路径使用
+`LANG=C.UTF-8` 与生产路径适配；码页无法表示且无 DOS 短路径的文件仍显式拒绝。
+
+证据位于仓库 `TestArtifacts~/MonoSupport-2026-11-07/`：`CrossPlatform/mac-player.stdout`、
+`CrossPlatform/Windows/utf8-locale-run.stdout`、`CrossPlatform/Linux/run-mono.stdout`、
+`WindowsAudit/`、`WindowsRun/` 和 `LinuxBuild/`。早期失败和崩溃记录保留。Windows/Linux 核心
+当前仅有 CPU 数值证据；OpenCL/Vulkan 的探测回退或编译成功不代表 GPU 推理通过。
 
 ## DTLN AEC 与可选 Burst（2026-10-25）
 
@@ -526,6 +566,24 @@ These standalone ASR models transcribe audio; instructions do not enable
 translation or change their decoding tasks. Whisper has no token timestamps.
 Old raw installations need profile preparation through Model Manager.
 
+SenseVoice uses the FunASR training frontend: seven centered fbank frames every
+six frames, replicating both edges and retaining the final partial window before
+fixed CMVN. Paraformer's streaming export retains its separate causal window
+contract. The ModelScope SenseVoice runner appends the public MNN `ArgMax` op to
+an in-memory copy of its verified graph, returning int32 IDs instead of the full
+25,055-value vocabulary per frame. The installed model and weights are unchanged;
+the Hugging Face profile retains its Express logits route. This reduces managed
+output transfer, not the model's internal vocabulary projection or native tensor storage.
+
+For independent frontend references, run
+`Tools~/Testing/generate_sensevoice_reference.py --root <existing-ASR-Additional-root>`
+with locally installed numpy and kaldi-native-fbank. It writes
+`en-sensevoice-training.f32` and `zh-en-sensevoice-training.f32` beside the existing
+models. Set `MNN_TEST_SENSEVOICE_ROOT` for `SenseVoiceIntegrationTests`, including
+full-logit versus reduced-output parity across changing shapes. No assets or
+dependencies are downloaded. These checks exercise the existing supported MNN ABI;
+they do not establish a portable official C# API or qualify other platforms.
+
 ### Qwen3-ASR transcription
 
 In **Speech recognition**, install the verified Qwen3-ASR 0.6B INT8 profile from
@@ -962,3 +1020,5 @@ INT8 与多语言仍未验证，饱和的 act 概率不能证明原始 act logit
 30 分钟 deadline 恢复带相同 build id 的设备结果。本轮在修复前手动恢复 XML，
 原始超时／缺权重跳过记录保留，不能把这些过程的 runner 返回值当作成功。
 本地产物位于 TestArtifacts~/TaskIntegration/Depth/ 和 NLP/，后者含 Android-results.xml。
+
+本轮还运行了 macOS x64 / Rosetta Mono Player：118/118 通过，0 失败/跳过，11 项原生测试，CPU 与 Auto→Metal 仿射图通过；这不是实体 Intel 硬件结果。

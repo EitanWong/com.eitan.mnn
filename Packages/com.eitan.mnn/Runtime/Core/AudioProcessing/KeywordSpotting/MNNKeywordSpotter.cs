@@ -8,10 +8,14 @@ using System.Threading.Tasks;
 
 namespace MNN.Unity
 {
-    /// <summary>Chinese Zipformer2 keyword spotting using the bundled official MNN C++ ABI.
+    /// <summary>Chinese/English Zipformer2 keyword spotting using the bundled official MNN C++ ABI.
     /// Each instance owns one stream. Reset before changing recording; dispose after use.</summary>
     public sealed class MNNKeywordSpotter : IDisposable
     {
+        /// <summary>Shared wake defaults for file, streaming, Studio and application callers.</summary>
+        public const float DefaultThreshold = .15f;
+        public const int DefaultTrailingBlanks = 0; // Automatic: English 4, Chinese 1.
+
         private readonly object _gate = new object();
         private readonly MNNInterpreter _encoder;
         private readonly MNNSession _session;
@@ -25,16 +29,23 @@ namespace MNN.Unity
         private MNNKeywordDecoder _search;
         private int _firstFrame;
         private long _acceptedSamples;
+        private readonly int _primingSamples;
         private bool _disposed, _finished, _faulted;
         public MNNBackendType Backend => _session.ActualBackend;
+        public MNNKeywordLanguage Language { get; }
 
         private MNNKeywordSpotter(string directory, int threads)
         {
-            if (!MNNKwsModel.IsRepository(MNNKeywordSpotterConfig.Read(directory).repository))
-                throw new InvalidDataException("Unsupported KWS profile; install the Wenetspeech 3.3M model.");
+            var profile = MNNKeywordSpotterConfig.Read(directory);
+            if (!MNNKwsModel.IsRepository(profile.repository) && !MNNEnglishKwsModel.IsRepository(profile.repository))
+                throw new InvalidDataException("Unsupported KWS profile; install a supported Chinese or English wake model.");
+            Language = profile.Language;
+            // A silent encoder hop gives the English model acoustic context before a short first word.
+            // This primes caches without waiting for microphone audio or shifting the caller's timeline.
+            _primingSamples = Language == MNNKeywordLanguage.English ? 32 * 160 : 0;
             MNNKwsModel.Verify(directory);
             string assets = MNNKwsModel.AssetDirectory(directory);
-            _tokens = ReadTokens(Path.Combine(assets, "tokens.txt"));
+            _tokens = ReadTokens(Path.Combine(assets, "tokens.txt"), Language == MNNKeywordLanguage.English ? 500 : 197);
             _shapes["x"] = new[] {1, 45, 80};
             int[] contexts = {64, 32, 16, 8, 16, 32}, heads = {4, 4, 4, 8, 4, 4}, kernels = {15, 15, 7, 7, 7, 15};
             for (int i = 0; i < 6; ++i)
@@ -55,7 +66,7 @@ namespace MNN.Unity
                 _session.ResizeInputs(_shapes);
                 _decoder = new MNNSingleInputModule(Path.Combine(assets, MNNKwsModel.Decoder), "y", "decoder_out", threads, MNNBackendType.CPU);
                 _joiner = new MNNGenerationGraph(Path.Combine(assets, MNNKwsModel.Joiner), threads, backendType: MNNBackendType.CPU);
-                Reset(MNNKwsModel.DefaultKeywords);
+                Reset(Language == MNNKeywordLanguage.English ? MNNKeywordSpotterConfig.EnglishDefaultWords : MNNKwsModel.DefaultKeywords);
             }
             catch
             {
@@ -78,9 +89,9 @@ namespace MNN.Unity
             _states[name] = new float[shape.Aggregate(1, (a, b) => checked(a * b))];
         }
 
-        internal static string[] ReadTokens(string path)
+        internal static string[] ReadTokens(string path, int vocabularySize = 197)
         {
-            var tokens = new string[197];
+            var tokens = new string[vocabularySize];
             foreach (string line in File.ReadAllLines(path, new UTF8Encoding(false, true)))
             {
                 int split = line.LastIndexOf(' ');
@@ -91,27 +102,31 @@ namespace MNN.Unity
                 tokens[id] = line.Substring(0, split).Normalize();
             }
             if (tokens.Any(string.IsNullOrEmpty) || tokens.Distinct().Count() != tokens.Length || tokens[0] != "<blk>" || tokens[2] != "<unk>")
-                throw new InvalidDataException("Expected the 197-token Wenetspeech KWS vocabulary.");
+                throw new InvalidDataException("The KWS token table does not match its model profile.");
             return tokens;
         }
 
-        /// <summary>Validate and set tokenized keywords, resetting encoder, decoder and timestamps.
-        /// One line per phrase, e.g. x iǎo ài t óng x ué @小爱同学. Optional :boost and #threshold.</summary>
-        public void Reset(string keywords, float threshold = .25f, float score = 1.0f, int trailingBlanks = 1, int maxActivePaths = 4)
+        /// <summary>Set ordinary wake words in the loaded model language, one phrase per line (e.g. Hey Siri or 小爱同学).
+        /// Automatically prepares model input and resets the stream. Legacy token specifications remain accepted.
+        /// trailingBlanks=0 selects language-specific confirmation; positive values explicitly override it.</summary>
+        public void Reset(string keywords, float threshold = DefaultThreshold, float score = 1.0f, int trailingBlanks = DefaultTrailingBlanks, int maxActivePaths = 4)
         {
             lock (_gate)
             {
                 ThrowIfDisposed();
-                var search = new MNNKeywordDecoder(keywords, _tokens, threshold, score, trailingBlanks, maxActivePaths,
+                var search = new MNNKeywordDecoder(MNNKeywordText.Prepare(keywords, Language), _tokens, threshold, score,
+                    trailingBlanks == DefaultTrailingBlanks ? (Language == MNNKeywordLanguage.English ? 4 : 1) : trailingBlanks, maxActivePaths,
                     context => _decoder.Run(context, 1, 2),
                     (encoded, decoded) =>
                     {
                         if (decoded.Length != 320) throw new InvalidDataException("Expected 320-wide KWS decoder output.");
                         return _joiner.Run("logit", new MNNGenerationGraph.Input("encoder_out", encoded, 1, 320),
                             new MNNGenerationGraph.Input("decoder_out", decoded, 1, 320));
-                    });
+                    }, Language == MNNKeywordLanguage.English ? 1 : 2);
                 _search = search;
-                _pcm.Clear(); _firstFrame = 0; _processed[0] = 0; _acceptedSamples = 0;
+                _pcm.Clear();
+                if (_primingSamples > 0) _pcm.AddRange(new float[_primingSamples]);
+                _firstFrame = 0; _processed[0] = 0; _acceptedSamples = 0;
                 _finished = false; _faulted = false;
                 foreach (var state in _states) Array.Clear(state.Value, 0, state.Value.Length);
             }
@@ -157,6 +172,7 @@ namespace MNN.Unity
                 token.ThrowIfCancellationRequested();
                 // Only the current chunk is copied; preceding samples preserve Kaldi's reflected-edge convention.
                 var audio = _pcm.Take((_firstFrame + 44) * 160 + 280).ToArray();
+                NormalizeQuietAudio(audio);
                 var features = MNNZipformerFeatures.ExtractFrames(audio, _firstFrame, 45, token);
                 _session.GetInput("x").CopyFromArray(features);
                 foreach (var state in _states) _session.GetInput(state.Key).CopyFromArray(state.Value);
@@ -180,13 +196,27 @@ namespace MNN.Unity
                     var values = new float[320];
                     Array.Copy(encoded, frame * 320, values, 0, 320);
                     var match = _search.Advance(values);
-                    if (match != null && match.StartSeconds < _acceptedSamples / 16000.0) matches.Add(match);
+                    if (match == null) continue;
+                    float timeOffset = _primingSamples / 16000f;
+                    if (match.EndSeconds <= timeOffset || match.StartSeconds >= (_acceptedSamples + _primingSamples) / 16000.0) continue;
+                    matches.Add(new MNNKeywordDetection(match.Keyword, match.Confidence,
+                        Math.Max(0, match.StartSeconds - timeOffset), Math.Max(0, match.EndSeconds - timeOffset), match.TokenIds.ToArray()));
                 }
                 int discard = (_firstFrame + 31) * 160;
                 _pcm.RemoveRange(0, discard);
                 _firstFrame = 1;
             }
             return matches.ToArray();
+        }
+
+        private static void NormalizeQuietAudio(float[] audio)
+        {
+            // Bound quiet-microphone gain in the model's private feature copy only.
+            // Leave near-silence alone and preserve the caller's capture/command waveform.
+            float peak = audio.Max(sample => Math.Abs(sample));
+            if (peak < .002f || peak >= .25f) return;
+            float gain = Math.Min(10, .25f / peak);
+            for (int i = 0; i < audio.Length; ++i) audio[i] *= gain;
         }
 
         private static void CopyState<T>(MNNTensor tensor, T[] destination) where T : unmanaged
@@ -199,7 +229,7 @@ namespace MNN.Unity
         /// <summary>Detect all keyword occurrences in finite 8–96 kHz mono PCM, up to ten minutes.
         /// Resets this instance's stream; threshold and boost apply unless a keyword overrides them.</summary>
         public MNNKeywordDetection[] Detect(float[] samples, int sampleRate, string keywords,
-            float threshold = .25f, float score = 1, CancellationToken cancellationToken = default)
+            float threshold = DefaultThreshold, float score = 1, CancellationToken cancellationToken = default)
         {
             if (sampleRate < 8000 || sampleRate > 96000) throw new ArgumentOutOfRangeException(nameof(sampleRate));
             ValidateSamples(samples, sampleRate * 600, cancellationToken);
@@ -220,7 +250,7 @@ namespace MNN.Unity
             }
         }
 
-        public MNNKeywordDetection[] DetectWaveFile(string path, string keywords, float threshold = .25f, float score = 1,
+        public MNNKeywordDetection[] DetectWaveFile(string path, string keywords, float threshold = DefaultThreshold, float score = 1,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -229,7 +259,7 @@ namespace MNN.Unity
         }
 
         public Task<MNNKeywordDetection[]> DetectAsync(float[] samples, int sampleRate, string keywords,
-            float threshold = .25f, float score = 1, CancellationToken cancellationToken = default)
+            float threshold = DefaultThreshold, float score = 1, CancellationToken cancellationToken = default)
         {
             var copy = samples == null ? null : (float[])samples.Clone();
             return Task.Run(() => Detect(copy, sampleRate, keywords, threshold, score, cancellationToken), cancellationToken);

@@ -91,9 +91,10 @@ Studio 的 Speech Synthesis 页面可以发现 StreamingAssets 中的该目录�
 ## 验证范围
 
 原生调用复用包内官方 Interpreter/Session/Tensor API，未新增 C++、桥接库、自定义 C 导出或修改官方源码。
-它受随包 MNN 3.6.1 的编译器和 STL ABI 约定限制；这不是 MNN 官方提供的通用 C# 接口。
-macOS Mono 与 Android/iOS ARM64 IL2CPP 的基础约定见 [移动端 ABI](MobileInterop.md)。
-基础 ABI 可用不代表该模型已经完成所有设备的推理和质量验收，Windows 当前没有相应直接 C++ 绑定。
+当前随包引擎为 MNN 3.6.2，绑定受对应编译器和 STL ABI 约定限制；这不是 MNN 官方提供的通用 C# 接口。
+macOS/Windows/Linux 的基础与任务约定见[桌面 Mono](DesktopMono.md)，Android/iOS ARM64 IL2CPP
+见[移动端 ABI](MobileInterop.md)。Windows/Linux 已有直接 C++ 任务绑定及 CosyVoice token/logit 声明，
+但这些基础能力不代表本页完整合成管线已经完成跨平台推理和质量验收；以下历史实测保留其原始环境。
 
 本轮 Unity 实测记录在开发工程 `TestArtifacts~/CosyVoice300M/PackageIntegration/REPORT.md`；
 计时、WAV、独立识别与 Unity 测试结果保留在同目录。历史 Python 的 RTF 不能替代 Unity 结果。
@@ -104,7 +105,7 @@ ASR、幅度及重复性检查只覆盖有限样本，不等同于 MOS、所有�
 全 CPU 为 **1.820–1.919**。RTF 不包含加载和写文件，第一遍也不能视为清除磁盘缓存后的冷启动。
 82 项 Unity 检查通过，默认配置的两条文本共 9 份 CPU/Metal/Studio WAV 独立 ASR 匹配；
 量化模式的原生执行检查通过、内容验收失败，两类结果分别记录。
-**本次 C# 接入没有达到 RTF 0.3，也未验证 Windows、Android 或 iOS 的这条管线。**
+**本次 C# 接入没有达到 RTF 0.3，也未验证 Windows、Linux、Android 或 iOS 的这条管线。**
 
 后续 Unity 优化的配对计时、数值对照及 WAV 筛查见开发工程
 `TestArtifacts~/CosyVoice300M/UnityOptimization/REPORT.md`。

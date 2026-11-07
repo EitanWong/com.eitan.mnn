@@ -20,7 +20,7 @@ namespace MNN.Unity
         private static readonly PublishedSpeechProfile[] PublishedSpeechProfiles =
         {
             new PublishedSpeechProfile("Silero-v5.1-MNN", "voice-activity-detection", 1266761L, "silero_v5_16k_fp32.mnn"),
-            new PublishedSpeechProfile("SmartTurn-v3.2-FP32-MNN", "audio-classification", 32073447L, "smart_turn_v32_fp32.mnn"),
+            new PublishedSpeechProfile("SmartTurn-v3.2-FP32-MNN", "turn-detection", 32073447L, "smart_turn_v32_fp32.mnn"),
             new PublishedSpeechProfile("MarbleNet-VAD-MNN", "voice-activity-detection", 380052L, "marblenet_fp32.mnn"),
             new PublishedSpeechProfile("DTLN-MNN", "acoustic-noise-suppression", 6040554L, "dtln_1_fp16.mnn", "dtln_1_fp32.mnn", "dtln_2_fp16.mnn", "dtln_2_fp32.mnn"),
             new PublishedSpeechProfile("GTCRN-MNN", "acoustic-noise-suppression", 460391L, "gtcrn_fp32.mnn"),
@@ -42,33 +42,37 @@ namespace MNN.Unity
             new PublishedSpeechProfile("DPRNN-WHAM-8K-MNN", "speech-separation", 14839492L, "dprnn_native_fp32.mnn"),
             new PublishedSpeechProfile("DPTNet-Libri1Mix-16K-MNN", "acoustic-noise-suppression", 11592972L, "dptnet_native_fp32.mnn"),
             new PublishedSpeechProfile("Sortformer-4spk-v2.1-MNN", "speaker-diarization", 492810991L, "core_fp32.mnn", "preencode_fp32.mnn"),
-            new PublishedSpeechProfile("NAMO-Turn-Detector-v1-Multilingual-MNN", "text-classification", 629958802L, "namo_tiled_fp16.mnn"),
+            new PublishedSpeechProfile("NAMO-Turn-Detector-v1-Multilingual-MNN", "turn-detection", 629958802L, "namo_tiled_fp16.mnn"),
             new PublishedSpeechProfile("SudoRMRF-U16-WSJ02Mix-8K-MNN", "speech-separation", 20525295L, "sudormrf_fp32.mnn"),
             new PublishedSpeechProfile("DCCRNet-Libri1Mix-16K-MNN", "acoustic-noise-suppression", 54830855L, "dccrnet_decoder_fp32.mnn", "dccrnet_encoder_fp32.mnn", "dccrnet_native_fp32.mnn", "dccrnet_recurrent_fp32.mnn"),
             new PublishedSpeechProfile("DCUNet-Libri1Mix-16K-MNN", "acoustic-noise-suppression", 39186785L, "dcunet_fp32.mnn", "dcunet_fp32.mnn.weight"),
             new PublishedSpeechProfile("SepReformer-B-WSJ02Mix-8K-MNN", "speech-separation", 62469343L, "sepreformer_fp32.mnn"),
-            new PublishedSpeechProfile("SpExPlus-WSJ02Mix-8K-MNN", "speech-separation", 44245201L, "spexplus_audio_fp32.mnn", "spexplus_reference_fp32.mnn"),
-            new PublishedSpeechProfile("SEG-YGD-16K-MNN", "speech-separation", 17966047L, "seg_fp32.mnn"),
+            new PublishedSpeechProfile("SpExPlus-WSJ02Mix-8K-MNN", "target-speaker-extraction", 44245201L, "spexplus_audio_fp32.mnn", "spexplus_reference_fp32.mnn"),
+            new PublishedSpeechProfile("SEG-YGD-16K-MNN", "target-speaker-extraction", 17966047L, "seg_fp32.mnn"),
             new PublishedSpeechProfile("Resemble-Denoiser-44K-MNN", "acoustic-noise-suppression", 45942089L, "denoiser_fp32.mnn"),
             new PublishedSpeechProfile("TIGER-Speech-16K-MNN", "speech-separation", 9163394L, "tiger_fp32.mnn", "tiger_fp32.mnn.weight"),
             new PublishedSpeechProfile("DCCRN-Mayavoz-VCTK-16K-MNN", "acoustic-noise-suppression", 17497465L, "analysis.mnn", "dccrn.mnn", "dccrn.mnn.weight", "decoder.mnn", "encoder.mnn", "recurrent.mnn"),
-            new PublishedSpeechProfile("AV-ConvTasNet-LRS2-16K-MNN", "speech-separation", 86188627L, "av_convtasnet_audio_fp32.mnn", "av_convtasnet_visual_fp32.mnn"),
-            new PublishedSpeechProfile("AV-DPRNN-VoxCeleb2-16K-MNN", "speech-separation", 61594853L, "av_dprnn_audio_fp32.mnn", "av_dprnn_visual_fp32.mnn"),
-            new PublishedSpeechProfile("AV-MossFormer2-TSE-16K-MNN", "speech-separation", 447287799L, "av_mossformer2_tse_16k_3s.mnn", "av_mossformer2_tse_16k_3s_fp32.mnn"),
-            new PublishedSpeechProfile("VoxTurn-v1-MNN", "audio-classification", 2872190749L, "audio_encoder.mnn", "decoder_0.mnn", "decoder_1.mnn"),
+            new PublishedSpeechProfile("AV-ConvTasNet-LRS2-16K-MNN", "target-speaker-extraction", 86188627L, "av_convtasnet_audio_fp32.mnn", "av_convtasnet_visual_fp32.mnn"),
+            new PublishedSpeechProfile("AV-DPRNN-VoxCeleb2-16K-MNN", "target-speaker-extraction", 61594853L, "av_dprnn_audio_fp32.mnn", "av_dprnn_visual_fp32.mnn"),
+            new PublishedSpeechProfile("AV-MossFormer2-TSE-16K-MNN", "target-speaker-extraction", 447287799L, "av_mossformer2_tse_16k_3s.mnn", "av_mossformer2_tse_16k_3s_fp32.mnn"),
+            new PublishedSpeechProfile("VoxTurn-v1-MNN", "turn-detection", 2872190749L, "audio_encoder.mnn", "decoder_0.mnn", "decoder_1.mnn"),
             new PublishedSpeechProfile("Resemble-Enhance-44K-MNN", "acoustic-noise-suppression", 1483074246L, "decoder_cpu.mnn", "decoder_metal.mnn", "denoiser.mnn", "denoiser.mnn.weight", "encoder_cpu.mnn", "encoder_metal.mnn", "velocity.mnn", "vocoder.mnn"),
             new PublishedSpeechProfile("LS-EEND-Simu-8K-MNN", "speaker-diarization", 44596923L, "decoder_fp32.mnn", "encoder_fp32.mnn"),
-            new PublishedSpeechProfile("CueLight-Nano-MNN", "voice-activity-detection", 4093947L, "step_accurate_fp32.mnn", "step_fp32.mnn"),
-            new PublishedSpeechProfile("CueLight-Nano-SSM-MNN", "voice-activity-detection", 2107202L, "step_fp32.mnn"),
+            new PublishedSpeechProfile("CueLight-Nano-MNN", "turn-detection", 4093947L, "step_accurate_fp32.mnn", "step_fp32.mnn"),
+            new PublishedSpeechProfile("CueLight-Nano-SSM-MNN", "turn-detection", 2107202L, "step_fp32.mnn"),
             new PublishedSpeechProfile("FS-EEND-Simu-8K-MNN", "speaker-diarization", 39706355L, "model_fp32.mnn"),
             new PublishedSpeechProfile("FS-EEND-CALLHOME-8K-MNN", "speaker-diarization", 39706991L, "model_fp32.mnn"),
             new PublishedSpeechProfile("VBx-ResNet101-16K-MNN", "speaker-verification", 59462900L, "model_fp32.mnn"),
             new PublishedSpeechProfile("VBx-ResNet101-8K-MNN", "speaker-verification", 59398377L, "model_fp32.mnn"),
-            new PublishedSpeechProfile("TurnSense-SmolLM2-135M-MNN", "text-classification", 543693449L, "model_fp32.mnn"),
+            new PublishedSpeechProfile("TurnSense-SmolLM2-135M-MNN", "turn-detection", 543693449L, "model_fp32.mnn"),
         };
 
         internal static bool IsPublishedSpeechRepository(string repositoryId) =>
             PublishedSpeechProfiles.Any(profile => string.Equals("EitanWang/" + profile.Name, repositoryId, StringComparison.OrdinalIgnoreCase));
+
+        private static bool IsPublishedSileroRepository(MNNRemoteModel model) =>
+            model.provider == MNNModelSource.ModelScope && string.Equals(model.repositoryId,
+                "EitanWang/Silero-v5.1-MNN", StringComparison.OrdinalIgnoreCase);
 
         internal void IncludePublishedSpeechProfiles()
         {
@@ -84,15 +88,29 @@ namespace MNN.Unity
                         displayName = profile.Name, author = "EitanWang", revision = "master", isRepository = true};
                     models.Add(model);
                 }
-                model.category = profile.Task == "speaker-verification" ? MNNModelCatalogCategory.SpeakerRecognition.ToString() : MNNModelCatalogCategory.AudioProcessing.ToString();
-                model.tasks = new[] {profile.Task};
-                model.tags = new[] {"MNN", profile.Task};
-                model.fileSize = profile.Bytes;
-                model.mnnFiles = (string[])profile.Graphs.Clone();
-                model.supportSummary = (profile.Name == "VoxTurn-v1-MNN" ? "Noncommercial license. " : string.Empty) +
-                    "Published MNN deployment files. Consult the model card for input, license and validation limits; catalog availability does not validate inference.";
-                model.runtimeAvailable = false;
+                ApplyPublishedSpeechProfile(model, profile);
             }
+        }
+        private static void ApplyPublishedSpeechProfile(MNNRemoteModel model, PublishedSpeechProfile profile)
+        {
+            model.tasks = profile.Name.StartsWith("CueLight-", StringComparison.Ordinal)
+                ? new[] { profile.Task, "voice-activity-detection" } : new[] { profile.Task };
+            model.category = Classify(model.repositoryId, profile.Name, tasks: model.tasks);
+            model.tags = new[] { "MNN" }.Concat(model.tasks).ToArray();
+            model.fileSize = profile.Bytes;
+            model.mnnFiles = (string[])profile.Graphs.Clone();
+            model.supportSummary = (profile.Name == "VoxTurn-v1-MNN" ? "Noncommercial license. " : string.Empty) +
+                "Published MNN deployment files. Consult the model card for input, license and validation limits; catalog availability does not validate inference.";
+            model.runtimeAvailable = profile.Task != "target-speaker-extraction" && profile.Task != "speaker-diarization";
+            model.requiresTranscript = profile.Name == "NAMO-Turn-Detector-v1-Multilingual-MNN" ||
+                profile.Name == "TurnSense-SmolLM2-135M-MNN";
+        }
+        private static void ApplyPublishedSpeechProfile(MNNRemoteModel model)
+        {
+            if (model.provider != MNNModelSource.ModelScope) return;
+            var profile = PublishedSpeechProfiles.FirstOrDefault(item => string.Equals("EitanWang/" + item.Name,
+                model.repositoryId, StringComparison.OrdinalIgnoreCase));
+            if (profile != null) ApplyPublishedSpeechProfile(model, profile);
         }
     }
 }

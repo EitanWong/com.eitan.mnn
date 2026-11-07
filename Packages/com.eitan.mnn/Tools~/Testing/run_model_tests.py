@@ -23,7 +23,7 @@ MODELS = (
     "Qwen3-Embedding-0.6B-MNN",
     "Qwen3-Reranker-0.6B-MNN",
 )
-EXPECTED_TESTS = 34
+EXPECTED_TESTS = 35
 REPRESENTATIVE_FIXTURES = (
     "MNNLlmIntegrationTests", "VisionModelTests", "OmniModelTests",
     "AudioModelTests", "EmbeddingModelTests", "RerankerModelTests",

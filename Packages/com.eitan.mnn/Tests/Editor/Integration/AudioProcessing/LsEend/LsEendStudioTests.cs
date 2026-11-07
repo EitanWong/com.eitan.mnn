@@ -16,7 +16,7 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(MNNStudioTask.AudioProcessing, model.Task);
             Assert.True(model.HasAudioProcessingPipeline);
             Assert.True(MNNStudioTasks.Get((int)model.Task).CanRun(model));
-            Assert.AreEqual(MNNModelCatalogCategory.AudioProcessing.ToString(), MNNModelCatalog.Classify("example/LS-EEND-Simu-8K-MNN"));
+            Assert.AreEqual(MNNModelCatalogCategory.SpeakerDiarization.ToString(), MNNModelCatalog.Classify("example/LS-EEND-Simu-8K-MNN"));
             using (var backend = MNNStudioNativeBackend.Load(model, 8, false))
             {
                 var result = backend.Run(new MNNStudioRequest { Audio = Path.Combine(Root, "source-graphs-v208/reference/real.wav") });

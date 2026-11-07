@@ -8,45 +8,23 @@ namespace MNN.Unity.Editor
 {
     internal sealed partial class MNNStudioModel
     {
-        internal string SupertonicPrecision => new[]{"fp16", "fp32", "int8"}.FirstOrDefault(precision => new[]{"duration_predictor", "text_encoder", "vector_estimator", "vocoder"}.All(stage => File.Exists(Path.Combine(Directory, "mnn_models", precision, stage + ".mnn"))));
+        private readonly Lazy<string> _snapshotSupertonicPrecision;
+        internal string SupertonicPrecision => _snapshotSupertonicPrecision.Value;
+        private string ReadSupertonicPrecision() => new[]{"fp16", "fp32", "int8"}.FirstOrDefault(precision => new[]{"duration_predictor", "text_encoder", "vector_estimator", "vocoder"}.All(stage => File.Exists(Path.Combine(Directory, "mnn_models", precision, stage + ".mnn"))));
         internal string MmsTamilPrecision = "int8";
-        internal bool IsSana
-        {
-            get
-            {
-                string path = Path.Combine(Directory, "config.json");
-                try
-                {
-                    return File.Exists(path) && JsonUtility.FromJson<Config>(File.ReadAllText(path))?.model_name == "Sana-Distill-v2";
-                }
-                catch (Exception error)when (error is IOException || error is ArgumentException)
-                {
-                    return false;
-                }
-            }
-        }
+        internal bool IsSana => _taskConfig?.model_name == "Sana-Distill-v2";
 
-        internal bool IsPiper
-        {
-            get
-            {
-                try
-                {
-                    return File.Exists(Path.Combine(Directory, "config.json")) && JsonUtility.FromJson<Config>(File.ReadAllText(Path.Combine(Directory, "config.json")))?.model_type == "piper";
-                }
-                catch (Exception error)when (error is IOException || error is ArgumentException)
-                {
-                    return false;
-                }
-            }
-        }
+        internal bool IsPiper => _taskConfig?.model_type == "piper";
 
         internal string PiperDataDirectory => MNNPiper.ResolveDataDirectory(Directory, ReadTaskConfig()?.asset_folder);
         internal bool IsBertVits2 => ReadTaskConfig()?.model_type == "bertvits";
         internal bool IsCosyVoice300M => TtsProfile == MNNTtsModelProfile.CosyVoice300M;
-        internal bool IsCosyVoice => !IsCosyVoice300M && (File.Exists(Path.Combine(MNNCosyVoiceModel.ResolveDirectory(Directory), "config-cpu-cosyvoice-ras.json")) || string.Equals(Name, "Cosy-Voice-MNN", StringComparison.OrdinalIgnoreCase) || Category == MNNModelCategory.SpeechSynthesis.ToString() && Name.IndexOf("cosyvoice", StringComparison.OrdinalIgnoreCase) >= 0);
-        internal bool IsIndexTts => File.Exists(Path.Combine(Directory, "gpt_prefill_fp16.mnn")) || Name.Equals("IndexTTS-2.5-mnn", StringComparison.OrdinalIgnoreCase);
-        internal bool IsFireRedTts => File.Exists(Path.Combine(Directory, "redae_encoder.mnn")) || Name.Equals("fireredtts3-mnn", StringComparison.OrdinalIgnoreCase);
+        private readonly Lazy<bool> _snapshotIsCosyVoice;
+        internal bool IsCosyVoice => _snapshotIsCosyVoice.Value;
+        private readonly Lazy<bool> _snapshotIsIndexTts;
+        internal bool IsIndexTts => _snapshotIsIndexTts.Value;
+        private readonly Lazy<bool> _snapshotIsFireRedTts;
+        internal bool IsFireRedTts => _snapshotIsFireRedTts.Value;
         internal bool IsQwen3Explicit => TtsProfile == MNNTtsModelProfile.Qwen3Explicit;
         internal bool IsIndicF5 => TtsProfile == MNNTtsModelProfile.IndicF5;
         internal bool IsPocket => TtsProfile == MNNTtsModelProfile.Pocket;
@@ -87,7 +65,9 @@ namespace MNN.Unity.Editor
             }
         }
 
-        private Config ReadTaskConfig()
+        private Config ReadTaskConfig() => _taskConfig;
+
+        private Config ReadTaskConfigFromDisk()
         {
             try
             {

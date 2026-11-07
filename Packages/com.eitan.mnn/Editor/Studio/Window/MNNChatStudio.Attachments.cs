@@ -136,6 +136,7 @@ namespace MNN.Unity.Editor
             _previews.Clear();
             _failedPreviews.Clear();
             _markdown.Clear();
+            _transcriptRows.Clear();
         }
 
         private void CleanupRecordings()

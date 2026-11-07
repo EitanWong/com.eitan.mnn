@@ -13,7 +13,7 @@ namespace MNN.Unity.Editor
     {
         private void OpenSettings(Rect anchor)
         {
-            _settingsPopup = new MNNStudioPopover(new Vector2(344, Busy ? 422 : 394), DrawSettings);
+            _settingsPopup = new MNNStudioPopover(new Vector2(380, Busy ? 510 : 482), DrawSettings);
             PopupWindow.Show(anchor, _settingsPopup);
         }
 
@@ -88,7 +88,16 @@ namespace MNN.Unity.Editor
                 EditorPrefs.SetBool("MNN.Studio.ReduceMotion", reduce);
             }
 
-            _autoSend = EditorGUILayout.Toggle("Auto send after silence", _autoSend);
+            GUILayout.Label("Voice models", MNNStudioUI.Heading);
+            using (new EditorGUI.DisabledScope(Busy))
+            {
+                if (_recognizerNames.Length > 0)
+                    _voiceRecognizer = EditorGUILayout.Popup("Recognition", _voiceRecognizer, _recognizerNames);
+                if (_synthesizerNames.Length > 0)
+                    _voiceSynthesizer = EditorGUILayout.Popup("Speech", _voiceSynthesizer, _synthesizerNames);
+            }
+            if (_recognizerNames.Length == 0 || _synthesizerNames.Length == 0)
+                GUILayout.Label("Install recognition and synthesis models in Model Manager, then Refresh.", MNNStudioUI.Caption);
             _autoTitle = EditorGUILayout.Toggle("Automatic chat titles", _autoTitle);
             if (Busy)
             {

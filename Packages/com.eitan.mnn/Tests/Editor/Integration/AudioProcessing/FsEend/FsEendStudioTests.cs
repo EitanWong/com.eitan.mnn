@@ -22,7 +22,7 @@ namespace MNN.Unity.Tests
         {
             var model = MNNStudioModel.Read(directory); Assert.AreEqual(MNNStudioTask.AudioProcessing, model.Task);
             Assert.True(model.HasAudioProcessingPipeline); Assert.True(MNNStudioTasks.Get((int)model.Task).CanRun(model));
-            Assert.AreEqual(MNNModelCatalogCategory.AudioProcessing.ToString(), MNNModelCatalog.Classify("example/" + identity));
+            Assert.AreEqual(MNNModelCatalogCategory.SpeakerDiarization.ToString(), MNNModelCatalog.Classify("example/" + identity));
             using (var backend = MNNStudioNativeBackend.Load(model, 8, false))
             {
                 string wav = Path.Combine(reference, "real.wav"); var result = backend.Run(new MNNStudioRequest { Audio = wav });

@@ -3,7 +3,12 @@
 ## Overview
 
 本文档介绍 MNN Unity Package 的 C# API。当前接口直接调用官方 C++ API，
-要求随包 MNN 3.6.1 / Apple libc++ ABI，CPU 已验证 macOS arm64 与 x86_64 Mono；Metal 加速验证范围见 [测试说明](Testing.md)。
+要求随包 MNN 3.6.2 及对应平台的编译器/STL ABI。桌面 Mono 包含 macOS ARM64/x64
+（Apple libc++）、Windows x64（MinGW-w64 GCC 16.2）与 Linux x64（GCC 13.3），
+核心、Express、LLM、原生检索和媒体输入的系统要求见[桌面 Mono](DesktopMono.md)。
+Windows Wine Mono 与 Linux host Mono 各通过 79 项任务断言和 22 项核心断言，
+尚无 Windows/Linux Unity Player 结果，其随包原生库为 CPU 构建。
+macOS 当前核心/平台/Express Player 回归两种架构各通过 120/120，Metal 与模型验证范围见[测试说明](Testing.md)。
 六类代表模型的独立 Player 推理已在 arm64 和 Rosetta 下的 x86_64 验证；
 未在 Intel 真机验证。Android/iOS ARM64 IL2CPP 复用同一套 Interpreter/Session/Tensor、LLM、
 Express 和原生检索 partial；编译器契约及逐任务验证边界见 [移动端说明](MobileInterop.md)。
@@ -62,12 +67,15 @@ Studio 使用同一查询入口。分词器实现 BERT WordPiece、BertNormalize
 当前支持 int32/int64 的 `[1,L]` 输入和 `[1,L,D]` / `[L,D]` 的 `last_hidden_state` 输出；
 可通过空 `attentionMask` 或 `tokenTypes` 禁用不存在的可选输入。未验证的自定义 profile 不自动成为精选模型。
 
-默认 Auto 选择 Metal。非有限输出或零向量会触发 Metal High (FP32) 重试，仍无效时切换 CPU；
+macOS 上默认 Auto 尝试 Metal，Windows/Linux 随包构建使用 CPU。
+非有限输出或零向量会触发 Metal High (FP32) 重试，仍无效时切换 CPU；
 后续请求使用成功的会话。`Backend` 可查看实际主后端，个别算子可能由 MNN 回退 CPU。
 已发现 `developerabu` BGE 在默认和 High Metal 下均产生非有限值，实测最终使用 CPU。
 配置/形状错误和取消不会作为数值异常重试；原生 kernel 不能被取消令牌抢占。
 真实平台与质量验证记录见 [测试说明](Testing.md)。此管线复用现有官方 C++ Interpreter/Tensor 调用，
-没有新增原生导出、桥接库、C++ 或修改官方 MNN 源码，仍限随包 Apple libc++ / Mono ABI。
+没有新增自定义原生导出、桥接库、C++ 或修改官方 MNN 源码。
+底层绑定遵循[桌面 Mono](DesktopMono.md)的逐平台 ABI；这些 BERT/MiniLM profile 的历史质量结果
+不自动扩展到 Windows/Linux，原生 Embedding 入口的独立验证见[测试说明](Testing.md)。
 
 ModelScope 的 `TorryJi/bge-small-zh-v1.5-MNN` 使用官方 LLM 导出的另一种 BERT 协议：
 保留 `config.json`、`llm_config.json`、`tokenizer.mtok`、`embeddings_int8.bin`、
@@ -959,6 +967,11 @@ using (var recognizer = MNNSenseVoiceRecognizer.Load(modelDirectory))
 
 The pinned profile supports `auto`, `zh`, `en`, `ja`, `ko` and `yue`; the integration fixtures cover English and Chinese/English. Exact digital silence returns an empty result.
 
+`Text`, `TokenIds` and `Timestamps` contain speech tokens only. The first four
+encoder positions are rich metadata labels; speech CTC decoding starts after
+those positions, even if a metadata prediction is blank or repeated. Rich event
+tokens predicted later in the sequence are omitted from plain transcription.
+
 SenseVoice recordings must be mono normalized PCM or a supported mono/stereo WAV
 at 8–96 kHz, 85 ms–60 seconds. This API processes one recording per call; there is
 no live streaming or automatic segmentation. The graph supports five languages,
@@ -1030,7 +1043,7 @@ because its `llm_config.json` was updated after the weights. Source notices are
 installed alongside the assets. Other Qwen3-ASR exports need their own validation.
 
 ```csharp
-using (var recognizer = MNNQwen3AsrRecognizer.Load(modelDirectory))
+using (var recognizer = MNNQwen3AsrRecognizer.Load(modelDirectory, language: "auto"))
 {
     MNNSpeechRecognition transcript = recognizer.RecognizeWaveFile(wavPath, cancellationToken);
     Debug.Log(transcript.Text);
@@ -1044,18 +1057,28 @@ official MNN Llm audio API; feature extraction stays in MNN. Temporary inputs ar
 deleted on success, failure and cancellation. Exact zero silence returns an empty
 transcript without running the decoder. Each request resets generation state.
 
-Auto prefers Metal with CPU fallback, using greedy decoding and repetition
-penalty 1.0, retaining the
-pinned export's ASR template. English and Chinese/English fixtures were checked;
-there is no language selector or timestamp alignment. `TokenIds` contains a copy
-of the actual native output IDs. `MNNMultimodalResult.GeneratedTokenIds` also
+Backend Auto prefers Metal with CPU fallback, using greedy decoding and repetition
+penalty 1.0. The explicit language overload accepts `auto`, `zh`, `en`, `ja`, `ko`
+and `yue` (or their English names). It applies Qwen's role newlines and optional
+forced-language prefix through the existing official configuration API. Automatic
+language output is parsed so its language header is excluded from `Text`. English
+and Chinese are the measured accuracy scenarios; other language options require
+their own quality evaluation.
+
+The original overload without a language argument retains the installed template
+for compatibility. `MNNSpeechRecognizer.Load` also applies explicit language
+options to Qwen; an omitted or blank option retains the installed template.
+SiriAI exposes the same explicit choice in recognition settings. Installed model
+files remain unchanged. There is no timestamp alignment. `TokenIds` contains a copy
+of the actual native output IDs, including generated metadata in automatic mode.
+`MNNMultimodalResult.GeneratedTokenIds` also
 exposes an owned, read-only snapshot for multimodal and conversation generation.
 
 Cancellation is checked before inference and between decoder tokens. Native audio
 encoding and prefill finish synchronously; disposal waits for an active request.
 A transcript reaching the 256-token guard fails instead of returning truncated
 text. Explicit backend/precision options are available for measurement. The same
-macOS Mono / bundled MNN 3.6.1 Apple ABI requirements as `MNNLlm` apply; this is
+macOS Mono / bundled MNN 3.6.2 Apple ABI requirements as `MNNLlm` apply; this is
 not a portable official C# API. No bridge or new C++ implementation is involved.
 
 `Recognize` and `RecognizeWaveFile` optionally report decoder progress on the
@@ -1086,7 +1109,27 @@ PCM16/24/32 和 float32。结果包含独立 token ID 快照，`Timestamps` 为�
 默认 Auto 选择 CPU（4 线程），避免 Metal 编码器已观察到的非有限输出。
 显式指定加速器不代表质量已验证；错误会报告为异常。
 中文官方测试音频通过逐字比对；夹英文测试有多余的 “is”，英文质量未验证。
-该 API 暂不提供实时麦克风分块接口、时间戳、标点恢复或 VAD。
+增量接口保留跨块 encoder/CIF/decoder 状态，接受 16 kHz 单声道归一化 PCM：
+
+```csharp
+using (var recognizer = MNNParaformerRecognizer.Load(modelDirectory))
+using (var stream = recognizer.CreateStream())
+{
+    // On a dedicated inference worker, for each captured PCM slice:
+    string provisional = stream.AcceptWaveform(pcm, offset, count, cancellationToken);
+    // At the utterance boundary; idempotent until Reset:
+    MNNSpeechRecognition final = stream.InputFinished(cancellationToken);
+    stream.Reset(); // New utterance or capture discontinuity.
+}
+```
+
+每次调用最多 30 秒、单流累计最多十分钟；PCM 缓冲有界，声学推进为 600 ms，
+特征需要 25 ms 上下文。首字还取决于模型出词、采集和排队，不能把 PCM 投递粒度当成首字延迟。
+增量文本为累计的临时假设，句末 `InputFinished` 排空一秒模型上下文（计算补零，不要求用户等待一秒录音）；
+最终文本由模型实际解码决定。未提供时间戳、标点恢复或 VAD。
+每个 stream 交给一个 worker；多个 stream 的递归数组独立，但共享 recognizer 的原生图锁，
+不会并行执行同一图。中断推理后的流必须 `Reset`；参数校验失败不改变状态。
+销毁 recognizer 前先停止并释放 streams。设备回调应只投递有界 PCM，不直接调用模型。
 
 编码器导出缺少 `enc_len` 的生产节点，加载器通过公开的 MNN FlatBuffer
 序列化格式在内存中补充常量，并合并 encoder/CIF 输出以每块只执行一次编码器；

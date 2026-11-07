@@ -1,4 +1,7 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_DESKTOP_TASK_ABI
+#endif
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_LLM_CPP_ABI
 #endif
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
@@ -15,11 +18,26 @@ namespace MNN.Unity.Interop
 {
     internal static partial class MNNInterop
     {
+#if MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm11dump_configB5cxx11Ev")]
+        private static extern void DumpConfigDesktop(IntPtr result, IntPtr model);
+        private static string DumpConfigurationText(IntPtr model)
+        {
+            using (var result = new DesktopStringResult())
+            {
+                DumpConfigDesktop(result.Pointer, model);
+                result.MarkConstructed();
+                return result.Read();
+            }
+        }
+#else
 #if MNN_LLM_CPP_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm11dump_configEv")]
         private static extern CppString DumpConfig(IntPtr model);
 #else
         private static CppString DumpConfig(IntPtr model) => throw UnsupportedAbi();
+#endif
+        private static string DumpConfigurationText(IntPtr model) => TakeString(DumpConfig(model));
 #endif
         [Serializable]
         private sealed class CapabilityConfig
@@ -28,11 +46,11 @@ namespace MNN.Unity.Interop
         }
 
         internal static string ReadLlmConfiguration(LlmHandle handle)
-            => TakeString(DumpConfig(handle.DangerousGetHandle()));
+            => DumpConfigurationText(handle.DangerousGetHandle());
 
         internal static int MNN_Llm_getCapabilities(LlmHandle handle)
         {
-            var config = JsonUtility.FromJson<CapabilityConfig>(TakeString(DumpConfig(handle.DangerousGetHandle())));
+            var config = JsonUtility.FromJson<CapabilityConfig>(DumpConfigurationText(handle.DangerousGetHandle()));
             // Model talker flags alone do not establish a managed waveform ABI.
             return (config.is_visual ? 1 : 0) | (config.is_audio ? 2 : 0);
         }

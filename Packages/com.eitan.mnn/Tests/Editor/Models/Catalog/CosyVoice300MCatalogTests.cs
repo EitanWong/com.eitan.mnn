@@ -9,6 +9,21 @@ namespace MNN.Unity.Tests
         private const string Repository = "EitanWang/CosyVoice-300M-MNN";
 
         [Test]
+        public void PublishedDetectorsExposeTheirExistingRuntimeProtocols()
+        {
+            var models = MNNModelCatalog.CreateDefault().Models;
+            var silero = models.Single(model => model.repositoryId == "EitanWang/Silero-v5.1-MNN");
+            Assert.True(silero.runtimeAvailable, "The package implements this official Silero export.");
+            CollectionAssert.Contains(silero.tasks, "voice-activity-detection");
+            CollectionAssert.Contains(silero.mnnFiles, "silero_v5_16k_fp32.mnn");
+            Assert.True(models.Single(model => model.name == "MarbleNet-VAD-MNN").runtimeAvailable);
+            Assert.True(models.Single(model => model.name == "FSMN-VAD-16K-MNN").runtimeAvailable);
+            Assert.True(models.Single(model => model.name == "NAMO-Turn-Detector-v1-Multilingual-MNN").requiresTranscript);
+            Assert.True(models.Single(model => model.name == "TurnSense-SmolLM2-135M-MNN").requiresTranscript);
+            Assert.False(models.Single(model => model.name == "SmartTurn-v3.2-FP32-MNN").requiresTranscript);
+        }
+
+        [Test]
         public void PublishedSpeechModelsAreAvailableWithoutHubIndexAndMergeWithoutDuplicates()
         {
             var catalog = MNNModelRepository.GetDefaultRepository();
@@ -17,9 +32,9 @@ namespace MNN.Unity.Tests
                 model.repositoryId != Repository).ToArray();
             Assert.AreEqual(49, models.Length);
             Assert.AreEqual(49, models.Select(model => model.repositoryId).Distinct().Count());
-            Assert.AreEqual("AudioProcessing", models.Single(model => model.name == "GTCRN-MNN").category);
+            Assert.AreEqual("SpeechEnhancement", models.Single(model => model.name == "GTCRN-MNN").category);
             Assert.AreEqual("SpeakerRecognition", models.Single(model => model.name == "ECAPA-TDNN-MNN").category);
-            Assert.AreEqual("AudioProcessing", models.Single(model => model.name == "TurnSense-SmolLM2-135M-MNN").category);
+            Assert.AreEqual("TurnDetection", models.Single(model => model.name == "TurnSense-SmolLM2-135M-MNN").category);
             Assert.IsFalse(models.Any(model => model.name == "LiveKit-Turn-Detector-MNN"));
             Assert.IsTrue(models.All(model => model.isRepository));
         }
@@ -33,7 +48,7 @@ namespace MNN.Unity.Tests
             catalog.IncludePublishedProfiles();
             var model = catalog.SearchModels("gtcrn-mnn").Single();
             Assert.AreEqual(123, model.downloadCount);
-            Assert.AreEqual("AudioProcessing", model.category);
+            Assert.AreEqual("SpeechEnhancement", model.category);
             CollectionAssert.Contains(model.mnnFiles, "gtcrn_fp32.mnn");
         }
 

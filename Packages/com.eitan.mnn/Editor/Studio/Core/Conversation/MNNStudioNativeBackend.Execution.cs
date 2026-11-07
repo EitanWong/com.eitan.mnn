@@ -78,7 +78,7 @@ namespace MNN.Unity.Editor
                 if (string.IsNullOrWhiteSpace(request.Audio))
                     throw new ArgumentException("Choose or record a WAV before keyword detection.");
                 var matches = _keywordSpotter.DetectWaveFile(request.Audio, request.Keywords, request.KeywordThreshold, request.KeywordScore, request.Cancellation);
-                return new MNNStudioResult{Text = FormatKeywords(matches), KeywordDetections = matches, BackendDescription = "Zipformer2 Chinese keyword spotting · " + _keywordSpotter.Backend};
+                return new MNNStudioResult{Text = FormatKeywords(matches), KeywordDetections = matches, BackendDescription = "Zipformer2 " + _keywordSpotter.Language + " keyword spotting · " + _keywordSpotter.Backend};
             }
 
             if (_smartTurn != null)

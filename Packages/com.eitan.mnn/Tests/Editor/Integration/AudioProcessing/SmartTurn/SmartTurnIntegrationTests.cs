@@ -65,7 +65,7 @@ namespace MNN.Unity.Tests
         {
             string directory = Path.Combine(Root, "Models");
             MNNSmartTurnModel.Prepare(directory);
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             FieldInfo Field(string name) => typeof(MNNChatStudio).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
             object Invoke(string name) => typeof(MNNChatStudio).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(window, null);
             var model = MNNStudioModel.Read(directory);

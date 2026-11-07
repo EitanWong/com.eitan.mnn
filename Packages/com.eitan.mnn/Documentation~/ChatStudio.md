@@ -1,9 +1,13 @@
 # MNN Studio 编辑器工作区
 
 入口：`Window > MNN > Chat Studio`（Cmd/Ctrl + Shift + M）。需要 Unity 2021.3 或更新版本。
-当前真实推理验证范围为 macOS 64 位 Mono，官方 MNN 3.6.1 与 Apple libc++ 的特定 ABI。
-这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API；Windows、Linux、移动端、
-WebGL 和 IL2CPP 不具备相同推理支持。没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
+Studio 界面的端到端验证覆盖 macOS 64 位 Mono。底层使用官方 MNN 3.6.2，
+核心、Express、LLM 和原生检索已实现 macOS/Windows/Linux 的[桌面 Mono 绑定](DesktopMono.md)。
+Windows Wine Mono、Linux host Mono 的任务 API 推理检查不代替对应平台 Studio 界面或 Unity Player 验证。
+Android/iOS ARM64 IL2CPP 使用独立[移动端契约](MobileInterop.md)；桌面 IL2CPP、
+Windows/Linux ARM64 和 WebGL 不受支持。各模型仍遵循[独立验证范围](Testing.md)。
+这是本项目限定编译器与版本的 C# 编组契约，不是官方可移植 C# API；
+没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
 
 ## 对话与媒体
 
@@ -43,6 +47,44 @@ WebGL 和 IL2CPP 不具备相同推理支持。没有新增 C++、桥接库、�
 额外目录。任务在顶部菜单切换，模型菜单随任务筛选。媒体能力读取 `llm_config.json`；
 Embedding/Reranker 及专用 pipeline 按安装标记中的仓库 ID 或目录名识别。右上角更多菜单提供刷新、Model Manager 与 Markdown 导出。
 刷新保留仍存在的模型与会话；模型缺失时保留文字并禁用发送。
+
+## 编辑器渲染性能
+
+打开窗口后在后台扫描本地模型目录并准备当前工作区与语音选择器的可用性，状态栏显示
+`Finding local models…`。扫描期间窗口可绘制与编辑；完成后在 Editor 主线程更新模型列表。
+刷新保留现有列表和当前选择，扫描失败时保留已知模型并显示错误；完成后模型确实缺失才禁用发送。
+重复刷新会取消旧请求，关闭窗口不等待磁盘扫描，旧请求也不会回写已关闭窗口。
+Unity 路径、偏好设置、控件和资源仍由主线程处理；这里的后台工作不加载推理模型。
+
+点击 `Tasks & models` 时先显示任务目录和已知本地数量，完整管线校验在后台使用独立模型快照。
+校验期间可运行状态显示 `Checking…`，完成后一次更新各任务的 `N ready` / `Choose model`；
+失败时保留已知模型并显示 `Check failed`。任务行绘制只读取缓存计数，不读取配置或校验权重。
+Piper 字典覆盖设置在结果发布时由 Editor 主线程读取；再次进入目录复用已完成的计数，
+显式刷新、下载完成或更改模型目录时重新检查，重复刷新替换旧请求和计数。
+
+长对话保留完整消息，但只为可见区域及少量预留区域创建消息控件；屏幕外使用已测量高度保留
+滚动范围，搜索仍可跳转到任意消息。首次打开对话、改变内容宽度、主题或显示缩放时重新测量；
+追加消息复用已有布局。侧栏只绘制可见会话行，每次布局统一分组历史记录，保留文件夹折叠与拖放。
+Markdown 复用文本高度和布局选项，流式文本仅在实际显示时格式化最新快照；语音面板不解析隐藏的聊天正文。
+
+可在已有 Unity 与测试依赖的环境中执行窗口回归（需要图形设备）：
+
+```bash
+python3 Packages/com.eitan.mnn/Tools~/Testing/run_conversation_tests.py \
+  --package-only --graphics --label studio-rendering \
+  --filter MNN.Unity.Tests.StudioRenderingPerformanceTests
+```
+
+该测试比较预热后 24/480 条消息与 24/960 个侧栏会话的布局加重绘中位耗时，并检查滚动范围、
+搜索、缩放、追加和重置。数据保存在隔离工程的 `TestArtifacts~/StudioRendering/`，
+XML 与日志位于 runner 的输出目录。这是 Editor UI 回归，不测量首次模型扫描、原生推理或模型吞吐量。
+
+启动生命周期与失败恢复由 `StudioModelDiscoveryTests` 和 `StudioStartupTests` 覆盖。
+显式选择 `StudioStartupTests.OpeningWithInstalledModelsDoesNotBlockTheEditor` 可使用开发仓库
+已有的模型目录测量窗口打开、首帧、扫描完成和最慢启动更新；该用例不会下载模型。
+`StudioCatalogTests` 覆盖真实侧栏点击、后台可运行计数、失败恢复和 Piper 字典覆盖设置。
+显式选择 `StudioCatalogTests.ClickingCatalogWithInstalledModelsKeepsTheEditorResponsive`，
+可测量已有模型下的任务目录点击、后台检查完成和最慢发布更新；不下载模型、不执行推理。
 
 ## 按任务准备模型
 
@@ -115,15 +157,16 @@ UTF-8 分片不会在汉字/Emoji 尚未完成时显示替换字符。
 
 ## 语音对话
 
-音频输入与语音输出均受支持时，Voice 菜单提供语音对话面板：动态小球、真实 RMS 音量反馈、
-Listening / Thinking / Speaking / Muted / Error 状态、静音、发送本轮、打断、结束、返回聊天。
-减少动态效果可关闭持续形变。该面板需要后端提供音频输入及语音输出；当前原生 Omni 不上报 SpeechOutput，因而不启用。
+Chat 的 Voice 面板复用 SiriAI 提取的 `MNNConversationRuntime`，组合普通文本模型与独立 ASR/TTS。
+Settings 中选择已安装的 Recognition / Speech 模型；缺少时在 Model Manager 安装后 Refresh。
+面板提供动态小球、真实 RMS 音量反馈、Listening / Thinking / Speaking / Muted / Error 状态、
+静音、打断、结束和返回聊天。减少动态效果可关闭持续形变。
 
-流程为录音 → 停顿检测或手动发送 → 流式文本推理 → 生成并播放音频 → 再次收听。
-本地停顿检测要求检测到声音后静音约 1.15 秒，属于音量阈值判断，不是神经网络 VAD。
-这是逐轮语音对话，不是 ChatGPT Live 的全双工音频流；播放期间麦克风暂停。
-静音、打断与结束会正确管理下一轮录音调度。设备权限、扬声器实际听感与环境噪音须在目标机器验证；
-自动测试不申请麦克风权限、不录制环境声音。
+麦克风持续采集，由共享核心执行能量 VAD、端点、识别、文本生成与分段播报；
+采集和输出直接使用 Runtime PCM 设备，无逐轮 WAV 中转。没有回声控制时采用半双工解释策略，
+播报期间抑制自动语句解释，Interrupt 按钮仍可立即关闭旧输出并继续听取下一句。
+这是逐轮模型调用，尚未测定目标设备端到端实时吞吐。设备权限、实际听感与环境噪音须在目标机器验证；
+自动测试不申请麦克风权限、不录制环境声音。组合与所有权见 [共享实时对话](RealtimeConversations.md)。
 
 ## 布局、性能与存储
 
@@ -133,9 +176,10 @@ Listening / Thinking / Speaking / Muted / Error 状态、静音、发送本轮�
 样式、Markdown 解析与图片预览缓存复用；图片最长边缩为 320 像素。小球使用程序化绘制，无图片下载。
 VoiceOver、Dynamic Type、系统 Increase Contrast 尚未全面验证，不能视为完整原生 macOS 无障碍实现。
 
-模型按需加载，每个 Studio 窗口只保留当前模型的一个原生实例；同模型会话会复用它。
+模型按需加载，普通工作区复用当前模型实例；进入语音前先等待原模型释放，再加载对话所需的各职责模型。
 切换模型或任务、刷新后模型不可用、修改模型设置、手动卸载或闲置 5 分钟会释放实例。
-首次加载仍在主线程执行，可能短暂阻塞；推理在工作线程串行执行。
+首次加载、缓存准备、推理与模型释放在受跟踪的工作任务执行；窗口关闭后仍保留句柄，直到活动调用退出。
+配置、模型类型和管线完整性复用发现快照，安装或修改外部数据后 Refresh 重新检查。
 完整文字记录保留到本地历史文件 32 MiB 的容量限制，不再按消息条数裁掉开头。每条会话保存
 摘要及其覆盖的消息位置；后续压缩只处理新增的旧轮次。压缩按时间顺序分批进行，不会从过长历史中
 静默跳过开头；只有整条消息成功压缩后才推进覆盖位置。每次成功的摘要检查点立即写入会话，回复取消
@@ -453,3 +497,7 @@ Voice 菜单列出 `voices/<name>/` 中校验通过的预编码参考音色，�
 展示原图尺寸的 Pascal VOC 分类掩码、颜色图例和各类面积占比。两者共用现有
 MNNImageTask / Studio backend，不要求文本提示，不把图像任务写入聊天历史。
 两项目前通过 macOS ARM64 桌面和 Android 实际权重检查；iPhone 推理仍待验证。
+
+## 性能验证范围
+
+普通生成语音预览也直接创建 PCM AudioClip；只有保存音频或录音附件才需要 WAV 文件。界面仍按限频快照更新 Markdown，语音队列和通知队列有界。真实模型速度、声学质量、硬件呈现延迟和麦克风权限需在目标设备实测。

@@ -95,15 +95,9 @@ namespace MNN.Unity.Editor
         {
             if (string.IsNullOrWhiteSpace(query))
                 return models;
-            query = query.Trim();
-            return models.FindAll(model => Contains(model.name, query) || Contains(model.displayName, query) || Contains(model.description, query)
-                || Contains(model.modelScopeId, query) || Contains(model.repositoryId, query)
-                || (model.tags != null && Array.Exists(model.tags, tag => Contains(tag, query)))
-                || (model.tasks != null && Array.Exists(model.tasks, task => Contains(task, query))));
+            return models.FindAll(model => MNNModelCatalog.MatchesSearch(query, model.name, model.displayName,
+                model.description, model.modelScopeId, model.repositoryId, model.tags, model.tasks, model.category));
         }
-
-        private static bool Contains(string value, string query)
-            => !string.IsNullOrEmpty(value) && value.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
 
         // JSON field names and enum values remain compatible with existing editor caches.
         internal static MNNRemoteModel ToRemote(MNNModelInfo model) => JsonUtility.FromJson<MNNRemoteModel>(JsonUtility.ToJson(model));

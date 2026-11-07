@@ -1,0 +1,298 @@
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc b/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc
+@@ -53,21 +53,26 @@
+ 
+         float3 siriGlassSampleBackground(sampler2D background, float2 texelSize, float2 uv, float blurPixels)
+         {
+-            // GrabPass has no mip chain: a small cross filter supplies rim frosting.
++            // GrabPass has no mip chain. Integrate a compact, normalized footprint
++            // so grazing transmission softens in both screen directions.
+             float2 pixel = abs(texelSize);
+             uv = clamp(uv, pixel, 1.0 - pixel);
+             UNITY_BRANCH
+             if (blurPixels == 0.0) return tex2D(background, uv).rgb;
+             float2 blur = pixel * blurPixels;
+-            float3 color = tex2D(background, uv).rgb * 0.40;
+-            color += tex2D(background, clamp(uv + float2(blur.x, 0), pixel, 1.0 - pixel)).rgb * 0.15;
+-            color += tex2D(background, clamp(uv - float2(blur.x, 0), pixel, 1.0 - pixel)).rgb * 0.15;
+-            color += tex2D(background, clamp(uv + float2(0, blur.y), pixel, 1.0 - pixel)).rgb * 0.15;
+-            color += tex2D(background, clamp(uv - float2(0, blur.y), pixel, 1.0 - pixel)).rgb * 0.15;
++            float3 color = tex2D(background, uv).rgb * .25;
++            color += tex2D(background, clamp(uv + float2(blur.x, 0), pixel, 1.0 - pixel)).rgb * .125;
++            color += tex2D(background, clamp(uv - float2(blur.x, 0), pixel, 1.0 - pixel)).rgb * .125;
++            color += tex2D(background, clamp(uv + float2(0, blur.y), pixel, 1.0 - pixel)).rgb * .125;
++            color += tex2D(background, clamp(uv - float2(0, blur.y), pixel, 1.0 - pixel)).rgb * .125;
++            color += tex2D(background, clamp(uv + blur, pixel, 1.0 - pixel)).rgb * .0625;
++            color += tex2D(background, clamp(uv - blur, pixel, 1.0 - pixel)).rgb * .0625;
++            color += tex2D(background, clamp(uv + float2(blur.x, -blur.y), pixel, 1.0 - pixel)).rgb * .0625;
++            color += tex2D(background, clamp(uv + float2(-blur.x, blur.y), pixel, 1.0 - pixel)).rgb * .0625;
+             return color;
+         }
+ 
+-        float3 siriGlassSampleChromaticBackground(sampler2D background, float2 texelSize, float2 uv, float2 offset, float rimCurve, float chromatic, float smoothness)
++        float3 siriGlassSampleChromaticBackground(sampler2D background, float2 texelSize, float2 uv, float2 offset, float rimCurve, float chromatic, float blur)
+         {
+ #if defined(SIRIAI_OPTICS_PERFORMANCE) || defined(SIRIAI_OPTICS_BALANCED)
+             // Preserve dome bending; omit external RGB splitting and rim blur only.
+@@ -75,7 +80,6 @@
+             return siriGlassSampleBackground(background, texelSize, uv + offset, 0.0);
+ #else
+             float dispersion = chromatic * (0.30 + rimCurve);
+-            float blur = rimCurve * 2.5 * (1.0 - smoothness);
+             UNITY_BRANCH
+             if (chromatic == 0.0)
+                 return siriGlassSampleBackground(background, texelSize, uv + offset, blur);
+@@ -86,8 +90,17 @@
+ #endif
+         }
+ 
++    // Thin-wall optical contrast relative to the calibrated 1.45 / .35 glass.
++    // Keep the authored radial path, with no lens left at either null boundary.
++    float siriGlassRefractionResponse(float ior, float thickness)
++    {
++        return min((1.0 - rcp(max(ior, 1.0))) * max(thickness, 0.0)
++            / ((1.0 - 1.0 / 1.45) * .35), 1.65);
++    }
++
+     float2 siriGlassBackgroundOffset(float2 uv, float3 centerWS, float worldRadius,
+-        float2 bend, float rimCurve, float2 flow, float rimPull, float refraction, float thickness, float distortion)
++        float2 bend, float rimCurve, float2 flow, float rimPull, float refraction,
++        float thickness, float distortion, float2 texelSize, out float blurPixels)
+     {
+         float lensScale = siriLiquidLensScale(rimCurve);
+         float4 centerClip = mul(UNITY_MATRIX_VP, float4(centerWS, 1));
+@@ -98,9 +111,16 @@
+ #if UNITY_UV_STARTS_AT_TOP
+         screenRadius.y = -screenRadius.y;
+ #endif
+-        float2 offset = screenDelta * (lensScale - 1.0) * (rimPull / 0.06);
++        float response = siriGlassRefractionResponse(_GlassIOR, thickness);
++        float2 offset = screenDelta * (lensScale - 1.0) * (rimPull / 0.06) * response;
+         offset += bend * screenRadius * (refraction / 0.02) * thickness * 0.35;
+-        offset += flow * screenRadius * distortion * (0.4 + rimCurve);
++        offset += flow * screenRadius * distortion * (0.4 + rimCurve) * response;
++        // Integrate rough transmission over the grazing wall path. Its footprint
++        // scales with the projected sphere, not the framebuffer pixel count.
++        float depth = sqrt(saturate(1.0 - pow(saturate(rimCurve), .4)));
++        float radiusPixels = abs(screenRadius.y) / max(abs(texelSize.y), .000001);
++        blurPixels = min(radiusPixels * .04, radiusPixels * .012 * (1.0 - _Smoothness)
++            * response * rimCurve / max(depth, .18));
+         return offset;
+     }
+ 
+@@ -259,13 +279,13 @@
+     float3 radiance = 0;
+     amplitude[0] = max(amplitude[0], 0);
+     float3 dose0 = amplitude[0] * amplitude[0];
+-    radiance += (dose0.x + dose0.y * float3(.10, .55, 1) + dose0.z * float3(1, .55, .15)) * exp(-pow((shellRadius - 0.950000) / 0.030000, 2.0));
++    radiance += (dose0.x + dose0.y * float3(.10, .55, 1) + dose0.z * float3(1, .55, .15)) * exp(-pow((shellRadius - 0.945680) / 0.030000, 2.0));
+     amplitude[1] = max(amplitude[1], 0);
+     float3 dose1 = amplitude[1] * amplitude[1];
+-    radiance += (dose1.x + dose1.y * float3(.10, .55, 1) + dose1.z * float3(1, .55, .15)) * exp(-pow((shellRadius - 0.992000) / 0.013000, 2.0));
++    radiance += (dose1.x + dose1.y * float3(.10, .55, 1) + dose1.z * float3(1, .55, .15)) * exp(-pow((shellRadius - 0.988400) / 0.013000, 2.0));
+     amplitude[2] = max(amplitude[2], 0);
+     float3 dose2 = amplitude[2] * amplitude[2];
+-    radiance += (dose2.x + dose2.y * float3(.10, .55, 1) + dose2.z * float3(1, .55, .15)) * exp(-pow((shellRadius - 0.860000) / 0.130000, 2.0));
++    radiance += (dose2.x + dose2.y * float3(.10, .55, 1) + dose2.z * float3(1, .55, .15)) * exp(-pow((shellRadius - 0.885000) / 0.081000, 2.0));
+     float luminance = dot(radiance, float3(.2126, .7152, .0722));
+     return lerp(luminance, radiance, saturate(_ChromaticAberration * 50.0)) / 2.75450558;
+ }
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+@@ -175,10 +175,12 @@
+                 float3 color=siriGlassSourceLayers(emission*transmission*(1-fresnel),scatter,edge,wallLight);
+                 float2 uv=i.screenPosition.xy/i.screenPosition.w;
+                 float3 centerWS=mul(unity_ObjectToWorld,float4(0,0,0,1)).xyz;
++                float blurPixels;
+                 float2 offset=siriGlassBackgroundOffset(uv,centerWS,worldRadius,bend,rimCurve,flow,
+-                    _RimPull,_Refraction,_GlassThickness,_SurfaceDistortion);
++                    _RimPull,_Refraction,_GlassThickness,_SurfaceDistortion,
++                    _SiriGlassBackground_TexelSize.xy,blurPixels);
+                 float3 background=siriGlassSampleChromaticBackground(_SiriGlassBackground,_SiriGlassBackground_TexelSize.xy,
+-                    uv,offset,rimCurve,_ChromaticAberration,_Smoothness);
++                    uv,offset,rimCurve,_ChromaticAberration,blurPixels);
+                 return half4(siriGlassComposite(background * transmission * (1-reflectance), color, reflection * reflectance), 1);
+             }
+             ENDCG
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+@@ -256,15 +256,17 @@
+             float2 transmittedVS = mul((float3x3)UNITY_MATRIX_V, transmittedRay).xy;
+             float2 incidentVS = mul((float3x3)UNITY_MATRIX_V, -viewDirection).xy;
+             float2 bend = transmittedVS - incidentVS;
++            float blurPixels;
+             float2 offset = siriGlassBackgroundOffset(uv, centerWS, worldRadius, bend, rimCurve, flow,
+-                _RimPull, _Refraction, _GlassThickness, _SurfaceDistortion);
++                _RimPull, _Refraction, _GlassThickness, _SurfaceDistortion,
++                _SiriGlassBackground_TexelSize.xy, blurPixels);
+ 
+             // Bounded absorption preserves transmission even for a black tint.
+             // It increases with optical path length through the sphere.
+             float pathLength = siriGlassOpticalPath(interiorDepth, _GlassThickness);
+             float3 absorption = max(float3(1, 1, 1) - _BodyColor.rgb, 0.0) * _GlassTint;
+             float3 transmittance = lerp(1.0, exp(-absorption * pathLength), _GlassAlpha);
+-            data.transmission = siriGlassSampleChromaticBackground(_SiriGlassBackground, _SiriGlassBackground_TexelSize.xy, uv, offset, rimCurve, _ChromaticAberration, _Smoothness) * transmittance;
++            data.transmission = siriGlassSampleChromaticBackground(_SiriGlassBackground, _SiriGlassBackground_TexelSize.xy, uv, offset, rimCurve, _ChromaticAberration, blurPixels) * transmittance;
+ 
+ #if defined(SIRIAI_OPTICS_PERFORMANCE)
+             float3 reflection = 0.0;
+diff --git a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+--- a/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
++++ b/Assets/Samples/SiriAI/Documentation~/OrbStyles.md
+@@ -141,3 +141,11 @@
+ 旧“内缘接触”检查把两端可见等同于峰值大于 `.5`，与参考中约 `.07` 的柔和端点冲突，已改为比较同一状态有/无内部光源时的增量亮度，并同时要求正的峰值和有限积分光量。新增实际曝光回归同时约束绝对和相对亮度梯度，避免仅压暗或删除光源通过检查；修改前桌面/移动路径均失败。
+ 
+ 完整 104 帧、固定投影的八个端部截面中，最大梯度 MAE `28.0468 → 6.6717`（约下降 76%），端部峰值 MAE `.603879 → .222194`（约下降 63%）。待机 31 帧、隔离球壳 20 组、隔离 Talking 主光核 10 组与本轮基线完全相同。最终相关 Editor GPU、语音和状态回归 224/224 通过。端部亮度和光晕宽度仍与参考有差异；完整画面并非逐像素一致。原始帧、连续语音与状态往返、比较和动作记录见 `TestArtifacts~/RibbonSoftEdges20261107/`。
++
++## 球壁折射与粗糙透射（2026-11-07）
++
++背景径向光路保留既有样式，改为随折射率和壁厚的有界光学响应连续变化；空气折射率或零壁厚时不再残留固定透镜压缩。粗糙透射由同一光学响应、掠射深度及球体投影尺寸决定，用归一化九点覆盖平滑采样，消除固定像素模糊在尺寸变化时的质感偏差。Balanced/Performance 保留原先单采样背景路径；高画质单色背景采样由 5 次增至 9 次，RGB 色散由 15 次增至 27 次。
++
++根据官方首秒校准现有三条球壁光带的径向位置和宽度，保留原光量、色温及内部光源反馈。全部 31 个原始待机时间、固定归一化下，球壁区域 `.86<r<.997` 的 RGB MAE `.038330 → .037150`（约下降 3%），同口径整球 `.029720 → .028243`（约下降 5%）；5 个留出帧亦改善。丝带形态、两端柔化、Thinking 与独立 Talking 源实现不变，隔离 Talking 主光核的 10 组中 9 组完全相同，剩余一组平均 RGB 差约 `4.99e-9`。
++
++最终相关 Editor GPU、语音和状态回归 232/232 通过，新增实际棋盘背景验证空气/零壁厚边界、连续光路、状态不变和粗糙透射的边缘 RMS/平均光量。官方背景接近纯黑，无法据此唯一确定背景折射位移或 IOR；棋盘验证说明光学行为，不等于官方像素匹配。本实现仍为校准的薄壁近似，保留既有径向函数，并非完整多次界面追踪。原始对照、连续语音/状态与限制见 `TestArtifacts~/GlassRefraction20261107/`。
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs
+@@ -5,6 +5,138 @@
+ {
+     public sealed class SiriAIOrbStyleRenderingTests
+     {
++        [TestCase(false, true)]
++        [TestCase(true, true)]
++        [TestCase(false, false)]
++        [TestCase(true, false)]
++        public void BackgroundRefractionDisappearsWithoutAnOpticalBoundary(bool mobile, bool air)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            using (var backdrop = new RefractionBackdrop())
++            {
++                ConfigureTransmission(view, mobile);
++                view.Material.SetFloat("_RimPull", 0);
++                view.Material.SetFloat("_Refraction", 0);
++                var clear = view.Render(.7f);
++                view.Material.SetFloat("_RimPull", .06f);
++                view.Material.SetFloat("_Refraction", .02f);
++                view.Material.SetFloat(air ? "_GlassIOR" : "_GlassThickness", air ? 1 : 0);
++                view.Material.SetFloat("_Smoothness", 0);
++                Assert.Less(Difference(clear, view.ReadFrame()), .001f,
++                    "An air boundary or zero wall thickness must transmit the patterned background without residual lens warping.");
++            }
++        }
++
++        [TestCase(false)]
++        [TestCase(true)]
++        public void BackgroundRefractionRespondsContinuouslyToTheGlassPath(bool mobile)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            using (var backdrop = new RefractionBackdrop())
++            {
++                ConfigureTransmission(view, mobile);
++                view.Material.SetFloat("_GlassThickness", 0);
++                var clear = view.Render(.7f);
++                Color[] previous = clear;
++                float travel = 0;
++                for (int step = 1; step <= 20; ++step)
++                {
++                    view.Material.SetFloat("_GlassThickness", .35f * step / 20);
++                    var current = view.ReadFrame();
++                    float change = Difference(previous, current);
++                    Assert.Less(change, .04f, "Increasing the glass path must not switch to a different lens abruptly.");
++                    travel += change; previous = current;
++                }
++                Assert.Greater(Difference(clear, previous), .02f, "A real glass path must visibly bend the background.");
++                Assert.Greater(travel, .04f, "The transmission check must exercise a changing optical image.");
++                foreach (float state in new[] { 0f, .5f, 1f })
++                    Assert.Less(Difference(previous, view.Render(.7f, thinking: state, talking: state, level: 1)), .00001f,
++                        "Internal voice and state changes must keep the same background glass path.");
++            }
++        }
++
++        [TestCase(false)]
++        [TestCase(true)]
++        public void RoughGlassSoftensTheGrazingTransmissionWithoutAddingLight(bool mobile)
++        {
++            using (var view = new SiriAIOrbStyleView(SiriAIOrbStyle.Original, false))
++            using (var backdrop = new RefractionBackdrop())
++            {
++                ConfigureTransmission(view, mobile);
++                view.Material.SetFloat("_RimPull", 0);
++                view.Material.SetFloat("_Refraction", 0);
++                float clearMean, softMean;
++                float clear = TransmissionEdgeRms(view.Render(.7f), out clearMean);
++                view.Material.SetFloat("_Smoothness", .35f);
++                float soft = TransmissionEdgeRms(view.ReadFrame(), out softMean);
++                Assert.Greater(clear, .005f, "The check needs visible detail behind the glass.");
++                Assert.Less(soft, clear * .95f, "The grazing wall must integrate a softer transmitted footprint.");
++                Assert.That(softMean / clearMean, Is.InRange(.97f, 1.03f), "Rough transmission must redistribute existing background light.");
++            }
++        }
++
++        private static float TransmissionEdgeRms(Color[] pixels, out float mean)
++        {
++            float gradient = 0, light = 0; int count = 0, size = SiriAIOrbStyleView.Size;
++            for (int y = 1; y < size; ++y)
++            for (int x = 1; x < size; ++x)
++            {
++                Vector2 p = new Vector2(x + .5f - size * .5f, y + .5f - size * .5f) * (2.36f / size);
++                if (p.sqrMagnitude < .78f * .78f || p.sqrMagnitude > .96f * .96f) continue;
++                Color c = pixels[y * size + x];
++                // A blur preserves the total variation across a broad step.
++                // Edge RMS measures whether that step's light spreads out.
++                float horizontal = c.r - pixels[y * size + x - 1].r;
++                float vertical = c.r - pixels[(y - 1) * size + x].r;
++                gradient += horizontal * horizontal + vertical * vertical;
++                light += c.r; ++count;
++            }
++            mean = light / count;
++            return Mathf.Sqrt(gradient / (2 * count));
++        }
++
++        private static void ConfigureTransmission(SiriAIOrbStyleView view, bool mobile)
++        {
++            if (mobile) view.Material.shader = Shader.Find("Hidden/SiriAI/OrbMobile");
++            view.SetScale(1);
++            foreach (string name in new[] { "_StrandIntensity", "_InteriorRefraction", "_RimIntensity", "_GlassAlpha",
++                "_GlassTint", "_ReflectionStrength", "_SurfaceDistortion", "_ChromaticAberration" })
++                view.Material.SetFloat(name, 0);
++            view.Material.SetFloat("_GlassIOR", 1.45f);
++            view.Material.SetFloat("_GlassThickness", .35f);
++            view.Material.SetFloat("_Smoothness", 1);
++        }
++
++        private sealed class RefractionBackdrop : System.IDisposable
++        {
++            private readonly GameObject quad;
++            private readonly Texture2D texture;
++            private readonly Material material;
++
++            internal RefractionBackdrop()
++            {
++                texture = new Texture2D(128, 128, TextureFormat.RGB24, false);
++                texture.wrapMode = TextureWrapMode.Clamp;
++                for (int y = 0; y < 128; ++y)
++                for (int x = 0; x < 128; ++x)
++                {
++                    float grid = ((x / 8 + y / 8) % 2 == 0) ? .15f : .8f;
++                    texture.SetPixel(x, y, new Color(grid, .15f + .65f * x / 127, .15f + .65f * y / 127));
++                }
++                texture.Apply();
++                material = new Material(Shader.Find("Unlit/Texture")); material.mainTexture = texture;
++                quad = GameObject.CreatePrimitive(PrimitiveType.Quad); quad.layer = 30;
++                quad.transform.position = new Vector3(0, 0, 1.5f);
++                quad.transform.localScale = Vector3.one * 2.36f;
++                quad.GetComponent<Renderer>().sharedMaterial = material;
++            }
++
++            public void Dispose()
++            {
++                Object.DestroyImmediate(quad); Object.DestroyImmediate(material); Object.DestroyImmediate(texture);
++            }
++        }
++
+         [TestCase(false, 0f)]
+         [TestCase(true, 0f)]
+         [TestCase(false, 1f)]

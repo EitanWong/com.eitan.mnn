@@ -18,7 +18,7 @@ namespace MNN.Unity.Tests
             {
                 var first = model.RecognizeWaveFile(wave);
                 Assert.AreEqual(MNNBackendType.CPU, model.Backend);
-                Assert.AreEqual("After early nightfall, the yellow lamps would light up here and there. the squalid quarter of the brothels.", first.Text);
+                Assert.AreEqual("After early nightfall, the yellow lamps would light up here and there. The squalid quarter of the brothels.", first.Text);
                 Assert.AreEqual(first.TokenIds.Count, first.Timestamps.Count);
                 Assert.AreEqual("", model.Recognize(new float[16000], 16000).Text);
                 Assert.Throws<OperationCanceledException>(() => model.RecognizeWaveFile(wave, new CancellationToken(true)));

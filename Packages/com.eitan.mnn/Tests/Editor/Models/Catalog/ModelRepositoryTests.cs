@@ -16,6 +16,16 @@ namespace MNN.Unity.Tests
 {
     public class ModelRepositoryTests
     {
+        [TestCase("vad"), TestCase("turn detection"), TestCase("语音增强"), TestCase("说话人识别")]
+        public void EditorAndRuntimeSearchTheSameCompleteDefaultCatalog(string query)
+        {
+            var runtime = MNNModelCatalog.CreateDefault();
+            var editor = MNNModelRepository.GetDefaultRepository();
+            CollectionAssert.AreEquivalent(runtime.SearchModels(query).Select(model => model.repositoryId),
+                editor.SearchModels(query).Select(model => model.repositoryId));
+            Assert.IsNotEmpty(runtime.SearchModels(query));
+        }
+
         [UnityTest]
         public IEnumerator HuggingFaceMirrorPool_RefreshesOnlyRecognizedHttpsOrigins()
         {
@@ -171,7 +181,7 @@ namespace MNN.Unity.Tests
             }
         }
 
-        [UnityTest, Explicit("Reads the live organization catalog and every repository manifest; downloads two small metadata files only.")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Reads the live organization catalog and every repository manifest; downloads two small metadata files only.")]
         public IEnumerator LiveCatalog_AllRepositoriesHaveDownloadableFiles()
         {
             var task = AuditLiveCatalogAsync();

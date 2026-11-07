@@ -23,7 +23,7 @@ namespace MNN.Unity.Tests
                 {
                     foreach (bool il2cpp in new[]{false, true})
                     {
-                        bool supported = (!il2cpp && (platform == RuntimePlatform.OSXEditor || platform == RuntimePlatform.OSXPlayer)) || (il2cpp && (platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer));
+                        bool supported = (!il2cpp && (platform == RuntimePlatform.OSXEditor || platform == RuntimePlatform.OSXPlayer || platform == RuntimePlatform.WindowsEditor || platform == RuntimePlatform.WindowsPlayer || platform == RuntimePlatform.LinuxEditor || platform == RuntimePlatform.LinuxPlayer)) || (il2cpp && (platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer));
                         yield return new TestCaseData(platform, il2cpp, supported).SetName($"AbiContract_{platform}_{(il2cpp ? "IL2CPP" : "Mono")}");
                     }
                 }
@@ -33,7 +33,8 @@ namespace MNN.Unity.Tests
         [TestCaseSource(nameof(PlatformCases))]
         public void PlatformMatrix_RejectsUnimplementedAbi(RuntimePlatform platform, bool il2cpp, bool supported)
         {
-            string reason = MNNPlatformSupport.GetUnsupportedReason(platform, il2cpp, 8, true);
+            var architecture = platform == RuntimePlatform.WindowsEditor || platform == RuntimePlatform.WindowsPlayer || platform == RuntimePlatform.LinuxEditor || platform == RuntimePlatform.LinuxPlayer ? Architecture.X64 : Architecture.Arm64;
+            string reason = MNNPlatformSupport.GetUnsupportedReason(platform, il2cpp, 8, true, architecture);
             if (supported)
                 Assert.IsNull(reason);
             else
@@ -45,6 +46,15 @@ namespace MNN.Unity.Tests
         {
             Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 8, true, Architecture.X64));
             Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 4, true, Architecture.Arm));
+        }
+
+        [TestCase(RuntimePlatform.WindowsEditor), TestCase(RuntimePlatform.WindowsPlayer)]
+        [TestCase(RuntimePlatform.LinuxEditor), TestCase(RuntimePlatform.LinuxPlayer)]
+        public void DesktopMono_RejectsNonX64AndIl2Cpp(RuntimePlatform platform)
+        {
+            Assert.IsNull(MNNPlatformSupport.GetUnsupportedReason(platform, false, 8, true, Architecture.X64));
+            Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, false, 8, true, Architecture.Arm64));
+            Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 8, true, Architecture.X64));
         }
 
         [TestCase(4, true), TestCase(8, false), TestCase(4, false)]
@@ -89,11 +99,15 @@ namespace MNN.Unity.Tests
         [Test]
         public void PlatformGuard_DoesNotInitializeNativeCallbackPointers() => Assert.IsNull(typeof(MNNInterop).TypeInitializer, "Native callback initialization must be deferred until a supported inference call.");
         [Test]
-        public void AppleAbi_PublicLayoutsMatchNativeContract()
+        public void PublicLayouts_MatchBundledCompilerContract()
         {
             if (!MNNPlatformSupport.IsSupported)
                 Assert.Ignore("Apple ABI layout assertions require the implemented 64-bit runtime.");
+            #if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+            Assert.AreEqual(32, Marshal.SizeOf<MNNInterop.CppString>());
+#else
             Assert.AreEqual(24, Marshal.SizeOf<MNNInterop.CppString>());
+#endif
             Assert.AreEqual(24, Marshal.SizeOf<MNNInterop.CppVector>());
             Assert.AreEqual(16, Marshal.SizeOf<MNNInterop.CppShared>());
             Assert.AreEqual(8, Marshal.SizeOf<MNNInterop.HalideType>());

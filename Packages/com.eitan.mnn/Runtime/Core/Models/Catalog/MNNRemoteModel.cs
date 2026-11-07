@@ -29,6 +29,7 @@ namespace MNN.Unity
         public MNNModelInputSpec inputSpec;
         public MNNModelOutputSpec outputSpec;
         public bool isRepository;
+        public bool requiresTranscript;
         public bool runtimeAvailable = true;
         public string[] mnnFiles;
         public string supportSummary;

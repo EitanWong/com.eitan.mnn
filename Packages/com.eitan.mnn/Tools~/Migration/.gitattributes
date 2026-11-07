@@ -1,0 +1,2 @@
+# Unified diffs preserve context prefixes and the whitespace of removed Unity meta fields.
+*.patch whitespace=-blank-at-eol

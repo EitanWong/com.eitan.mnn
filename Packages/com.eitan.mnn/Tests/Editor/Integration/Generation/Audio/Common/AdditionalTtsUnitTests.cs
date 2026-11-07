@@ -24,7 +24,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void StudioOffersChineseExampleAndPreservesUserDraftOnVoiceModelChange()
         {
-            var window = UnityEngine.ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
             var type = typeof(MNNChatStudio);
             try
@@ -121,6 +121,86 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void GraphSpecializationDoesNotDuplicateTheEntireSourceBeforeWritingItsResult()
+        {
+            long probeStart = GC.GetAllocatedBytesForCurrentThread();
+            var probe = new byte[4096]; GC.KeepAlive(probe);
+            if (GC.GetAllocatedBytesForCurrentThread() - probeStart < probe.Length)
+                Assert.Ignore("The runtime allocation counter is unavailable; run this case under host Mono.");
+            string path = Environment.GetEnvironmentVariable("MNN_TEST_AFFINE_GRAPH") ?? Path.Combine(
+                UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(AdditionalTtsUnitTests).Assembly).resolvedPath,
+                "Tests/Fixtures/affine.mnn");
+            var source = new byte[16 * 1024 * 1024];
+            byte[] fixture = File.ReadAllBytes(path);
+            Buffer.BlockCopy(fixture, 0, source, 0, fixture.Length);
+            var input = new MNNGenerationGraph.Input("input", new[] { 1f, 2f, 3f, 4f }, 1, 4);
+            MNNGraphConstant.FreezeInputs(fixture, input); // Warm metadata/JIT before measuring.
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            byte[] frozen = MNNGraphConstant.FreezeInputs(source, input);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            TestContext.WriteLine("Graph specialization allocated bytes: " + allocated);
+            Assert.AreNotSame(source, frozen);
+            Assert.Greater(frozen.Length, source.Length);
+            CollectionAssert.AreEqual(fixture, source.Take(fixture.Length));
+            Assert.Less(allocated, source.Length + 64L * 1024,
+                "One specialization needs one result buffer; model-sized intermediate clones waste the weight memory budget.");
+            GC.KeepAlive(frozen);
+        }
+
+        [Test]
+        public void MultipleGraphInputsShareOneResultBuffer()
+        {
+            long probeStart = GC.GetAllocatedBytesForCurrentThread();
+            var probe = new byte[4096]; GC.KeepAlive(probe);
+            if (GC.GetAllocatedBytesForCurrentThread() - probeStart < probe.Length)
+                Assert.Ignore("The runtime allocation counter is unavailable; run this case under host Mono.");
+            string path = Environment.GetEnvironmentVariable("MNN_TEST_AFFINE_INPUTS_GRAPH") ?? Path.Combine(
+                UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(AdditionalTtsUnitTests).Assembly).resolvedPath,
+                "Tests/Fixtures/affine-inputs.mnn");
+            byte[] fixture = File.ReadAllBytes(path);
+            var source = new byte[16 * 1024 * 1024];
+            Buffer.BlockCopy(fixture, 0, source, 0, fixture.Length);
+            var inputs = new[] {
+                new MNNGenerationGraph.Input("input", new[]{1f, 2f, 3f, 4f}, 1, 4),
+                new MNNGenerationGraph.Input("scale", new[]{2f}, 1),
+                new MNNGenerationGraph.Input("bias", new[]{1f}, 1)
+            };
+            MNNGraphConstant.FreezeInputs(fixture, inputs);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            byte[] frozen = MNNGraphConstant.FreezeInputs(source, inputs);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            TestContext.WriteLine("Multiple graph input specialization allocated bytes: " + allocated);
+            Assert.AreNotSame(source, frozen);
+            Assert.Greater(frozen.Length, source.Length);
+            CollectionAssert.AreEqual(fixture, source.Take(fixture.Length));
+            Assert.Less(allocated, source.Length + 64L * 1024,
+                "Specializing several inputs must not allocate a complete model for each input.");
+            GC.KeepAlive(frozen);
+        }
+
+        [Test]
+        public void MultipleGraphConstantsPreserveValuesAndRejectRepeatedNames()
+        {
+            string path = Path.Combine(UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(AdditionalTtsUnitTests).Assembly).resolvedPath,
+                "Tests/Fixtures/affine-inputs.mnn");
+            byte[] source = File.ReadAllBytes(path), original = (byte[])source.Clone();
+            var input = new MNNGenerationGraph.Input("input", new[]{1f, 2f, 3f, 4f}, 1, 4);
+            byte[] frozen = MNNGraphConstant.FreezeInputs(source, input,
+                new MNNGenerationGraph.Input("scale", new[]{2f}, 1), new MNNGenerationGraph.Input("bias", new[]{1f}, 1));
+            CollectionAssert.AreEqual(original, source);
+            Assert.Throws<InvalidDataException>(() => MNNGraphConstant.FreezeInputs(source, input, input));
+            byte[] copy = MNNGraphConstant.FreezeInputs(source);
+            Assert.AreNotSame(source, copy);
+            CollectionAssert.AreEqual(source, copy);
+            using (var interpreter = MNNInterpreter.CreateFromBuffer(frozen))
+            using (var session = interpreter.CreateSession())
+            {
+                session.Run();
+                CollectionAssert.AreEqual(new[]{3f, 5f, 7f, 9f}, session.GetOutput("output").CopyToArray<float>());
+            }
+        }
+
+        [Test]
         public void GraphConstantsPreserveSourceAndPublicFlatbufferSemantics()
         {
             string path = Path.Combine(UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(AdditionalTtsUnitTests).Assembly).resolvedPath, "Tests/Fixtures/affine.mnn");
@@ -158,9 +238,11 @@ namespace MNN.Unity.Tests
                     File.WriteAllBytes(path, new byte[1]);
                 }
 
+                model = MNNStudioModel.Read(root);
                 Assert.True(model.HasGenerationPipeline);
                 CollectionAssert.AreEqual(new[]{"en_US-amy-low"}, model.TtsVoices);
                 File.Delete(Path.Combine(root, "espeak-ng-data/phondata"));
+                model = MNNStudioModel.Read(root);
                 Assert.False(model.HasGenerationPipeline);
                 File.WriteAllText(Path.Combine(root, "config.json"), "{\"model_type\":\"bertvits\"}");
                 model = MNNStudioModel.Read(root);

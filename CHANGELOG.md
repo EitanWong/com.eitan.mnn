@@ -8,6 +8,11 @@ Unreleased entries describe development work, not a published version.
 
 ### Added
 
+- Added macOS ARM64/x64, Windows x64 and Linux x64 desktop Mono contracts for
+  core inference, Express, LLM, native embedding/reranking and media input.
+  Windows/Linux use pinned GNU compiler builds of unchanged official MNN 3.6.2,
+  without added C++ sources, bridge libraries or custom C exports. Setup and
+  system requirements are in the [desktop Mono guide](Packages/com.eitan.mnn/Documentation~/DesktopMono.md).
 - Added tracked-file validation for local-only assets, EasyMic manifest dependencies,
   ignored files and local Markdown links. Untracked files on a maintainer's machine
   cannot satisfy documentation links. Python regression tests exercise these checks
@@ -25,6 +30,18 @@ Unreleased entries describe development work, not a published version.
 
 ### Changed
 
+- Saved the SiriAI development host settings: product identity, Android minimum
+  SDK 24, microphone usage text, frame timing, quality settings, scene templates,
+  and the local sample build-scene selection. Added uGUI and screen-capture module
+  dependencies; EasyMic remains a local-only dependency. See the
+  [development host snapshot](Packages/com.eitan.mnn/Documentation~/RepositoryManagement.md#development-host-snapshot-2026-11-07)
+  for clean-clone requirements and validation limits.
+- Expanded `AGENTS.md` with the default ub-mode workflow and the reusable local
+  model directory, `Assets/StreamingAssets/MNN/Models/`.
+- Saved checked SiriAI visual migration stages for source-driven reflections,
+  folded-sheet dispersion and light, soft ribbon endpoints, and glass refraction.
+  Their exact baselines, recorded Editor evidence and remaining limits are in the
+  [migration guide](Packages/com.eitan.mnn/Tools~/Migration/README.md).
 - Made the root README a concise English entry point with requirements, installation,
   platform limitations and contribution links. Moved the Chinese translation and
   branch guide into `Packages/com.eitan.mnn/Documentation~`; removed root `docs/`.
@@ -44,6 +61,11 @@ Unreleased entries describe development work, not a published version.
 
 ### Fixed
 
+- Repository validation now accepts both committed deterministic affine fixtures
+  and their metadata, while still rejecting downloaded models and same-named files
+  outside the fixture directory.
+- Markdown checks exclude the verbatim keyword-pronunciation license notice,
+  preserving its upstream text alongside the existing license exclusions.
 - Restored missing `.meta` files for two audio-test directories, preserving their
   existing local GUIDs, and repaired OmniVoice links to pages absent from the committed snapshot.
 
@@ -54,6 +76,15 @@ Unreleased entries describe development work, not a published version.
 - Native and model changes need the applicable Unity checks and explicitly recorded
   environment/results. Existing [test evidence](Packages/com.eitan.mnn/Documentation~/Testing.md)
   retains its original scope.
-- The new isolated Unity run exposed unresolved OmniVoice dependencies in the existing
-  committed development snapshot. Tests cannot start until the missing runtime types
-  and graph APIs are included; the promotion PR remains draft.
+- The earlier isolated-project OmniVoice compilation blocker is resolved; see
+  [CI evidence](Packages/com.eitan.mnn/Documentation~/development/ContinuousIntegration.md#isolated-validation-evidence).
+- Windows Wine Mono and Linux host Mono each pass 79 advanced task assertions and
+  22 core assertions against the bundled native libraries. Windows/Linux Unity
+  Players and GPU inference remain unverified; their native builds are CPU-only.
+- macOS ARM64 and Rosetta x64 Unity 2021.3.45f2 Mono Players each pass 120/120
+  selected core/platform/Express tests. Focused Editor checks pass 14/14, with
+  13 conditional compilation cases and nine package assemblies compiled.
+- These checks do not certify every model pipeline. Native waveform callbacks
+  remain unavailable on all platforms; desktop IL2CPP, Windows/Linux ARM64 and
+  WebGL remain unsupported. Historical model and device results retain their
+  [recorded scope](Packages/com.eitan.mnn/Documentation~/Testing.md).

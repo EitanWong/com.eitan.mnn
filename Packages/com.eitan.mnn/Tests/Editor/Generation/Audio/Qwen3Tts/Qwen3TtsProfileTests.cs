@@ -92,7 +92,8 @@ namespace MNN.Unity.Tests
             string weight = Path.Combine(_root, "weights", "cp_head_14.bin");
             using (var stream = File.OpenWrite(weight)) stream.SetLength(1);
             Assert.False(MNNQwen3ExplicitTts.IsComplete(_root));
-            Assert.False(model.HasGenerationPipeline);
+            Assert.True(model.HasGenerationPipeline, "Previously published discovery snapshots remain stable.");
+            Assert.False(MNNStudioModel.Read(_root).HasGenerationPipeline);
             Assert.True(MNNStudioModel.Read(_root).IsQwen3Explicit, "Incomplete assets retain their task identity.");
         }
     }

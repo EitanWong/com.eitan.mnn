@@ -71,10 +71,27 @@ namespace MNN.Unity.Tests
             Assert.False(TaskInfo(MNNStudioTask.KeywordSpotting).MatchesCatalog(model));
         }
 
+        [TestCase("VoiceActivityDetection", "VoiceActivityDetection")]
+        [TestCase("TurnDetection", "TurnDetection")]
+        [TestCase("SpeechEnhancement", "SpeechEnhancement")]
+        [TestCase("SpeechSeparation", "SpeechSeparation")]
+        [TestCase("TargetSpeakerExtraction", "SpeechSeparation")]
+        [TestCase("SpeakerDiarization", "SpeakerDiarization")]
+        public void SpecificAudioCatalogCategoriesKeepTheirStudioWorkspace(string category, string taskName)
+        {
+            var task = (MNNStudioTask)Enum.Parse(typeof(MNNStudioTask), taskName);
+            var model = new MNNModelInfo { name = "anonymous", category = category };
+            Assert.True(TaskInfo(task).MatchesCatalog(model));
+            Assert.True(TaskInfo(MNNStudioTask.AudioProcessing).MatchesCatalog(model));
+            Assert.AreEqual(MNNStudioTask.AudioProcessing, MNNStudioTasks.FromCategory(category), "Keep the existing audio execution pipeline.");
+            foreach (var other in new[] { MNNStudioTask.VoiceActivityDetection, MNNStudioTask.TurnDetection, MNNStudioTask.SpeechEnhancement, MNNStudioTask.SpeechSeparation, MNNStudioTask.SpeakerDiarization })
+                if (other != task) Assert.False(TaskInfo(other).MatchesCatalog(model), other.ToString());
+        }
+
         [UnityTest]
         public IEnumerator ChooseWaveDefersNestedGuiEventsAndPreservesDraft()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var model = MNNStudioModel.Read(Model("audio", "{\"is_audio\":true}"));
             string audio = Path.Combine(_root, "reference.wav");
             File.WriteAllBytes(audio, MNNStudioAudio.EncodeWave(new float[16000], 16000));
@@ -157,7 +174,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void GuiExitIsNotHandledAsAStudioError()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 var error = Assert.Throws<TargetInvocationException>(() => Invoke(window, "Try", new Action(() => throw new ExitGUIException())));
@@ -305,7 +322,7 @@ namespace MNN.Unity.Tests
             string reference = Path.Combine(_root, "reference.wav");
             File.WriteAllBytes(reference, MNNStudioAudio.EncodeWave(new[]{.1f, -.1f}, 16000));
 
-            var window = UnityEngine.ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Field("_available").SetValue(window, new List<MNNStudioModel>
@@ -338,7 +355,7 @@ namespace MNN.Unity.Tests
             var shortSamples = Enumerable.Repeat(.1f, 7840).ToArray();
             File.WriteAllBytes(valid, MNNStudioAudio.EncodeWave(validSamples, 16000));
             File.WriteAllBytes(tooShort, MNNStudioAudio.EncodeWave(shortSamples, 16000));
-            var window = UnityEngine.ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Field("_available").SetValue(window, new List<MNNStudioModel>{new MNNStudioModel("IndexTTS-2.5-mnn", indexDirectory, MNNStudioTask.SpeechSynthesis, MNNModelCapabilities.Text)});
@@ -374,7 +391,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator TranscriptionUsesAudioAndDedicatedResultWithoutChatHistory()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var backend = new Backend();
             var session = new MNNStudioSession(backend);
             string audio = Path.Combine(_root, "input.wav");
@@ -391,7 +408,9 @@ namespace MNN.Unity.Tests
                 session.Completed += () => Invoke(window, "OnCompleted");
                 Assert.True((bool)Invoke(window, "CanRunTask"));
                 Invoke(window, "RunTask");
-                for (int frame = 0; frame < 60 && session.Busy; ++frame)
+                // Batchmode test frames can finish before a queued worker is scheduled.
+                double deadline = UnityEditor.EditorApplication.timeSinceStartup + 5;
+                while (session.Busy && UnityEditor.EditorApplication.timeSinceStartup < deadline)
                 {
                     MNNStudioJobs.Update();
                     yield return null;

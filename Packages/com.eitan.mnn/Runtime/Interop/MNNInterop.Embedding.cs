@@ -1,4 +1,7 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_DESKTOP_TASK_ABI
+#endif
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_TASK_CPP_ABI
 #endif
 using System;
@@ -12,6 +15,8 @@ namespace MNN.Unity.Interop
 #if MNN_TASK_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer9Embedding15createEmbeddingERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEb")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer9Embedding15createEmbeddingERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEb")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer9Embedding15createEmbeddingERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEb")]
 #endif
@@ -28,6 +33,8 @@ namespace MNN.Unity.Interop
 #if MNN_TASK_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer9Embedding13txt_embeddingERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer9Embedding13txt_embeddingERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer9Embedding13txt_embeddingERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #endif
@@ -45,7 +52,7 @@ namespace MNN.Unity.Interop
         internal static EmbeddingHandle MNN_Embedding_create(string config, string options)
         {
             RequireAbi();
-            using (var path = new NativeString(config))
+            using (var path = new NativeString(config, filePath: true))
                 return new EmbeddingHandle(FinishLoad(CreateEmbedding(ref path.Value, false), options, embedding: true));
         }
 

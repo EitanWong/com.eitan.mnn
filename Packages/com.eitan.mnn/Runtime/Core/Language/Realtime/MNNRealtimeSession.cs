@@ -36,6 +36,15 @@ namespace MNN.Unity
             get { lock (_sync) return _fault; }
         }
 
+        /// <summary>
+        /// True only after the runtime has quiesced and disposal has succeeded. A retained Fault can
+        /// coexist with released resources; failed shutdown keeps ownership here for StopAsync to retry.
+        /// </summary>
+        public bool ResourcesReleased
+        {
+            get { lock (_sync) return _runtimeDisposed; }
+        }
+
         public MNNRealtimeOutputPipeline Output => _output;
 
         public MNNRealtimeSession(IMNNRealtimeSessionRuntime runtime, MNNRealtimeOutputPipeline output)

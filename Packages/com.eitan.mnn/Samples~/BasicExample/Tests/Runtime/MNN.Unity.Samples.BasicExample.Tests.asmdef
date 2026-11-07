@@ -1,0 +1,23 @@
+{
+  "name": "MNN.Unity.Samples.BasicExample.Tests",
+  "rootNamespace": "MNN.Examples.Tests",
+  "references": [
+    "MNN.Unity",
+    "MNN.Unity.Samples.BasicExample"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS",
+    "MNN_SAMPLE_TEST_FRAMEWORK"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.unity.test-framework",
+      "expression": "1.1.33",
+      "define": "MNN_SAMPLE_TEST_FRAMEWORK"
+    }
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

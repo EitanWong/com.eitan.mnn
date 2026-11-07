@@ -14,7 +14,7 @@ namespace MNN.Unity
         internal const string Encoder = "encoder-epoch-12-avg-2-chunk-16-left-64.mnn";
         internal const string Decoder = "decoder-epoch-12-avg-2-chunk-16-left-64.mnn";
         internal const string Joiner = "joiner-epoch-12-avg-2-chunk-16-left-64.mnn";
-        internal const string DefaultKeywords = "x iǎo ài t óng x ué @小爱同学\nn ǐ h ǎo w èn w èn @你好问问\nx iǎo m ǐ x iǎo m ǐ @小米小米";
+        internal const string DefaultKeywords = "小爱同学\n你好问问\n小米小米";
 
         internal static readonly string[] Paths = {Encoder, Decoder, Joiner, "tokens.txt", "keywords.txt", "README.md", "test_wavs/3.wav", "test_wavs/test_keywords.txt"};
         internal static readonly long[] Sizes = {4394564, 420192, 68428, 1627, 286, 767, 257006, 222};
@@ -43,6 +43,11 @@ namespace MNN.Unity
 
         internal static void Verify(string directory)
         {
+            if (File.Exists(Path.Combine(directory, MNNKeywordSpotterConfig.FileName)) && MNNEnglishKwsModel.IsRepository(MNNKeywordSpotterConfig.Read(directory).repository))
+            {
+                MNNEnglishKwsModel.Verify(directory);
+                return;
+            }
             string assets = AssetDirectory(directory);
             for (int i = 0; i < 4; ++i)
                 using (var stream = File.OpenRead(Path.Combine(assets, Paths[i])))
@@ -54,6 +59,9 @@ namespace MNN.Unity
         internal static void Prepare(string directory)
         {
             Verify(directory);
+            // Keep the language of an existing verified English export.
+            if (File.Exists(Path.Combine(directory, MNNKeywordSpotterConfig.FileName)) &&
+                MNNKeywordSpotterConfig.Read(directory).Language == MNNKeywordLanguage.English) return;
             File.WriteAllText(Path.Combine(directory, MNNKeywordSpotterConfig.FileName), JsonUtility.ToJson(new MNNKeywordSpotterConfig(), true));
         }
 
@@ -61,6 +69,7 @@ namespace MNN.Unity
         {
             try
             {
+                if (MNNEnglishKwsModel.IsRepository(MNNKeywordSpotterConfig.Read(directory).repository)) return MNNEnglishKwsModel.IsComplete(directory);
                 return IsRepository(MNNKeywordSpotterConfig.Read(directory).repository) &&
                     Paths.Take(4).Select((path, i) => new FileInfo(Path.Combine(AssetDirectory(directory), path)).Length == Sizes[i]).All(value => value);
             }

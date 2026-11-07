@@ -122,7 +122,7 @@ namespace MNN.Unity.Tests
         {
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
             var type = typeof(MNNChatStudio);
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             string directory = GenerationTestData.Model("piper-voices-MNN");
             string key = MNNStudioPiperSettings.DataPreference(directory);
             bool had = EditorPrefs.HasKey(key);

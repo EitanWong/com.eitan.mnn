@@ -167,6 +167,51 @@ namespace MNN.Unity.Tests
             Assert.Throws<NotSupportedException>(() => MNNSupertonic.Encode("中", Enumerable.Repeat(-1, 65536).ToArray()));
         }
 
+        private static int[] SupertonicAsciiVocabulary()
+        {
+            var indexer = Enumerable.Repeat(-1, 65536).ToArray();
+            for (int code = 0; code < 128; ++code) indexer[code] = code;
+            return indexer;
+        }
+
+        [TestCase("8。", "8.")]
+        [TestCase("Hello。", "Hello.")]
+        public void SupertonicFoldsUnregisteredIdeographicPeriod(string text, string reference)
+        {
+            int[] indexer = SupertonicAsciiVocabulary();
+            CollectionAssert.AreEqual(MNNSupertonic.Encode(MNNSupertonic.Normalize(reference), indexer),
+                MNNSupertonic.Encode(MNNSupertonic.Normalize(text), indexer));
+        }
+
+        [Test]
+        public void SupertonicPreservesRegisteredIdeographicPeriod()
+        {
+            int[] indexer = SupertonicAsciiVocabulary();
+            indexer['。'] = 12345;
+            CollectionAssert.AreEqual(new[]{12345}, MNNSupertonic.Encode("。", indexer));
+        }
+
+        [Test]
+        public void SupertonicRejectsIdeographicPeriodWhenAsciiFallbackIsMissing()
+        {
+            int[] indexer = SupertonicAsciiVocabulary();
+            indexer['.'] = -1;
+            Assert.Throws<NotSupportedException>(() => MNNSupertonic.Encode("8。", indexer));
+        }
+
+        [Test]
+        public void SupertonicPeriodFallbackDoesNotAcceptUnsupportedChineseLetters()
+        {
+            Assert.Throws<NotSupportedException>(() =>
+                MNNSupertonic.Encode(MNNSupertonic.Normalize("你好。"), SupertonicAsciiVocabulary()));
+        }
+
+        [Test]
+        public void SupertonicPeriodFallbackRejectsAnEmptyVocabulary()
+        {
+            Assert.Throws<NotSupportedException>(() => MNNSupertonic.Encode("。", Array.Empty<int>()));
+        }
+
         [TestCase("...?! ;: -- () \"\" ** ++ $$ %% &&")]
         [TestCase("😀🎉👨‍👩‍👧‍👦")]
         [TestCase("\u200b\ufeff\0\u0001")]

@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace MNN.Unity
 {
-    /// <summary>Silero v5 voice activity detection with per-recording state reset.</summary>
+    /// <summary>Silero v5 voice activity detection with per-recording state reset. Matching realtime/offline
+    /// loads share inference resources until the last consumer disposes; recording state remains independent.</summary>
     public sealed class MNNSileroVad : IDisposable
     {
         private readonly object _gate = new object();
@@ -16,7 +17,7 @@ namespace MNN.Unity
         public MNNBackendType Backend => _runner.Backend;
         private MNNSileroVad(string directory, int threads, MNNBackendType backend)
         {
-            _runner = new MNNSileroFrameRunner(directory, threads, backend);
+            _runner = MNNSileroFramePool.Acquire(directory, threads, backend);
         }
         public static MNNSileroVad Load(string directory, int threadCount = 1, MNNBackendType backendType = MNNBackendType.Auto)
         {
@@ -121,7 +122,7 @@ namespace MNN.Unity
             {
                 if (_disposed) return;
                 _disposed = true;
-                _runner.Dispose();
+                MNNSileroFramePool.Release(_runner);
             }
         }
     }

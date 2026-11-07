@@ -163,6 +163,28 @@ namespace MNN.Unity.Tests
                 }
             });
         }
+        [TestCase(307)]
+        [TestCase(308)]
+        public void DefaultTransportDoesNotResendSpeechToRedirectTargets(int status)
+        {
+            Run(async () =>
+            {
+                using (var server = new OpenAIRedirectFixture(status))
+                using (var client = new MNNOpenAIClient(server.Endpoint, "test-only-key", TimeSpan.FromSeconds(3)))
+                {
+                    try
+                    {
+                        await client.SynthesizeAsync("model", "voice", "Private speech.", (_, __) => Task.CompletedTask,
+                            CancellationToken.None).ConfigureAwait(false);
+                        Assert.Fail("The initial redirect must be returned as a status failure.");
+                    }
+                    catch (MNNOpenAIHttpException error) { Assert.AreEqual(status, (int)error.Status); }
+                    Assert.AreEqual(1, server.Requests, "The request body must not be resent to the redirect target.");
+                    StringAssert.Contains("Authorization: Bearer test-only-key", server.InitialHeaders);
+                    StringAssert.Contains("Private speech.", server.InitialBody);
+                }
+            });
+        }
         [Test]
         public void SseLineBudgetIsFinite()
         {

@@ -95,6 +95,9 @@ namespace MNN.Unity.Tests
         [TestCase(48000, 16000, 1)]
         [TestCase(16000, 48000, 1)]
         [TestCase(44100, 16000, 2)]
+        [TestCase(96000, 16000, 1)]
+        [TestCase(192000, 8000, 8)]
+        [TestCase(8000, 192000, 1)]
         public void StreamingResamplerIsIndependentOfInputAndOutputChunking(int inputRate, int outputRate, int channels)
         {
             const int frames = 4097;
@@ -110,6 +113,35 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(expectedFrames * channels, whole.Length);
             if (inputRate == outputRate)
                 CollectionAssert.AreEqual(source, whole, "Equal-rate conversion must be an exact, zero-delay copy.");
+        }
+
+        // Exercise the public streaming path: out-of-band microphone energy must not fold into ASR features.
+        [TestCase(32000)]
+        [TestCase(44100)]
+        [TestCase(48000)]
+        [TestCase(96000)]
+        [TestCase(192000)]
+        public void DownsamplingPreservesSpeechBandAndRejectsAliasing(int inputRate)
+        {
+            Assert.That(ResampledToneGain(inputRate, 1000), Is.EqualTo(1).Within(.01), "1 kHz speech band");
+            Assert.That(ResampledToneGain(inputRate, 6000), Is.EqualTo(1).Within(.01), "6 kHz consonant band");
+            Assert.That(ResampledToneGain(inputRate, 9000), Is.LessThan(.001), "9 kHz must be rejected by at least 60 dB");
+            Assert.That(ResampledToneGain(inputRate, 10000), Is.LessThan(.001), "10 kHz aliases to 6 kHz without filtering");
+        }
+
+        private static double ResampledToneGain(int inputRate, int frequency)
+        {
+            var input = new float[inputRate / 4];
+            for (int i = 0; i < input.Length; ++i)
+                input[i] = (float)(.5 * Math.Sin(2 * Math.PI * frequency * i / inputRate));
+            var output = RunResampler(input, inputRate, 16000, 1, input.Length, 137, 71);
+            // Exclude zero-padded boundaries, measuring total energy (including fractional-phase sidebands).
+            double energy = 0;
+            const int boundary = 256;
+            for (int i = boundary; i < output.Length - boundary; ++i) energy += output[i] * output[i];
+            double gain = Math.Sqrt(energy / (output.Length - 2 * boundary) * 2) / .5;
+            TestContext.WriteLine($"{inputRate} -> 16000 Hz, {frequency} Hz tone gain: {20 * Math.Log10(gain):F3} dB");
+            return gain;
         }
 
         [Test]

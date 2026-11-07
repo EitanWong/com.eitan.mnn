@@ -82,7 +82,7 @@ namespace MNN.Unity.Editor
                                 StopVoiceLoop();
                         }
 
-                        if (Selected != null && Selected.Supports(MNNModelCapabilities.SpeechOutput | MNNModelCapabilities.AudioInput) && !_audio.IsRecording)
+                        if (Selected != null && Selected.Task == MNNStudioTask.Chat && !_audio.IsRecording)
                         {
                             if (MNNStudioUI.Button(_voiceLoop ? "Voice on" : "Voice", 76, quiet: true, tooltip: "Open voice conversation"))
                             {

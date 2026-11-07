@@ -6,6 +6,7 @@ namespace MNN.Unity
     /// <summary>
     /// Stateful Silero v5 inference for consecutive mono 16 kHz PCM. Run on an audio-processing worker,
     /// never from an audio-device callback. Call Reset after any lost samples or format change.
+    /// Matching Silero loads share inference resources; this instance exclusively owns its stream state.
     /// </summary>
     public sealed class MNNRealtimeVoiceActivity : IDisposable, IMNNRealtimeVoiceActivity
     {
@@ -24,7 +25,7 @@ namespace MNN.Unity
 
         private MNNRealtimeVoiceActivity(string directory, int threads, MNNBackendType backend)
         {
-            _runner = new MNNSileroFrameRunner(directory, threads, backend);
+            _runner = MNNSileroFramePool.Acquire(directory, threads, backend);
         }
 
         public static MNNRealtimeVoiceActivity Load(string modelDirectory, int threadCount = 1,
@@ -130,7 +131,7 @@ namespace MNN.Unity
             {
                 if (_disposed) return;
                 _disposed = true;
-                _runner.Dispose();
+                MNNSileroFramePool.Release(_runner);
             }
         }
     }

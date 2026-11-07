@@ -11,7 +11,7 @@ namespace MNN.Unity
     /// <summary>Known and discovered Hugging Face-compatible sources with failure cooling.</summary>
     public sealed class MNNHuggingFaceSourcePool
     {
-        public static readonly string[] DefaultDiscoveryUrls = {"https://hf-mirror.com/", "https://hf-mirror.net/", "https://aifasthub.com/", "https://hf-cdn.sufy.com/"};
+        public static readonly string[] DefaultDiscoveryUrls = { "https://hf-mirror.com/", "https://hf-mirror.net/", "https://aifasthub.com/", "https://hf-cdn.sufy.com/" };
         private sealed class State
         {
             public readonly MNNHuggingFaceSource Mirror;
@@ -24,7 +24,7 @@ namespace MNN.Unity
             }
         }
 
-        private readonly object _sync = new object ();
+        private readonly object _sync = new object();
         private readonly List<State> _states = new List<State>();
         private readonly TimeSpan _failureCooldown;
         public MNNHuggingFaceSourcePool(IEnumerable<MNNHuggingFaceSource> mirrors = null, TimeSpan? failureCooldown = null)
@@ -109,11 +109,11 @@ namespace MNN.Unity
                     using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                     {
                         timeout.CancelAfter(TimeSpan.FromSeconds(8));
-                        using (var response = await client.GetAsync(indexUrl, timeout.Token).ConfigureAwait(false))
+                        using (var response = await client.GetAsync(indexUrl, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false))
                         {
                             if (!response.IsSuccessStatusCode)
                                 return 0;
-                            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            var body = await MNNModelMetadata.ReadTextAsync(response.Content, timeout.Token, 1024 * 1024).ConfigureAwait(false);
                             var added = 0;
                             foreach (var origin in ExtractHttpsOrigins(body))
                             {
@@ -131,7 +131,7 @@ namespace MNN.Unity
                 {
                     return 0;
                 }
-                catch (TaskCanceledException)when (!cancellationToken.IsCancellationRequested)
+                catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     return 0;
                 }

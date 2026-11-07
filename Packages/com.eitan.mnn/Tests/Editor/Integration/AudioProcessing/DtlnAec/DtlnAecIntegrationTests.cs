@@ -79,7 +79,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator StudioWindowRequiresBothInputsAndReturnsPlayableAudio()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             FieldInfo Field(string name) => typeof(MNNChatStudio).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
             object Invoke(string name) => typeof(MNNChatStudio).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(window, null);
             var model = MNNStudioModel.Read(DtlnAecTestData.ModelDirectory(128));

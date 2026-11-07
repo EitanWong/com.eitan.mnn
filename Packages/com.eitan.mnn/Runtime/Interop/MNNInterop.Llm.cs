@@ -1,4 +1,7 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_DESKTOP_TASK_ABI
+#endif
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_LLM_CPP_ABI
 #endif
 using System;
@@ -36,7 +39,7 @@ namespace MNN.Unity.Interop
         private static bool LoadModel(IntPtr model, bool embedding)
         {
             // createLLM uses these merged public flags to select Llm vs Omni.
-            var kind = JsonUtility.FromJson<ModelKind>(TakeString(DumpConfig(model)));
+            var kind = JsonUtility.FromJson<ModelKind>(DumpConfigurationText(model));
             // Embedding's factory always returns Embedding, irrespective of media flags.
             if (embedding) return LoadEmbeddingModel(model);
             return kind.is_visual || kind.is_audio || kind.has_talker
@@ -46,6 +49,8 @@ namespace MNN.Unity.Interop
 #if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKNSt6__ndk16vectorIiNS2_9allocatorIiEEEEb")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKSt6vectorIiSaIiEEb")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKNSt3__16vectorIiNS2_9allocatorIiEEEEb")]
 #endif
@@ -56,6 +61,8 @@ namespace MNN.Unity.Interop
 #if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm9createLLMERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm9createLLMERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm9createLLMERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #endif
@@ -66,6 +73,8 @@ namespace MNN.Unity.Interop
 #if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm10set_configERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm10set_configERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm10set_configERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #endif
@@ -89,6 +98,8 @@ namespace MNN.Unity.Interop
 #if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS5_EEPKci")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPSoPKci")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS5_EEPKci")]
 #endif
@@ -99,6 +110,8 @@ namespace MNN.Unity.Interop
 #if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm16tokenizer_encodeERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm16tokenizer_encodeERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm16tokenizer_encodeERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #endif
@@ -149,7 +162,7 @@ namespace MNN.Unity.Interop
         {
             RequireAbi();
             IntPtr model;
-            using (var path = new NativeString(config))
+            using (var path = new NativeString(config, filePath: true))
                 model = CreateLlm(ref path.Value);
             return FinishLoad(model, options, reranker);
         }

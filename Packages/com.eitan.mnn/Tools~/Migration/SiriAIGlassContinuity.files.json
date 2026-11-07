@@ -1,0 +1,89 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc",
+      "before": "b9c4ade25b9d6eafe8b6220b5f1f86508dce2290db9f1d1d9b8668493bf4555b",
+      "after": "1defdb928ae41b2c3c8fb3035a8085cc5d110991159158f060d3c9de08d4f3ab"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc.meta",
+      "before": "f8180bc2ea4c448b928894276ca660e1d156f086842494f08cd6c702b8873823",
+      "after": "f8180bc2ea4c448b928894276ca660e1d156f086842494f08cd6c702b8873823"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader",
+      "before": "7490b99c9ce9405dce2afa8994d81c3648b01baee13a6001b8abc40559479134",
+      "after": "96605f0d2992009f8d8976fe0eb96545ed6b9b459011cf29208db275f1585b4b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader.meta",
+      "before": "8f36ecbfcee1fad85721014f6a3fc19440448f2ffb442815ad63959cd7a7d8b4",
+      "after": "8f36ecbfcee1fad85721014f6a3fc19440448f2ffb442815ad63959cd7a7d8b4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader",
+      "before": "b48d3db084b33962af4aeb1f1c18a35e4933a43ea134a28b1a852ac829aeaad8",
+      "after": "f0649578cc8f1a03bc51dfd273f09b4c9e142e13b10b791de4085afbee993f8e"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader.meta",
+      "before": "9bbb667e5dd0a8d6efb12212ccc0f940d4ccd949bca2dc3d8be7098e7a18dcaf",
+      "after": "9bbb667e5dd0a8d6efb12212ccc0f940d4ccd949bca2dc3d8be7098e7a18dcaf"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc",
+      "before": "eb71fb8a797317e09680d9bd3964d2dad01b84ce5ba9c5b72ebdf550e4d3abff",
+      "after": "6782e2865a3db14dd4360e1b0c0380dd1ec3319cfcf3ae6dab25e8368593310d"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SpectrumStrands.cginc.meta",
+      "before": "a12ebd05b879bed3842b86a5d9ede1142c369b7adf58fb77a11b75e17bdfdf94",
+      "after": "a12ebd05b879bed3842b86a5d9ede1142c369b7adf58fb77a11b75e17bdfdf94"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/ThinkingFormation.cginc",
+      "before": "1ea4458b7fd4adbc04fa82cbf07cfc5bb6aa3687c2be7068d0ad62bd804ef4d5",
+      "after": "5385a71bcecb975b138d797f713ce277aa9aa9a9b05e5fa21cbc0bf87fec1a9f"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/ThinkingFormation.cginc.meta",
+      "before": "ed0cecf9a5e2a29b5652967bd0476f4a5a4783af0b7512f5061fd726d57e35db",
+      "after": "ed0cecf9a5e2a29b5652967bd0476f4a5a4783af0b7512f5061fd726d57e35db"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/OrbStyles.md",
+      "before": "4360ba2eb3dd835ff3c91a3bd02de8b6689f90a980269c3eace87f670d8f42da",
+      "after": "229ece8933a4c98e0f9baf2ef0b34ebc0a4b6efa3451d749ba4d2a0000145f60"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Fixtures/SiriAIOrbStyleView.cs",
+      "before": "4bdca46e54cdd2be5da6144bdf404924d03d2d82e6f8e30a3f4548e04c510e07",
+      "after": "6e73725c73e1e7749563205169dec00458acf0766b197f6c6e5e4877aa41a739"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Fixtures/SiriAIOrbStyleView.cs.meta",
+      "before": "679dba311ebafcd145beecaa7076b794d10b1770d03853ddcd8688b071435325",
+      "after": "679dba311ebafcd145beecaa7076b794d10b1770d03853ddcd8688b071435325"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs",
+      "before": "7193a836bf11c1ffb757e88237f26b48fcf6fe901f1f4bb2f2fc55bf4e2d0538",
+      "after": "1f6091e23b58908ef2fdfe486848796884ec2d4c2133873594fbd9e255259952"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs.meta",
+      "before": "67ea6c453de00cd9a1e3ef4c72af7dfff07a1d4d25fede96e9f65301f9cc9de6",
+      "after": "67ea6c453de00cd9a1e3ef4c72af7dfff07a1d4d25fede96e9f65301f9cc9de6"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs",
+      "before": "f01b16e1752ea73e3eef0c80049694fecbb83a8fdbd2b2bd27dfd4490d61543c",
+      "after": "0404a6499610f2637522368430007098001c875cca4eef4218ff74cd4ca5b8a7"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIWovenRibbonTests.cs.meta",
+      "before": "1c6737fb9863ee3d79182a20a0bb357bb389940b3270240a13f0106ea18c24b9",
+      "after": "1c6737fb9863ee3d79182a20a0bb357bb389940b3270240a13f0106ea18c24b9"
+    }
+  ]
+}

@@ -120,7 +120,7 @@ namespace MNN.Unity.Tests
             {
                 bool ocr = mode != 0, cropped = mode == 1;
                 var model = MNNStudioModel.Read(ocr ? _directory : Path.Combine(_root,"modelscope",MNNYoloV8Model.Repository));
-                var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+                var window = StudioWindowFixture.Create<MNNChatStudio>();
                 Action<string,object> set = (name,value)=>typeof(MNNChatStudio).GetField(name,flags).SetValue(window,value);
                 Func<string,object> get = name=>typeof(MNNChatStudio).GetField(name,flags).GetValue(window);
                 Func<string,object> invoke = name=>typeof(MNNChatStudio).GetMethod(name,flags).Invoke(window,null);

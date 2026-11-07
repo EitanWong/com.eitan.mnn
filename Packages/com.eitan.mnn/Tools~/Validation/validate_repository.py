@@ -24,7 +24,10 @@ MODEL_PATTERNS = (
     "*.mnn", "*.mnn.weight", "*.safetensors", "*.onnx", "*.tflite", "*.gguf",
     "*.pt", "*.pth", "pytorch_model*.bin",
 )
-FIXTURE = "Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn"
+FIXTURES = {
+    "Packages/com.eitan.mnn/Tests/Fixtures/affine.mnn",
+    "Packages/com.eitan.mnn/Tests/Fixtures/affine-inputs.mnn",
+}
 LOCAL_PACKAGES = {"com.eitan.easymic", "com.eitan.easymic.apm"}
 
 
@@ -58,7 +61,7 @@ def local_only(name):
         path.suffix in LOCAL_SUFFIXES,
         fnmatch.fnmatch(path.name, "mono_cras*.json"),
         fnmatch.fnmatch(path.name, "mono_cras*.blob"),
-        plain != FIXTURE and any(fnmatch.fnmatch(PurePosixPath(plain).name, pattern) for pattern in MODEL_PATTERNS),
+        plain not in FIXTURES and any(fnmatch.fnmatch(PurePosixPath(plain).name, pattern) for pattern in MODEL_PATTERNS),
     ))
 
 

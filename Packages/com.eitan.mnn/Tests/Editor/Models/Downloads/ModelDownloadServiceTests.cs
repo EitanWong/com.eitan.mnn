@@ -112,7 +112,7 @@ namespace MNN.Unity.Tests
             Assert.IsFalse(File.Exists(Path.Combine(staging, "training-data.jsonl")));
         }
 
-        [UnityTest, Explicit("Downloads the small official MobileLLM MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Downloads the small official MobileLLM MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
         public IEnumerator ModelScopeMobileLlmDownloadsOnlyItsRuntimeProfile()
         {
             string root = Environment.GetEnvironmentVariable("MNN_TEST_MOBILE_LLM_ROOT");
@@ -132,7 +132,7 @@ namespace MNN.Unity.Tests
             Assert.IsFalse(File.Exists(Path.Combine(root, ".gitattributes")), "Repository bookkeeping is excluded by the generic runtime filter.");
         }
 
-        [UnityTest, Explicit("Downloads the small official SmolLM2 MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Downloads the small official SmolLM2 MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
         public IEnumerator ModelScopeSmolLlmDownloadsOnlyItsRuntimeProfile()
         {
             string root = Environment.GetEnvironmentVariable("MNN_TEST_SMOL_LLM_ROOT");
@@ -152,7 +152,7 @@ namespace MNN.Unity.Tests
             Assert.IsFalse(File.Exists(Path.Combine(root, ".gitattributes")), "Repository bookkeeping is excluded by the generic runtime filter.");
         }
 
-        [UnityTest, Explicit("Downloads the official Qwen2.5-0.5B MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Downloads the official Qwen2.5-0.5B MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
         public IEnumerator ModelScopeQwen25SmallDownloadsOnlyItsRuntimeProfile()
         {
             string root = Environment.GetEnvironmentVariable("MNN_TEST_QWEN25_LLM_ROOT");
@@ -172,7 +172,7 @@ namespace MNN.Unity.Tests
             Assert.IsFalse(File.Exists(Path.Combine(root, ".gitattributes")), "Repository bookkeeping is excluded by the generic runtime filter.");
         }
 
-        [UnityTest, Explicit("Downloads the official Qwen3-0.6B MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Downloads the official Qwen3-0.6B MNN profile from ModelScope; prepared weights are required by the Studio smoke test.")]
         public IEnumerator ModelScopeQwen3SmallDownloadsOnlyItsRuntimeProfile()
         {
             string root = Environment.GetEnvironmentVariable("MNN_TEST_QWEN3_LLM_ROOT");
@@ -520,7 +520,7 @@ namespace MNN.Unity.Tests
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => _factory(request, token);
         }
 
-        [UnityTest, Explicit("Downloads a 566 KB LFS file from ModelScope CDN")]
+        [UnityTest, Category("RequiresNetwork"), Explicit("Downloads a 566 KB LFS file from ModelScope CDN")]
         public IEnumerator DownloadRepositoryFileAsync_ModelScopeLfsRedirect_DownloadsCompleteFile()
         {
             var destination = Path.Combine(_root, "llm.mnn");

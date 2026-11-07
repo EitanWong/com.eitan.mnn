@@ -1,0 +1,284 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/Unity/SiriAIUnityAudio.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/Unity/SiriAIUnityAudio.cs
+@@ -76,7 +76,7 @@
+         { if (!DeviceSession.IsReady) throw new InvalidOperationException("Open audio before enabling capture."); SetCaptureEnabled(true); }
+         public override void SetCaptureEnabled(bool enabled) => DeviceSession.SetCaptureEnabled(RequestCapture(enabled));
+         private void Update()
+-        { UpdateSoundCaptureSafety(); if (_deviceSession != null) { _deviceSession.SetCaptureEnabled(CaptureAllowed); _deviceSession.Tick(); } }
++        { UpdateSoundCaptureSafety(); _deviceSession?.Tick(); }
+         private string GetRouteFailure() => DeviceSession.GetRouteFailure();
+         public override void Close()
+         {
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/EasyMic/SiriAIEasyMicAudio.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/EasyMic/SiriAIEasyMicAudio.cs
+@@ -124,7 +124,7 @@
+         private void RecordingChanged(bool recording)
+         { if (recording) _capturePipeline?.GetWorker<Capturer>()?.SetSink(null); }
+         private void Update()
+-        { UpdateSoundCaptureSafety(); if (_deviceSession != null) { _deviceSession.SetCaptureEnabled(CaptureAllowed); _deviceSession.Tick(); } }
++        { UpdateSoundCaptureSafety(); _deviceSession?.Tick(); }
+         private void RefreshEchoControl()
+         {
+             object diagnostics = null; bool recording = _microphone != null && _microphone.IsRecording;
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs
+@@ -0,0 +1,245 @@
++using System;
++using System.Collections;
++using System.Diagnostics;
++using System.Reflection;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.TestTools;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIUnityRecordingTests
++    {
++        private GameObject _cleanupRoot;
++        private MNNRealtimeDeviceSession _cleanupSession;
++
++        [UnityTearDown]
++        public IEnumerator Cleanup()
++        {
++            if (_cleanupSession != null)
++            {
++                Task close = _cleanupSession.CloseAsync();
++                while (!close.IsCompleted) yield return null;
++                close.GetAwaiter().GetResult();
++                _cleanupSession = null;
++            }
++            if (_cleanupRoot != null) UnityEngine.Object.DestroyImmediate(_cleanupRoot);
++            _cleanupRoot = null;
++        }
++
++        [UnityTest, Explicit("Requires microphone permission, active Unity audio, and an installed DTLN model; no downloads.")]
++        public IEnumerator PhysicalUnityMicrophoneCompletesRepeatedRecordings()
++        {
++            yield return new EnterPlayMode();
++            yield return RunPhysicalRecordings();
++            yield return new ExitPlayMode();
++        }
++
++        private static IEnumerator RunPhysicalRecordings()
++        {
++            string directory = Environment.GetEnvironmentVariable("SIRIAI_TEST_DTLN_MODEL");
++            Assert.True(System.IO.Directory.Exists(directory), "Set SIRIAI_TEST_DTLN_MODEL to an existing DTLN installation.");
++            var root = new GameObject("Physical recording acceptance");
++            if (UnityEngine.Object.FindObjectsOfType<AudioListener>().Length == 0) root.AddComponent<AudioListener>();
++            var microphoneRoot = new GameObject("Microphone"); microphoneRoot.transform.SetParent(root.transform);
++            var playbackRoot = new GameObject("Playback"); playbackRoot.transform.SetParent(root.transform);
++            var microphone = microphoneRoot.AddComponent<MNNUnityMicrophoneCapture>();
++            var source = playbackRoot.AddComponent<AudioSource>();
++            Assert.IsNotNull(source, "Unity did not create the physical playback AudioSource.");
++            source.playOnAwake = false;
++            var playback = playbackRoot.AddComponent<MNNRealtimeAudioDevice>();
++            var audio = root.AddComponent<SiriAIUnityAudio>();
++            audio.Configure(microphone, playback);
++            var binding = new MNNUnityAudioDeviceBinding(microphone, playback);
++            var session = new MNNRealtimeDeviceSession(binding,
++                new MNNRealtimeDeviceSessionOptions { EchoEnabled = true, EchoModelDirectory = directory,
++                    Echo = new MNNEchoCancellationOptions { automaticDelay = false } });
++            typeof(SiriAIUnityAudio).GetField("_deviceSession", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(audio, session);
++            MNNRealtimeAudioCaptureWorker worker = null;
++            using var frames = new MNNRealtimeModelInputBuffer(64, TimeSpan.FromMilliseconds(250));
++            try
++            {
++                Task opening = session.OpenAsync(CancellationToken.None);
++                float deadline = Time.realtimeSinceStartup + 20;
++                while (!opening.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
++                Assert.True(opening.IsCompleted, "Physical device startup timed out.");
++                opening.GetAwaiter().GetResult();
++                worker = new MNNRealtimeAudioCaptureWorker(audio.Capture,
++                    new MNNRealtimeVoiceInputProcessor(session.Capture.CaptureFormat, MNNRealtimeFrameVoiceActivity.Energy(.01f),
++                        session.Capture.MaximumCaptureSamples), frames, maximumCaptureAge: TimeSpan.FromMilliseconds(250));
++                var input = new MNNConversationInputState();
++                var pcm = new float[512];
++                int gaps = 0;
++                Action consume = () =>
++                {
++                    while (frames.TryRead(pcm, 0, out var info))
++                    {
++                        if (info.Discontinuity) ++gaps;
++                        input.Consume(pcm, discontinuity: info.Discontinuity);
++                    }
++                };
++                var recording = new MNNConversationRecording(input)
++                {
++                    PauseCaptureAsync = token => ((ISiriAIDrainableCapture)audio.Capture).PauseCaptureAsync(token),
++                    SetCaptureEnabled = audio.SetCaptureEnabled,
++                    FlushInputAsync = async () => { await worker.FlushAsync(); consume(); },
++                    LostInputFrames = () => audio.Capture.DroppedCaptureBlocks + worker.ExpiredCaptureBlocks +
++                        frames.DroppedFrames + frames.ExpiredFrames
++                };
++                float[] submitted = null;
++                var commands = new MNNConversationCommands(new MNNConversationCommandBindings(input, recording)
++                {
++                    SessionState = () => MNNRealtimeSessionState.Running,
++                    SupportsRecordedVoice = () => true,
++                    SetCaptureEnabled = audio.SetCaptureEnabled,
++                    SubmitAudioAsync = (samples, _) => { submitted = samples; return Task.CompletedTask; }
++                });
++                worker.Start();
++                // Continuous background capture matches a session with wake monitoring enabled.
++                audio.SetCaptureEnabled(true);
++                for (int cycle = 0; cycle < 3; ++cycle)
++                {
++                    Task<bool> start = commands.BeginRecordingAsync();
++                    deadline = Time.realtimeSinceStartup + 3;
++                    while (!start.IsCompleted && Time.realtimeSinceStartup < deadline) { consume(); yield return null; }
++                    Assert.True(start.IsCompleted, "Recording preparation timed out.");
++                    Assert.True(start.GetAwaiter().GetResult());
++                    deadline = Time.realtimeSinceStartup + 2;
++                    while (Time.realtimeSinceStartup < deadline) { consume(); yield return null; }
++                    Task<string> finish = commands.FinishRecordingAsync(false);
++                    deadline = Time.realtimeSinceStartup + 3;
++                    while (!finish.IsCompleted && Time.realtimeSinceStartup < deadline) { consume(); yield return null; }
++                    TestContext.WriteLine($"cycle={cycle}; gaps={gaps}; captureDrops={audio.Capture.DroppedCaptureBlocks}; captureExpired={worker.ExpiredCaptureBlocks}; modelDrops={frames.DroppedFrames}; modelExpired={frames.ExpiredFrames}; ringOverruns={microphone.OverrunFrames}");
++                    Assert.True(finish.IsCompleted, "Recording completion timed out.");
++                    finish.GetAwaiter().GetResult();
++                    Assert.Greater(submitted.Length, 16000);
++                    Assert.IsNull(audio.Fault);
++                    Assert.Zero(microphone.OverrunFrames);
++                    audio.SetCaptureEnabled(true);
++                }
++            }
++            finally
++            {
++                worker?.Dispose();
++                session.Close();
++                UnityEngine.Object.DestroyImmediate(root);
++            }
++        }
++
++        [UnityTest]
++        public IEnumerator RecordingTailStaysContinuousWhenUnityUpdatesDuringPause()
++        {
++            var root = new GameObject("Recording tail gate ownership");
++            _cleanupRoot = root;
++            var audio = root.AddComponent<SiriAIUnityAudio>();
++            var binding = new Binding();
++            var model = new EchoModel();
++            var session = new MNNRealtimeDeviceSession(binding,
++                new MNNRealtimeDeviceSessionOptions { EchoEnabled = true, Echo = new MNNEchoCancellationOptions { automaticDelay = false } },
++                echoFactory: (source, rate, frames) => new MNNEchoCancellationWorker(source, model, rate,
++                    new MNNEchoCancellationOptions { automaticDelay = false }, frames));
++            _cleanupSession = session;
++            typeof(SiriAIUnityAudio).GetField("_deviceSession", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(audio, session);
++            var input = new MNNConversationInputState();
++            using var frames = new MNNRealtimeModelInputBuffer(64, Timeout.InfiniteTimeSpan);
++            MNNRealtimeAudioCaptureWorker worker = null;
++            try
++            {
++                Task opening = session.OpenAsync(CancellationToken.None);
++                while (!opening.IsCompleted) yield return null;
++                opening.GetAwaiter().GetResult();
++                worker = new MNNRealtimeAudioCaptureWorker(audio.Capture,
++                    new MNNRealtimeVoiceInputProcessor(binding.CaptureFormat, MNNRealtimeFrameVoiceActivity.Energy(.01f), 128),
++                    frames, maximumCaptureAge: Timeout.InfiniteTimeSpan);
++                worker.Start();
++                input.BeginRecording();
++                audio.SetCaptureEnabled(true);
++                var pcm = new float[512];
++                for (int block = 0; block < 40; ++block)
++                {
++                    binding.Submit();
++                    while (Volatile.Read(ref model.Blocks) < block) yield return null;
++                    yield return null;
++                    while (frames.TryRead(pcm, 0, out var info)) input.Consume(pcm, discontinuity: info.Discontinuity);
++                }
++                Assert.GreaterOrEqual(input.Duration, .25f);
++                Task pause = ((ISiriAIDrainableCapture)audio.Capture).PauseCaptureAsync(CancellationToken.None);
++                Assert.False(pause.IsCompleted, "The delayed echo tail needs more physical capture.");
++                yield return new WaitForSecondsRealtime(.01f);
++                // The production MonoBehaviour runs this every frame while PauseCaptureAsync awaits its tail.
++                typeof(SiriAIUnityAudio).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(audio, null);
++                for (int block = 40; block < 50 && !pause.IsCompleted; ++block)
++                {
++                    binding.Submit();
++                    while (Volatile.Read(ref model.Blocks) < block) yield return null;
++                    yield return new WaitForSecondsRealtime(.004f);
++                    while (frames.TryRead(pcm, 0, out var info)) input.Consume(pcm, discontinuity: info.Discontinuity);
++                }
++                float deadline = Time.realtimeSinceStartup + 2;
++                while (!pause.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
++                Assert.True(pause.IsCompleted, "The physical tail must finish without reopening capture.");
++                pause.GetAwaiter().GetResult();
++                Task flush = worker.FlushAsync();
++                while (!flush.IsCompleted) yield return null;
++                flush.GetAwaiter().GetResult();
++                while (frames.TryRead(pcm, 0, out var info)) input.Consume(pcm, discontinuity: info.Discontinuity);
++                Assert.Zero(audio.Capture.DroppedCaptureBlocks);
++                Assert.Zero(worker.DroppedModelFrames);
++                float[] recording = input.FinishRecording(false);
++                Assert.GreaterOrEqual(recording.Length, 4096);
++                Assert.That(recording, Has.Some.GreaterThan(.1f));
++            }
++            finally
++            {
++                worker?.Dispose();
++                session.Close();
++            }
++        }
++
++        private sealed class Binding : MNNRealtimeDeviceBinding, IMNNAudioCaptureSource, IDisposable
++        {
++            private readonly MNNAudioCaptureBuffer _queue = new MNNAudioCaptureBuffer(64, 128);
++            private readonly float[] _pcm = new float[128];
++            private long _sequence;
++            public MNNPcmFormat CaptureFormat => new MNNPcmFormat(16000, 1);
++            public int MaximumCaptureSamples => 128;
++            public long DroppedCaptureBlocks => _queue.DroppedBlocks;
++            public bool HasPendingCaptureFrames => _queue.HasPendingFrames;
++            public override IMNNAudioCaptureSource Capture => this;
++            public override MNNPcmFormat OutputFormat => CaptureFormat;
++            public override void ValidateFresh() { }
++            public override void StartCapture(Action<MNNPcmFormat, int> negotiated) => negotiated(CaptureFormat, 128);
++            public override void BindOutput(MNNRealtimeOutputPipeline output, MNNPcmFormat format, int capacity) { }
++            public override void StartPlayback() { }
++            public override void SetCaptureEnabled(bool enabled) { }
++            public override IDisposable BindEchoReference(MNNEchoCancellationWorker worker) => this;
++            public override MNNRealtimeDeviceSnapshot ReadState() => new MNNRealtimeDeviceSnapshot(true, true, true, false,
++                true, true, true, true, true, CaptureFormat);
++            internal void Submit()
++            {
++                Array.Fill(_pcm, .25f);
++                long sequence = _sequence++;
++                Assert.True(_queue.TryWrite(_pcm, 0, _pcm.Length,
++                    new MNNAudioFrameInfo(1, 1, sequence, sequence * 128, Stopwatch.GetTimestamp(), CaptureFormat)));
++            }
++            public bool TryReadCapture(float[] pcm, int offset, out MNNAudioFrameInfo info, out int count) =>
++                _queue.TryRead(pcm, offset, out info, out count);
++            public override void StopCapture() { }
++            public override void StopPlayback() { }
++            public override void ResetForRetry() { }
++            public void Dispose() { }
++        }
++
++        private sealed class EchoModel : IMNNEchoHopProcessor
++        {
++            internal int Blocks;
++            public void Reset() { }
++            public void ProcessHop(float[] microphone, float[] reference, float[] output)
++            { Array.Copy(microphone, output, 128); Interlocked.Increment(ref Blocks); }
++            public void Dispose() { }
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: a4067eb825c44510af3d91cf5e965da3
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData:
++  assetBundleName:
++  assetBundleVariant:

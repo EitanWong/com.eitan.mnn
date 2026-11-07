@@ -12,7 +12,7 @@ using UnityEngine;
 namespace MNN.Unity
 {
     /// <summary>
-    /// Reusable OpenAI-compatible HTTP transport. Requests never follow authenticated redirects.
+    /// Reusable OpenAI-compatible HTTP transport. The default transport refuses redirects.
     /// Text and PCM are consumed incrementally with awaited backpressure; no scene or device ownership.
     /// </summary>
     public sealed class MNNOpenAIClient : IDisposable
@@ -25,6 +25,13 @@ namespace MNN.Unity
         private readonly TimeSpan _timeout;
         private const int MaximumEventBytes = 65536;
 
+        /// <param name="endpoint">HTTPS API base URL, or HTTP loopback for development.</param>
+        /// <param name="key">Optional bearer credential.</param>
+        /// <param name="timeout">Deadline for each complete request, including response consumption.</param>
+        /// <param name="client">Optional borrowed client. Its owner must disable automatic redirects
+        /// (HttpClientHandler.AllowAutoRedirect = false), including same-origin redirects: a 307/308
+        /// can resend the conversation or audio body before this API sees the response.
+        /// This API cannot inspect or change an existing client's handler policy.</param>
         public MNNOpenAIClient(Uri endpoint, string key, TimeSpan timeout, HttpClient client = null)
         {
             if (endpoint == null || !endpoint.IsAbsoluteUri ||

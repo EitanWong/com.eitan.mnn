@@ -10,7 +10,7 @@ namespace MNN.Unity.Editor
     // Cache only complete provider snapshots. Installation state belongs to the current project scan.
     internal sealed class MNNModelCatalogCache
     {
-        internal const int SchemaVersion = 28; // Pinned document layout pipeline and Studio workspace.
+        internal const int SchemaVersion = 29; // Specific audio task categories; migrate old cached entries offline.
         internal static MNNModelCatalogCache Shared { get; set; } = new MNNModelCatalogCache(
             Path.GetFullPath("Library/MNN/ModelCatalog"), DiscoverAsync, paged: true);
 
@@ -77,8 +77,10 @@ namespace MNN.Unity.Editor
                             Validate(stored, provider);
                             if (stored.RequiresRefresh)
                                 foreach (var model in stored.models)
-                                    if (MNNModelRepository.Classify(model.repositoryId, model.name, tasks: model.tasks, tags: model.tags, paths: model.mnnFiles) == MNNModelCategory.KeywordSpotting.ToString())
-                                        model.category = MNNModelCategory.KeywordSpotting.ToString();
+                                {
+                                    string category = MNNModelRepository.Classify(model.repositoryId, model.name, tasks: model.tasks, tags: model.tags, paths: model.mnnFiles);
+                                    if (MNNModelCatalog.IsSpecificAudioCategory(category)) model.category = category;
+                                }
                             _memory[provider] = stored;
                             break;
                         }
@@ -230,25 +232,12 @@ namespace MNN.Unity.Editor
 
         private static async Task<MNNModelRepository> DiscoverPageAsync(MNNModelProvider provider, int stream, int pageNumber, string cursor)
         {
-            var repository = new MNNModelRepository();
-            if (provider == MNNModelProvider.ModelScope)
-            {
-                var page = await MNNModelManager.SearchModelScopeCatalogPageAsync(stream, pageNumber).ConfigureAwait(false);
-                repository.models.AddRange(page.Models.Select(MNNModelRepository.FromRemote));
-                repository.AddDiscoveryWarnings(page.Warnings);
-                repository.NextModelScopePage = page.NextPage;
-                repository.NextSearchStream = stream;
-                if (page.NextPage == 0 && stream < 2) { repository.NextSearchStream = stream + 1; repository.NextModelScopePage = 1; }
-                repository.HasMorePages = repository.NextModelScopePage > 0;
-            }
-            else
-            {
-                var page = await MNNModelManager.SearchHuggingFaceCatalogPageAsync(stream, cursor).ConfigureAwait(false);
-                repository.models.AddRange(page.Models.Select(MNNModelRepository.FromRemote));
-                repository.NextHuggingFaceCursor = page.NextCursor;
-                repository.NextSearchStream = page.NextCursor == null && stream < 2 ? stream + 1 : stream;
-                repository.HasMorePages = page.NextCursor != null || stream < 2;
-            }
+            var page = await new MNNModelCatalog().FetchCatalogPageAsync((MNNModelSource)provider,
+                stream, pageNumber, cursor).ConfigureAwait(false);
+            var repository = new MNNModelRepository { NextModelScopePage = page.NextPage,
+                NextHuggingFaceCursor = page.NextCursor, NextSearchStream = page.NextStream, HasMorePages = page.HasMore };
+            repository.models.AddRange(page.Models.Select(MNNModelRepository.FromRemote));
+            repository.AddDiscoveryWarnings(page.Warnings);
             return repository;
         }
     }

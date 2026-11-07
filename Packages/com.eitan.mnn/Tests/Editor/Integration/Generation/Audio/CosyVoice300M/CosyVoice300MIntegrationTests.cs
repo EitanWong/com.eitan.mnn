@@ -85,9 +85,10 @@ namespace MNN.Unity.Tests
             Assert.IsTrue(model.IsCosyVoice300M);
             Assert.IsFalse(model.IsCosyVoice);
             Assert.IsTrue(MNNStudioTasks.Get((int)MNNStudioTask.SpeechSynthesis).CanRun(model));
+            var loader = MNNStudioNativeBackend.CreateLoader(model, 4, false);
             var result = Task.Run(() =>
             {
-                using (var backend = MNNStudioNativeBackend.Load(model, 4, false))
+                using (var backend = loader())
                     return backend.Run(new MNNStudioRequest {Prompt = "你好，欢迎使用语音合成。", Seed = 42});
             }).GetAwaiter().GetResult();
             Assert.AreEqual(22050, result.SampleRate);

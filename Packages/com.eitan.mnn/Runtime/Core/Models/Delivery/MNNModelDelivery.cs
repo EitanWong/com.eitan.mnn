@@ -12,7 +12,6 @@ namespace MNN.Unity
     /// <summary>Call from Unity's main thread. Prepares verified model files before invoking any inference API.</summary>
     public sealed class MNNModelDelivery
     {
-        private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new ConcurrentDictionary<string, SemaphoreSlim>();
         private readonly MNNModelDeliveryManifest _manifest;
         private readonly string _streamingRoot;
         private readonly string _persistentRoot;
@@ -78,9 +77,7 @@ namespace MNN.Unity
         {
             var destination = MNNModelAssetDownloader.ResolvePath(_persistentRoot, file.path);
             var source = StreamingFile(_streamingRoot, MNNModelDeliveryManifest.ModelsPath + "/" + file.path);
-            var gate = Gates.GetOrAdd(destination, _ => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync(token);
-            try
+            using (var pathLease = await MNNModelPathGate.EnterAsync(destination, token))
             {
                 if (await IsValidAsync(destination, file, token)) return destination;
                 if (file.bundled)
@@ -134,13 +131,16 @@ namespace MNN.Unity
                 using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
                 {
                     timeout.CancelAfter(TimeSpan.FromSeconds(_manifest.requestTimeout));
+                    pathLease.Dispose(); // The transfer re-enters the same file gate and verifies after acquiring it.
                     return await MNNModelAssetDownloader.EnsureAsync(_persistentRoot, new MNNModelAssetFile
                     {
-                        path = file.path, url = file.url, sha256 = file.sha256, bytes = file.bytes
+                        path = file.path,
+                        url = file.url,
+                        sha256 = file.sha256,
+                        bytes = file.bytes
                     }, progress, timeout.Token);
                 }
             }
-            finally { gate.Release(); }
         }
 
         private static Task<bool> IsValidAsync(string path, MNNModelDeliveryFile file, CancellationToken token) => RunFileOperationAsync(() =>

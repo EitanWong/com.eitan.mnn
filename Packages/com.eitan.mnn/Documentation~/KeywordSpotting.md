@@ -1,6 +1,6 @@
-# 中文唤醒词检测（KWS）
+# 中英文唤醒词检测（KWS）
 
-支持 Wenetspeech 3.3M Zipformer2 中文唤醒词模型。模型推理由现有的官方 MNN
+支持 Wenetspeech 3.3M 中文和 GigaSpeech 3.3M 英文 Zipformer2 唤醒词模型。模型推理由现有的官方 MNN
 C++ Interpreter、Tensor 和 Module API 执行；特征提取、关键词图、beam search、
 置信度判定和流式缓存由 C# 实现。不依赖 sherpa 原生库，没有新增 C++ 或自定义 C 导出。
 
@@ -21,16 +21,39 @@ macOS 64 位 Mono。它是本项目针对随包二进制维护的 ABI 契约，�
 6. `Load demo recording` 会选中随模型安装的 `test_wavs/3.wav` 和它的关键词配置。
    点 `Run`，结果应包含“文森特卡索”和“法国”。`Use example wake words` 恢复默认短语。
 
-关键词格式遵循模型的拼音声母、韵母 token，**不能直接填写任意汉字或数字声调拼音**：
+直接输入想说的唤醒词，一行一个，无需填写拼音、token、`@` 标记或生成关键词文件：
 
 ```text
-x iǎo ài t óng x ué @小爱同学
-n ǐ h ǎo w èn w èn @你好问问
-x iǎo m ǐ x iǎo m ǐ :1.5 #0.35 @小米小米
+小爱同学
+你好问问
+小米小米
 ```
 
-`@` 后是结果显示名；可选的 `:boost` 与 `#threshold` 覆盖该短语的全局设置。
-拼音必须出现在 `tokens.txt` 中，未知 token 会给出错误。不会自动猜测汉字读音。
+语言可选 `Automatic`、`Chinese` 或 `English`。单个 `MNNKeywordSpotter` 对应一种语言，
+自动模式检查文字与所加载模型是否兼容；Studio 以选中的模型为准，选择英文模型时
+默认 `Siri` 和 `Hey Siri`，并提供英文演示录音。选择中文模型时使用上述中文示例。
+`MNNKeywordSpotter.Language` / `MNNKeywordSpotterConfig.Language` 公开模型语言。
+
+SiriAI 运行时的唤醒词列表支持逐项添加、修改和删除，默认英文 `Siri` / `Hey Siri`。
+选择自动语言后可在同一列表添加中文和英文短语，每项只使用一种语言；底层分组并仅加载
+实际用到的语言模型，两种语言均存在时会同时运行两个检测器。也可以显式限定中文或英文，
+不兼容的输入会在保存/启动前提示。单个短语内的中英混合、数字和标点暂不支持。
+
+英文输入由 C# 自动规范化并按固定的 500-piece SentencePiece 词表分词。发布文件虽名为
+`bpe.model`，其模型类型实际为 unigram，底层使用对应的 Viterbi 分词；开发者和用户
+无需填写 token、转换文件或调用 Python。发音由英文声学模型负责，不用中文读音近似英文。
+
+底层使用随包发布的离线汉字/词组发音表自动生成模型所需的声母、带调韵母并校验
+词表和长度。常见多音词按最长词组匹配；人名、罕见字和特定语境读音仍需实际录音
+确认。无需 Python、额外模型、联网转换或用户维护转换文件。
+多个短语不能具有相同读音，否则会提示保留一个，避免同一声音对应多个结果。
+旧版本保存的 token 配置仍可读取；新代码与 UI 只需填写自然文字。
+
+共享默认阈值为 `MNNKeywordSpotter.DefaultThreshold`（0.15），boost 为1、搜索保留4条不同历史，
+词尾默认按语言确认：英文连续5帧空白（约200ms）、中文2帧（约80ms），避免漏掉连读的中文短语。
+`Reset` 的 `trailingBlanks=0` 自动选择语言，正数可显式覆盖；阈值、boost、搜索数量也可覆盖。
+文件与实时接口默认一致。已有手动保存的阈值继续生效，Studio 可在检测阈值中调整。
+低音量输入只在特征私有副本中做有上限的增益，近静音不放大，原始PCM与对话音频保持不变。
 阈值越高越难触发；boost 越高越容易保留关键词搜索路径，也可能增加误触发。
 置信度是命中 token 的平均声学概率，不是校准后的“唤醒正确率”。重叠短语可能
 优先返回较短短语；通过关键词配置及阈值在目标设备上评测。
@@ -42,7 +65,7 @@ using MNN.Unity;
 
 using (var kws = MNNKeywordSpotter.Load(modelDirectory))
 {
-    const string keywords = "x iǎo ài t óng x ué @小爱同学";
+    const string keywords = "小爱同学";
     var matches = kws.DetectWaveFile(wavPath, keywords);
     foreach (var match in matches)
         UnityEngine.Debug.Log($"{match.Keyword}: {match.StartSeconds:F2}s, {match.Confidence:P1}");
@@ -65,7 +88,27 @@ Studio 的 live 推理在后台运行，关闭窗口后会等待正在执行的�
 
 ## 模型与验证
 
-下载固定版本 `df5d5e80a73b139d19217c46a9c72b6508c98b37`，只安装所需的
+发音数据来自 MIT 许可的 [pypinyin 0.55.0](https://github.com/mozillazg/python-pinyin/tree/v0.55.0)，
+许可见 [发音数据许可](KeywordPronunciationLicense.md)。重建工具为
+`Tools~/Models/generate_kws_pronunciations.py --tokens <已安装模型的 tokens.txt>`；
+只在维护时需要 pypinyin 0.55.0，运行时全部由 C# 执行。
+
+英文模型准备（本工程已安装到 `Assets/StreamingAssets/MNN/Models/English-KWS-GigaSpeech`）：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Models/prepare_english_kws.py --converter /path/to/MNNConvert
+# 只验证现有模型，不下载、不转换：
+python3 Packages/com.eitan.mnn/Tools~/Models/prepare_english_kws.py --verify-only
+```
+
+使用已有官方 MNN 3.6.1 转换器；工具固定 sherpa-onnx 官方
+`kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01` 发布包及 SHA-256，
+校验源 ONNX、转换后 MNN、词表和 SentencePiece 模型后生成 `mnn_kws.json`。
+转换日志在 `TestArtifacts~/EnglishKwsPreparation`。新工程需先完成此准备，运行时自动选模型
+不会自动联网下载。模型及嵌入词表许可见 [英文模型许可说明](EnglishKeywordModelNotice.md)。
+`--vocabulary-output <path>` 是维护时的词表重建选项，需要 Python sentencepiece；产品运行不需要。
+
+中文模型下载固定版本 `df5d5e80a73b139d19217c46a9c72b6508c98b37`，只安装所需的
 encoder、decoder、joiner、197-token 词表、说明和一个演示录音；不下载 ONNX 或其他重复权重。
 下载时逐文件检查 SHA-256，准备根目录 `mnn_kws.json`；加载时重新验证三个图及词表。
 支持仓库原始嵌套目录和本工程的扁平目录，修改模型文件名或任意替换图不受支持。
@@ -77,3 +120,37 @@ encoder、decoder、joiner、197-token 词表、说明和一个演示录音；�
 不规则 PCM 分块、状态复位、下载哈希和 Studio 路由。录音样例测试不能代表远场、
 噪声或任意自定义短语的误唤醒率；真实麦克风环境需单独评测。
 运行方法和本次证据见 [测试说明](Testing.md)。
+
+## 短英文唤醒词的回归
+
+英文模型在流开始时使用一个 320 ms 的内部静音块建立初始声学上下文，返回的时间戳
+已扣除该内部块，仍对应调用者的 PCM。关键词分数在候选路径裁剪前应用，声学置信阈值
+仍使用原始概率；不通过降低默认阈值补偿漏检。Studio 文件、监听和 SiriAI 使用同一实现。
+
+维护者可使用本机已有的 macOS 英语声音重建短语测试音频：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Testing/prepare_english_wake_fixtures.py
+```
+
+将输出目录设为 `MNN_TEST_WAKE_FIX_AUDIO`，英文模型目录设为 `MNN_ENGLISH_KWS_MODELS`，
+执行 `EnglishKeywordSpotterIntegrationTests`。测试分别检查两种声音的 Siri / Hi Siri /
+Hey Siri、低音量、静音前缀、逐块输入与文件输入一致性，并拒绝静音及无关录音。
+SiriAI 的 `SiriAIRealtimeEntranceTests.SynthesizedEnglishWakeTraversesCaptureAndEntersRealtimeConversation`
+另验证连续采集处理到实时入口和命令音频交接。合成录音仅用于回归，不能代表真人准确率。
+
+### 灵敏度回归
+
+使用现有macOS系统音色生成可复现的中英文音频，无模型或依赖下载：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Testing/prepare_english_wake_fixtures.py \
+  --sensitivity --output TestArtifacts~/WakeSensitivity/audio
+```
+
+设置 `MNN_TEST_WAKE_SENSITIVITY_AUDIO`、`MNN_ENGLISH_KWS_MODELS` 与 `MNN_TEST_KWS_MODELS`，
+运行 `KeywordSensitivityIntegrationTests`。测试使用6种合成音色、96条正常/十分之一音量/
+1.12倍播放速度与音高/低音量加20dB白噪声变体，以及84条普通和相近词负例、静音与噪声。
+质量门槛为英语至少90%、中文至少95%命中，相近词误触发最多英语1条、中文0条；全部漏检会导出，
+并非要求忽略困难音色。“seriously”仍可能与短词“Siri”混淆，长短语通常更易区分。
+这是合成回归与当前测试主机实时计算预算，不能当作真人、远场、不同口音或真实房间的准确率保证。

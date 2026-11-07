@@ -14,6 +14,7 @@ namespace MNN.Unity.Editor
         private string _historyPath, _activeChatId;
         private Vector2 _sidebarScroll;
         private Rect _workspaceRect;
+        private Rect _catalogNavigationRect;
         private float WorkspaceWidth => position.width - (_sidebarOpen ? SidebarWidth : 0);
         private void DrawSidebar()
         {
@@ -44,7 +45,11 @@ namespace MNN.Unity.Editor
                 {
                     GUILayout.Space(10);
                     using (new EditorGUI.DisabledScope(Busy))
-                        if (MNNStudioUI.Navigation("Tasks & models", _taskIndex == (int)MNNStudioTask.Other, SidebarWidth - 20, "Browse tasks and prepare their models"))
+                        if (MNNStudioUI.Navigation("Tasks & models", _taskIndex == (int)MNNStudioTask.Other, SidebarWidth - 20, "Browse tasks and prepare their models", rect =>
+                        {
+                            if (Event.current.type == EventType.Repaint)
+                                _catalogNavigationRect = new Rect(GUIUtility.GUIToScreenPoint(rect.position) - position.position, rect.size);
+                        }))
                             SelectTask((int)MNNStudioTask.Other);
                 }
 
@@ -54,6 +59,8 @@ namespace MNN.Unity.Editor
                     _sidebarScroll = scroll.scrollPosition;
                     DrawLibrary();
                 }
+                if (Event.current.type == EventType.Repaint)
+                    _sidebarViewRect = GUILayoutUtility.GetLastRect();
 
                 GUILayout.Space(12);
                 using (new EditorGUILayout.HorizontalScope())
@@ -73,15 +80,6 @@ namespace MNN.Unity.Editor
             }
         }
 
-        private static void SidebarCaption(string text)
-        {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Space(22);
-                GUILayout.Label(text, MNNStudioUI.Caption, GUILayout.Width(SidebarWidth - 38));
-            }
-        }
-
         private void SelectTask(int task)
         {
             if (Busy || _audio != null && _audio.IsRecording || task == _taskIndex || task < 0 || task >= TaskNames.Length)
@@ -90,6 +88,8 @@ namespace MNN.Unity.Editor
             ResetWorkspaceForModelChange();
             _activeChatId = null;
             _taskIndex = task;
+            if (CurrentTask.Task == MNNStudioTask.Other && _taskCatalog?.IsComplete != true)
+                RefreshModels();
             FilterModels();
             _focusComposer = task == 0;
             _query = TaskExample;

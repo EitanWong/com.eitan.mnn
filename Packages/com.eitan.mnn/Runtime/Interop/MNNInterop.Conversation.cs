@@ -1,4 +1,7 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_DESKTOP_TASK_ABI
+#endif
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_LLM_CPP_ABI
 #endif
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
@@ -18,6 +21,8 @@ namespace MNN.Unity.Interop
 #if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt6__ndk16vectorINS2_4pairINS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEESA_EENS8_ISB_EEEEPNS2_13basic_ostreamIcS7_EEPKci")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKSt6vectorISt4pairINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES9_ESaISA_EEPSoPKci")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt3__16vectorINS2_4pairINS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEESA_EENS8_ISB_EEEEPNS2_13basic_ostreamIcS7_EEPKci")]
 #endif
@@ -26,8 +31,8 @@ namespace MNN.Unity.Interop
         private static void RespondChat(IntPtr model, ref CppVector messages, IntPtr output, string end, int limit) => throw UnsupportedAbi();
 #endif
         // Official ChatMessages is vector<pair<string,string>> (llm.hpp). Borrowed
-        // const storage under the existing MNN 3.6.2 Apple libc++ ABI contract only.
-        // Each string is constructed/destructed by libc++; native response cannot retain this vector.
+        // const storage under the pinned MNN 3.6.2 compiler/STL ABI contract.
+        // Each string keeps stable native storage; native response cannot retain this vector.
         private sealed class ChatVector : IDisposable
         {
             internal CppVector Value;
@@ -37,7 +42,8 @@ namespace MNN.Unity.Interop
             {
                 try
                 {
-                    const int pairSize = 48;
+                    int stringSize = Marshal.SizeOf<CppString>();
+                    int pairSize = 2 * stringSize;
                     _storage = Marshal.AllocHGlobal(checked(messages.Count * pairSize));
                     for (int i = 0; i < messages.Count; ++i)
                     {
@@ -49,7 +55,7 @@ namespace MNN.Unity.Interop
                         var text = new NativeString(content);
                         _strings.Add(text);
                         Marshal.StructureToPtr(role.Value, IntPtr.Add(_storage, i * pairSize), false);
-                        Marshal.StructureToPtr(text.Value, IntPtr.Add(_storage, i * pairSize + 24), false);
+                        Marshal.StructureToPtr(text.Value, IntPtr.Add(_storage, i * pairSize + stringSize), false);
                     }
 
                     IntPtr end = IntPtr.Add(_storage, checked(messages.Count * pairSize));

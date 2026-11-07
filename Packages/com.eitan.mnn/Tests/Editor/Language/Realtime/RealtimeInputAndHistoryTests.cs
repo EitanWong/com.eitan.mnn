@@ -19,6 +19,44 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(12, audio[audio.Length - 1]);
         }
 
+        [TestCase(2), TestCase(3), TestCase(30), TestCase(59), TestCase(60), TestCase(120)]
+        public void CapacityBoundaryKeepsTheWholeFinalCaptureFrame(int maximumSeconds)
+        {
+            var buffer = new MNNRealtimeUtteranceBuffer(32, 128, maximumSeconds, 0);
+            var frame = new float[512];
+            int frames = (maximumSeconds * 16000 + 511) / 512;
+            for (int block = 0; block < frames; ++block)
+            {
+                for (int i = 0; i < frame.Length; ++i) frame[i] = (block * 512 + i) % 997 / 997f;
+                buffer.Append(frame, true);
+            }
+            Assert.True(buffer.IsFull);
+            var audio = buffer.Snapshot();
+            Assert.AreEqual(frames * 512, audio.Length, "A consumed capture frame cannot be silently cut in half.");
+            for (int i = 0; i < audio.Length; ++i)
+                if (audio[i] != i % 997 / 997f) Assert.Fail("PCM differs at " + i);
+        }
+
+        [Test]
+        public void FullBufferCannotSilentlyConsumeAnotherCaptureFrame()
+        {
+            var buffer = new MNNRealtimeUtteranceBuffer(32, 128, 2, 0);
+            var frame = new float[512];
+            while (!buffer.IsFull) buffer.Append(frame, true);
+            var before = buffer.Snapshot();
+            Assert.Throws<InvalidOperationException>(() => buffer.Append(frame, true));
+            CollectionAssert.AreEqual(before, buffer.Snapshot());
+            buffer.Append(frame, true, discontinuity: true);
+            Assert.False(buffer.IsFull);
+            Assert.AreEqual(512, buffer.Snapshot().Length);
+        }
+
+        [TestCase(32, 2000), TestCase(2000, 96)]
+        public void ImpossiblePreRollAndSpeechBudgetsAreRejectedBeforeCapture(int minimumSpeech, int preRoll)
+        {
+            Assert.Throws<ArgumentException>(() => new MNNRealtimeUtteranceBuffer(minimumSpeech, 128, 2, preRoll));
+        }
+
         [Test]
         public void FrameAdapterKeepsProbabilitySeparateFromVadHangoverAndKeepsItsClock()
         {

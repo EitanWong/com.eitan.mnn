@@ -224,12 +224,38 @@ namespace MNN.Unity.Tests
             var cache = new MNNModelCatalogCache(_directory,
                 _ => Task.FromException<MNNModelRepository>(new IOException("offline")), () => _now);
             Assert.True(cache.TryRead(provider, out var visible));
-            CollectionAssert.AreEqual(new[] {"KeywordSpotting", "KeywordSpotting", "AudioProcessing"}, visible.models.Select(model => model.category));
+            CollectionAssert.AreEqual(new[] {"KeywordSpotting", "KeywordSpotting", "VoiceActivityDetection"}, visible.models.Select(model => model.category));
             var failed = cache.LoadAsync(provider);
             yield return Until(() => failed.IsCompleted);
             Assert.True(failed.IsFaulted);
             Assert.True(cache.TryRead(provider, out visible));
             Assert.AreEqual("KeywordSpotting", visible.models[0].category);
+        }
+
+        [Test]
+        public void PreviousAudioCatalogIsSplitOfflineWithoutChangingRuntimeAvailability()
+        {
+            var old = new MNNModelCatalogCache.Snapshot { schema = 28, provider = MNNModelProvider.ModelScope,
+                savedUtcTicks = _now.Ticks, models = new[]
+                {
+                    new MNNModelInfo { repositoryId = "EitanWang/Silero-v5.1-MNN", category = "AudioProcessing", runtimeAvailable = true },
+                    new MNNModelInfo { repositoryId = "EitanWang/TurnSense-SmolLM2-135M-MNN", category = "AudioProcessing", runtimeAvailable = false },
+                    new MNNModelInfo { repositoryId = "publisher/custom-MNN", category = "AudioProcessing", tasks = new[] { "speech-enhancement" } },
+                    new MNNModelInfo { repositoryId = "EitanWang/SpExPlus-WSJ02Mix-8K-MNN", category = "AudioProcessing", tasks = new[] { "speech-separation" } },
+                    new MNNModelInfo { repositoryId = "publisher/other-MNN", category = "ImageClassification" }
+                }, warnings = Array.Empty<string>() };
+            foreach (var model in old.models) model.id = model.repositoryId;
+            File.WriteAllText(Path.Combine(_directory, "ModelScope-v28.json"), JsonUtility.ToJson(old));
+            int requests = 0;
+            var cache = new MNNModelCatalogCache(_directory, provider => { ++requests; throw new IOException("offline"); }, () => _now);
+            Assert.True(cache.TryRead(MNNModelProvider.ModelScope, out var migrated));
+            CollectionAssert.AreEqual(new[] { "VoiceActivityDetection", "TurnDetection", "SpeechEnhancement", "TargetSpeakerExtraction", "ImageClassification" },
+                migrated.models.Select(model => model.category));
+            Assert.True(migrated.RequiresRefresh);
+            Assert.True(migrated.models[0].runtimeAvailable);
+            Assert.False(migrated.models[1].runtimeAvailable);
+            Assert.Zero(requests);
+            Assert.That(File.ReadAllText(Path.Combine(_directory, "ModelScope-v28.json")), Does.Contain("AudioProcessing"), "Migration must preserve the old fallback on disk.");
         }
 
         [UnityEngine.TestTools.UnityTest]

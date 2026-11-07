@@ -110,7 +110,8 @@ namespace MNN.Unity.Tests
                 config.strides = new[] {16, 8};
                 Assert.Throws<InvalidDataException>(() => config.ResolveGraph(directory));
                 File.WriteAllText(Path.Combine(directory, MNNYoloV8Config.FileName), JsonUtility.ToJson(config));
-                Assert.False(MNNStudioTasks.Get((int)model.Task).CanRun(model));
+                Assert.True(MNNStudioTasks.Get((int)model.Task).CanRun(model), "The existing discovery snapshot is immutable.");
+                Assert.False(MNNStudioTasks.Get((int)model.Task).CanRun(MNNStudioModel.Read(directory)));
                 Assert.Throws<InvalidDataException>(() => MNNYoloV8Model.Prepare(directory));
             }
             finally { Directory.Delete(directory, true); }

@@ -19,10 +19,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--unity", required=True, type=Path)
     parser.add_argument("--package", type=Path, default=root / "Packages/com.eitan.mnn")
+    parser.add_argument("--sample", type=Path, action="append", default=[],
+                        help="Additional imported sample source root to compile with the package; may be repeated.")
     parser.add_argument("--output", type=Path, default=root / "TestArtifacts~/PackageEngineering/Compilation")
     parser.add_argument("--burst-assembly", type=Path, help="Existing compiled Unity.Burst.dll; omit to check the no-Burst installation.")
     args = parser.parse_args()
     package = args.package.resolve()
+    source_roots = [package] + [sample.resolve() for sample in args.sample]
+    if any(not source.is_dir() for source in source_roots):
+        parser.error("Every package/sample source root must exist.")
     output = args.output.resolve()
     if (root / "TestArtifacts~").resolve() not in output.parents:
         parser.error("Compilation outputs must be under this repository's TestArtifacts~/.")
@@ -33,12 +38,15 @@ def main():
         parser.error("Requires an installed macOS Unity with bundled .NET and Roslyn.")
     output.mkdir(parents=True, exist_ok=True)
     definitions = {}
+    sample_assemblies = set()
     folders = {}
     guids = {}
-    for path in sorted(package.rglob("*.asmdef")):
+    for path in sorted({path for source in source_roots for path in source.rglob("*.asmdef")}):
         definition = json.loads(path.read_text())
         name = definition["name"]
         definitions[name] = definition
+        if not path.is_relative_to(package):
+            sample_assemblies.add(name)
         folders[path.parent] = name
         meta = Path(str(path) + ".meta").read_text()
         guids[next(line[6:] for line in meta.splitlines() if line.startswith("guid: "))] = name
@@ -46,13 +54,16 @@ def main():
     def resolve(reference):
         return guids[reference[5:]] if reference.startswith("GUID:") else reference
 
+    for path in sorted({path for source in source_roots for path in source.rglob("*.asmref")}):
+        folders[path.parent] = resolve(json.loads(path.read_text())["reference"])
+
     dependencies = {
         name: {resolve(ref) for ref in definition.get("references", [])
                if resolve(ref) in definitions}
         for name, definition in definitions.items()
     }
     sources = {name: [] for name in definitions}
-    for source in sorted(package.rglob("*.cs")):
+    for source in sorted({path for source in source_roots for path in source.rglob("*.cs")}):
         owner = next((folders[parent] for parent in source.parents if parent in folders), None)
         if owner:
             sources[owner].append(source)
@@ -84,7 +95,7 @@ def main():
         references = list(standards)
         if not definition.get("noEngineReferences", False):
             references += engines
-        if definition.get("includePlatforms") == ["Editor"] or name == "MNN.Unity.Burst":
+        if definition.get("includePlatforms") == ["Editor"] or name == "MNN.Unity.Burst" or name in sample_assemblies:
             references += editors
         for reference in definition.get("references", []):
             dependency = resolve(reference)

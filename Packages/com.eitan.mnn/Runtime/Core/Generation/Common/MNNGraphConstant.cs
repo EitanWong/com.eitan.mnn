@@ -10,13 +10,32 @@ namespace MNN.Unity
     {
         internal static byte[] FreezeInputs(byte[] source, params MNNGenerationGraph.Input[] inputs)
         {
-            byte[] result = (byte[])source.Clone();
+            int length = source.Length;
+            var names = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
             foreach (var input in inputs)
-                result = FreezeInput(result, input);
+            {
+                if (!names.Add(input.Name))
+                    throw new InvalidDataException("Repeated MNN Input: " + input.Name);
+                if (!(input.Values is int[]) && !(input.Values is float[]))
+                    throw new NotSupportedException("Only int32/float32 graph constants are supported.");
+                length = ConstantEnd(length, input);
+            }
+            // All constants share one appended region and one model-sized copy.
+            byte[] result = new byte[length];
+            Array.Copy(source, result, source.Length);
+            int offset = source.Length;
+            foreach (var input in inputs)
+            {
+                FreezeInput(source, input, result, offset);
+                offset = ConstantEnd(offset, input);
+            }
             return result;
         }
 
-        private static byte[] FreezeInput(byte[] source, MNNGenerationGraph.Input input)
+        private static int ConstantEnd(int offset, MNNGenerationGraph.Input input) =>
+            checked((offset + 3) / 4 * 4 + 48 + input.Shape.Length * 4 + input.Values.Length * 4);
+
+        private static void FreezeInput(byte[] source, MNNGenerationGraph.Input input, byte[] result, int offset)
         {
             int Read(int p)
             {
@@ -55,9 +74,7 @@ namespace MNN.Unity
             if (target < 0)
                 throw new InvalidDataException("Missing MNN Input: " + input.Name);
             // Blob schema slots: dims0, dataFormat1, dataType2, int32s5, float32s7.
-            int start = checked((source.Length + 3) / 4 * 4), table = start + 20, dims = table + 20, data = dims + 4 + input.Shape.Length * 4;
-            byte[] result = new byte[checked(data + 4 + input.Values.Length * 4)];
-            Array.Copy(source, result, source.Length);
+            int start = checked((offset + 3) / 4 * 4), table = start + 20, dims = table + 20, data = dims + 4 + input.Shape.Length * 4;
             void Int(int p, int n) => Buffer.BlockCopy(BitConverter.GetBytes(n), 0, result, p, 4);
             void Short(int p, ushort n) => Buffer.BlockCopy(BitConverter.GetBytes(n), 0, result, p, 2);
             Short(start, 20);
@@ -66,8 +83,6 @@ namespace MNN.Unity
             Short(start + 6, 8);
             Short(start + 8, 12);
             bool integer = input.Values is int[];
-            if (!integer && !(input.Values is float[]))
-                throw new NotSupportedException("Only int32/float32 graph constants are supported.");
             Short(start + 4 + (integer ? 5 : 7) * 2, 16);
             Int(table, 20);
             Int(table + 4, dims - (table + 4));
@@ -81,7 +96,6 @@ namespace MNN.Unity
             result[Field(target, 1)] = 7;
             Int(Field(target, 2), table - Field(target, 2));
             Int(Field(target, 5), 11);
-            return result;
         }
 
         internal static byte[] FreezeIntInput(byte[] source, string name, int value)

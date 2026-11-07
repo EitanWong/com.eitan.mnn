@@ -37,6 +37,10 @@ ASSEMBLIES = {
         "Samples~/BasicExample/Editor/MNN.Unity.Samples.BasicExample.Editor.asmdef",
         {"MNN.Unity", "MNN.Unity.Editor", "MNN.Unity.Samples.BasicExample"}
     ),
+    "MNN.Unity.Samples.BasicExample.Tests": (
+        "Samples~/BasicExample/Tests/Runtime/MNN.Unity.Samples.BasicExample.Tests.asmdef",
+        {"MNN.Unity", "MNN.Unity.Samples.BasicExample"}
+    ),
 }
 ROOT_DIRECTORIES = {
     "Runtime", "Editor", "Tests", "Samples~", "Documentation~", "Native~", "Tools~"
@@ -55,7 +59,7 @@ EDITOR_ASSEMBLIES = {
 }
 TEST_ASSEMBLIES = {
     "MNN.Unity.Tests", "MNN.Unity.Integration.Tests", "MNN.Unity.Tests.Fixtures",
-    "MNN.Unity.Runtime.Tests"
+    "MNN.Unity.Runtime.Tests", "MNN.Unity.Samples.BasicExample.Tests"
 }
 MODEL_DOMAINS = {
     ("Runtime", "Core", "SpeechRecognition"),
@@ -103,7 +107,7 @@ def inspect(package):
         for model in models:
             require((audio / task / model).is_dir(),
                     "Audio model belongs in task folder: " + task + "/" + model)
-    audio_folders = set(AUDIO_TASK_MODELS) | {"Analysis", "Common", "KeywordSpotting", "Realtime", "SpeakerEmbedding"}
+    audio_folders = set(AUDIO_TASK_MODELS) | {"Acoustics", "Analysis", "Common", "KeywordSpotting", "Realtime", "SpeakerEmbedding"}
     for folder in audio.iterdir():
         if folder.is_dir():
             require(folder.name in audio_folders, "Unclassified audio task or model: " + folder.name)

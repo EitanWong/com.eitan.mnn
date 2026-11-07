@@ -14,7 +14,7 @@ namespace MNN.Unity.Editor
         private bool _taskSpeech;
         private bool _ocrCroppedLine;
         [SerializeField] private string _keywords = MNNKwsModel.DefaultKeywords;
-        [SerializeField] private float _keywordThreshold = .25f, _keywordScore = 1;
+        [SerializeField] private float _keywordThreshold = MNNKeywordSpotter.DefaultThreshold, _keywordScore = 1;
         private MNNStudioMessage _taskResultMessage;
         private string _referenceText = "";
         private int _speechLanguage, _ttsEmotion;
@@ -59,6 +59,10 @@ namespace MNN.Unity.Editor
                 _taskIndex = (int)task;
                 _customRoot = Path.GetDirectoryName(Path.GetFullPath(directory));
                 EditorPrefs.SetString("MNN.Studio.ModelRoot", _customRoot);
+                _models.RemoveAll(item => item.Directory == model.Directory);
+                _models.Add(model);
+                FilterModels();
+                RefreshVoiceModels();
                 RefreshModels();
                 _modelIndex = _available.FindIndex(item => item.Directory == model.Directory);
                 _query = TaskExample;
@@ -93,7 +97,7 @@ namespace MNN.Unity.Editor
                     if (CurrentTask.Task == MNNStudioTask.Other)
                         DrawWorkspaceCatalog();
                     GUILayout.Space(16);
-                    string status = !CurrentTask.Runnable || Selected != null && !CurrentTask.CanRun(Selected) ? CurrentTask.UnavailableReason : !MNNPlatformSupport.IsSupported ? MNNPlatformSupport.UnsupportedReason : "Choose a compatible local model to get started. The model loads on the first request.";
+                    string status = DiscoveringModels && Selected == null ? "Finding local models… You can keep using Studio while this finishes." : !CurrentTask.Runnable || Selected != null && !CurrentTask.CanRun(Selected) ? CurrentTask.UnavailableReason : !MNNPlatformSupport.IsSupported ? MNNPlatformSupport.UnsupportedReason : "Choose a compatible local model to get started. The model loads on the first request.";
                     EditorGUILayout.HelpBox(status, MessageType.Info);
                     if (Selected != null)
                     {
@@ -132,9 +136,8 @@ namespace MNN.Unity.Editor
                             };
                         }
 
-                    int local = _models.Count(task.Accepts);
-                    int ready = _models.Count(task.CanRun);
-                    GUILayout.Label(!task.Runnable ? "Model setup" : ready > 0 && MNNPlatformSupport.IsSupported ? ready + " ready" : "Choose model", MNNStudioUI.Caption);
+                    int local = _taskCatalog?.Local(task.Task) ?? 0;
+                    GUILayout.Label(CatalogStatus(task), MNNStudioUI.Caption);
                     GUILayout.FlexibleSpace();
                     GUILayout.Label(local + " local", MNNStudioUI.Caption, GUILayout.Width(60));
                 }
@@ -218,6 +221,7 @@ namespace MNN.Unity.Editor
             string path = string.IsNullOrWhiteSpace(chosen) ? "" : MNNPiper.ResolveDataDirectory(Selected.Directory, selected: chosen);
             EditorPrefs.SetString(MNNStudioPiperSettings.DataPreference(Selected.Directory), path);
             ReleaseSession();
+            RefreshModels();
             _error = null;
             Repaint();
         }
@@ -479,7 +483,7 @@ namespace MNN.Unity.Editor
                     else if (Busy && !string.IsNullOrEmpty(_streamText))
                     {
                         GUILayout.Space(20);
-                        _streamMarkdown?.Draw(ContentWidth);
+                        DrawStreamMarkdown(ContentWidth);
                     }
 
                     GUILayout.Space(24);
@@ -566,8 +570,8 @@ namespace MNN.Unity.Editor
                 return "Choose a separate recording of the target speaker.";
             if (Selected.RequiresVisualFrames && !Directory.Exists(_avFramesDirectory))
                 return "Choose the target speaker's aligned face-frame folder at 25 FPS.";
-            if (Selected.IsKeywordSpotter && string.IsNullOrWhiteSpace(_keywords))
-                return "Enter at least one tokenized wake word.";
+            if (Selected.IsKeywordSpotter && KeywordInputError() != null)
+                return KeywordInputError();
             if (Selected.RequiresReferenceAudio && !File.Exists(_audioPath))
                 return "Choose or record a reference WAV to enable synthesis.";
             if (Selected.RequiresReferenceAudio && Selected.RequiresReferenceTranscript && string.IsNullOrWhiteSpace(_referenceText))

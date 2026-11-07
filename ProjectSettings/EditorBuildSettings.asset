@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Samples/SiriAI/Scenes/SiriAI.unity
+    guid: 2207489d881774de6ba909e41f282d7e
   m_configObjects: {}

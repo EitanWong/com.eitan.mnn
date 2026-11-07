@@ -1,4 +1,7 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_DESKTOP_TASK_ABI
+#endif
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_TASK_CPP_ABI
 #endif
 using System;
@@ -9,7 +12,8 @@ namespace MNN.Unity.Interop
     internal static partial class MNNInterop
     {
         // Non-trivial 16-byte C++ returns use indirect result storage. A padded
-        // 24-byte managed return selects indirect result storage on the pinned arm64 IL2CPP / Apple Mono ABIs.
+        // 24-byte managed return selects indirect result storage on the pinned
+        // ARM64 IL2CPP, Apple Mono and GNU desktop Mono ABIs.
         [StructLayout(LayoutKind.Sequential)]
         private struct IndirectShared
         {
@@ -35,6 +39,8 @@ namespace MNN.Unity.Interop
 #if MNN_TASK_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express13ExecutorScopeC1ERKNSt6__ndk110shared_ptrINS0_8ExecutorEEE")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express13ExecutorScopeC1ERKSt10shared_ptrINS0_8ExecutorEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express13ExecutorScopeC1ERKNSt3__110shared_ptrINS0_8ExecutorEEE")]
 #endif
@@ -71,12 +77,20 @@ namespace MNN.Unity.Interop
         internal static void DestroyVariable(ref CppShared variable) => throw UnsupportedAbi();
 #endif
 #if MNN_TASK_CPP_ABI
+#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express8Variable4loadEPKc")]
+        private static extern CppVector LoadWindowsVariables(byte[] path);
+        internal static CppVector LoadVariables(string path) => LoadWindowsVariables(ToWindowsPathBytes(path));
+#else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express8Variable4loadEPKc")]
         internal static extern CppVector LoadVariables(string path);
-        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express8Variable4loadEPKhm")]
+#endif
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = VariableLoadBufferSymbol)]
         internal static extern CppVector LoadVariables(byte[] graph, UIntPtr length);
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express8Variable7computeERKNSt6__ndk16vectorINS0_4VARPENS2_9allocatorIS4_EEEEb")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express8Variable7computeERKSt6vectorINS0_4VARPESaIS3_EEb")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express8Variable7computeERKNSt3__16vectorINS0_4VARPENS2_9allocatorIS4_EEEEb")]
 #endif
@@ -86,6 +100,8 @@ namespace MNN.Unity.Interop
         private static extern bool InputVariable(IntPtr variable, ref CppShared source);
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express6_ConstEPKvNSt6__ndk16vectorIiNS3_9allocatorIiEEEENS0_15DimensionformatE13halide_type_t")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express6_ConstEPKvSt6vectorIiSaIiEENS0_15DimensionformatE13halide_type_t")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express6_ConstEPKvNSt3__16vectorIiNS3_9allocatorIiEEEENS0_15DimensionformatE13halide_type_t")]
 #endif
@@ -100,6 +116,8 @@ namespace MNN.Unity.Interop
 #if MNN_TASK_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express6Module4loadERKNSt6__ndk16vectorINS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEENS7_IS9_EEEESD_PKhmPKNS1_6ConfigE")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = DesktopModuleLoadSymbol)]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN7Express6Module4loadERKNSt3__16vectorINS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEENS7_IS9_EEEESD_PKhmPKNS1_6ConfigE")]
 #endif
@@ -113,6 +131,13 @@ namespace MNN.Unity.Interop
         private static IndirectShared ForwardModule(IntPtr module, ref CppShared input) => throw UnsupportedAbi();
         internal static void DestroyModule(IntPtr module) => throw UnsupportedAbi();
 #endif
+#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
+        private const string VariableLoadBufferSymbol = "_ZN3MNN7Express8Variable4loadEPKhy";
+        private const string DesktopModuleLoadSymbol = "_ZN3MNN7Express6Module4loadERKSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS8_EESC_PKhyPKNS1_6ConfigE";
+#else
+        private const string VariableLoadBufferSymbol = "_ZN3MNN7Express8Variable4loadEPKhm";
+        private const string DesktopModuleLoadSymbol = "_ZN3MNN7Express6Module4loadERKSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS8_EESC_PKhmPKNS1_6ConfigE";
+#endif
         internal static IntPtr LoadSingleInputModule(byte[] graph, string inputName, string outputName)
         {
             using (var from = new NativeString(inputName))
@@ -123,8 +148,9 @@ namespace MNN.Unity.Interop
                 try
                 {
                     IntPtr p = pin.AddrOfPinnedObject();
-                    var inputs = new CppVector {Begin = p, End = IntPtr.Add(p, 24), Capacity = IntPtr.Add(p, 24)};
-                    var outputs = new CppVector {Begin = IntPtr.Add(p, 24), End = IntPtr.Add(p, 48), Capacity = IntPtr.Add(p, 48)};
+                    int stride = Marshal.SizeOf<CppString>();
+                    var inputs = new CppVector {Begin = p, End = IntPtr.Add(p, stride), Capacity = IntPtr.Add(p, stride)};
+                    var outputs = new CppVector {Begin = IntPtr.Add(p, stride), End = IntPtr.Add(p, 2 * stride), Capacity = IntPtr.Add(p, 2 * stride)};
                     IntPtr module = LoadModule(ref inputs, ref outputs, graph, (UIntPtr)(uint)graph.Length, IntPtr.Zero);
                     if (module == IntPtr.Zero)
                         throw new MNNException(MNNErrorCode.NoExecution, "Cannot load MNN Module.");
@@ -186,9 +212,19 @@ namespace MNN.Unity.Interop
 #if MNN_TASK_CPP_ABI
         // iOS resolves operator new from the linked system libc++ via __Internal.
         // A literal libc++.1 library name generates invalid FORCE_PINVOKE macros in Unity 2021 IL2CPP.
+        #if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_Znwy")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport("libstdc++.so.6", CallingConvention = Conv, EntryPoint = "_Znwm")]
+#else
         [DllImport(Cxx, CallingConvention = Conv, EntryPoint = "_Znwm")]
+#endif
         private static extern IntPtr NativeNew(UIntPtr size);
+        #if MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN7Express8Variable4nameB5cxx11Ev")]
+#else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN7Express8Variable4nameEv")]
+#endif
         private static extern IntPtr VariableName(IntPtr variable);
 #else
         private static IntPtr NativeNew(UIntPtr size) => throw UnsupportedAbi();
@@ -212,7 +248,9 @@ namespace MNN.Unity.Interop
         {
             try
             {
-#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
+#if MNN_DESKTOP_TASK_ABI
+                DesktopVariableVectorDestroy(ref variables);
+#elif (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
                 // Destroy both elements and allocation with the exact native instantiation.
                 VariableVectorDestroy(ref variables);
 #else

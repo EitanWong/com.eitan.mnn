@@ -11,10 +11,10 @@
 Packages/com.eitan.mnn/
 ├── Runtime/
 │   ├── Core/
-│   │   ├── Common/                Types、Platform、Security、Settings、Audio、Numerics
+│   │   ├── Common/                Types、Platform、Security、Settings、Audio、Numerics、Layout、Diagnostics
 │   │   ├── Inference/             Backend、Loading、Interpreter、Session、Tensor
 │   │   ├── Models/                Configuration、Catalog、Downloads、Delivery、Transfer、Serialization、Profiles
-│   │   ├── Language/              Llm、Decisions、Tokenization、Realtime、Remote
+│   │   ├── Language/              Llm、Decisions、Tokenization、Realtime、Remote、Providers、Agent、Markdown
 │   │   ├── Retrieval/             Bert、Embedding、ImageEmbedding、Reranking、Tokenization
 │   │   ├── Vision/                Common、YoloV8、PaddleOcr、DocumentLayout、ImageTasks
 │   │   ├── AudioProcessing/       按音频任务及模型细分（见下文）
@@ -60,6 +60,7 @@ Packages/com.eitan.mnn/
 │   │   ├── Inference/            实际推理测试
 │   │   ├── Platform/             平台/后端支持与拒绝策略
 │   │   ├── Models/               Runtime 模型目录与下载 API 的确定性 HTTP 替身测试
+│   │   ├── Language/Markdown/    图片lease与Player延迟销毁生命周期
 │   │   └── Fixtures/             可在 Player 使用的内嵌测试数据
 │   └── Fixtures/                 提交到版本库的小型确定性测试资源
 ├── Tools~/
@@ -84,6 +85,15 @@ Packages/com.eitan.mnn/
 `KeywordSpotting`、`Analysis`、`Realtime` 和跨任务 `Common` 保持独立。
 模型目录保留各自原有 Unity GUID，跨任务共用代码不复制到模型目录。
 新增模型时将它放入对应任务目录，并更新包结构校验规则。
+
+`EchoCancellation/Common` 保存与模型无关的延迟估计、参考PCM时间线和自适应FIR；
+`AudioProcessing/Realtime` 保存增强/VAD/ASR输入路由、设备延迟校准及播报fade；
+`AudioProcessing/Common` 保存源贡献和说话人选择，`Analysis` 保存渲染波形/特征快照。
+这些是可独立使用的托管API，不依赖SiriAI、EasyMic或具体场景。
+共享图片资源缓存位于 `Language/Markdown`，UI组件只持有显示lease，Editor和Player不复制LRU。
+行为测试随实现放在 `Tests/Editor/AudioProcessing`、`Tests/Editor/Language/Markdown`；
+纯托管算法测试与实际权重/设备测试保持明确的验证范围；图片Player生命周期在
+`Tests/Runtime/Language/Markdown` 验证帧末销毁，不以Editor的立即销毁测试代替。
 
 模型的运行器、配置、模型资产描述、分词/特征提取和图适配代码放在同一个模型目录中。
 例如 `SpeechRecognition/Whisper` 包含 `MNNWhisperRecognizer`、`MNNWhisperConfig`、
@@ -127,6 +137,7 @@ prefab 资产。导入示例后，示例组件的菜单由 sample 内独立 Edit
 | `MNN.Unity.Runtime.Tests` | `Tests/Runtime/MNN.Unity.Runtime.Tests.asmdef` | Runtime | PlayMode/Player、`UNITY_INCLUDE_TESTS` |
 | `MNN.Unity.Samples.BasicExample` | `Samples~/BasicExample/MNN.Unity.Samples.BasicExample.asmdef` | Runtime | 导入 sample 后的 Editor 与 Player |
 | `MNN.Unity.Samples.BasicExample.Editor` | `Samples~/BasicExample/Editor/MNN.Unity.Samples.BasicExample.Editor.asmdef` | Runtime、Editor、BasicExample | 导入 sample 后的 Editor |
+| `MNN.Unity.Samples.BasicExample.Tests` | `Samples~/BasicExample/Tests/Runtime/MNN.Unity.Samples.BasicExample.Tests.asmdef` | Runtime、BasicExample | 导入 sample 后的 PlayMode/Player、`UNITY_INCLUDE_TESTS` |
 
 Runtime 不依赖 Editor 或测试程序集。测试辅助代码分别归属对应程序集；
 跨 Editor/Player 的静态资源放 `Tests/Fixtures`，不使用源码目录隐式共享测试代码。
@@ -200,3 +211,20 @@ python3 Packages/com.eitan.mnn/Tools~/Validation/check_assembly_compilation.py \
 也不验证原生链接、设备运行或模型精度。
 提供 `--burst-assembly /path/to/Unity.Burst.dll` 时也编译第九个可选性能程序集。
 提交范围、忽略规则、本地保存与分支流程见 [仓库维护](RepositoryManagement.md)。
+
+## 实时对话核心与应用装配
+
+`Runtime/Core/Language/Realtime/MNNConversationRuntime.*` 拥有共享对话策略：
+采集消费、VAD 轮次、ASR 预览、语音校验、退出意图、文本/TTS 并行、插话恢复、
+呈现历史和耗时诊断。`IMNNConversation*` 定义应用与模型边界，
+`MNNConversationPorts` 提供有界默认通知端口，`MNNConversationMnnProviders` 适配已有托管任务 API。
+SiriAI 的同名兼容入口只做装配/转发；不要在示例或 Studio 再复制这套策略。
+Studio 的 `MNNStudioRealtimeConversation` 只管理 Editor 设备与异步生命周期，
+Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有权见
+[共享实时对话](RealtimeConversations.md)。
+
+完整应用能力组合见[AI应用架构](ConversationApplicationArchitecture.md)。`AudioProcessing/Acoustics`
+拥有跨声学任务的模型角色、前端和唤醒；`Realtime`拥有可注入设备会话控制；
+`Language/Providers`拥有惰性阶段工厂，`Agent`拥有计划、工具和权限注入。
+`Common/Layout`仅放通用几何/运动，`Common/Diagnostics`放可复用系统采样，
+平台公开导出统一声明在对应`MNNInterop.*`文件。不得把Siri的产品视觉或业务默认值放进这些目录。

@@ -138,19 +138,20 @@ namespace MNN.Unity.Tests
             }
             Directory.CreateDirectory(Path.Combine(_root, "common"));
             foreach (string name in MNNCosyVoice300MModel.Common) File.WriteAllText(Path.Combine(_root, "common", name), "fixture");
-            Assert.IsTrue(model.HasGenerationPipeline, "Layout check is separate from loading graph contents.");
+            Assert.IsFalse(model.HasGenerationPipeline, "A discovery snapshot remains stable until Refresh reads the directory again.");
+            Assert.IsTrue(MNNStudioModel.Read(_root).HasGenerationPipeline, "Layout check is separate from loading graph contents.");
             string configPath = Path.Combine(_root, MNNCosyVoice300MModel.ConfigName);
             File.WriteAllText(configPath, "{\"model\":\"iic/CosyVoice-300M\",\"schema_version\":1,\"sample_rate\":22050,\"decoder_graph\":\"fp16/llm_decode_compact.mnn\"}");
-            Assert.IsFalse(model.HasGenerationPipeline, "Final export requires the compact graph and its external weights.");
+            Assert.IsFalse(MNNStudioModel.Read(_root).HasGenerationPipeline, "Final export requires the compact graph and its external weights.");
             string compactPath = Path.Combine(_root, MNNCosyVoice300MModel.CompactGraph);
             File.WriteAllText(compactPath, "fixture");
-            Assert.IsFalse(model.HasGenerationPipeline);
+            Assert.IsFalse(MNNStudioModel.Read(_root).HasGenerationPipeline);
             File.WriteAllText(compactPath + ".weight", "fixture");
-            Assert.IsTrue(model.HasGenerationPipeline);
+            Assert.IsTrue(MNNStudioModel.Read(_root).HasGenerationPipeline);
             File.WriteAllText(configPath, "{}");
-            Assert.IsFalse(model.HasGenerationPipeline, "Missing required metadata must reject the directory without throwing.");
+            Assert.IsFalse(MNNStudioModel.Read(_root).HasGenerationPipeline, "Missing required metadata must reject the directory without throwing.");
             File.WriteAllText(Path.Combine(_root, MNNCosyVoice300MModel.ConfigName), "{\"model\":\"iic/CosyVoice-300M\",\"schema_version\":1,\"sample_rate\":24000}");
-            Assert.IsFalse(model.HasGenerationPipeline);
+            Assert.IsFalse(MNNStudioModel.Read(_root).HasGenerationPipeline);
         }
 
         [Test]

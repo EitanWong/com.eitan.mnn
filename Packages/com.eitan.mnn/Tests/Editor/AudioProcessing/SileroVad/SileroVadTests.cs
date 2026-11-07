@@ -34,12 +34,12 @@ namespace MNN.Unity.Tests
         [TestCase(false), TestCase(true)]
         public void CatalogPinsOnlyVerifiedHuggingFaceIdentity(bool modelScope)
         {
-            var model = new MNNModelInfo {provider = modelScope ? MNNModelProvider.ModelScope : MNNModelProvider.HuggingFace,
+            var model = new MNNRemoteModel {provider = modelScope ? MNNModelSource.ModelScope : MNNModelSource.HuggingFace,
                 repositoryId = MNNSileroModel.Repository, name = "silero_vad-MNN"};
-            typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+            typeof(MNNModelCatalog).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(null, new object[] {model, new[] {MNNSileroModel.Graph}});
             Assert.AreEqual(!modelScope, model.runtimeAvailable);
-            Assert.AreEqual("AudioProcessing", model.category);
+            Assert.AreEqual("VoiceActivityDetection", model.category);
             if (!modelScope)
             {
                 Assert.AreEqual(MNNSileroModel.Revision, model.revision);

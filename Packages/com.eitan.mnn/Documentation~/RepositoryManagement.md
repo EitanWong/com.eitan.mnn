@@ -13,9 +13,35 @@ files under `Runtime/Plugins` are distributable assets; do not ignore these glob
 Their presence does not establish managed inference support for a platform.
 
 The development host's manifest and ProjectSettings are tracked. Keep local EasyMic
-dependencies out of the committed manifest. The only committed model fixture is
-`Tests/Fixtures/affine.mnn`; additional fixtures require a small, deterministic,
+dependencies out of the committed manifest. The committed model fixtures are
+`Tests/Fixtures/affine.mnn` and `Tests/Fixtures/affine-inputs.mnn`; additional fixtures require a small, deterministic,
 redistributable justification.
+
+## Development host snapshot: 2026-11-07
+
+The tracked Unity 2021.3.45f2 host settings now identify the development app as
+`Eitan / SiriAI`, with Android application ID `com.eitan.siriai` and minimum SDK 24.
+They preserve the microphone usage description, frame-timing setting, current
+anti-aliasing/vSync choices and scene-template dependency settings. The host manifest
+includes uGUI and Unity's screen-capture module. These are development-project
+settings; they do not change the distributable package's platform or API contract.
+
+The enabled build scene is `Assets/Samples/SiriAI/Scenes/SiriAI.unity`. That imported
+sample remains ignored, so a clean clone must supply the matching sample or choose
+another build scene before building the host. Existing checked sample migrations,
+their exact baselines and recorded validation limits are documented in the
+[SiriAI migration guide](../Tools~/Migration/README.md); those patches do not supply
+the complete original sample or its model weights.
+
+`EASYMIC_APM_EXPERIMENTAL_FEATURES` is retained for Android, Standalone and iPhone.
+EasyMic packages and manifest entries remain local-only. Keep any local manifest
+overlay when saving a development snapshot, and validate the actual staged or
+committed manifest separately. Do not add imported samples, temporary ordering
+files or orphan metadata to make a local project appear reproducible.
+
+Static package/repository checks cover structure, file policy and document links.
+They do not establish Unity compilation, scene availability, microphone permissions,
+native inference correctness or device rendering/performance for these host settings.
 
 ## Local files
 

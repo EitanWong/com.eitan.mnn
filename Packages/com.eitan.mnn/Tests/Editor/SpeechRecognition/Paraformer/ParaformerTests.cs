@@ -12,10 +12,9 @@ namespace MNN.Unity.Tests
         public void CatalogPinsOnlyVerifiedRepositoryAndProvider(bool modelScope, bool duplicate)
         {
             string repository = duplicate ? MNNParaformerModel.DuplicateRepository : MNNParaformerModel.Repository;
-            var model = new MNNModelInfo {provider = modelScope ? MNNModelProvider.ModelScope : MNNModelProvider.HuggingFace,
+            var model = new MNNRemoteModel {provider = modelScope ? MNNModelSource.ModelScope : MNNModelSource.HuggingFace,
                 repositoryId = repository, name = repository.Split('/').Last()};
-            typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(null, new object[] {model, MNNParaformerModel.Paths});
+            MNNModelCatalog.ApplyArtifactEvidence(model, MNNParaformerModel.Paths);
             Assert.True(model.runtimeAvailable);
             Assert.AreEqual("SpeechRecognition", model.category);
             Assert.AreEqual(MNNParaformerModel.ResolveRevision(modelScope ? "master" : "main", repository, modelScope), model.revision);
@@ -29,10 +28,9 @@ namespace MNN.Unity.Tests
         public void UnverifiedExportsCannotUseTheVerifiedGraphProtocol(string repository, bool modelScope)
         {
             Assert.Throws<ArgumentException>(() => MNNParaformerModel.ResolveRevision(null, repository, modelScope));
-            var model = new MNNModelInfo {provider = modelScope ? MNNModelProvider.ModelScope : MNNModelProvider.HuggingFace,
+            var model = new MNNRemoteModel {provider = modelScope ? MNNModelSource.ModelScope : MNNModelSource.HuggingFace,
                 repositoryId = repository, name = repository.Split('/').Last()};
-            typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(null, new object[] {model, MNNParaformerModel.Paths});
+            MNNModelCatalog.ApplyArtifactEvidence(model, MNNParaformerModel.Paths);
             Assert.False(model.runtimeAvailable);
         }
 

@@ -46,6 +46,8 @@ def main():
     parser.add_argument("--test-filter", help="Optional Unity test filter. Reports certify only the selected tests.")
     parser.add_argument("--player-heartbeat-timeout", type=int, default=1800,
                         help="Seconds allowed without a Player heartbeat during synchronous native inference (default: 1800).")
+    parser.add_argument("--run-timeout-seconds", type=int, default=1800,
+                        help="Total Editor/build/Player deadline, 1–86400 seconds (default: 1800). Independent of heartbeat timeout.")
     parser.add_argument("--kws-root", type=Path, help="Existing prepared Chinese KWS profile with demo WAV and tokenized keywords.")
     parser.add_argument("--smart-turn-root", type=Path, help="Existing prepared Smart Turn model with independent ONNX reference PCM.")
     parser.add_argument("--silero-root", type=Path, help="Existing prepared Silero VAD model and independent ONNX reference PCM/probabilities.")
@@ -59,6 +61,8 @@ def main():
     args = parser.parse_args()
     if args.player_heartbeat_timeout < 1:
         parser.error("--player-heartbeat-timeout must be positive.")
+    if not 1 <= args.run_timeout_seconds <= 86400:
+        parser.error("--run-timeout-seconds must be between 1 and 86400.")
     if args.label_suffix and not re.fullmatch(r"[A-Za-z0-9_-]+", args.label_suffix):
         parser.error("--label-suffix accepts only letters, digits, hyphen or underscore.")
     root = Path(__file__).resolve().parents[4]
@@ -203,7 +207,7 @@ def main():
     next_device_poll = time.monotonic() + 5
     process = subprocess.Popen(command, env=env)
     try:
-        deadline = time.monotonic() + 1800
+        deadline = time.monotonic() + args.run_timeout_seconds
         while process.poll() is None:
             if adb and time.monotonic() >= next_device_poll and not result_path.exists():
                 next_device_poll = time.monotonic() + 5
@@ -236,7 +240,7 @@ def main():
                 raise RuntimeError("Test Player exited with code " + str(player_process.returncode) +
                                    ". Inspect player.log.")
             if time.monotonic() > deadline:
-                raise TimeoutError("Unity test run exceeded 30 minutes.")
+                raise TimeoutError("Unity test run exceeded " + str(args.run_timeout_seconds) + " seconds.")
             time.sleep(1)
     finally:
         for child in (player_process, process):

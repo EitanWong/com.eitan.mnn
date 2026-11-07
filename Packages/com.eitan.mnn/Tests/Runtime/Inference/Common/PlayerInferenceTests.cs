@@ -22,7 +22,7 @@ namespace MNN.Unity.Tests
         }
 
         [TestCase(""), TestCase("1234567890123456789012"), TestCase("12345678901234567890123"), TestCase("你好，世界🙂一二三四五六七八九十"), TestCase("before\0after")]
-        public void NativeString_RoundTripsOwnedUtf8OnPlayerArchitecture(string value)
+        public void InputString_RoundTripsUtf8OnPlayerArchitecture(string value)
         {
             MNNInterop.RequireAbi();
             byte[] actual;
@@ -31,6 +31,19 @@ namespace MNN.Unity.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
             CollectionAssert.AreEqual(Encoding.UTF8.GetBytes(value), actual);
+        }
+
+        [Test]
+        public void SavedTensorNames_RetainsIntermediateAcrossGc()
+        {
+            using (var model = MNNInterpreter.CreateFromBuffer(AffineFixture.Bytes))
+            using (var session = model.CreateSession(new MNNSessionConfig { BackendType = MNNBackendType.CPU, SavedTensors = new[] { "BinaryOp3", "output" } }))
+            {
+                GC.Collect();
+                session.GetInput().CopyFromArray(new[] { -1f, 0f, 0.5f, 5f });
+                session.Run();
+                CollectionAssert.AreEqual(new[] { -2f, 0f, 1f, 10f }, session.GetOutput("BinaryOp3").CopyToArray<float>());
+            }
         }
 
         [TestCase(1), TestCase(4)]

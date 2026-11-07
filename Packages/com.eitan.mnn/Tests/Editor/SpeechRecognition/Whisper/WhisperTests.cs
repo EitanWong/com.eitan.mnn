@@ -12,14 +12,13 @@ namespace MNN.Unity.Tests
         [Test]
         public void CatalogPinsOnlyTheVerifiedRepositoryAndProvider()
         {
-            foreach (var provider in new[] {MNNModelProvider.ModelScope, MNNModelProvider.HuggingFace})
+            foreach (var provider in new[] {MNNModelSource.ModelScope, MNNModelSource.HuggingFace})
             {
-                var model = new MNNModelInfo {id = "hf:" + MNNWhisperModel.Repository, repositoryId = MNNWhisperModel.Repository, name = "whisper-tiny-en-mnn", provider = provider};
-                typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
-                    .Invoke(null, new object[] {model, MNNWhisperModel.Paths});
-                Assert.AreEqual(provider == MNNModelProvider.HuggingFace, model.runtimeAvailable);
+                var model = new MNNRemoteModel {id = "hf:" + MNNWhisperModel.Repository, repositoryId = MNNWhisperModel.Repository, name = "whisper-tiny-en-mnn", provider = provider};
+                MNNModelCatalog.ApplyArtifactEvidence(model, MNNWhisperModel.Paths);
+                Assert.AreEqual(provider == MNNModelSource.HuggingFace, model.runtimeAvailable);
                 Assert.AreEqual("SpeechRecognition", model.category);
-                if (provider == MNNModelProvider.HuggingFace)
+                if (provider == MNNModelSource.HuggingFace)
                 {
                     Assert.AreEqual(MNNWhisperModel.Revision, model.revision);
                     Assert.AreEqual(MNNWhisperModel.Sizes.Sum(), model.fileSize);
@@ -36,12 +35,11 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(profile.Paths.Length, profile.Sizes.Length);
             Assert.AreEqual(profile.Paths.Length, profile.Hashes.Length);
             Assert.True(profile.Hashes.All(hash => hash.Length == 64));
-            foreach (var provider in new[] {MNNModelProvider.ModelScope, MNNModelProvider.HuggingFace})
+            foreach (var provider in new[] {MNNModelSource.ModelScope, MNNModelSource.HuggingFace})
             {
-                var model = new MNNModelInfo {id = profile.Repository, repositoryId = profile.Repository, name = profile.Repository.Split('/').Last(), provider = provider};
-                typeof(MNNModelRepository).GetMethod("ApplyArtifactEvidence", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
-                    .Invoke(null, new object[] {model, profile.Paths});
-                Assert.AreEqual(profile.ModelScope == (provider == MNNModelProvider.ModelScope), model.runtimeAvailable);
+                var model = new MNNRemoteModel {id = profile.Repository, repositoryId = profile.Repository, name = profile.Repository.Split('/').Last(), provider = provider};
+                MNNModelCatalog.ApplyArtifactEvidence(model, profile.Paths);
+                Assert.AreEqual(profile.ModelScope == (provider == MNNModelSource.ModelScope), model.runtimeAvailable);
                 if (model.runtimeAvailable) Assert.AreEqual(profile.Sizes.Sum(), model.fileSize);
             }
             if (!profile.ChineseAvailable)

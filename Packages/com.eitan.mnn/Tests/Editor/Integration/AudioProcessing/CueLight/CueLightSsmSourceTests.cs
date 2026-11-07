@@ -111,7 +111,7 @@ namespace MNN.Unity.Tests
         {
             var model = MNNStudioModel.Read(Candidate); Assert.AreEqual(MNNStudioTask.AudioProcessing, model.Task);
             Assert.True(model.HasAudioProcessingPipeline); Assert.True(MNNStudioTasks.Get((int)model.Task).CanRun(model));
-            Assert.AreEqual(MNNModelCatalogCategory.AudioProcessing.ToString(), MNNModelCatalog.Classify("example/CueLight-Nano-SSM-MNN"));
+            Assert.AreEqual(MNNModelCatalogCategory.TurnDetection.ToString(), MNNModelCatalog.Classify("example/CueLight-Nano-SSM-MNN"));
             using (var backend = MNNStudioNativeBackend.Load(model, 8, false))
             {
                 string wav = Path.Combine(CueLightSourceParityTests.Root, "studio-reference-v252/long_call.wav");

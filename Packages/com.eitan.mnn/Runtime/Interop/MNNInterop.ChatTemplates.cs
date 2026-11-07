@@ -26,7 +26,7 @@ namespace MNN.Unity.Interop
 
         private static void ConfigureLegacyChatTemplate(IntPtr model)
         {
-            string options = LegacyChatTemplateOptions(TakeString(DumpConfig(model)));
+            string options = LegacyChatTemplateOptions(DumpConfigurationText(model));
             if (options != null)
                 Configure(model, options);
         }

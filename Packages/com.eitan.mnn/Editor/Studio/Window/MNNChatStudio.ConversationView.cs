@@ -29,18 +29,7 @@ namespace MNN.Unity.Editor
                         DrawSuggestions();
                     }
 
-                    for (int index = 0; index < _messages.Count; ++index)
-                    {
-                        DrawMessage(_messages[index]);
-                        if (Event.current.type == EventType.Repaint)
-                        {
-                            var messageRect = GUILayoutUtility.GetLastRect();
-                            if (index == _jumpMessageIndex)
-                                _jumpScroll = Mathf.Max(0, messageRect.y - 24);
-                            if (index == _highlightMessageIndex && EditorApplication.timeSinceStartup < _highlightUntil)
-                                EditorGUI.DrawRect(new Rect(messageRect.x - 8, messageRect.y, 3, messageRect.height), MNNStudioUI.Accent);
-                        }
-                    }
+                    DrawTranscript();
 
                     if (Busy && _namingChatId == null)
                     {
@@ -49,7 +38,7 @@ namespace MNN.Unity.Editor
                         {
                             GUILayout.Label(Selected?.DisplayName ?? "Assistant", MNNStudioUI.Caption);
                             GUILayout.Space(6);
-                            _streamMarkdown?.Draw(ContentWidth);
+                            DrawStreamMarkdown(ContentWidth);
                         }
 
                         using (new EditorGUILayout.HorizontalScope())
@@ -114,7 +103,7 @@ namespace MNN.Unity.Editor
             var style = message.IsUser ? MNNStudioUI.UserBody : MNNStudioUI.Body;
             var caption = message.IsUser ? MNNStudioUI.UserCaption : MNNStudioUI.Caption;
             float maximum = ContentWidth * (message.IsUser ? .82f : 1f);
-            float desired = style.CalcSize(new GUIContent(message.Text)).x + 28;
+            float desired = message.IsUser ? style.CalcSize(new GUIContent(message.Text)).x + 28 : maximum;
             float width = message.IsUser ? Mathf.Clamp(desired, message.ImagePath != null || message.AudioPath != null ? 270 : 170, maximum) : maximum;
             GUILayout.Space(message.IsUser ? 12 : 20);
             using (new EditorGUILayout.HorizontalScope())

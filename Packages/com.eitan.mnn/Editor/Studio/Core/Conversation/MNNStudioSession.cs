@@ -12,7 +12,12 @@ namespace MNN.Unity.Editor
     /// editor thread. Closing a window defers disposal until the active call has finished.</summary>
     internal sealed class MNNStudioSession : IDisposable
     {
-        private readonly IMNNStudioBackend _backend;
+        private IMNNStudioBackend _backend;
+        private readonly Func<IMNNStudioBackend> _factory;
+        private Task _release;
+        private bool _released;
+        private readonly TaskCompletionSource<bool> _disposal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal Task Disposal => _disposal.Task;
         private Task<MNNStudioResult> _pending;
         private bool _closed, _discard;
         private CancellationTokenSource _cancellation;
@@ -30,7 +35,7 @@ namespace MNN.Unity.Editor
         internal MNNGenerationUpdate Progress { get; private set; }
 
         internal event Action Updated;
-        internal bool Busy => _pending != null;
+        internal bool Busy => _pending != null || _release != null;
         internal MNNStudioResult Result { get; private set; }
 
         internal string Error { get; private set; }
@@ -38,6 +43,7 @@ namespace MNN.Unity.Editor
         internal event Action Completed;
         internal event Action Released;
         internal MNNStudioSession(IMNNStudioBackend backend) => _backend = backend ?? throw new ArgumentNullException(nameof(backend));
+        internal MNNStudioSession(Func<IMNNStudioBackend> factory) => _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         internal void Send(MNNStudioRequest request)
         {
             if (_closed)
@@ -46,7 +52,7 @@ namespace MNN.Unity.Editor
                 throw new InvalidOperationException("A model operation is already running.");
             if (request == null || (request.Conversation == null && string.IsNullOrWhiteSpace(request.Prompt)))
                 throw new ArgumentException("Enter a message or query.");
-            request = new MNNStudioRequest{Keywords = request.Keywords, KeywordThreshold = request.KeywordThreshold, KeywordScore = request.KeywordScore, RecognitionLanguage = request.RecognitionLanguage, VisionImage = request.VisionImage, LayoutScoreThreshold = request.LayoutScoreThreshold, Prompt = request.Prompt, Image = request.Image, Audio = request.Audio, PlaybackReference = request.PlaybackReference, ReferenceText = request.ReferenceText, SpeechLanguage = request.SpeechLanguage, Document = request.Document, Voice = request.Voice, EmotionId = request.EmotionId, NegativePrompt = request.NegativePrompt, Steps = request.Steps, Seed = request.Seed, Speed = request.Speed, Guidance = request.Guidance, ReferenceRgb = request.ReferenceRgb == null ? null : (byte[])request.ReferenceRgb.Clone(), TokenLimit = request.TokenLimit, Speech = request.Speech, ContextSummary = request.ContextSummary, History = request.History == null ? null : (MNNStudioMessage[])request.History.Clone(), SummarizedMessages = request.SummarizedMessages, ContextTokens = request.ContextTokens, Conversation = request.Conversation == null ? null : (MNNChatMessage[])request.Conversation.Clone()};
+            request = request.Snapshot();
             Result = null;
             Error = null;
             Progress = null;
@@ -83,6 +89,9 @@ namespace MNN.Unity.Editor
             };
             _pending = Task.Run(() =>
             {
+                request.Cancellation.ThrowIfCancellationRequested();
+                if (_backend == null) _backend = _factory() ?? throw new InvalidOperationException("Model factory returned no backend.");
+                request.Cancellation.ThrowIfCancellationRequested();
                 // Exclude worker queueing and model loading; include preprocessing,
                 // inference, GPU readback and PCM construction, before editor playback.
                 var timer = System.Diagnostics.Stopwatch.StartNew();
@@ -121,6 +130,16 @@ namespace MNN.Unity.Editor
 
         internal void Poll()
         {
+            if (_release != null && _release.IsCompleted)
+            {
+                if (_release.IsFaulted)
+                {
+                    Error = _release.Exception.GetBaseException().Message;
+                    _disposal.TrySetException(_release.Exception.InnerExceptions);
+                }
+                _release = null;
+                NotifyReleased();
+            }
             PublishProgress();
             if (_pending == null || !_pending.IsCompleted)
                 return;
@@ -174,7 +193,23 @@ namespace MNN.Unity.Editor
 
         private void Release()
         {
-            _backend.Dispose();
+            if (_released) return;
+            _released = true;
+            if (_factory != null)
+            {
+                _release = Task.Run(() => _backend?.Dispose());
+                MNNStudioJobs.Track(this);
+            }
+            else
+            {
+                _backend?.Dispose();
+                NotifyReleased();
+            }
+        }
+
+        private void NotifyReleased()
+        {
+            _disposal.TrySetResult(true);
             Released?.Invoke();
             Released = null;
         }

@@ -7,6 +7,8 @@ namespace MNN.Unity
     // use the same context/state interface and backend/precision policy.
     internal sealed class MNNSileroFrameRunner : IDisposable
     {
+        private readonly object _gate = new object();
+        private bool _disposed;
         private readonly MNNSingleInputModule _legacy;
         private readonly MNNInterpreter _interpreter;
         private readonly MNNSession _session;
@@ -59,6 +61,17 @@ namespace MNN.Unity
 
         internal void Run(float[] packed, float[] output)
         {
+            // Offline analysis yields this lock after every frame, never after a whole
+            // recording. Context/state belongs to the caller, scratch/tensors to this gate.
+            lock (_gate)
+            {
+                if (_disposed) throw new ObjectDisposedException(nameof(MNNSileroFrameRunner));
+                RunCore(packed, output);
+            }
+        }
+
+        private void RunCore(float[] packed, float[] output)
+        {
             if (_legacy != null)
             {
                 var result = _legacy.Run(packed, 832);
@@ -107,8 +120,13 @@ namespace MNN.Unity
 
         public void Dispose()
         {
-            _legacy?.Dispose();
-            _interpreter?.Dispose();
+            lock (_gate)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                try { _legacy?.Dispose(); }
+                finally { _interpreter?.Dispose(); }
+            }
         }
     }
 }

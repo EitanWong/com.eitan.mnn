@@ -1,0 +1,44 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Runtime/EasyMic/SiriAIConversationTests.cs",
+      "before": "ea8e7e880c9256edd739516e232f8cbb5c8f942995a7e063886c65425abc0b1b",
+      "after": "c6e8943091c7e012d349783b758c5820ac4b963fc1d9e9996354c71d7755590d"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Runtime/EasyMic/SiriAIConversationTests.cs.meta",
+      "before": "8250eecff134bfc3163c4167aa3df4333666883b512d4c8194bed7851b6aeeef",
+      "after": "8250eecff134bfc3163c4167aa3df4333666883b512d4c8194bed7851b6aeeef"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs",
+      "before": "13440f301614678059f31d7c4469cf4ed682d42f8c9826cee70f0e0ced7b324b",
+      "after": "9b35d3d7b3c1b2a910b73733d7355add39b72aa473e35a4639d53459019c0c8b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs.meta",
+      "before": "1518c738f24ed307a63872bbb2de75b657227625c7b01f2cdb4ec7c1e7eddc71",
+      "after": "1518c738f24ed307a63872bbb2de75b657227625c7b01f2cdb4ec7c1e7eddc71"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs",
+      "before": null,
+      "after": "86f746bffa0c910f446e6af4727d54ac4cb307c7b6e5ff1b7bad8476fdca7823"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs.meta",
+      "before": null,
+      "after": "4d23fba5fb4cde947a15ac4f15f841c9de917463908b7a41dd2330bae90e7be9"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs",
+      "before": "c1396d10cfb3b6b3be2cd2bcad118e7a2fbb1ad0142fd7f0f473db1e61ec0614",
+      "after": "e8929fced29ce3566b3dc93bbcc4fd38d3e60449f2c53e19a974a6cbec1dfc3f"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs.meta",
+      "before": "d682075117d49882fcfc57326d902716fdcf8061f12299e8863d2a0640899916",
+      "after": "d682075117d49882fcfc57326d902716fdcf8061f12299e8863d2a0640899916"
+    }
+  ]
+}

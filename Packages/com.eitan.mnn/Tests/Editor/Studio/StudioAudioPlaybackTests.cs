@@ -75,7 +75,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator SpokenReplies_AutoplayInOrdinaryChatWithoutVoiceLoop()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var type = typeof(MNNChatStudio);
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
             string root = Path.GetFullPath(Path.Combine("Library", "MNN", "StudioAudioTests", Guid.NewGuid().ToString("N")));
@@ -165,7 +165,7 @@ namespace MNN.Unity.Tests
 
             Assert.Greater(energy / speech.Waveform.Length, 1e-8);
             string root = Path.GetFullPath(Path.Combine("Library", "MNN", "StudioAudioTests", Guid.NewGuid().ToString("N")));
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var type = typeof(MNNChatStudio);
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
             var audio = new MNNStudioAudio();
@@ -259,7 +259,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator StudioPlayAction_ReportsEditorMuteAndUnmutesOnlyAfterExplicitEnable()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
             bool wasMuted = EditorUtility.audioMasterMute;
             var audio = new MNNStudioAudio();

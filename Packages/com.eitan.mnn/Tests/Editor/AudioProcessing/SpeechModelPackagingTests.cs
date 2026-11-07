@@ -20,7 +20,7 @@ namespace MNN.Unity.Tests
         [TestCase("DTLN-MNN", "dtln_1_fp32.mnn", "mnn_dtln.json")]
         [TestCase("GTCRN-MNN", "gtcrn_fp32.mnn", "mnn_gtcrn.json")]
         [TestCase("FullSubNet-MNN", "fullsubnet_fp32.mnn", "mnn_fullsubnet.json")]
-        [TestCase("ERes2NetV2-MNN", "3dspeaker_speech_eres2netv2_sv_zh-cn_16k-common.mnn", "mnn_speaker.json")]
+        [TestCase("ERes2NetV2-MNN", "eres2netv2_fp32.mnn", "mnn_speaker.json")]
         [TestCase("FSMN-VAD-16K-MNN", "fsmn_vad_fp32.mnn", "mnn_fsmn_vad.json")]
         [TestCase("FRCRN-SE-16K-MNN", "frcrn_se_16k_fp32.mnn", "mnn_frcrn_se.json")]
         [TestCase("DeepFilterNet3-MNN", "enc_fp16.mnn", "mnn_deepfilternet3.json")]

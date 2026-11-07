@@ -10,6 +10,31 @@ namespace MNN.Unity.Tests
     [Category("RepresentativeModel")]
     public class KokoroIntegrationTests
     {
+        [Test, Explicit("Requires an installed Kokoro graph; measures managed weight retention after disposal, not native RSS.")]
+        public void DisposedOwnersReleaseManagedGraphWhileReferencesRemainAlive()
+        {
+            string root = Environment.GetEnvironmentVariable("MNN_TEST_KOKORO_ROOT");
+            Assert.That(root, Is.Not.Null.And.Not.Empty);
+            var retained = new System.Collections.Generic.List<MNNKokoro>();
+            try
+            {
+                var warm = MNNKokoro.Load(root);
+                retained.Add(warm);
+                warm.Dispose();
+                Assert.Throws<ObjectDisposedException>(() => warm.Synthesize("你好。"));
+                long before = GC.GetTotalMemory(true);
+                var last = MNNKokoro.Load(root);
+                retained.Add(last);
+                last.Dispose();
+                long growth = GC.GetTotalMemory(true) - before;
+                TestContext.WriteLine("Disposed managed graph retention bytes: " + growth);
+                Assert.Less(growth, 32L * 1024 * 1024,
+                    "A disposed Kokoro owner must release its serialized weights even when a UI or completed task retains the owner.");
+                GC.KeepAlive(retained);
+            }
+            finally { foreach (var model in retained) model.Dispose(); }
+        }
+
         [Test]
         public void EveryExternalVoiceProducesReferenceSpeech()
         {

@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/Unity/SiriAIUnityAudio.cs",
+      "before": "e7b5fef8296cfb6de9f16775a1939bcebf08b7e6c19bd2577173900fcd8779c8",
+      "after": "56156fcb25f04b7c4fa71fec6ff376486f00baeeb43ca7e567cd7acd8b02e36d"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/EasyMic/SiriAIEasyMicAudio.cs",
+      "before": "02c0510ccc4f68761c9f0e99df6e9760f027f03f13bc2eb5b6be133d8cbd0948",
+      "after": "73658f951c18b6622fbc4d973449b4e52a9704df21ecad32d1ecf86d7b179527"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs",
+      "before": null,
+      "after": "00d229fd7a576c4a13ac67b4d1d472b1edb43b217da189913a4820b9c125bb9b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs.meta",
+      "before": null,
+      "after": "af442eca02f7f5a39ad1f31a21ab0fa7aa63563a6e0ce285bdf8f11afda66a1d"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/Unity/SiriAIUnityAudio.cs.meta",
+      "before": "76986ea94086ca8a4887a5cbfa9ffc28a9b51dc7a16f5d0fab93fe340861425b",
+      "after": "76986ea94086ca8a4887a5cbfa9ffc28a9b51dc7a16f5d0fab93fe340861425b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/EasyMic/SiriAIEasyMicAudio.cs.meta",
+      "before": "7ce391996e42dee0bbb42eca422ce43a5d136f16046cf4c67438f2c677f901a0",
+      "after": "7ce391996e42dee0bbb42eca422ce43a5d136f16046cf4c67438f2c677f901a0"
+    }
+  ]
+}

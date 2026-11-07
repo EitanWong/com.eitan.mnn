@@ -20,7 +20,7 @@ namespace MNN.Unity.Tests
         public IEnumerator Library_MouseDragReordersMovesIntoFoldersAndPersists()
         {
             string root = Path.GetFullPath(Path.Combine("Library", "MNN", "StudioWindowTests", Guid.NewGuid().ToString("N")));
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var history = new MNNStudioHistory();
             for (int i = 2; i >= 0; --i)
                 history.Remember(MNNStudioConversation.Capture(i.ToString(), "missing-model", new MNNStudioMessage[0], "Chat " + i, null, null));
@@ -114,7 +114,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator VoiceOrb_StatesFitCompactAndWideWindowsWithoutOpeningMicrophone()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var backend = new VoiceBackend();
             var session = new MNNStudioSession(backend);
             Field("_session").SetValue(window, session);
@@ -150,7 +150,8 @@ namespace MNN.Unity.Tests
                         if (session.Busy)
                         {
                             backend.Release.Set();
-                            for (int i = 0; i < 30 && session.Busy; ++i)
+                            double deadline = EditorApplication.timeSinceStartup + 3;
+                            while (session.Busy && EditorApplication.timeSinceStartup < deadline)
                             {
                                 MNNStudioJobs.Update();
                                 yield return null;
@@ -192,7 +193,7 @@ namespace MNN.Unity.Tests
                 UnityEngine.Object.DestroyImmediate(texture);
             }
 
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 var model = new MNNStudioModel("Layout model", root, MNNStudioTask.Chat, MNNModelCapabilities.Vision | MNNModelCapabilities.AudioInput | MNNModelCapabilities.SpeechOutput);
@@ -248,7 +249,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator SettingsPopover_FitsCompactWindowAndPreservesLabelWidths()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             float previous = EditorGUIUtility.labelWidth;
             try
             {
@@ -286,7 +287,7 @@ namespace MNN.Unity.Tests
         public IEnumerator Naming_UpdatesOnlyTitleAndPreservesConversationOrder()
         {
             string root = Path.GetFullPath(Path.Combine("Library", "MNN", "StudioWindowTests", Guid.NewGuid().ToString("N")));
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var backend = new WindowBackend{Reply = "彩虹的形成"};
             var session = new MNNStudioSession(backend);
             var messages = (List<MNNStudioMessage>)Field("_messages").GetValue(window);
@@ -337,7 +338,7 @@ namespace MNN.Unity.Tests
         [UnityTest]
         public IEnumerator Keyboard_EnterSendsAndShiftReturnKeepsDraft()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             var backend = new WindowBackend();
             var session = new MNNStudioSession(backend);
             Field("_autoTitle").SetValue(window, false);
@@ -383,7 +384,7 @@ namespace MNN.Unity.Tests
         [Test]
         public void EmptyRestoredAttachmentPaths_DoNotEnableSend()
         {
-            var window = ScriptableObject.CreateInstance<MNNChatStudio>();
+            var window = StudioWindowFixture.Create<MNNChatStudio>();
             try
             {
                 Field("_available").SetValue(window, new List<MNNStudioModel>{new MNNStudioModel("Text-MNN", ".", MNNStudioTask.Chat, MNNModelCapabilities.Text)});

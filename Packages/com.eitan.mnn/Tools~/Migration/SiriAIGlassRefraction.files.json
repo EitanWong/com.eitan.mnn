@@ -1,0 +1,49 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc",
+      "before": "fb869aa600e40b95ac252a7ed2bc03fb1092155dcfc82fe931f7a69c29fd97d2",
+      "after": "3cf966c24f13fd0784ad2b47522c4178183ddff3da2797b98f1536025b62d738"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/GlassOptics.cginc.meta",
+      "before": "f8180bc2ea4c448b928894276ca660e1d156f086842494f08cd6c702b8873823",
+      "after": "f8180bc2ea4c448b928894276ca660e1d156f086842494f08cd6c702b8873823"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader",
+      "before": "f48a0786a3550428f9e3b44eee5635c2a179156791dd932b10dd3062e4d9defd",
+      "after": "ebad8e714c4562d0f78478186530bc2be1488a2513181cd0ce81edabb8fb1c71"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader.meta",
+      "before": "8f36ecbfcee1fad85721014f6a3fc19440448f2ffb442815ad63959cd7a7d8b4",
+      "after": "8f36ecbfcee1fad85721014f6a3fc19440448f2ffb442815ad63959cd7a7d8b4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader",
+      "before": "c3befa66e3817a63b40d1bbc5810edab0c90b0d1c720305a533ec39869ecbbe5",
+      "after": "6264e7ae48ba84b82862bb2af8fa3ed4bba751a5977b7ffcdeb7024a6c2b127b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader.meta",
+      "before": "9bbb667e5dd0a8d6efb12212ccc0f940d4ccd949bca2dc3d8be7098e7a18dcaf",
+      "after": "9bbb667e5dd0a8d6efb12212ccc0f940d4ccd949bca2dc3d8be7098e7a18dcaf"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/OrbStyles.md",
+      "before": "99e038f1f0dafe8a419ed1b9e7c249b5e6fbfd680969daf45d4794417b21f373",
+      "after": "3a779f89f1f991b98609d8a88bb8e456254193dcd68dc67f489f24e2cc60c58b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs",
+      "before": "7959bdf82cd38b901a56ac157cb795297eb94c66a0fe0ecde044a04a2e378ecb",
+      "after": "2e6c0761ff4797b8fffc2bbf400215bef0db6ae67d94d5934daad903ccdab7c3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOrbStyleRenderingTests.cs.meta",
+      "before": "67ea6c453de00cd9a1e3ef4c72af7dfff07a1d4d25fede96e9f65301f9cc9de6",
+      "after": "67ea6c453de00cd9a1e3ef4c72af7dfff07a1d4d25fede96e9f65301f9cc9de6"
+    }
+  ]
+}

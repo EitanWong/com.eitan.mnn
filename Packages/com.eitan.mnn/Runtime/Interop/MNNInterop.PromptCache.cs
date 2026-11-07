@@ -1,4 +1,7 @@
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#define MNN_DESKTOP_TASK_ABI
+#endif
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_LLM_CPP_ABI
 #endif
 using System;
@@ -10,6 +13,19 @@ namespace MNN.Unity.Interop
 {
     internal static partial class MNNInterop
     {
+#if MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN11Transformer3Llm19apply_chat_templateERKSt6vectorISt4pairINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES9_ESaISA_EE")]
+        private static extern void RenderChatDesktop(IntPtr result, IntPtr model, ref CppVector messages);
+        private static string RenderChatText(IntPtr model, ref CppVector messages)
+        {
+            using (var result = new DesktopStringResult())
+            {
+                RenderChatDesktop(result.Pointer, model, ref messages);
+                result.MarkConstructed();
+                return result.Read();
+            }
+        }
+#else
 #if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN11Transformer3Llm19apply_chat_templateERKNSt6__ndk16vectorINS2_4pairINS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEESA_EENS8_ISB_EEEE")]
@@ -17,8 +33,13 @@ namespace MNN.Unity.Interop
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNK3MNN11Transformer3Llm19apply_chat_templateERKNSt3__16vectorINS2_4pairINS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEESA_EENS8_ISB_EEEE")]
 #endif
         private static extern CppString RenderChat(IntPtr model, ref CppVector messages);
+#endif
+#endif
+#if MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt6__ndk16vectorIiNS2_9allocatorIiEEEEPNS2_13basic_ostreamIcNS2_11char_traitsIcEEEEPKci")]
+#elif MNN_DESKTOP_TASK_ABI
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKSt6vectorIiSaIiEEPSoPKci")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt3__16vectorIiNS2_9allocatorIiEEEEPNS2_13basic_ostreamIcNS2_11char_traitsIcEEEEPKci")]
 #endif
@@ -30,10 +51,13 @@ namespace MNN.Unity.Interop
         private static void RespondIds(IntPtr model, ref CppVector ids, IntPtr output, string end, int limit) => throw UnsupportedAbi();
         private static UIntPtr CurrentHistory(IntPtr model) => throw UnsupportedAbi();
 #endif
+#if !MNN_DESKTOP_TASK_ABI
+        private static string RenderChatText(IntPtr model, ref CppVector messages) => TakeString(RenderChat(model, ref messages));
+#endif
         internal static string RenderConversation(LlmHandle handle, IReadOnlyList<MNNChatMessage> messages)
         {
             using (var chat = new ChatVector(messages, null, null))
-                return TakeString(RenderChat(handle.DangerousGetHandle(), ref chat.Value));
+                return RenderChatText(handle.DangerousGetHandle(), ref chat.Value);
         }
 
         private static bool CanCacheChat(LlmHandle handle, IReadOnlyList<MNNChatMessage> messages, string image, string audio, out MNNConversationCacheStatus status)
@@ -57,7 +81,7 @@ namespace MNN.Unity.Interop
             // Speculative strategies have different accepted-token/KV bookkeeping.
             if (!handle.ChatCacheSupported.HasValue)
             {
-                handle.ChatCacheSupported = SupportsChatCacheConfiguration(TakeString(DumpConfig(handle.DangerousGetHandle())));
+                handle.ChatCacheSupported = SupportsChatCacheConfiguration(DumpConfigurationText(handle.DangerousGetHandle()));
             }
             status = handle.ChatCacheSupported.Value ? MNNConversationCacheStatus.Cold : MNNConversationCacheStatus.UnsupportedModel;
             return handle.ChatCacheSupported.Value;
@@ -90,7 +114,7 @@ namespace MNN.Unity.Interop
                 // A cold response already renders/tokenizes through the official
                 // chat overload, including Omni's virtual tokenizer/response work.
                 using (var chat = new ChatVector(messages, null, null))
-                    tokens = Tokenize(model, TakeString(RenderChat(model, ref chat.Value)));
+                    tokens = Tokenize(model, RenderChatText(model, ref chat.Value));
                 total = tokens.Length;
                 var context = ReadContext(model);
                 int[] history = CopyInts(context.History);

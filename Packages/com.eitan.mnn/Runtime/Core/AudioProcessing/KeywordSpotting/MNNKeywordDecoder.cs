@@ -31,13 +31,13 @@ namespace MNN.Unity
 
         private readonly Node _root = new Node();
         private List<Hypothesis> _hypotheses;
-        private readonly int _trailingBlanks, _maxPaths, _maxLength;
+        private readonly int _trailingBlanks, _maxPaths, _maxLength, _vocabularySize;
         private readonly Func<int[], float[]> _decode;
         private readonly Func<float[], float[], float[]> _join;
         private int _frame;
 
         internal MNNKeywordDecoder(string keywords, string[] tokens, float threshold, float score,
-            int trailingBlanks, int maxPaths, Func<int[], float[]> decode, Func<float[], float[], float[]> join)
+            int trailingBlanks, int maxPaths, Func<int[], float[]> decode, Func<float[], float[], float[]> join, int minimumTokens = 2)
         {
             if (string.IsNullOrWhiteSpace(keywords) || keywords.Length > 32768)
                 throw new ArgumentException("Enter one tokenized keyword per line (up to 32,768 characters).", nameof(keywords));
@@ -46,24 +46,25 @@ namespace MNN.Unity
             if (trailingBlanks < 1 || trailingBlanks > 25) throw new ArgumentOutOfRangeException(nameof(trailingBlanks));
             if (maxPaths < 1 || maxPaths > 16) throw new ArgumentOutOfRangeException(nameof(maxPaths));
             _decode = decode; _join = join; _trailingBlanks = trailingBlanks; _maxPaths = maxPaths;
+            _vocabularySize = tokens.Length;
             var table = tokens.Select((text, id) => new {text, id}).ToDictionary(item => item.text, item => item.id, StringComparer.Ordinal);
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (string line in keywords.Split('\n'))
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                string[] parts = line.Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+                int label = line.IndexOf('@');
+                string[] parts = (label < 0 ? line : line.Substring(0, label)).Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
                 var ids = new List<int>();
                 float boost = score, limit = threshold;
-                string phrase = null;
+                string phrase = label < 0 ? null : line.Substring(label + 1).Trim();
                 foreach (string part in parts)
                 {
-                    if (part.StartsWith("@", StringComparison.Ordinal)) phrase = part.Substring(1);
-                    else if (part.StartsWith(":", StringComparison.Ordinal)) boost = Parse(part, 0, 10);
+                    if (part.StartsWith(":", StringComparison.Ordinal)) boost = Parse(part, 0, 10);
                     else if (part.StartsWith("#", StringComparison.Ordinal)) limit = Parse(part, float.Epsilon, 1);
                     else if (table.TryGetValue(part.Normalize(), out int id) && id > 2) ids.Add(id);
                     else throw new ArgumentException("Unknown KWS token '" + part + "'. Use space-separated tone-marked initials/finals from tokens.txt, e.g. x iǎo ài t óng x ué @小爱同学.");
                 }
-                if (ids.Count < 2 || ids.Count > 64) throw new ArgumentException("Each keyword needs 2–64 model tokens.");
+                if (ids.Count < minimumTokens || ids.Count > 64) throw new ArgumentException("The wake phrase is too short or too long for this model.");
                 if (!seen.Add(string.Join(",", ids))) throw new ArgumentException("Duplicate keyword token sequence.");
                 if (seen.Count > 128) throw new ArgumentException("At most 128 keywords can be active.");
                 _maxLength = Math.Max(_maxLength, ids.Count);
@@ -115,6 +116,18 @@ namespace MNN.Unity
             if (resetTime) _frame = 0;
         }
 
+        private Node NextState(Node previous, int id, out float score)
+        {
+            score = 0;
+            if (id == 0 || id == 2) return previous;
+            Node state = previous;
+            bool direct = state.Next.ContainsKey(id);
+            while (state != _root && !state.Next.ContainsKey(id)) state = state.Fail;
+            Node next = state.Next.TryGetValue(id, out var target) ? target : _root;
+            score = (direct ? next.TokenScore : next.Score - previous.Score) + next.OutputScore;
+            return next;
+        }
+
         internal MNNKeywordDetection Advance(float[] encoded)
         {
             var candidates = new List<Tuple<double, int, Hypothesis, float>>();
@@ -126,18 +139,21 @@ namespace MNN.Unity
                 string key = context[0] + "," + context[1];
                 if (!cache.TryGetValue(key, out var decoded)) cache[key] = decoded = _decode(context);
                 var logits = _join(encoded, decoded);
-                if (logits.Length != 197 || logits.Any(value => !Finite(value))) throw new InvalidDataException("Expected finite KWS logits with 197 tokens.");
+                if (logits.Length != _vocabularySize || logits.Any(value => !Finite(value))) throw new InvalidDataException("KWS output does not match the model vocabulary.");
                 float max = logits.Max();
                 double logSum = max + Math.Log(logits.Sum(value => Math.Exp(value - max)));
                 for (int id = 0; id < logits.Length; ++id)
                 {
                     if (id == 1) continue; // <sos/eos> is not a keyword unit.
                     double logProbability = logits[id] - logSum;
-                    candidates.Add(Tuple.Create(hypothesis.Score + logProbability, id, hypothesis, (float)Math.Exp(logProbability)));
+                    NextState(hypothesis.State, id, out float contextScore);
+                    candidates.Add(Tuple.Create(hypothesis.Score + logProbability + contextScore, id, hypothesis, (float)Math.Exp(logProbability)));
                 }
             }
             var next = new Dictionary<string, Hypothesis>();
-            foreach (var item in candidates.OrderByDescending(value => value.Item1).Take(_maxPaths))
+            // Equivalent blank/unknown histories share a beam slot. Fill the beam
+            // with distinct histories so duplicates cannot evict a viable keyword.
+            foreach (var item in candidates.OrderByDescending(value => value.Item1))
             {
                 int id = item.Item2;
                 var previous = item.Item3;
@@ -145,11 +161,7 @@ namespace MNN.Unity
                     Ids = new List<int>(previous.Ids), Probabilities = new List<float>(previous.Probabilities), Times = new List<int>(previous.Times)};
                 if (id != 0 && id != 2)
                 {
-                    Node state = previous.State;
-                    bool direct = state.Next.ContainsKey(id);
-                    while (state != _root && !state.Next.ContainsKey(id)) state = state.Fail;
-                    hypothesis.State = state.Next.TryGetValue(id, out var target) ? target : _root;
-                    hypothesis.Score += (direct ? hypothesis.State.TokenScore : hypothesis.State.Score - previous.State.Score) + hypothesis.State.OutputScore;
+                    hypothesis.State = NextState(previous.State, id, out _);
                     hypothesis.Blanks = 0;
                     hypothesis.Ids.Add(id); hypothesis.Probabilities.Add(item.Item4); hypothesis.Times.Add(_frame);
                     if (hypothesis.State == _root)
@@ -171,6 +183,7 @@ namespace MNN.Unity
                     same.Score = merged;
                 }
                 else next[key] = hypothesis;
+                if (next.Count == _maxPaths) break;
             }
             _hypotheses = next.Values.ToList();
             var best = _hypotheses.OrderByDescending(value => value.Score).First();

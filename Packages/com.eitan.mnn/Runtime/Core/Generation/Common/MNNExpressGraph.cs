@@ -9,7 +9,7 @@ using MNN.Unity.Interop.Handles;
 namespace MNN.Unity
 {
     // Public Express Variable APIs for data-dependent graphs without control-flow subgraphs.
-    // STL ownership follows the existing MNN 3.6.2 / Apple libc++ 64-bit ABI contract.
+    // STL ownership follows the bundled MNN 3.6.2 compiler-specific ABI contract.
     internal sealed class MNNExpressGraph : IDisposable
     {
         private readonly Dictionary<string, MNNInterop.CppShared> _byName = new Dictionary<string, MNNInterop.CppShared>(StringComparer.Ordinal);

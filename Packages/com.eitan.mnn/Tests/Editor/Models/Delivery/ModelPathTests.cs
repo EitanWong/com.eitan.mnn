@@ -59,6 +59,35 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
-        public void MissingFile_IsUnavailable() => Assert.IsFalse(_config.IsModelAvailable());
+        public void MissingFile_IsUnavailable()
+        {
+            string path = ConfigureIsolatedAvailabilityPath();
+            Assert.IsFalse(File.Exists(path));
+            Assert.IsFalse(_config.IsModelAvailable());
+        }
+
+        [Test]
+        public void ExistingFile_IsAvailable()
+        {
+            string path = ConfigureIsolatedAvailabilityPath();
+            Directory.CreateDirectory(_config.customPath);
+            try
+            {
+                File.WriteAllBytes(path, new byte[] { 1 });
+                Assert.IsTrue(_config.IsModelAvailable(), "Availability checks file presence, not native model validity.");
+            }
+            finally
+            {
+                Directory.Delete(_config.customPath, true);
+            }
+        }
+
+        private string ConfigureIsolatedAvailabilityPath()
+        {
+            _config.storageLocation = ModelStorageLocation.Custom;
+            _config.customPath = Path.GetFullPath(Path.Combine("TestArtifacts~", "MNNValidation", nameof(ModelPathTests), System.Guid.NewGuid().ToString("N")));
+            _config.modelFileName = "availability.mnn";
+            return _config.GetModelPath();
+        }
     }
 }
