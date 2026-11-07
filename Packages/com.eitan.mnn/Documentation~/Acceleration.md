@@ -2,17 +2,20 @@
 
 所有已实现的模型加载入口默认 `backendType: MNNBackendType.Auto`，并应用任务兼容策略。
 在 macOS/iOS 上，Auto 先探测 Metal GPU，再探测 NN，最后使用 CPU；
-Android 上按 OpenCL → Vulkan → CPU 探测。具体模型仍应用质量/兼容策略。
+Android 上按 OpenCL → Vulkan → CPU 探测。Windows/Linux 随包构建仅启用 CPU，
+`Auto` 使用 CPU，显式 GPU 请求也回退 CPU。具体模型仍应用质量/兼容策略。
 探测通过小型内嵌 MNN 图创建真实 Session，执行并校验 `2*x+1` 的结果，
 再用官方 `getSessionInfo(BACKENDS)` 确认主后端；结果按进程缓存。不会只凭平台名称、枚举值或已注册的 runtime 判定设备可用。
 显式指定不可用的后端也会退到 CPU。
 
-当前随包 MNN 3.6.2 启用了 Metal，没有启用 CoreML、CUDA 或 OpenCL。
-因此这份二进制目前可用的是 Metal 和 CPU，不能宣称已使用 Apple Neural Engine。
+当前随包 macOS MNN 3.6.2 启用了 Metal，没有启用 CoreML、CUDA 或 OpenCL。
+这份 macOS 二进制目前可用的是 Metal 和 CPU，不能宣称已使用 Apple Neural Engine。
 Android ARM64 IL2CPP 的官方库启用 OpenCL、Vulkan、NNAPI 与 ARMv8.2 FP16 内核；
 运行时仍检查设备实际可用性。包附带可选 `libOpenCL.so` 的 Android manifest 声明，
 支持 Android 12+ 对厂商 OpenCL 库的可见性要求。iOS ARM64 IL2CPP 支持 CPU/Metal，具体绑定和验证范围见
-[移动端说明](MobileInterop.md)。Windows、Linux、WebGL 和 macOS IL2CPP 在原生调用前拒绝。
+[移动端说明](MobileInterop.md)。Windows/Linux x64 Mono 的核心、Express、LLM、检索和媒体输入
+使用独立 GNU ABI，已验证 CPU 任务，尚未验证对应 Unity Player；见[桌面 Mono](DesktopMono.md)。
+WebGL、桌面 IL2CPP 和 Windows/Linux ARM64 在原生调用前拒绝。
 后端枚举不是平台支持承诺，NN runtime 可用也不等同于 NPU 硬件放置证明。
 
 ## 使用与诊断

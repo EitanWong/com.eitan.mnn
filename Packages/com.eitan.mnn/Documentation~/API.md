@@ -3,7 +3,12 @@
 ## Overview
 
 本文档介绍 MNN Unity Package 的 C# API。当前接口直接调用官方 C++ API，
-要求随包 MNN 3.6.1 / Apple libc++ ABI，CPU 已验证 macOS arm64 与 x86_64 Mono；Metal 加速验证范围见 [测试说明](Testing.md)。
+要求随包 MNN 3.6.2 及对应平台的编译器/STL ABI。桌面 Mono 包含 macOS ARM64/x64
+（Apple libc++）、Windows x64（MinGW-w64 GCC 16.2）与 Linux x64（GCC 13.3），
+核心、Express、LLM、原生检索和媒体输入的系统要求见[桌面 Mono](DesktopMono.md)。
+Windows Wine Mono 与 Linux host Mono 各通过 79 项任务断言和 22 项核心断言，
+尚无 Windows/Linux Unity Player 结果，其随包原生库为 CPU 构建。
+macOS 当前核心/平台/Express Player 回归两种架构各通过 120/120，Metal 与模型验证范围见[测试说明](Testing.md)。
 六类代表模型的独立 Player 推理已在 arm64 和 Rosetta 下的 x86_64 验证；
 未在 Intel 真机验证。Android/iOS ARM64 IL2CPP 复用同一套 Interpreter/Session/Tensor、LLM、
 Express 和原生检索 partial；编译器契约及逐任务验证边界见 [移动端说明](MobileInterop.md)。
@@ -62,12 +67,15 @@ Studio 使用同一查询入口。分词器实现 BERT WordPiece、BertNormalize
 当前支持 int32/int64 的 `[1,L]` 输入和 `[1,L,D]` / `[L,D]` 的 `last_hidden_state` 输出；
 可通过空 `attentionMask` 或 `tokenTypes` 禁用不存在的可选输入。未验证的自定义 profile 不自动成为精选模型。
 
-默认 Auto 选择 Metal。非有限输出或零向量会触发 Metal High (FP32) 重试，仍无效时切换 CPU；
+macOS 上默认 Auto 尝试 Metal，Windows/Linux 随包构建使用 CPU。
+非有限输出或零向量会触发 Metal High (FP32) 重试，仍无效时切换 CPU；
 后续请求使用成功的会话。`Backend` 可查看实际主后端，个别算子可能由 MNN 回退 CPU。
 已发现 `developerabu` BGE 在默认和 High Metal 下均产生非有限值，实测最终使用 CPU。
 配置/形状错误和取消不会作为数值异常重试；原生 kernel 不能被取消令牌抢占。
 真实平台与质量验证记录见 [测试说明](Testing.md)。此管线复用现有官方 C++ Interpreter/Tensor 调用，
-没有新增原生导出、桥接库、C++ 或修改官方 MNN 源码，仍限随包 Apple libc++ / Mono ABI。
+没有新增自定义原生导出、桥接库、C++ 或修改官方 MNN 源码。
+底层绑定遵循[桌面 Mono](DesktopMono.md)的逐平台 ABI；这些 BERT/MiniLM profile 的历史质量结果
+不自动扩展到 Windows/Linux，原生 Embedding 入口的独立验证见[测试说明](Testing.md)。
 
 ModelScope 的 `TorryJi/bge-small-zh-v1.5-MNN` 使用官方 LLM 导出的另一种 BERT 协议：
 保留 `config.json`、`llm_config.json`、`tokenizer.mtok`、`embeddings_int8.bin`、

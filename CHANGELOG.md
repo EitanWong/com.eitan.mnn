@@ -8,6 +8,11 @@ Unreleased entries describe development work, not a published version.
 
 ### Added
 
+- Added macOS ARM64/x64, Windows x64 and Linux x64 desktop Mono contracts for
+  core inference, Express, LLM, native embedding/reranking and media input.
+  Windows/Linux use pinned GNU compiler builds of unchanged official MNN 3.6.2,
+  without added C++ sources, bridge libraries or custom C exports. Setup and
+  system requirements are in the [desktop Mono guide](Packages/com.eitan.mnn/Documentation~/DesktopMono.md).
 - Added tracked-file validation for local-only assets, EasyMic manifest dependencies,
   ignored files and local Markdown links. Untracked files on a maintainer's machine
   cannot satisfy documentation links. Python regression tests exercise these checks
@@ -71,6 +76,15 @@ Unreleased entries describe development work, not a published version.
 - Native and model changes need the applicable Unity checks and explicitly recorded
   environment/results. Existing [test evidence](Packages/com.eitan.mnn/Documentation~/Testing.md)
   retains its original scope.
-- The new isolated Unity run exposed unresolved OmniVoice dependencies in the existing
-  committed development snapshot. Tests cannot start until the missing runtime types
-  and graph APIs are included; the promotion PR remains draft.
+- The earlier isolated-project OmniVoice compilation blocker is resolved; see
+  [CI evidence](Packages/com.eitan.mnn/Documentation~/development/ContinuousIntegration.md#isolated-validation-evidence).
+- Windows Wine Mono and Linux host Mono each pass 79 advanced task assertions and
+  22 core assertions against the bundled native libraries. Windows/Linux Unity
+  Players and GPU inference remain unverified; their native builds are CPU-only.
+- macOS ARM64 and Rosetta x64 Unity 2021.3.45f2 Mono Players each pass 120/120
+  selected core/platform/Express tests. Focused Editor checks pass 14/14, with
+  13 conditional compilation cases and nine package assemblies compiled.
+- These checks do not certify every model pipeline. Native waveform callbacks
+  remain unavailable on all platforms; desktop IL2CPP, Windows/Linux ARM64 and
+  WebGL remain unsupported. Historical model and device results retain their
+  [recorded scope](Packages/com.eitan.mnn/Documentation~/Testing.md).

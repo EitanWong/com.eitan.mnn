@@ -14,13 +14,14 @@ for the binaries, system requirements and evidence.
 
 | Desktop Mono target | Implemented native binding | Current execution evidence |
 | --- | --- | --- |
-| macOS 11+ ARM64/x64 | Core inference and existing language/Express tasks, Apple clang / libc++ ABI v1 | ARM64 Unity Player; historical x64 Player under Rosetta |
-| Windows x64 | Core, Express, LLM, retrieval and media input; MinGW-w64 GCC 16.2 | Production C# task APIs under Wine 9 / Wine Mono 9.4.0 |
-| Linux x64 | Core, Express, LLM, retrieval and media input; GCC 13.3 | Production C# task APIs under host Mono in an amd64 Linux container |
+| macOS 11+ ARM64/x64 | Core, Express, LLM, retrieval and media input; Apple clang / libc++ ABI v1 | Unity Mono Players: 120/120 selected core/platform/Express tests per architecture; x64 uses Rosetta |
+| Windows 10+ x64 / UCRT | Same task bindings; MinGW-w64 GCC 16.2 | Wine 9 / Wine Mono 9.4.0: 79 task and 22 core assertions |
+| Linux x64 | Same task bindings; GCC 13.3 | Host Mono in an amd64 Linux container: 79 task and 22 core assertions |
 
 Windows/Linux checks include real CPU Express, text/chat/streaming LLM, embedding,
-reranking and Omni image input. Windows/Linux Unity Players and every model
-pipeline have not been verified. Waveform callbacks remain unavailable. Linux requires GLIBC 2.38+ and a
+reranking and Omni image input. Windows/Linux native builds are CPU-only; their
+Unity Players and individual model pipelines still need validation. Waveform
+callbacks remain unavailable. Linux requires GLIBC 2.38+ and a
 libstdc++.so.6 providing GLIBCXX_3.4.32. Windows path handling follows the bundled
 MNN FileLoader's ANSI code page and available DOS short paths; see the desktop guide.
 This is a project-maintained compiler-specific binding, not an official portable
@@ -33,9 +34,12 @@ see [mobile ABI](Documentation~/MobileInterop.md). Metal model checks cover macO
 ARM64 Mono and iPhone 17 IL2CPP. Four actual mobile LLM/VLM/audio models pass CPU
 checks on Android/iPhone and Metal checks on iPhone in the 2026-10-24 snapshot.
 Updated mobile Express/retrieval paths have passed compilation and symbol audits,
-with device inference still pending. Intel hardware and x64 GPU inference have
-not been verified. Waveform callbacks are unavailable on all platforms; speech
-requests fail before native execution. WebGL and desktop IL2CPP reject inference
+with device inference still pending. Physical Intel Mac hardware has not been
+verified; the current macOS x64 Rosetta Player checks include CPU and Auto/Metal
+affine inference. Waveform callbacks are unavailable on all platforms; native
+Omni speech-output requests fail before execution. Independent graph-based TTS
+pipelines retain their model-specific validation scope. Windows/Linux ARM64,
+WebGL and desktop IL2CPP reject inference
 before native calls. Current validation limits are recorded in the
 [test evidence](Documentation~/Testing.md). CoreML/NPU support is not claimed.
 

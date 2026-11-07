@@ -12,21 +12,29 @@ speech and image generation, model management, and Chat Studio. It requires Unit
 ## Requirements
 
 - Unity 2021.3 or later; validation uses Unity 2021.3.45f2.
-- macOS 11+ with 64-bit Mono, or supported Android/iOS ARM64 IL2CPP configurations;
-  see the [package README](Packages/com.eitan.mnn/README.md) for task-specific limits.
+- Desktop Mono: macOS 11+ ARM64/x64, Windows 10+ x64 with UCRT, or Linux x64
+  with GLIBC 2.38+ and GLIBCXX_3.4.32. See [desktop Mono](Packages/com.eitan.mnn/Documentation~/DesktopMono.md).
+- Android/iOS ARM64 IL2CPP have separate [mobile contracts](Packages/com.eitan.mnn/Documentation~/MobileInterop.md).
 - A compatible model, obtained separately under its own license.
 
 The bindings call official MNN C++ symbols under the bundled compiler/ABI contract.
 They are maintained by this project; MNN does not provide a portable C# SDK.
-Other-platform plugin files do not establish managed inference support. Check the
+Keep each bundled library and its managed declarations together. Desktop IL2CPP,
+Windows/Linux ARM64 and WebGL are unsupported. Check the
 [ABI contract](Packages/com.eitan.mnn/Native~/README.md) and
 [validation scope](Packages/com.eitan.mnn/Documentation~/Testing.md) before deployment.
 
 ## Development status
 
-The isolated Unity 2021.3.45f2 macOS ARM64 PlayMode run passes the platform
-contract and bundled affine inference tests. Other model and device coverage is
-documented in the [validation scope](Packages/com.eitan.mnn/Documentation~/Testing.md).
+Core inference, Express, LLM text/chat/streaming, native embedding/reranking and
+Omni media input have desktop Mono bindings. Windows Wine Mono and Linux host
+Mono each pass 79 task assertions and 22 core assertions against the bundled
+native libraries. These are host-Mono checks; Windows/Linux Unity Players remain
+unverified. Their native builds use CPU, and waveform callbacks are unavailable.
+
+Unity 2021.3.45f2 macOS ARM64 and x64 under Rosetta each pass 120/120 selected
+core/platform/Express Player tests. Model-specific and mobile evidence retains its
+own scope; see [validation results](Packages/com.eitan.mnn/Documentation~/Testing.md).
 
 ## Install
 

@@ -22,7 +22,8 @@ Interpreter/Session/Tensor and task contracts; see
 [mobile interop](../Documentation~/MobileInterop.md).
 
 Actual macOS CPU inference is tested in Unity 2021.3.45f2, including ARM64 Players
-and historical x64 Players under Rosetta. Windows C# execution currently uses
+and x64 Players under Rosetta: the current core/platform/Express selection passes
+120/120 tests on each architecture. Windows C# execution currently uses
 Wine Mono; Linux C# execution uses host Mono's interpreter in an amd64 Docker
 container. They do not replace Windows/Linux Unity Player validation. Desktop
 IL2CPP and WebGL are rejected before inference. Metal and model-specific evidence
@@ -75,7 +76,6 @@ and installs the matching plugins; see the mobile document for platform argument
 `--basic-only` retains the historical 26-import audit and cannot install over the
 current plugins. Artifacts stay under `TestArtifacts~/MobileLlmDirectCpp/`.
 
-
 ### Windows x64 Mono
 
 Use `build-windows.py` with the pinned MinGW-w64 GCC 16.2.0 POSIX toolchain,
@@ -110,7 +110,8 @@ pinned GNU C++11 string ABI and the retained official ownership exports.
 Partial files separate backend probing, Interpreter/Session, Tensor, LLM, Multimodal, Embedding,
 Reranker and Version. `Abi` and `DesktopAbi` own task-specific libc++/GNU marshalling
 and borrowed desktop core values. `DesktopSymbols` selects official GNU/Apple core
-symbols; `DesktopTaskSymbols` selects GNU/Apple task symbols. Windows/Linux and
+symbols; task-specific partials such as `Llm`, `Express`, `Embedding` and `Reranker`
+select their GNU/Apple task symbols. Windows/Linux and
 mobile tensor shapes use public scalar `Tensor::length` rather than owned STL returns;
 `Express` owns executor scopes and variable results, including official
 `Variable::load(path)` and `Variable::load(buffer, length)` for prepared serialized graphs.

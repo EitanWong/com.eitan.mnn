@@ -1,9 +1,13 @@
 # MNN Studio 编辑器工作区
 
 入口：`Window > MNN > Chat Studio`（Cmd/Ctrl + Shift + M）。需要 Unity 2021.3 或更新版本。
-当前真实推理验证范围为 macOS 64 位 Mono，官方 MNN 3.6.1 与 Apple libc++ 的特定 ABI。
-这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API；Windows、Linux、移动端、
-WebGL 和 IL2CPP 不具备相同推理支持。没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
+Studio 界面的端到端验证覆盖 macOS 64 位 Mono。底层使用官方 MNN 3.6.2，
+核心、Express、LLM 和原生检索已实现 macOS/Windows/Linux 的[桌面 Mono 绑定](DesktopMono.md)。
+Windows Wine Mono、Linux host Mono 的任务 API 推理检查不代替对应平台 Studio 界面或 Unity Player 验证。
+Android/iOS ARM64 IL2CPP 使用独立[移动端契约](MobileInterop.md)；桌面 IL2CPP、
+Windows/Linux ARM64 和 WebGL 不受支持。各模型仍遵循[独立验证范围](Testing.md)。
+这是本项目限定编译器与版本的 C# 编组契约，不是官方可移植 C# API；
+没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
 
 ## 对话与媒体
 
