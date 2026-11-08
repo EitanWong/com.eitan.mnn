@@ -5,6 +5,9 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -22,18 +25,18 @@ namespace MNN.Unity
         private readonly MNNModelFileTransfer _transfers;
         private readonly MNNHuggingFaceSourcePool _huggingFaceMirrorPool;
         private readonly bool _discoverHuggingFaceMirrors;
-        [Serializable]
+        [DataContract, UnityEngine.Scripting.Preserve]
         private class FileListResponse
         {
-            public int Code;
-            public FileListData Data;
-            public string Message;
+            [DataMember, UnityEngine.Scripting.Preserve] public int Code;
+            [DataMember, UnityEngine.Scripting.Preserve] public FileListData Data;
+            [DataMember, UnityEngine.Scripting.Preserve] public string Message;
         }
 
-        [Serializable]
+        [DataContract, UnityEngine.Scripting.Preserve]
         private class FileListData
         {
-            public MNNModelRepositoryFile[] Files;
+            [DataMember, UnityEngine.Scripting.Preserve] public MNNModelRepositoryFile[] Files;
         }
 
         internal sealed class RepositoryUnavailableException : HttpRequestException
@@ -88,7 +91,7 @@ namespace MNN.Unity
                     files = profile.Paths.Select((path, i) => new MNNModelRepositoryFile { Path = path, Type = "blob", Size = profile.Sizes[i], Sha256 = profile.Hashes[i], Revision = profile.Revision }).ToArray();
                 }
                 else if (_options.PreservePartialDownloads && File.Exists(manifestPath) && File.Exists(identityPath) && File.ReadAllText(identityPath) == identity)
-                    files = JsonUtility.FromJson<FileListData>(File.ReadAllText(manifestPath)).Files;
+                    files = ReadMetadata<FileListData>(File.ReadAllText(manifestPath)).Files;
                 else
                     files = await GetRepositoryFilesAsync(modelScopeId, cancellationToken, revision).ConfigureAwait(false);
                 var blobs = SelectInferenceFiles(modelScopeId, files);
@@ -109,7 +112,7 @@ namespace MNN.Unity
                 Directory.CreateDirectory(stagingDirectory);
                 if (_options.PreservePartialDownloads)
                 {
-                    File.WriteAllText(manifestPath, JsonUtility.ToJson(new FileListData { Files = blobs }));
+                    File.WriteAllText(manifestPath, WriteMetadata(new FileListData { Files = blobs }));
                     File.WriteAllText(identityPath, identity);
                 }
 
@@ -161,10 +164,32 @@ namespace MNN.Unity
                 var body = response.Content == null ? string.Empty : await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                     throw new HttpRequestException($"ModelScope file listing failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}. {body}");
-                var result = JsonUtility.FromJson<FileListResponse>(body);
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = ReadMetadata<FileListResponse>(body);
                 if (result == null || result.Code != 200 || result.Data?.Files == null)
                     throw new InvalidDataException("ModelScope returned an invalid file listing: " + (result?.Message ?? body));
                 return result.Data.Files;
+            }
+        }
+
+        // Metadata and resume manifests are processed by HTTP workers, including during editor shutdown.
+        // Keep their codec independent of Unity's native type manager.
+        private static T ReadMetadata<T>(string json)
+        {
+            try
+            {
+                using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
+                    return (T)new DataContractJsonSerializer(typeof(T)).ReadObject(stream);
+            }
+            catch (SerializationException error) { throw new InvalidDataException("Invalid model repository metadata.", error); }
+        }
+
+        private static string WriteMetadata<T>(T value)
+        {
+            using (var stream = new MemoryStream())
+            {
+                new DataContractJsonSerializer(typeof(T)).WriteObject(stream, value);
+                return Encoding.UTF8.GetString(stream.ToArray());
             }
         }
 
