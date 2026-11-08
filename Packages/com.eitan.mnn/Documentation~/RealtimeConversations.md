@@ -76,6 +76,8 @@ macOS 64 位 Mono、Android ARM64 IL2CPP、iOS ARM64 IL2CPP。
 
 后台任务结果等应用事件使用 `runtime.TryBeginEventReply(new MNNConversationEvent(EVENT_ID, RESULT), token)`。前台在录音、用户发声、生成或等待上一段播放时返回 `null`，调用方保留事件等待后续空闲时重试；不要调用 `SubmitTextAsync` 冒充用户消息。事件回复复用当前模型、TTS、输出账本和插话生命周期，事件记录不会改写 `LastUserText`。有路由功能的 Provider 必须实现 `IMNNConversationEventProvider` 的独立回复入口；内置 `MNNAgentProvider` 跳过工具规划并使用本地语言 Provider，不自动启用云端。
 
+`MNNAgentOptions.AllowCloud` 仍控制云端回答及未单独授权的联网工具。应用已明确授权某个任务宿主时，可让对应工具实现 `IMNNAgentNetworkPermission` 并在构建该工具实例时提供 `CanUseNetwork`；该权限仅允许该工具联网，不开启云端回答，也不替代宿主的任务权限确认。宿主地址或账户变化后，应等待旧会话退出，再用新授权重建工具实例。
+
 返回的 `MNNConversationEventReply` 区分 `Completion`、`ContextInjected` 与 `Succeeded`。应用将累计文本快照交给呈现后调用 `AcknowledgeTextDisplayed`；主线程调用 `ObservePresentation(output)` 读取语音呈现证据。`PlaybackStarted` 采用保守的首段完整呈现判据，`PlaybackCompleted` 要求本轮生成成功且全部片段呈现；PCM 生成、排队和设备提交不足以证明播放完成。`Interrupted` 单独记录，调用方决定结果是否需要再次投递。设备报告的估计水位仍是估计值，不能据此承诺用户实际听到了内容。
 
 | 术语 | 含义 |

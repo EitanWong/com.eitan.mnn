@@ -118,7 +118,8 @@ namespace MNN.Unity
         {
             if (!_tools.TryGetValue(plan.Tool ?? "", out var tool))
             { SetRoute("Unavailable tool"); await publish("That operation is not configured. Please choose an available task.").ConfigureAwait(false); return; }
-            if (tool.RequiresNetwork && !_config.AllowCloud) { await DeniedAsync(publish).ConfigureAwait(false); return; }
+            if (tool.RequiresNetwork && !_config.AllowCloud && !(tool is IMNNAgentNetworkPermission permission && permission.CanUseNetwork))
+            { await DeniedAsync(publish).ConfigureAwait(false); return; }
             SetRoute(tool.RequiresNetwork ? "Network tool · " + tool.Name : "Local tool · " + tool.Name);
             if (tool is MNNLocalKnowledgeTool knowledge && _config.KnowledgeAnswers)
             {

@@ -28,6 +28,29 @@ namespace MNN.Unity.Tests
             internal int Calls;
             public Task<string> ExecuteAsync(string input, CancellationToken token) { ++Calls; return Task.FromResult(input); }
         }
+        private sealed class ConsentedTool : IMNNAgentTool, IMNNAgentNetworkPermission
+        {
+            public string Name => "consented";
+            public string Description => "An explicitly connected task host";
+            public bool RequiresNetwork => true;
+            public bool CanUseNetwork => true;
+            internal int Calls;
+            public Task<string> ExecuteAsync(string input, CancellationToken token) { ++Calls; return Task.FromResult("Task accepted"); }
+        }
+        [Test]
+        public void ExplicitTaskHostPermissionDoesNotEnableCloudAnswers()
+        {
+            var tool = new ConsentedTool();
+            int cloud = 0;
+            using (var agent = new MNNAgentProvider(new Model(), new MNNAgentOptions { Strategy = MNNAgentRoutingStrategy.Policy },
+                () => { ++cloud; return new Model(); }, new[] { tool }, policy: input => input == "question" ? MNNAgentPlan.InvokeTool("consented", "work") : MNNAgentPlan.Cloud()))
+            {
+                Assert.AreEqual("Task accepted", Ask(agent));
+                Assert.AreEqual(1, tool.Calls);
+                StringAssert.Contains("disabled", Ask(agent, History("cloud answer")));
+                Assert.AreEqual(0, cloud);
+            }
+        }
         private static MNNOpenAIMessage[] History(string current = "question") => new[] { new MNNOpenAIMessage(MNNChatRole.User, current) };
         private static string Ask(MNNAgentProvider agent, IReadOnlyList<MNNOpenAIMessage> history = null)
         { var text = new StringBuilder(); agent.GenerateAsync(history ?? History(), null, 16000, v => { text.Append(v); return Task.CompletedTask; }, CancellationToken.None).GetAwaiter().GetResult(); return text.ToString(); }
