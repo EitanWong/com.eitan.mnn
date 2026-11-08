@@ -182,13 +182,19 @@ namespace MNN.Unity
                 throw new ArgumentException("Submit nonempty bounded user text.");
             return StartResponse(text, null, token);
         }
-        protected Task StartResponse(string text, float[] audio, CancellationToken token, int realtimeRevision = -1, bool voiceValidated = false, bool audioPrepared = false)
+        protected Task StartResponse(string text, float[] audio, CancellationToken token, int realtimeRevision = -1, bool voiceValidated = false, bool audioPrepared = false) =>
+            StartResponseCore(text, audio, token, realtimeRevision, voiceValidated, audioPrepared, null);
+
+        private Task StartResponseCore(string text, float[] audio, CancellationToken token, int realtimeRevision,
+            bool voiceValidated, bool audioPrepared, MNNConversationEventReply eventReply)
         {
             lock (_sync)
             {
                 if (_stopped) return Task.FromCanceled(new CancellationToken(true));
                 // A caller cannot queue turns behind slow inference. VAD/session cancellation joins first.
                 if (!_responseTask.IsCompleted) throw new InvalidOperationException("Wait for the previous response to quiesce before submitting another turn.");
+                _eventReply?.ObservePresentation(_output);
+                _eventReply = eventReply;
                 _responseCancellation?.Dispose();
                 _responseCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, _lifetime.Token);
                 var responseToken = _responseCancellation.Token;

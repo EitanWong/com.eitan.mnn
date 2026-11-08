@@ -35,8 +35,14 @@ namespace MNN.Unity
                         if (!_context.Input.TryAcceptRealtime(realtimeRevision, () => _response = _context.Session.BeginResponse())) return;
                     }
                     else _response = _context.Session.BeginResponse();
-                    if (!await AcceptUserInputAsync(text, audio, voiceValidated, production.Token, trace, audioPrepared, exitRevision).ConfigureAwait(false)) return;
+                    _eventReply?.Begin(_response);
+                    if (_eventReply == null && !await AcceptUserInputAsync(text, audio, voiceValidated, production.Token, trace, audioPrepared, exitRevision).ConfigureAwait(false)) return;
                     var history = BuildResponseHistory();
+                    if (_eventReply != null)
+                    {
+                        Memory.AddEvent(_eventReply.Input);
+                        _eventReply.Injected();
+                    }
                     if (!_config.speechOutput)
                     {
                         await ProduceTextReplyAsync(history, production.Token, trace).ConfigureAwait(false);
@@ -203,6 +209,7 @@ namespace MNN.Unity
                     if (failure != null || responseAbandoned || requestToken.IsCancellationRequested) trace.Failed = true;
                     if (trace.SpeechFinishedAt == 0 && trace.FirstAudioAt > 0) trace.SpeechFinishedAt = System.Diagnostics.Stopwatch.GetTimestamp();
                     if (trace.Failed) TurnTelemetry.Complete(trace);
+                    _eventReply?.Complete(!trace.Failed && (trace.FirstTokenAt > 0 || trace.FirstAudioAt > 0));
                 }
             }
         }
@@ -304,6 +311,7 @@ namespace MNN.Unity
             MNNMultimodalResult result;
             try
             {
+                if (_eventReply != null) history = _eventReply.Input.CreateHistory(history);
                 result = await ((IMNNConversationSpeechModelProvider)_providers.Model).GenerateSpeechAsync(history, delta =>
                 {
                     if (delta == null || display.Length + delta.Length > _config.maximumResponseCharacters)

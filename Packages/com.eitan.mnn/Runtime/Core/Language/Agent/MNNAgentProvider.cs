@@ -8,7 +8,7 @@ using MNN.Unity;
 namespace MNN.Unity
 {
     /// <summary>One serialized language stage. Owns local/cloud providers and optional transport; tools and policy delegates are borrowed. The caller serializes requests and waits for completion before disposal.</summary>
-    public sealed partial class MNNAgentProvider : IMNNConversationVoiceIntentProvider, IMNNConversationProviderDiagnostics, IMNNConversationResponseProvider
+    public sealed partial class MNNAgentProvider : IMNNConversationVoiceIntentProvider, IMNNConversationProviderDiagnostics, IMNNConversationResponseProvider, IMNNConversationEventProvider
     {
         private readonly IMNNConversationTextProvider _local;
         private readonly MNNAgentOptions _config;
@@ -51,6 +51,18 @@ namespace MNN.Unity
         }
         public Task GenerateResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, string instructions,
             Func<string, Task> delta, CancellationToken token) => GenerateCoreAsync(history, 16000, instructions, delta, token);
+
+        public Task GenerateEventResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, MNNConversationEvent input,
+            Func<string, Task> delta, CancellationToken token)
+        {
+            RequireActive();
+            if (input == null) throw new ArgumentNullException(nameof(input));
+            if (delta == null) throw new ArgumentNullException(nameof(delta));
+            token.ThrowIfCancellationRequested();
+            var prompt = input.CreateHistory(history, _config.LocalContextCharacters);
+            SetRoute("Local event response");
+            return _local.GenerateAsync(prompt, null, 16000, value => { token.ThrowIfCancellationRequested(); return delta(value); }, token);
+        }
 
         public Task GenerateAsync(IReadOnlyList<MNNOpenAIMessage> history, float[] audio, int sampleRate,
             Func<string, Task> delta, CancellationToken token)
