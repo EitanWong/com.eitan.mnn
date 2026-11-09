@@ -56,6 +56,7 @@ namespace MNN.Unity
             repository.IncludeDtlnAecProfiles();
             repository.IncludeCosyVoice300MProfile();
             repository.IncludePublishedSpeechProfiles();
+            repository.IncludePocketProfiles();
             return repository;
         }
 
@@ -226,6 +227,7 @@ namespace MNN.Unity
 
         private static string GetFamily(string modelName)
         {
+            if (modelName.StartsWith("MNN-Pocket", StringComparison.OrdinalIgnoreCase)) return "MNN-Pocket";
             var normalizedFamily = NormalizeFamily(modelName);
             if (!string.IsNullOrEmpty(normalizedFamily))
                 return normalizedFamily;

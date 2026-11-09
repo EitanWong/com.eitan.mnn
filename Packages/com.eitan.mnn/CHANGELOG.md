@@ -13,6 +13,11 @@ The package version is 3.6.2.
 
 ### Added
 
+- Added the official MNN-Pocket 0.3B family catalog, pinned W4A16 deployment plan,
+  `.mtok` tokenizer and shared conversation alias. SiriAI now defaults to Pocket;
+  source-only/GGUF/Dec entries retain their format requirements. See
+  [Pocket integration](Documentation~/MNNPocket.md).
+
 - Added Windows x86_64 and Linux x86_64 Mono Interpreter/Session/Tensor, Express,
   LLM text/chat/streaming, native embedding/reranking and Omni media-input bindings.
   Added matching plugin import settings and reproducible audited GNU builds from

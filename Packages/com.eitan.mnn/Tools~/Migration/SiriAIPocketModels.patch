@@ -1,0 +1,268 @@
+diff --git a/Assets/Samples/SiriAI/README.md b/Assets/Samples/SiriAI/README.md
+--- a/Assets/Samples/SiriAI/README.md
++++ b/Assets/Samples/SiriAI/README.md
+@@ -1,4 +1,6 @@
+ # SiriAI
++
++默认本地语言模型为 `MNN/MNN-Pocket-0.3B`；实际使用官方 `MNN/MNN-Pocket-0.3B-MNN` 的固定版本 INT4 W4A16 导出，包含原生 `.mtok` 分词器和 ChatML 模板。场景与新配置一致，首次运行不会按硬件换成其他模型，已有保存设置及手动选择继续生效。新安装使用此默认项；已有设备请在 Providers 选择 Pocket 后保存。模型位于 `Assets/StreamingAssets/MNN/Models/MNN-Pocket-0.3B-MNN/`，其余系列权重的格式与转换说明见包内 `Documentation~/MNNPocket.md`。
+ 
+ 开发者接入与组件职责见 [二次开发指南](Documentation~/DeveloperGuide.md)：独立声学组件、设置表单适配、配置事务、设备/provider 扩展与生命周期契约。
+ 
+diff --git a/Assets/Samples/SiriAI/Scenes/SiriAI.unity b/Assets/Samples/SiriAI/Scenes/SiriAI.unity
+--- a/Assets/Samples/SiriAI/Scenes/SiriAI.unity
++++ b/Assets/Samples/SiriAI/Scenes/SiriAI.unity
+@@ -810,7 +810,7 @@
+       applicationId: 
+       resourceId: 
+       endpoint: 
+-      model: Qwen3.5-0.8B-MNN
++      model: MNN/MNN-Pocket-0.3B
+       credential: 
+       voice: 
+       precision: fp16
+@@ -821,7 +821,7 @@
+       speechLanguages: []
+       acceptsAudioInput: 0
+       supportsProgressivePcm: 0
+-      localManifestId: Qwen3.5-0.8B-MNN
++      localManifestId: MNN/MNN-Pocket-0.3B
+       localModel:
+         id: 
+         provider: 0
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs
+@@ -86,32 +86,12 @@
+             value.Validate();
+             configuration = value.Snapshot();
+         }
+-        /// <summary>Choose a supported local starting model once; saved or explicit settings retain ownership.</summary>
+-        internal async Task ApplyDeviceDefaultsAsync(CancellationToken token)
+-        {
+-            if ((loadSavedSettings || PlayerPrefs.GetInt(RuntimeSettingsKey, 0) == 1) && LoadSettings()) return;
+-            var value = GetConfiguration();
+-            // A scene may deliberately supply a provider, cloud service or another model.
+-            if (modelProvider != null || value.mode != SiriAIConversationMode.Cascaded || value.model.location != SiriAIProviderLocation.LocalMnn ||
+-                value.model.model != "Qwen3.5-0.8B-MNN") return;
+-            var catalog = new SiriAIModelCatalog();
+-            using (var discovery = CancellationTokenSource.CreateLinkedTokenSource(token))
+-            {
+-                discovery.CancelAfter(TimeSpan.FromSeconds(15));
+-                try { await catalog.RefreshAsync(discovery.Token); }
+-                catch (OperationCanceledException) when (!token.IsCancellationRequested) { }
+-                catch (OperationCanceledException) { throw; }
+-                catch (Exception error) { Debug.LogWarning("SiriAI model recommendations use bundled profiles: " + error.Message, this); }
+-            }
++        /// <summary>Restore saved settings while preserving the configured model and the Pocket default.</summary>
++        internal Task ApplyDeviceDefaultsAsync(CancellationToken token)
++        {
+             token.ThrowIfCancellationRequested();
+-            var selected = SiriAIHardwareDefaults.MatchModel(catalog.Entries,
+-                SystemInfo.systemMemorySize, SystemInfo.processorCount, Application.isMobilePlatform);
+-            if (selected != null)
+-            {
+-                value.model.model = value.model.localManifestId = selected.modelId;
+-                value.model.localModel = selected.remote;
+-            }
+-            ApplyConfiguration(value); SaveRuntimeSettings();
++            if (loadSavedSettings || PlayerPrefs.GetInt(RuntimeSettingsKey, 0) == 1) LoadSettings();
++            return Task.CompletedTask;
+         }
+ 
+         public bool LoadSettings()
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIBackendConfiguration.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIBackendConfiguration.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIBackendConfiguration.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIBackendConfiguration.cs
+@@ -44,7 +44,7 @@
+         public bool headphonesConfirmed;
+         [Tooltip("Fallback prompt. The referenced TextAsset on the backend takes precedence when assigned.")]
+         public string instructions = "You are a helpful voice assistant. Speak English. Answer naturally with enough detail to be useful. Expand when the question calls for explanation or creative ideas. Do not show private reasoning.";
+-        public SiriAIEndpointConfiguration model = Local("Qwen3.5-0.8B-MNN");
++        public SiriAIEndpointConfiguration model = Local(MNN.Unity.MNNPocketModel.ModelId);
+         public SiriAIEndpointConfiguration tts = Local("Supertonic-3-INT8-MNN");
+         public SiriAIEndpointConfiguration asr = Local("wo105090--SenseVoiceSmall-MNN");
+         public SiriAIEndpointConfiguration vad = Local("Silero-v5-MNN");
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIHardwareDefaults.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIHardwareDefaults.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIHardwareDefaults.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIHardwareDefaults.cs
+@@ -1,5 +1,4 @@
+ using System;
+-using System.Collections.Generic;
+ using UnityEngine;
+ 
+ namespace MNN.Samples.SiriAI
+@@ -20,23 +19,6 @@
+             return Math.Min(available, Math.Min(limit, budget));
+         }
+ 
+-        // Weight bytes are only a starting estimate. Reserve most RAM for KV cache, audio,
+-        // rendering and the OS; slow CPUs use the smaller tier even with abundant RAM.
+-        internal static SiriAIModelCatalog.Entry MatchModel(IEnumerable<SiriAIModelCatalog.Entry> models,
+-            int memoryMegabytes, int logicalProcessors, bool mobile)
+-        {
+-            long budget = memoryMegabytes <= 0 ? 512000000L : (long)memoryMegabytes * 1024 * 1024 / 8;
+-            if (mobile || logicalProcessors < 6) budget = Math.Min(budget, 600000000L);
+-            SiriAIModelCatalog.Entry selected = null;
+-            foreach (var model in models)
+-            {
+-                if (model.adapter != SiriAIModelAdapter.Language || model.catalogOnly || model.bytes <= 0 ||
+-                    model.bytes > budget || string.IsNullOrEmpty(model.modelId)) continue;
+-                if (selected == null || model.bytes > selected.bytes) selected = model;
+-            }
+-            return selected;
+-        }
+-
+         public static int ResolveThreads(int configured) => configured == 0 ? RecommendedThreads : configured;
+ 
+         internal static int ResolveRecognitionThreads(SiriAIBackendConfiguration settings, SiriAIModelAdapter adapter) =>
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs
+@@ -60,7 +60,7 @@
+                 if (!AllowsApi(0, config)) config.model.location = SiriAIProviderLocation.LocalMnn;
+                 if (config.model.location == SiriAIProviderLocation.LocalMnn && catalog != null)
+                 {
+-                    var choices = catalog.ForStage(0).Where(entry => SupportsModel(entry.adapter, config.mode)).ToList();
++                    var choices = catalog.ForStage(0).Where(entry => SiriAIModelCatalog.CanSelect(entry, 0) && SupportsModel(entry.adapter, config.mode)).ToList();
+                     string id = ModelId(config.model);
+                     var selected = choices.FirstOrDefault(entry => entry.modelId == id) ?? choices.FirstOrDefault();
+                     SelectModel(config.model, selected);
+@@ -101,7 +101,7 @@
+             {
+                 string id = ModelId(config.model);
+                 var entry = catalog?.ForStage(0).Find(item => item.modelId == id);
+-                if (entry == null || !SupportsModel(entry.adapter, config.mode))
++                if (entry == null || !SiriAIModelCatalog.CanSelect(entry, 0) || !SupportsModel(entry.adapter, config.mode))
+                     throw new ArgumentException("Choose a model compatible with the selected conversation mode in Providers.");
+             }
+             if (config.model.location == SiriAIProviderLocation.OpenAICompatible &&
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIPocketDefaultsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIPocketDefaultsTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIPocketDefaultsTests.cs
+@@ -0,0 +1,55 @@
++using System.Linq;
++using System.Threading;
++using NUnit.Framework;
++using UnityEngine;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIPocketDefaultsTests
++    {
++        [Test]
++        public void NewConfigurationSelectsPocketAndItsDownloadableExport()
++        {
++            var configuration = new SiriAIBackendConfiguration();
++            Assert.AreEqual("MNN/MNN-Pocket-0.3B", configuration.model.model);
++            var entry = new SiriAIModelCatalog().ForStage(0).Single(item => item.modelId == configuration.model.model);
++            Assert.False(entry.catalogOnly);
++            Assert.AreEqual("MNN/MNN-Pocket-0.3B-MNN", entry.repository);
++        }
++
++        [Test]
++        public void SourceWeightsCannotBecomeASelectedLanguageProvider()
++        {
++            var catalog = new SiriAIModelCatalog();
++            var source = catalog.ForStage(0).Single(entry => entry.repository == "MNN/MNN-Pocket-0.3B");
++            var configuration = new SiriAIBackendConfiguration();
++            configuration.model.model = configuration.model.localManifestId = source.modelId;
++            Assert.Throws<System.ArgumentException>(() => SiriAISettingsConstraints.Validate(configuration, catalog));
++            SiriAISettingsConstraints.Normalize(configuration, catalog);
++            Assert.AreEqual("MNN/MNN-Pocket-0.3B", configuration.model.model);
++        }
++
++        [Test]
++        public void DeviceDefaultsKeepPocketAndExplicitModelSelections()
++        {
++            var owner = new GameObject("Pocket defaults");
++            try
++            {
++                var backend = owner.AddComponent<SiriAIConfigurableBackend>();
++                var serialized = new UnityEditor.SerializedObject(backend);
++                serialized.FindProperty("loadSavedSettings").boolValue = false;
++                serialized.FindProperty("profile").stringValue = "pocket-defaults-" + System.Guid.NewGuid().ToString("N");
++                serialized.ApplyModifiedPropertiesWithoutUndo();
++                foreach (string model in new[] { "MNN/MNN-Pocket-0.3B", "my-explicit-model" })
++                {
++                    var configuration = new SiriAIBackendConfiguration();
++                    configuration.model.model = configuration.model.localManifestId = model;
++                    backend.ApplyConfiguration(configuration);
++                    backend.ApplyDeviceDefaultsAsync(CancellationToken.None).GetAwaiter().GetResult();
++                    Assert.AreEqual(model, backend.GetConfiguration().model.model);
++                }
++            }
++            finally { Object.DestroyImmediate(owner); }
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIPocketDefaultsTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIPocketDefaultsTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIPocketDefaultsTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a331380b01324cee9fb6b57053215ee7
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatTests.cs
+@@ -336,7 +336,7 @@
+             Assert.False(config.requireMeasuredRealtime);
+             Assert.True(config.allowBufferedSpeech);
+             Assert.AreEqual(SiriAIProviderLocation.LocalMnn, config.model.location);
+-            Assert.AreEqual("Qwen3.5-0.8B-MNN", config.model.model);
++            Assert.AreEqual(MNN.Unity.MNNPocketModel.ModelId, config.model.model);
+             Assert.AreEqual(SiriAIProviderLocation.LocalMnn, config.tts.location);
+             Assert.AreEqual("Supertonic-3-INT8-MNN", config.tts.model);
+             Assert.AreEqual("int8", config.tts.precision);
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs
+@@ -898,7 +898,7 @@
+                 Assert.IsNull(Field<RectTransform>(view, "_settingsPopup"));
+                 var selectedModel = view.SettingsDraft.Configuration.model;
+                 Assert.AreEqual(selectedModel.model, selectedModel.localManifestId);
+-                Assert.AreEqual("Qwen3.5-0.8B-MNN", backend.GetConfiguration().model.model, "Selection is still a draft.");
++                Assert.AreEqual(MNN.Unity.MNNPocketModel.ModelId, backend.GetConfiguration().model.model, "Selection is still a draft.");
+                 view.CloseSettings();
+             }
+             finally { UnityEngine.Object.DestroyImmediate(root); }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs
+@@ -329,22 +329,7 @@
+                 "reset", "ListenEvent", identifier, "-n", bundle, "--args", failReset ? "--siriai-permission-reset-failed" : "--siriai-permission-resume" }, System.IO.File.ReadAllLines(ledger));
+         }
+ 
+-        [TestCase(4096, 4, "small")]
+-        [TestCase(16384, 8, "medium")]
+-        [TestCase(32768, 12, "large")]
+-        public void RecommendationKeepsMemoryForAudioRenderingAndTheSystem(int memory, int cores, string expected)
+-        {
+-            var method = typeof(SiriAIHardwareDefaults).GetMethod("MatchModel", BindingFlags.Static | BindingFlags.NonPublic);
+-            Assert.IsNotNull(method);
+-            var models = new[] {
+-                new SiriAIModelCatalog.Entry { modelId = "small", adapter = SiriAIModelAdapter.Language, bytes = 400000000 },
+-                new SiriAIModelCatalog.Entry { modelId = "medium", adapter = SiriAIModelAdapter.Language, bytes = 1500000000 },
+-                new SiriAIModelCatalog.Entry { modelId = "large", adapter = SiriAIModelAdapter.Language, bytes = 3000000000 },
+-                new SiriAIModelCatalog.Entry { modelId = "unsupported", adapter = SiriAIModelAdapter.Omni, bytes = 4000000000 },
+-                new SiriAIModelCatalog.Entry { modelId = "unknown-size", adapter = SiriAIModelAdapter.Language, bytes = 0 } };
+-            var selected = (SiriAIModelCatalog.Entry)method.Invoke(null, new object[] { models, memory, cores, false });
+-            Assert.AreEqual(expected, selected.modelId);
+-        }
++
+     }
+ 
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISettingsConstraintsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISettingsConstraintsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISettingsConstraintsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISettingsConstraintsTests.cs
+@@ -74,7 +74,7 @@
+             Content.Find("CPU threads/CPU threads Input").GetComponent<InputField>().text = "9";
+             Mode(mode);
+             Assert.AreEqual(9, Draft.threads);
+-            var expected = Catalog.ForStage(0).Where(entry => SiriAISettingsConstraints.SupportsModel(entry.adapter, mode)).ToArray();
++            var expected = Catalog.ForStage(0).Where(entry => SiriAIModelCatalog.CanSelect(entry, 0) && SiriAISettingsConstraints.SupportsModel(entry.adapter, mode)).ToArray();
+             Assert.IsNotEmpty(expected);
+             Assert.IsTrue(expected.Any(entry => entry.modelId == Draft.model.model));
+             Provider(0);

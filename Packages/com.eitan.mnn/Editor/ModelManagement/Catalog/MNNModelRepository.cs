@@ -63,6 +63,7 @@ namespace MNN.Unity.Editor
 
         internal void IncludePublishedProfiles()
         {
+            IncludeProfiles(catalog => catalog.IncludePocketProfiles(), repository => repository?.StartsWith("MNN/MNN-Pocket-0.3B", StringComparison.OrdinalIgnoreCase) == true);
             IncludeDtlnAecProfiles();
             IncludeProfiles(catalog => catalog.IncludeCosyVoice300MProfile(), MNNVerifiedTtsModel.IsCosyVoice300MRepository);
             IncludeProfiles(catalog => catalog.IncludePublishedSpeechProfiles(), MNNModelCatalog.IsPublishedSpeechRepository);

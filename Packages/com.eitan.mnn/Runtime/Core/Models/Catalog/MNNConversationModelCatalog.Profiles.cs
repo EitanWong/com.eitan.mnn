@@ -66,7 +66,9 @@ namespace MNN.Unity
 
         public static string DefaultRevision(MNNModelSource source) => source == MNNModelSource.ModelScope ? "master" : "main";
 
-        public static string DefaultInstallationName(MNNRemoteModel model) => DtlnProfile(model)?.name ?? Defaults.OrderByDescending(known => known.Id == model.name).FirstOrDefault(known =>
+        public static string DefaultInstallationName(MNNRemoteModel model) => model != null && model.provider == MNNModelSource.ModelScope &&
+            MNNPocketModel.IsRepository(model.repositoryId ?? model.modelScopeId) && model.revision == MNNPocketModel.Revision
+            ? MNNPocketModel.InstallationName : DtlnProfile(model)?.name ?? Defaults.OrderByDescending(known => known.Id == model.name).FirstOrDefault(known =>
             known.Source == model.provider && string.Equals(known.Repository, model.repositoryId ?? model.modelScopeId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(known.Revision, model.revision, StringComparison.Ordinal))?.Id;
 
@@ -253,6 +255,7 @@ namespace MNN.Unity
         // Metadata only: installation, hashes, extraction and configuration belong to MNNModelDownloader.
         private static readonly DefaultModel[] Defaults =
         {
+            new DefaultModel { Id = MNNPocketModel.ModelId, Repository = MNNPocketModel.Repository, Revision = MNNPocketModel.Revision, Source = MNNModelSource.ModelScope, Adapter = MNNConversationModelAdapter.Language, Bytes = MNNPocketModel.Bytes },
             new DefaultModel { Id = "KindBrave-paraformer-online", Repository = "KindBrave/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-mnn", Revision = "b6b9dd4471cffd6b59f283b2998284d38f4d31e0", Source = MNNModelSource.HuggingFace, Adapter = MNNConversationModelAdapter.Paraformer, Bytes = 865040775L },
             new DefaultModel { Id = "bert-vits2-MNN", Repository = "taobao-mnn/bert-vits2-MNN", Revision = "cec57c91063c58ae2c5f705b669b57988f772d4a", Source = MNNModelSource.HuggingFace, Adapter = MNNConversationModelAdapter.BertVits2, Bytes = 1392019964L },
             new DefaultModel { Id = "Cosy-Voice-MNN", Repository = "VicenTrent/Cosy-Voice-MNN", Revision = "948b6a2600df25d9d01960a6fa34c126c02b66da", Source = MNNModelSource.HuggingFace, Adapter = MNNConversationModelAdapter.CosyVoice, Bytes = 2798165016L },

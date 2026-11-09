@@ -88,7 +88,7 @@ def main():
         if source.is_dir():
             shutil.copytree(source, project / folder, dirs_exist_ok=True)
     for module in ['ui', 'imgui', 'audio', 'jsonserialize', 'physics', 'physics2d', 'animation',
-                   'imageconversion', 'unitywebrequest', 'unitywebrequestaudio', 'androidjni']:
+                   'imageconversion', 'screencapture', 'unitywebrequest', 'unitywebrequestaudio', 'androidjni']:
         dependencies['com.unity.modules.' + module] = '1.0.0'
     manifest = {'dependencies': dependencies}
     if args.include_package_tests or args.package_only:

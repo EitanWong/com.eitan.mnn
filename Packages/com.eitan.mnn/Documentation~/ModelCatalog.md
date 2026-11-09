@@ -1,5 +1,7 @@
 # 双平台 MNN 模型目录
 
+MNN-Pocket 系列的固定部署版本、源权重格式及 SiriAI 默认项见 [MNN-Pocket 接入](MNNPocket.md)。
+
 管理器内置 46 个已发布的 `EitanWang` 语音处理仓库，无需等待 ModelScope 搜索索引；
 三个已有 DTLN-AEC 仓库继续使用各自的固定下载方案。46 个仓库下载完整发布文件，
 包括配置、运行常量和许可，使用可变的 `master` 版本；目录收录不构成新的推理或平台验证。

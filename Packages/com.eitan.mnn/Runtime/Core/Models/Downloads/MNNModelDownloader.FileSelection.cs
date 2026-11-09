@@ -31,7 +31,7 @@ namespace MNN.Unity
         private static bool HasRootFile(MNNModelRepositoryFile[] files, string name) => files.Any(file => string.Equals(file.Path?.Replace('\\', '/'), name, StringComparison.OrdinalIgnoreCase));
         private static bool IsSpecialRepository(string repository)
         {
-            return MNNModelCatalog.IsPublishedSpeechRepository(repository) || MNNCosyVoiceModel.IsRepository(repository) || MNNReferenceSpeechModel.IsRepository(repository) || MNNBertEmbeddingModel.IsRepository(repository) || MNNPaddleTextModel.IsRepository(repository) || MNNQwen3AsrModel.IsRepository(repository) || MNNParaformerModel.IsHuggingFaceRepository(repository) || MNNWhisperModel.IsRepository(repository) || MNNSileroModel.IsRepository(repository) || MNNSmartTurnModel.IsRepository(repository) || MNNKwsModel.IsRepository(repository);
+            return MNNPocketModel.IsRepository(repository) || MNNModelCatalog.IsPublishedSpeechRepository(repository) || MNNCosyVoiceModel.IsRepository(repository) || MNNReferenceSpeechModel.IsRepository(repository) || MNNBertEmbeddingModel.IsRepository(repository) || MNNPaddleTextModel.IsRepository(repository) || MNNQwen3AsrModel.IsRepository(repository) || MNNParaformerModel.IsHuggingFaceRepository(repository) || MNNWhisperModel.IsRepository(repository) || MNNSileroModel.IsRepository(repository) || MNNSmartTurnModel.IsRepository(repository) || MNNKwsModel.IsRepository(repository);
         }
 
         private static bool IsMnnGraph(string path)

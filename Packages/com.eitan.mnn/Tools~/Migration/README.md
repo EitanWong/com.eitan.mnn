@@ -253,3 +253,20 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 
 SHA-256 清单检查本轮五个修改文件与原 meta GUID；完整应用字节一致，重复零写入，
 基线不同或部分应用时零写入拒绝。本地工作区已应用。
+
+## MNN-Pocket 默认模型
+
+对本轮 SiriAI 基线，运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage pocket
+```
+
+`SiriAIPocketModels.patch` 将新配置及场景的本地语言模型设为 `MNN/MNN-Pocket-0.3B`，
+由共享包目录解析到固定版本的官方 `MNN/MNN-Pocket-0.3B-MNN` 部署资源。
+首次启动保留该默认项，线程预算仍按设备计算，保存设置和显式模型选择继续有效。
+源权重、GGUF、Dec 保留在模型列表中并标明用途；设置归一化和验证拒绝尚不能运行的条目。
+
+补丁包含相关默认值、设置和回归测试修改，保留已有 `.meta` GUID；逐文件 SHA-256
+检查拒绝不匹配或部分迁移，重复应用零写入。权重、凭据及其他场景配置不加入包。
+模型格式和验收范围见 [MNN-Pocket 接入](../../Documentation~/MNNPocket.md)。

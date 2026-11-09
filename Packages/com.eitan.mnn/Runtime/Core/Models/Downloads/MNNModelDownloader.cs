@@ -68,6 +68,7 @@ namespace MNN.Unity
         {
             ValidateRepositoryId(modelScopeId);
             cancellationToken.ThrowIfCancellationRequested();
+            if (MNNPocketModel.IsRepository(modelScopeId)) revision = MNNPocketModel.ResolveRevision(revision);
             revision = MNNVerifiedTtsModel.IsCosyVoice300MRepository(modelScopeId) ? MNNVerifiedTtsModel.ResolveCosyVoice300MRevision(revision)
                 : string.IsNullOrWhiteSpace(revision) ? "master" : revision;
             string identity = revision == "master" ? modelScopeId : modelScopeId + "@" + revision;
@@ -77,7 +78,9 @@ namespace MNN.Unity
                 var identityPath = Path.Combine(stagingDirectory, ".mnn-download-repository");
                 MNNModelRepositoryFile[] files;
                 // Verified profiles use their immutable plan even when resuming an older mutable manifest.
-                if (MNNDtlnAecModel.IsRepository(modelScopeId))
+                if (MNNPocketModel.IsRepository(modelScopeId))
+                    files = MNNPocketModel.Files();
+                else if (MNNDtlnAecModel.IsRepository(modelScopeId))
                     files = DtlnAecDownloadPlan(modelScopeId);
                 else if (MNNVerifiedTtsModel.IsRepository(modelScopeId))
                     files = MNNVerifiedTtsModel.Files(modelScopeId).Select(file => new MNNModelRepositoryFile { Path = file.Path, Type = "blob", Size = file.Bytes, Sha256 = file.Hash, Revision = file.Revision }).ToArray();
