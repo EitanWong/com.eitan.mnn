@@ -85,6 +85,7 @@ namespace MNN.Unity
             await _providers.PrepareAsync(_providers.Vad, token).ConfigureAwait(false);
             await _providers.PrepareAsync(_providers.Turn, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
+            if (_route == MNNRealtimeRoute.TextChat) return;
             IMNNRealtimeVoiceActivity activity;
             if (_providers.Vad is IMNNConversationVadProvider vad)
             {
@@ -151,6 +152,7 @@ namespace MNN.Unity
         public Task StartListeningAsync(CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
+            if (_route == MNNRealtimeRoute.TextChat) return Task.CompletedTask;
             _capture.Start();
             _inputTask = Task.Factory.StartNew(InputLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             _ = ObserveCaptureAsync();

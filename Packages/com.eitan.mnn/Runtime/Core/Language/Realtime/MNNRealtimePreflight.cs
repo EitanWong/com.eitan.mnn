@@ -34,6 +34,15 @@ namespace MNN.Unity
                 throw new ArgumentOutOfRangeException(nameof(route));
             if (model == null || device == null)
                 throw new ArgumentNullException(model == null ? nameof(model) : nameof(device));
+            if (route == MNNRealtimeRoute.TextChat)
+            {
+                if (speechOutput) throw new ArgumentException("Text chat cannot produce speech.", nameof(speechOutput));
+                var required = ExecutionRequirements(model) | MNNRealtimeFeature.TextInput |
+                    MNNRealtimeFeature.ContextRecovery;
+                return new MNNRealtimeReport(route, MNNRealtimeMode.InterruptibleConversation, MNNSpeechRoute.IndependentTts,
+                    required & ~model.Features, MNNRealtimeFeature.None, MNNRealtimeFeature.None, model, device, null,
+                    requireMeasuredSpeech: false, producesSpeech: false);
+            }
             if (!speechOutput && route != MNNRealtimeRoute.AudioTextToSpeech && route != MNNRealtimeRoute.CascadedSpeech)
                 throw new ArgumentException("Text replies require an audio/text or cascaded input topology.", nameof(route));
             bool cascade = route == MNNRealtimeRoute.CascadedSpeech;
