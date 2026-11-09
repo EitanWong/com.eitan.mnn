@@ -235,3 +235,17 @@ Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有�
 `Language/Providers`拥有惰性阶段工厂，`Agent`拥有计划、工具和权限注入。
 `Common/Layout`仅放通用几何/运动，`Common/Diagnostics`放可复用系统采样，
 平台公开导出统一声明在对应`MNNInterop.*`文件。不得把Siri的产品视觉或业务默认值放进这些目录。
+
+
+## Harness 核心所有权
+
+`Runtime/Core/Language/Agent/Harnesses` 拥有纯托管任务领域、持久任务运行时、文件存储、
+结果租约/回执、远端客户端、提交日志、Host配置与任务呈现数据。它不引用Unity或SiriAI应用；
+`Tools~/HarnessCore/MNN.HarnessCore.csproj` 提供独立 .NET Standard 2.1 构建。
+对应行为测试与共享夹具位于 `Tests/Editor/Language/Agent/Harnesses` 及其 `Fixtures`。
+
+迁移保留 `MNN.Samples.SiriAI.Harnesses` 公开命名空间、同名程序集及现有Unity GUID，
+这些名称用于既有消费者兼容，源码所有权已经归包。不得在SiriAI再保留或编译一份相同核心。
+应用及独立Host引用此程序集；产品UI、视觉、设备装配和SiriAI默认值继续由应用层拥有。
+Unity应用适配器与Host工具的后续迁移应通过可注入接口解除对应用层的依赖，
+不能让包反向引用SiriAI程序集。

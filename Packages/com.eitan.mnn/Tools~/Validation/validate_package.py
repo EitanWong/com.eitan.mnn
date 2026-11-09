@@ -14,6 +14,13 @@ from urllib.parse import unquote, urlsplit
 
 
 ASSEMBLIES = {
+    "MNN.Samples.SiriAI.Harnesses": (
+        "Runtime/Core/Language/Agent/Harnesses/MNN.Samples.SiriAI.Harnesses.asmdef", set()
+    ),
+    "MNN.Samples.SiriAI.Harnesses.Tests": (
+        "Tests/Editor/Language/Agent/Harnesses/MNN.Samples.SiriAI.Harnesses.Tests.asmdef",
+        {"MNN.Samples.SiriAI.Harnesses"}
+    ),
     "MNN.Unity": ("Runtime/MNN.Unity.asmdef", set()),
     "MNN.Unity.Burst": ("Runtime/Core/Performance/Burst/MNN.Unity.Burst.asmdef", {"MNN.Unity"}),
     "MNN.Unity.Editor": ("Editor/MNN.Unity.Editor.asmdef", {"MNN.Unity"}),
@@ -54,10 +61,12 @@ GENERATED_DIRECTORIES = {
     "Library", "Temp", "Logs", "obj", "bin", "__pycache__", "TestArtifacts~"
 }
 EDITOR_ASSEMBLIES = {
+    "MNN.Samples.SiriAI.Harnesses.Tests",
     "MNN.Unity.Editor", "MNN.Unity.Tests", "MNN.Unity.Integration.Tests",
     "MNN.Unity.Tests.Fixtures", "MNN.Unity.Samples.BasicExample.Editor"
 }
 TEST_ASSEMBLIES = {
+    "MNN.Samples.SiriAI.Harnesses.Tests",
     "MNN.Unity.Tests", "MNN.Unity.Integration.Tests", "MNN.Unity.Tests.Fixtures",
     "MNN.Unity.Runtime.Tests", "MNN.Unity.Samples.BasicExample.Tests"
 }
@@ -130,7 +139,8 @@ def inspect(package):
         paths.append(path)
         require(not any(part in GENERATED_DIRECTORIES for part in relative.parts),
                 "Generated directory in package: " + str(relative))
-        require(path.name != ".DS_Store" and path.suffix not in {".log", ".pyc", ".csproj", ".sln", ".slnx"},
+        require(path.name != ".DS_Store" and path.suffix not in {".log", ".pyc", ".sln", ".slnx"}
+                and (path.suffix != ".csproj" or relative.parts[0] == "Tools~"),
                 "Generated file in package: " + str(relative))
         require(path.suffix not in {".c", ".cc", ".cpp", ".cxx"},
                 "Custom native source is not allowed in this package: " + str(relative))
@@ -170,7 +180,7 @@ def inspect(package):
             require(references == {"MNN.Unity", "Unity.Burst"}, "Burst FFT must not require Collections or Mathematics")
         require(len(references) == len(definition.get("references", [])),
                 "Duplicate assembly reference: " + name)
-        require({ref for ref in references if ref.startswith("MNN.Unity")} == dependencies,
+        require(references.intersection(ASSEMBLIES) == dependencies,
                 "Incorrect package assembly dependencies: " + name)
         if name in EDITOR_ASSEMBLIES:
             require(definition.get("includePlatforms") == ["Editor"], "Assembly must be Editor-only: " + name)
@@ -197,7 +207,7 @@ def inspect(package):
         resolved = [assembly_guids.get(ref[5:], ref) if ref.startswith("GUID:") else ref for ref in references]
         graph[name] = {ref for ref in resolved if ref in definitions}
         for ref in resolved:
-            require(not ref.startswith(("MNN.Unity", "GUID:")) or ref in definitions,
+            require(not ref.startswith(("MNN.Unity", "MNN.Samples.SiriAI", "GUID:")) or ref in definitions,
                     "Unknown package assembly reference: " + name + " -> " + ref)
     visited, active = set(), set()
 

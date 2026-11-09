@@ -1,0 +1,14 @@
+{
+  "name": "MNN.Samples.SiriAI.Harnesses.Tests",
+  "rootNamespace": "MNN.Samples.SiriAI.Tests",
+  "references": [
+    "MNN.Samples.SiriAI.Harnesses",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": ["Editor"],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

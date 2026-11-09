@@ -188,3 +188,7 @@ mono_cras*.blob
 
 # Local sample connection settings
 /MNN/
+
+# Hand-authored standalone Harness projects (not Unity-generated solutions)
+!/Packages/com.eitan.mnn/Tools~/HarnessCore/MNN.HarnessCore.csproj
+!/Packages/com.eitan.mnn/Tools~/HarnessChecks/Fixtures/PackageConsumer/Consumer.csproj

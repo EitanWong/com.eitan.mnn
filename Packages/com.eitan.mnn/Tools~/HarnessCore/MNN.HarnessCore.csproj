@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>MNN.Samples.SiriAI.Harnesses</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Runtime/Core/Language/Agent/Harnesses/**/*.cs" />
+    <InternalsVisibleTo Include="SiriAI.HarnessHost" />
+    <InternalsVisibleTo Include="SiriAI.DotCraftHost" />
+  </ItemGroup>
+</Project>
