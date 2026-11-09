@@ -47,6 +47,25 @@ namespace MNN.Unity.Tests
             });
         }
 
+        [Test]
+        public void InvalidatesWhenExternalSelectedMetadataChanges()
+        {
+            WithFixture((root, model, native) =>
+            {
+                string metadata = Path.Combine(Path.GetDirectoryName(model), "metadata");
+                Directory.CreateDirectory(metadata);
+                File.WriteAllText(Path.Combine(model, "config.json"), "{\"base_dir\":\"" + metadata.Replace("\\", "/") + "/\",\"llm_config\":\"info.json\"}");
+                string info = Path.Combine(metadata, "info.json");
+                File.WriteAllText(info, "{\"temperature\":0.7}");
+                string initial, changed;
+                using (var cache = MNNStudioLlmCache.Acquire(root, model, native, "gpu", 4)) initial = cache.DirectoryPath;
+                File.WriteAllText(info, "{\"temperature\":0.8}");
+                using (var cache = MNNStudioLlmCache.Acquire(root, model, native, "gpu", 4)) changed = cache.DirectoryPath;
+                Assert.AreNotEqual(initial, changed);
+                using (var cache = MNNStudioLlmCache.Acquire(root, model, native, "gpu", 4)) Assert.AreEqual(changed, cache.DirectoryPath);
+            });
+        }
+
         private static void WithFixture(Action<string, string, string> test)
         {
             string root = Path.GetFullPath(Path.Combine("TestArtifacts~", "StudioLlmCache", Guid.NewGuid().ToString("N")));

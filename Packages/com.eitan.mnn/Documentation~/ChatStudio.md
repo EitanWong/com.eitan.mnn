@@ -246,6 +246,18 @@ macOS ARM64 CPU，不能作为全部模型、任意长上下文或其他设备�
 完整输入、原始权重来源、导出命令、哈希和对照记录保存在开发工程
 `TestArtifacts~/LlmConversationQuality-20261110/DeepRootCause/`。
 
+包的配置读取遵循官方 MNN 的顺序：先读取 `config.json` 指定的 `base_dir` 和
+`llm_config`，再合并模型元数据，最后应用调用者覆盖。自定义元数据中的重复惩罚、窗口、
+量化位和导出形状限制会保留；其内容也参与持久缓存标识。GPU 不可用或推理回退 CPU 时，
+按实际 CPU 重新选择默认精度，显式指定的精度仍优先。会话 provider 保留原始覆盖设置，
+避免将临时 GPU 默认值固化成 CPU 参数。
+
+`LlmPackageCorrectnessTests` 独立检查五个本地导出的完整四轮执行：缓存与独立冷启动的
+文字、token ID、计数一致，快照和增量流式输出完整，历史修改、中断及回调异常后可恢复，
+旧结果不会被下一次推理改写。该检查允许模型知识错误；原有 `LlmLongContextTests`
+继续检查回答质量，失败断言没有删除。证据位于开发工程
+`TestArtifacts~/LlmConversationQuality-20261110/PackageCorrectness/`。
+
 历史、录音、模型缓存均位于当前工程 `Library/MNN/Studio`。`history.json` 原子保存标题、
 文件夹、顺序、角色、草稿、附件路径和结果指标；没有自动淘汰旧会话，文件大小限制为 32 MiB。
 不复制图片、不序列化原生会话或生成波形。附件依赖原文件；生成语音需在离开会话前 Save audio。

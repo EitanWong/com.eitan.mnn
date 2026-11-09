@@ -141,12 +141,7 @@ namespace MNN.Unity
             if (temperature.HasValue && (float.IsNaN(temperature.Value) || float.IsInfinity(temperature.Value) ||
                 temperature.Value < 0 || temperature.Value > 2))
                 throw new ArgumentOutOfRangeException(nameof(temperature));
-            var tuning = performance.Resolve(directory);
-            string configuration = Path.Combine(Path.GetFullPath(directory), "config.json");
-            if (!File.Exists(configuration))
-                throw new FileNotFoundException("MNN config is missing", configuration);
-            return LoadCore(directory, tuning.ThreadCount, thinking, cache, tuning.PrecisionMode,
-                conversation, tuning.BackendType, conversationTemperature: temperature, performanceJson: tuning.ToJson(directory));
+            return LoadPrepared(MNNModelOptions.PrepareLlm(directory, performance, thinking, cache, conversation, temperature));
         }
 
         internal static MNNLlm LoadForChat(string modelDirectory, int threadCount, bool thinking, string cacheDirectory)
@@ -158,6 +153,11 @@ namespace MNN.Unity
             var options = MNNModelOptions.Prepare(modelDirectory, threadCount, enableThinking, cacheDirectory, precisionMode, chatSampling, backendType, speechRecognition, conversationTemperature);
             if (performanceJson != null)
                 options.Json = options.Json.Substring(0, options.Json.Length - 1) + "," + performanceJson.Substring(1);
+            return LoadPrepared(options);
+        }
+
+        private static MNNLlm LoadPrepared(MNNModelOptions options)
+        {
             string ownedCache = options.OwnedCache;
             try
             {

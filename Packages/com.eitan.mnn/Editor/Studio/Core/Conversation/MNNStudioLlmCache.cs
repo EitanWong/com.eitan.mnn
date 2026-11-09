@@ -35,6 +35,9 @@ namespace MNN.Unity.Editor
                     file.Name.Equals("llm_config.json", StringComparison.OrdinalIgnoreCase))
                     identity.Append(':').Append(File.ReadAllText(path));
             }
+            MNNModelOptions.ReadLlmConfiguration(model, out string metadata);
+            identity.Append('|').Append(metadata);
+            if (File.Exists(metadata)) identity.Append(':').Append(File.ReadAllText(metadata));
             return new MNNStudioLlmCache(MNNLlmCache.AcquireIdentity(root, identity.ToString()));
         }
 

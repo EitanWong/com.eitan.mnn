@@ -53,7 +53,7 @@ namespace MNN.Unity
             Append(identity, performance.PrecisionMode.ToString());
             Append(identity, performance.ToJson(model));
             Append(identity, File.ReadAllText(Path.Combine(model, "config.json")));
-            string llmConfig = Path.Combine(model, "llm_config.json");
+            MNNModelOptions.ReadLlmConfiguration(model, out string llmConfig);
             Append(identity, File.Exists(llmConfig) ? File.ReadAllText(llmConfig) : "");
             if (!string.IsNullOrWhiteSpace(modelIdentity)) Append(identity, modelIdentity);
             else

@@ -67,6 +67,41 @@ namespace MNN.Unity.Tests
             finally { Directory.Delete(directory, true); }
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void ConversationUsesEffectiveMetadataSampling(bool externalBase, bool customMetadata)
+        {
+            string directory = Path.GetFullPath("TestArtifacts~/ConversationSampling/" + Guid.NewGuid().ToString("N"));
+            string metadataDirectory = externalBase ? Path.Combine(directory, "weights") : directory;
+            Directory.CreateDirectory(metadataDirectory);
+            string name = customMetadata ? "model-info.json" : "llm_config.json";
+            string configuration = "{\"sampler_type\":\"greedy\",\"repetition_penalty\":1.04,\"penalty_window\":7" +
+                (externalBase ? ",\"base_dir\":\"" + metadataDirectory.Replace("\\", "/") + "/\"" : "") +
+                (customMetadata ? ",\"llm_config\":\"" + name + "\"" : "") + "}";
+            const string metadata = "{\"sampler_type\":\"mixed\",\"mixed_samplers\":[\"topP\",\"temperature\"],\"repetition_penalty\":1.23,\"penalty_window\":41}";
+            string config = Path.Combine(directory, "config.json"), info = Path.Combine(metadataDirectory, name);
+            File.WriteAllText(config, configuration);
+            File.WriteAllText(info, metadata);
+            try
+            {
+                foreach (float? temperature in new float?[] { null, 0f, .85f })
+                {
+                    var options = MNNModelOptions.Prepare(directory, 4, false, Path.Combine(directory, "cache"),
+                        MNNPrecisionMode.Normal, true, MNNBackendType.CPU, conversationTemperature: temperature);
+                    var sampling = JsonUtility.FromJson<Sampling>(options.Json);
+                    Assert.AreEqual(1.23f, sampling.repetition_penalty, "Native metadata overrides config.json before caller overrides.");
+                    Assert.AreEqual(41, sampling.penalty_window);
+                    if (!temperature.HasValue)
+                        CollectionAssert.AreEqual(new[] { "penalty", "topP", "temperature" }, sampling.mixed_samplers);
+                    else Assert.AreEqual(temperature.Value == 0 ? "greedy" : "mixed", sampling.sampler_type);
+                }
+                Assert.AreEqual(configuration, File.ReadAllText(config));
+                Assert.AreEqual(metadata, File.ReadAllText(info));
+            }
+            finally { Directory.Delete(directory, true); }
+        }
+
         [TestCase(0f)]
         [TestCase(.85f)]
         [TestCase(2f)]

@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using UnityEngine;
 
 namespace MNN.Unity
 {
@@ -11,14 +10,6 @@ namespace MNN.Unity
     {
         private const string Qwen08Profile = "Qwen3.5-0.8B-MNN";
 
-        [Serializable]
-        private sealed class ModelIdentity
-        {
-            public string model_type;
-            public int hidden_size;
-            public int layer_nums;
-        }
-
         internal static MNNLlmPerformanceOptions Select(string directory, MNNBackendType requested)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -27,16 +18,13 @@ namespace MNN.Unity
             const bool android = false;
 #endif
             string model = Path.GetFileName(Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            string metadata = Path.Combine(directory, "llm_config.json");
-            if (File.Exists(metadata))
-            {
-                var identity = JsonUtility.FromJson<ModelIdentity>(File.ReadAllText(metadata));
-                // A local re-export or renamed folder retains the measured profile.
-                // Require the qualified architecture dimensions before reusing it.
-                if (identity != null && identity.model_type == "qwen3_5" &&
-                    identity.hidden_size == 1024 && identity.layer_nums == 24)
-                    model = Qwen08Profile;
-            }
+            var identity = MNNModelOptions.ReadLlmConfiguration(directory);
+            // A local re-export or renamed folder retains the measured profile.
+            // Require the qualified architecture dimensions before reusing it.
+            if (identity.TryGetValue("model_type", out var type) && type as string == "qwen3_5" &&
+                identity.TryGetValue("hidden_size", out var hidden) && MNNModelData.Integer(hidden) == 1024 &&
+                identity.TryGetValue("layer_nums", out var layers) && MNNModelData.Integer(layers) == 24)
+                model = Qwen08Profile;
             return Select(model, requested, android, MNNInferenceCache.DeviceModel,
                 MNNInferenceCache.GraphicsDevice, MNNInferenceCache.ProcessorCount);
         }

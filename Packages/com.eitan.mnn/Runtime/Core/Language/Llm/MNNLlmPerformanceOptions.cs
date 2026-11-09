@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.IO;
 using System.Text;
 
 namespace MNN.Unity
@@ -28,6 +27,13 @@ namespace MNN.Unity
             if (string.IsNullOrWhiteSpace(modelDirectory))
                 throw new ArgumentNullException(nameof(modelDirectory));
             return Resolve(MNNLlmDeviceDefaults.Select(modelDirectory, BackendType));
+        }
+
+        internal MNNLlmPerformanceOptions ResolveForBackend(string directory, MNNBackendType backend)
+        {
+            var request = (MNNLlmPerformanceOptions)MemberwiseClone();
+            request.BackendType = backend;
+            return request.Resolve(directory);
         }
 
         internal MNNLlmPerformanceOptions Resolve(MNNLlmPerformanceOptions defaults)
@@ -61,12 +67,14 @@ namespace MNN.Unity
         public int? PrefillChunkSize { get; set; }
 
         internal string ToJson(string modelDirectory = null)
-            => ToJsonFromConfiguration(modelDirectory == null ? "{}" : File.ReadAllText(Path.Combine(modelDirectory, "config.json")));
+            => ToJsonFromSource(modelDirectory == null ? MNNModelData.Object(MNNModelData.Parse("{}")) : MNNModelOptions.ReadLlmConfiguration(modelDirectory));
 
         internal string ToJsonFromConfiguration(string configuration)
+            => ToJsonFromSource(MNNModelData.Object(MNNModelData.Parse(configuration)));
+
+        private string ToJsonFromSource(System.Collections.Generic.Dictionary<string, object> source)
         {
             Validate();
-            var source = MNNModelData.Object(MNNModelData.Parse(configuration));
             var json = new StringBuilder("{\"power\":\"").Append(PowerMode.ToString().ToLowerInvariant()).Append('"');
             AppendOverrides(source, json);
             return json.Append('}').ToString();
