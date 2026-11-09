@@ -62,6 +62,7 @@ namespace MNN.Unity
             public string sampler_type;
             public string[] mixed_samplers;
             public float repetition_penalty = 1.1f;
+            public int penalty_window = 128;
             public string precision;
             public string tmp_path;
             public Jinja jinja = new Jinja();
@@ -118,7 +119,8 @@ namespace MNN.Unity
             string json;
             if (chatSampling)
             {
-                var source = JsonUtility.FromJson<ModelSampler>(File.ReadAllText(config)) ?? new ModelSampler();
+                string configuration = File.ReadAllText(config);
+                var source = JsonUtility.FromJson<ModelSampler>(configuration) ?? new ModelSampler();
                 string sampler = string.IsNullOrEmpty(source.sampler_type) ? "greedy" : source.sampler_type;
                 string[] mixed = source.mixed_samplers;
                 if (sampler == "mixed")
@@ -150,6 +152,16 @@ namespace MNN.Unity
                     };
                 }
                 else studio = new StudioOptions { sampler_type = sampler, mixed_samplers = sampler == "mixed" ? mixed : null };
+                // Keep the export's calibrated penalty (including the official legacy
+                // alias). Only our unconfigured fallback uses a recent-token window:
+                // penalizing every token in a growing prompt suppresses valid vocabulary.
+                var sampling = MNNModelData.Object(MNNModelData.Parse(configuration));
+                if (sampling.TryGetValue("repetition_penalty", out var penalty) && MNNModelData.Number(penalty) >= 0)
+                    studio.repetition_penalty = (float)MNNModelData.Number(penalty);
+                else if (sampling.TryGetValue("penalty", out penalty))
+                    studio.repetition_penalty = (float)MNNModelData.Number(penalty);
+                if (sampling.TryGetValue("penalty_window", out var window))
+                    studio.penalty_window = MNNModelData.Integer(window);
                 studio.backend_type = backendName;
                 studio.mllm = media;
                 studio.thread_num = threads;

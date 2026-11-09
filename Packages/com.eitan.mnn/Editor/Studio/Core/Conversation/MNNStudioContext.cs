@@ -7,8 +7,8 @@ using System.Threading;
 
 namespace MNN.Unity.Editor
 {
-    // Text budgeting uses the official tokenizer. Template/media reserves are conservative
-    // estimates, not an exact count of the multimodal tokens created during native prefill.
+    // Text chats use the complete official template count when supplied by the model.
+    // Media reserves remain estimates of embeddings created during native prefill.
     internal static class MNNStudioContext
     {
         internal const int DefaultTokenBudget = 8192;
@@ -20,7 +20,7 @@ namespace MNN.Unity.Editor
             internal int Covered;
         }
 
-        internal static Prepared Prepare(IReadOnlyList<MNNStudioMessage> history, string current, string summary, int covered, int tokenBudget, int outputTokens, int mediaReserve, Func<string, int> countTokens, Func<MNNChatMessage[], string> summarize, Action<string, int> checkpoint, CancellationToken cancellation, Action compressionStarting = null)
+        internal static Prepared Prepare(IReadOnlyList<MNNStudioMessage> history, string current, string summary, int covered, int tokenBudget, int outputTokens, int mediaReserve, Func<string, int> countTokens, Func<MNNChatMessage[], string> summarize, Action<string, int> checkpoint, CancellationToken cancellation, Action compressionStarting = null, Func<IReadOnlyList<MNNChatMessage>, int> countConversationTokens = null)
         {
             if (string.IsNullOrWhiteSpace(current))
                 throw new ArgumentException("Enter a message.");
@@ -30,15 +30,14 @@ namespace MNN.Unity.Editor
             summary = MNNStudioPrompt.BoundSummary(summary);
             covered = summary.Length == 0 ? 0 : Math.Max(0, Math.Min(covered, history.Count));
             int inputBudget = tokenBudget - outputTokens - mediaReserve - 512;
+            int Count(IReadOnlyList<MNNChatMessage> messages) => countConversationTokens != null
+                ? countConversationTokens(messages) : Estimate(messages, countTokens);
             var currentOnly = Compose(history, history.Count, current, summary);
-            if (Estimate(currentOnly, countTokens) > inputBudget)
+            if (Count(currentOnly) > inputBudget)
                 throw new ArgumentException("The message and memory exceed the context budget. Shorten the message or attachments, or increase Context tokens within this model's supported limit.");
             var conversation = Compose(history, covered, current, summary);
-            long characters = current.Length + summary.Length;
-            for (int i = covered; i < history.Count; ++i)
-                characters += history[i].Text.Length;
             int target = covered;
-            if (characters > MNNStudioPrompt.CompressionThresholdCharacters || Estimate(conversation, countTokens) > inputBudget)
+            if (Count(conversation) > inputBudget)
             {
                 target = Math.Max(covered, history.Count - MNNStudioPrompt.RecentMessagesAfterCompression);
                 // Preserve the start of a recent turn when possible.
@@ -46,7 +45,7 @@ namespace MNN.Unity.Editor
                     --target;
             }
 
-            while (covered < target || Estimate(conversation, countTokens) > inputBudget)
+            while (covered < target || Count(conversation) > inputBudget)
             {
                 cancellation.ThrowIfCancellationRequested();
                 compressionStarting?.Invoke();
@@ -84,7 +83,7 @@ namespace MNN.Unity.Editor
                         if (length > 1 && offset + length < data.Length && char.IsHighSurrogate(data[offset + length - 1]))
                             --length;
                         prompt = SummaryPrompt(candidate, data.Substring(offset, length));
-                        if (Estimate(prompt, countTokens) <= tokenBudget - SummaryOutputTokens - 512)
+                        if (Count(prompt) <= tokenBudget - SummaryOutputTokens - 512)
                             break;
                         if (length <= 1)
                             throw new ArgumentException("The memory cannot fit in the configured context budget.");
@@ -92,10 +91,10 @@ namespace MNN.Unity.Editor
                     }
 
                     string generated = MNNStudioPrompt.CleanSummary(summarize(prompt));
-                    candidate = MergeSummary(candidate, generated, history, covered, end);
                     cancellation.ThrowIfCancellationRequested();
-                    if (candidate.Length == 0)
+                    if (generated.Length == 0)
                         throw new InvalidOperationException("The model produced no usable context summary. Retry or start a new chat.");
+                    candidate = MergeSummary(candidate, generated, history, covered, end);
                     offset += length;
                 }
 

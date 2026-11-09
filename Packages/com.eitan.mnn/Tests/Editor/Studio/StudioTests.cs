@@ -129,7 +129,7 @@ namespace MNN.Unity.Tests
             }
 
             var prompts = new List<MNNChatMessage[]>();
-            var plan = MNNStudioContext.Prepare(messages, "latest question", "Earlier fact: name is Alice.", 0, 8192, 256, 0, text => text.Length / 4, prompt =>
+            var plan = MNNStudioContext.Prepare(messages, "latest question", "Earlier fact: name is Alice.", 0, 4096, 256, 0, text => text.Length / 4, prompt =>
             {
                 prompts.Add(prompt);
                 return "Alice prefers short answers.";

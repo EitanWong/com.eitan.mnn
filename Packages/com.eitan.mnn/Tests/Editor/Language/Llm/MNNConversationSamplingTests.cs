@@ -36,6 +36,35 @@ namespace MNN.Unity.Tests
             public float temperature;
             public int topK;
             public float topP;
+            public float repetition_penalty;
+            public int penalty_window;
+        }
+
+        [TestCase("{}", 1.1f, 128)]
+        [TestCase("{\"repetition_penalty\":1.0,\"penalty_window\":0}", 1f, 0)]
+        [TestCase("{\"repetition_penalty\":1.2,\"penalty_window\":64}", 1.2f, 64)]
+        [TestCase("{\"penalty\":1.05}", 1.05f, 128)]
+        [TestCase("{\"repetition_penalty\":1.15,\"penalty\":1.3}", 1.15f, 128)]
+        public void ConversationPreservesModelPenaltyAndBoundsOnlyTheUnconfiguredWindow(string configuration,
+            float penalty, int window)
+        {
+            string directory = Path.GetFullPath("TestArtifacts~/ConversationSampling/" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            string config = Path.Combine(directory, "config.json");
+            File.WriteAllText(config, configuration);
+            try
+            {
+                foreach (float? temperature in new float?[] { null, .85f, 0f })
+                {
+                    var options = MNNModelOptions.Prepare(directory, 4, false, Path.Combine(directory, "cache"),
+                        MNNPrecisionMode.Normal, true, conversationTemperature: temperature);
+                    var sampling = JsonUtility.FromJson<Sampling>(options.Json);
+                    Assert.AreEqual(penalty, sampling.repetition_penalty, "Keep the model's calibrated penalty.");
+                    Assert.AreEqual(window, sampling.penalty_window, "An absent window must not penalize the entire growing history.");
+                }
+                Assert.AreEqual(configuration, File.ReadAllText(config));
+            }
+            finally { Directory.Delete(directory, true); }
         }
 
         [TestCase(0f)]

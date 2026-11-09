@@ -558,12 +558,14 @@ namespace MNN.Unity.Editor
                     int mediaReserve = (request.Image != null ? 2048 : 0) + (request.Audio != null ? 2048 : 0);
                     if (request.History != null)
                     {
-                        var prepared = MNNStudioContext.Prepare(request.History, request.Prompt, summary, request.SummarizedMessages, request.ContextTokens, request.TokenLimit, mediaReserve, _llm.CountTokens, prompt => _llm.GenerateConversation(prompt, MNNStudioContext.SummaryOutputTokens, cancellationToken: request.Cancellation).Text, request.MemoryProgress, request.Cancellation, () => request.ContextProgress?.Invoke(true));
+                        var prepared = MNNStudioContext.Prepare(request.History, request.Prompt, summary, request.SummarizedMessages, request.ContextTokens, request.TokenLimit, mediaReserve, _llm.CountTokens, prompt => _llm.GenerateConversation(prompt, MNNStudioContext.SummaryOutputTokens, cancellationToken: request.Cancellation).Text, request.MemoryProgress, request.Cancellation, () => request.ContextProgress?.Invoke(true), _llm.CountConversationTokens);
                         request.ContextProgress?.Invoke(false);
                         conversationInput = prepared.Conversation;
                         summary = prepared.Summary;
                     }
-                    else if (MNNStudioContext.Estimate(conversationInput, _llm.CountTokens) > request.ContextTokens - request.TokenLimit - mediaReserve - 512)
+                    else if ((conversationInput.Any(message => MNNConversationContext.ContainsMedia(message.Content))
+                        ? MNNStudioContext.Estimate(conversationInput, _llm.CountTokens)
+                        : _llm.CountConversationTokens(conversationInput)) > request.ContextTokens - request.TokenLimit - mediaReserve - 512)
                         throw new ArgumentException("The conversation exceeds the configured context budget.");
                     using (var stop = CancellationTokenSource.CreateLinkedTokenSource(request.Cancellation))
                     {
