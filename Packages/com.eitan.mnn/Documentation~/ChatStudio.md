@@ -203,6 +203,49 @@ VoiceOver、Dynamic Type、系统 Increase Contrast 尚未全面验证，不能�
 机械循环，不判断语义质量，也不能保证模型永不重复。
 发送失败或取消后遗留的连续用户轮次会在构造官方角色历史时合并，避免把非法/歧义的相邻角色消息传给模型。
 
+### 长对话质量与导出产物
+
+2026-11-10 在 macOS ARM64 CPU 上，以相同的 64 条背景记录和四轮首都问题，
+对比独立实例的流式续写与冷启动。SmolLM2-135M、Qwen2.5-0.5B 均通过；原有
+Qwen3.5-0.8B 导出在第二轮回答 Naples，Pocket-0.3B 重复 Paris。失败断言保留。
+
+独立 Transformers CPU FP32 推理使用经过 SHA-256 校验的原始权重、相同模板和逐个一致的
+token ID：Qwen 回答 Rome，Pocket 仍回答 Paris。已有官方 llm_demo 在完全相同的
+渲染输入下复现 MNN 输出。因此，这两种失败需要分别处理；调整上下文压缩不能修复原模型自身的错误。
+
+使用未修改的官方 MNN 3.6.2 导出工具重新生成完整 Qwen 模型后，INT4、INT8 和 FP16
+版本均通过原来的四轮断言。仅替换原模型的图、权重、配置或输入 embedding 的单项对照仍失败，
+目前不能把原因归结为某个单独算子或量化位数。INT4 候选位于开发工程
+`Assets/StreamingAssets/MNN/Models/Qwen3.5-0.8B-W4-MNN`，保留 block 64/HQQ，
+外置权重为 470,382,614 字节；另通过现有 11 项中文、算术、预算和生命周期集成检查。
+Studio 中刷新后选择此本地目录；原下载目录保持原样，不会自动替换已选择的模型。
+模型目录改名不再丢失此 CPU 精度配置：`llm_config.json` 声明 `qwen3_5`、
+hidden size 1024、24 层时复用现有 Qwen 配置。显式设置的精度仍优先于自动值。
+
+重导出使用官方源码 commit `7e3c6fb5225d3ccf22807ee641332669df34650d` 及配套
+MNNConvert 3.6.2。准备官方 Python 导出依赖后，将以下变量设为该源码、已校验的原始权重、
+全新的候选目录和转换器路径；不要把候选目录指向原模型：
+
+```bash
+python3 "$MNN_SOURCE/transformers/llm/export/llmexport.py" \
+  --path "$QWEN_REFERENCE" --dst_path "$QWEN_CANDIDATE" \
+  --export mnn --quant_bit 4 --lm_quant_bit 4 \
+  --quant_block 64 --lm_quant_block 64 --scale_bit 32 --hqq \
+  --disable_transformer_c4 --mnnconvert "$MNN_CONVERTER"
+```
+
+复测设置 `MNN_TEST_MODEL_ROOT` 为已有模型的父目录，然后执行：
+
+```bash
+python3 Packages/com.eitan.mnn/Tools~/Testing/run_conversation_tests.py \
+  --package-only --include-package-tests --filter MNN.Unity.Tests.LlmLongContextTests
+```
+
+替代目录的四模型矩阵为 3/4 通过，Pocket 的原始权重失败仍待解决。这些结果仅覆盖所测输入与
+macOS ARM64 CPU，不能作为全部模型、任意长上下文或其他设备的质量保证。
+完整输入、原始权重来源、导出命令、哈希和对照记录保存在开发工程
+`TestArtifacts~/LlmConversationQuality-20261110/DeepRootCause/`。
+
 历史、录音、模型缓存均位于当前工程 `Library/MNN/Studio`。`history.json` 原子保存标题、
 文件夹、顺序、角色、草稿、附件路径和结果指标；没有自动淘汰旧会话，文件大小限制为 32 MiB。
 不复制图片、不序列化原生会话或生成波形。附件依赖原文件；生成语音需在离开会话前 Save audio。

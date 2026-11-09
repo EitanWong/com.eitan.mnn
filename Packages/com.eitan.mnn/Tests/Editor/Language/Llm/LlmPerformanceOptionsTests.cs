@@ -1,10 +1,34 @@
 using System;
+using System.IO;
 using NUnit.Framework;
 
 namespace MNN.Unity.Tests
 {
     public sealed class LlmPerformanceOptionsTests
     {
+        [TestCase("qwen3_5", 1024, 24, MNNPrecisionMode.Normal)]
+        [TestCase("qwen3_5", 2048, 24, MNNPrecisionMode.Low)]
+        [TestCase("qwen3", 1024, 24, MNNPrecisionMode.Low)]
+        [TestCase("qwen3_5", 1024, 32, MNNPrecisionMode.Low)]
+        public void RenamedModelUsesQualifiedArchitectureInsteadOfDirectoryLabel(string type, int hidden,
+            int layers, MNNPrecisionMode expected)
+        {
+            string directory = Path.GetFullPath("TestArtifacts~/LlmDeviceIdentity/" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            string configuration = "{\"model_type\":\"" + type + "\",\"hidden_size\":" + hidden + ",\"layer_nums\":" + layers + "}";
+            File.WriteAllText(Path.Combine(directory, "llm_config.json"), configuration);
+            try
+            {
+                var automatic = new MNNLlmPerformanceOptions { BackendType = MNNBackendType.CPU }.Resolve(directory);
+                Assert.AreEqual(expected, automatic.PrecisionMode);
+                var explicitLow = new MNNLlmPerformanceOptions { BackendType = MNNBackendType.CPU,
+                    PrecisionMode = MNNPrecisionMode.Low }.Resolve(directory);
+                Assert.AreEqual(MNNPrecisionMode.Low, explicitLow.PrecisionMode);
+                Assert.AreEqual(configuration, File.ReadAllText(Path.Combine(directory, "llm_config.json")));
+            }
+            finally { Directory.Delete(directory, true); }
+        }
+
         [Test]
         public void AppleQwenCpu_DefaultAvoidsLowPrecisionArithmeticRegression()
         {
