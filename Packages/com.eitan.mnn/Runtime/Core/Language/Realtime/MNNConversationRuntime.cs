@@ -199,7 +199,7 @@ namespace MNN.Unity
                 if (_stopped) return Task.FromCanceled(new CancellationToken(true));
                 // A caller cannot queue turns behind slow inference. VAD/session cancellation joins first.
                 if (!_responseTask.IsCompleted) throw new InvalidOperationException("Wait for the previous response to quiesce before submitting another turn.");
-                ++_textAssistanceRevision; assistanceCancellation = _textAssistanceCancellation;
+                InvalidateTextAssistance(); assistanceCancellation = _textAssistanceCancellation;
                 _eventReply?.ObservePresentation(_output);
                 _eventReply = eventReply;
                 _responseCancellation?.Dispose();

@@ -130,7 +130,7 @@ namespace MNN.Unity
         // an explicit model-speech request is checked separately by MNNLlm's waveform ABI/capability gate.
         internal static MNNModelCapabilities OmniPreparationCapabilities => MNNModelCapabilities.AudioInput;
 
-        private sealed class Language : Provider, IMNNConversationTextProvider, IMNNConversationSpeechModelProvider, IMNNConversationVoiceIntentProvider, IMNNConversationRequestPlanner
+        private sealed class Language : Provider, IMNNConversationTextAssistanceProvider, IMNNConversationSpeechModelProvider, IMNNConversationVoiceIntentProvider, IMNNConversationRequestPlanner
         {
             protected override string ReadBackend() => _model == null ? "Not loaded" :
                 "Language: " + _model.Backend + " · image/audio processor: " + _model.MediaBackend +
@@ -190,6 +190,10 @@ namespace MNN.Unity
             public async Task PlanRequestAsync(IReadOnlyList<MNNOpenAIMessage> prompt,
                 Func<string, Task> textDelta, CancellationToken token) =>
                 await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token, 256).ConfigureAwait(false);
+            public async Task GenerateAssistanceAsync(MNNConversationTextTask task, IReadOnlyList<MNNOpenAIMessage> prompt,
+                Func<string, Task> textDelta, CancellationToken token) =>
+                await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token,
+                    Math.Min(_settings.MaximumReplyTokens, MNNConversationTextAssistance.MaximumTokens(task))).ConfigureAwait(false);
             private async Task<MNNMultimodalResult> GenerateCoreAsync(IReadOnlyList<MNNOpenAIMessage> history,
                 float[] audio, int rate, Func<string, Task> delta, bool speech, CancellationToken token, int? tokenBudget = null)
             {

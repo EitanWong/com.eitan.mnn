@@ -8,7 +8,7 @@ using MNN.Unity;
 namespace MNN.Unity
 {
     /// <summary>One serialized language stage. Owns local/cloud providers and optional transport; tools and policy delegates are borrowed. The caller serializes requests and waits for completion before disposal.</summary>
-    public sealed partial class MNNAgentProvider : IMNNConversationVoiceIntentProvider, IMNNConversationProviderDiagnostics, IMNNConversationResponseProvider, IMNNConversationEventProvider
+    public sealed partial class MNNAgentProvider : IMNNConversationVoiceIntentProvider, IMNNConversationProviderDiagnostics, IMNNConversationResponseProvider, IMNNConversationEventProvider, IMNNConversationTextAssistanceProvider
     {
         private readonly IMNNConversationTextProvider _local;
         private readonly MNNAgentOptions _config;
@@ -51,6 +51,16 @@ namespace MNN.Unity
         }
         public Task GenerateResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, string instructions,
             Func<string, Task> delta, CancellationToken token) => GenerateCoreAsync(history, 16000, instructions, delta, token);
+
+        public Task GenerateAssistanceAsync(MNNConversationTextTask task, IReadOnlyList<MNNOpenAIMessage> prompt,
+            Func<string, Task> delta, CancellationToken token)
+        {
+            RequireActive(); token.ThrowIfCancellationRequested();
+            // Auxiliary typing stays on the prepared local model; never plan tools or acquire cloud.
+            return _local is IMNNConversationTextAssistanceProvider assistance
+                ? assistance.GenerateAssistanceAsync(task, prompt, delta, token)
+                : _local.GenerateAsync(prompt, null, 16000, delta, token);
+        }
 
         public Task GenerateEventResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, MNNConversationEvent input,
             Func<string, Task> delta, CancellationToken token)

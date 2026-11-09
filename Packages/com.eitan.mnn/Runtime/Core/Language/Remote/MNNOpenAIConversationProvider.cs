@@ -8,7 +8,7 @@ namespace MNN.Unity
 {
 
     /// <summary>Conversation ports over the shared OpenAI HTTP, WAV, SSE and PCM services.</summary>
-    public sealed class MNNOpenAIConversationProvider : IMNNConversationTextProvider, IMNNConversationAsrProvider, IMNNConversationTtsProvider, IMNNConversationVoiceIntentProvider, IMNNConversationSpeechLanguages
+    public sealed class MNNOpenAIConversationProvider : IMNNConversationTextAssistanceProvider, IMNNConversationAsrProvider, IMNNConversationTtsProvider, IMNNConversationVoiceIntentProvider, IMNNConversationSpeechLanguages
     {
         private readonly MNNOpenAIClient _client;
         private readonly MNNOpenAIConversationOptions _settings;
@@ -53,6 +53,10 @@ namespace MNN.Unity
             _client.TranscribeAsync(_settings.Model, audio, sampleRate, token);
         public Task ClassifyVoiceIntentAsync(IReadOnlyList<MNNOpenAIMessage> prompt, Func<string, Task> textDelta, CancellationToken token) =>
             _client.GenerateTextAsync(_settings.Model, prompt, textDelta, token, maximumCharacters: 512, maximumTokens: 128, temperature: 0);
+        public Task GenerateAssistanceAsync(MNNConversationTextTask task, IReadOnlyList<MNNOpenAIMessage> prompt,
+            Func<string, Task> textDelta, CancellationToken token) =>
+            _client.GenerateTextAsync(_settings.Model, prompt, textDelta, token, maximumCharacters: Math.Min(512, _maximumCharacters),
+                maximumTokens: Math.Min(_maximumTokens, MNNConversationTextAssistance.MaximumTokens(task)), temperature: .2f);
         public Task SynthesizeAsync(string text, Func<float[], int, Task> pcm, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();

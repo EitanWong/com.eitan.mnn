@@ -13,4 +13,10 @@ namespace MNN.Unity
     {
         Task GenerateResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, string instructions, Func<string, Task> textDelta, CancellationToken token);
     }
+    /// <summary>Optional short text generation on the same model, without planning, tools or speech.</summary>
+    public interface IMNNConversationTextAssistanceProvider : IMNNConversationTextProvider
+    {
+        Task GenerateAssistanceAsync(MNNConversationTextTask task, IReadOnlyList<MNNOpenAIMessage> prompt,
+            Func<string, Task> textDelta, CancellationToken token);
+    }
 }
