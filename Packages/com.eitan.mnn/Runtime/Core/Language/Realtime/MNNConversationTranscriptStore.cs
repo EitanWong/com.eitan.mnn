@@ -13,30 +13,19 @@ namespace MNN.Unity
         MNNConversationTranscriptEntry this[int index] { get; }
     }
 
-    /// <summary>One immutable display-history entry, independent of model prompt memory.</summary>
-    public readonly struct MNNConversationTranscriptEntry
-    {
-        public MNNChatRole Role { get; }
-        public string Text { get; }
-        public MNNConversationTranscriptEntry(MNNChatRole role, string text)
-        {
-            if (role < MNNChatRole.System || role > MNNChatRole.Assistant) throw new ArgumentOutOfRangeException(nameof(role));
-            Role = role; Text = text ?? throw new ArgumentNullException(nameof(text));
-        }
-    }
-
     /// <summary>
     /// Single-owner, bounded-resident display history. Session mode spills sealed blocks and deletes its
     /// file on disposal. Persistent mode journals changes, restores the valid prefix after a torn write,
     /// and retains the file. Call Flush for a durable checkpoint; writes alone are not durability promises.
     /// </summary>
-    public sealed class MNNConversationTranscriptStore : IDisposable, IMNNConversationTranscriptSource
+    public sealed partial class MNNConversationTranscriptStore : IDisposable, IMNNConversationTranscriptSource
     {
         public const int BlockSize = 64;
         public const long DefaultMaximumBytes = 256L * 1024 * 1024;
         private const int ReadCacheSize = 2;
         private const int HeaderBytes = 8;
-        private static readonly byte[] Header = { 77, 78, 78, 84, 1, 0, 0, 0 };
+        private static readonly byte[] Header = { 77, 78, 78, 84, 2, 0, 0, 0 };
+        private byte _formatVersion = 2;
         private static readonly UTF8Encoding Utf8 = new UTF8Encoding(false, true);
         private readonly int _owner = Thread.CurrentThread.ManagedThreadId;
         private readonly string _directory;
@@ -74,7 +63,7 @@ namespace MNN.Unity
             _directory = Path.GetDirectoryName(_path);
             Directory.CreateDirectory(_directory);
             _stream = new FileStream(_path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-            try { Recover(); }
+            try { if (!TryRestoreIndex()) Recover(); }
             catch { _stream.Dispose(); _stream = null; throw; }
         }
 
@@ -101,17 +90,20 @@ namespace MNN.Unity
         }
 
         public void Add(MNNChatRole role, string text)
+        { Add(new MNNConversationTranscriptEntry(role, text ?? "")); }
+
+        public void Add(MNNConversationTranscriptEntry entry)
         {
             CheckOwner();
-            text = text ?? "";
-            if (!_persistent) ValidateText(role, text);
+            if (entry.Text == null) throw new ArgumentException("Supply a transcript entry.", nameof(entry));
+            if (!_persistent) ValidateText(entry.Role, entry.Text);
             if (Count == int.MaxValue) throw new InvalidOperationException("Start a new conversation before exceeding the transcript index limit.");
             long offset = 0;
-            if (_persistent) offset = Append(Encode(1, role, text));
+            if (_persistent) offset = Append(EncodeEntry(1, entry));
             else if (_tail.Count == BlockSize) SpillTail();
             if (_persistent && _tail.Count == BlockSize)
             { _offsets.Add(_tailStart); _tailStart = offset; _tail.Clear(); }
-            _tail.Add(new MNNConversationTranscriptEntry(role, text ?? "")); ++Count;
+            _tail.Add(entry); ++Count;
         }
 
         public void UpdateLast(string text)
@@ -121,8 +113,8 @@ namespace MNN.Unity
             var previous = _tail[_tail.Count - 1];
             text = text ?? "";
             if (!_persistent) ValidateText(previous.Role, text);
-            if (_persistent) Append(Encode(2, previous.Role, text));
-            _tail[_tail.Count - 1] = new MNNConversationTranscriptEntry(previous.Role, text ?? "");
+            if (_persistent) Append(EncodeEntry(2, previous.WithText(text)));
+            _tail[_tail.Count - 1] = previous.WithText(text ?? "");
         }
 
         private static int ValidateText(MNNChatRole role, string text)
@@ -143,16 +135,18 @@ namespace MNN.Unity
         private void EnsureRecordCapacity(int length)
         {
             if (_recordBytes.Length < length)
-                _recordBytes = new byte[Math.Max(length, Math.Min(2 + MNNConversationMailbox.MaximumTextCharacters * 3, _recordBytes.Length * 2))];
+                _recordBytes = new byte[Math.Max(length, Math.Min(8192 + MNNConversationMailbox.MaximumTextCharacters * 3, _recordBytes.Length * 2))];
         }
 
         private long Append(int length)
         {
             long offset = _appendOffset;
             if (length + 8L > _maximumBytes - offset) throw new InvalidOperationException("Transcript disk quota exceeded. Clear it or start a new conversation.");
+            if (_recordBytes[0] > 2) UpgradeStructuredFormat();
             if (_stream.Position != offset) _stream.Position = offset;
             try { WriteRecord(length); _appendOffset += 8 + length; }
             catch { _stream.SetLength(offset); _stream.Position = offset; throw; }
+            _indexDirty = true;
             return offset;
         }
 
@@ -168,7 +162,7 @@ namespace MNN.Unity
             long offset = _appendOffset;
             try
             {
-                foreach (var entry in _tail) Append(Encode(1, entry.Role, entry.Text));
+                foreach (var entry in _tail) Append(EncodeEntry(1, entry));
                 // One block checkpoint, with no per-record writers or temporary byte arrays.
                 _stream.Flush();
             }
@@ -204,16 +198,25 @@ namespace MNN.Unity
             operation = 0; entry = default;
             if (end - _stream.Position < 8 || !ReadExact(_recordHeader, 8)) return false;
             uint rawLength = Read32(_recordHeader, 0), checksum = Read32(_recordHeader, 4);
-            if (rawLength < 2 || rawLength > 2 + MNNConversationMailbox.MaximumTextCharacters * 3 || end - _stream.Position < rawLength) return false;
+            if (rawLength < 2 || rawLength > 8192 + MNNConversationMailbox.MaximumTextCharacters * 3 || end - _stream.Position < rawLength) return false;
             int length = (int)rawLength;
             EnsureRecordCapacity(length);
             if (!ReadExact(_recordBytes, length) || Checksum(_recordBytes, length) != checksum ||
-                (_recordBytes[0] != 1 && _recordBytes[0] != 2) || _recordBytes[1] > (byte)MNNChatRole.Assistant) return false;
-            string text;
-            try { text = Utf8.GetString(_recordBytes, 2, length - 2); }
-            catch (DecoderFallbackException) { return false; }
-            if (text.Length > MNNConversationMailbox.MaximumTextCharacters) return false;
-            operation = _recordBytes[0]; entry = new MNNConversationTranscriptEntry((MNNChatRole)_recordBytes[1], text); return true;
+                (_recordBytes[0] < 1 || _recordBytes[0] > 4) || _recordBytes[1] > (byte)MNNChatRole.Assistant) return false;
+            return TryDecodeEntry(length, out operation, out entry);
+        }
+
+        private bool AcceptHeader(byte[] header)
+        {
+            for (int i = 0; i < HeaderBytes; ++i)
+                if (i == 4 ? header[i] != 1 && header[i] != 2 : header[i] != Header[i]) return false;
+            _formatVersion = header[4]; return true;
+        }
+        private void UpgradeStructuredFormat()
+        {
+            if (!_persistent || _formatVersion == 2) return;
+            long position = _stream.Position; _stream.Position = 4; _stream.WriteByte(2);
+            _stream.Position = position; _formatVersion = 2;
         }
 
         private void Recover()
@@ -222,7 +225,7 @@ namespace MNN.Unity
             if (_stream.Length > _maximumBytes) throw new InvalidOperationException("Existing transcript exceeds the disk quota.");
             var header = new byte[HeaderBytes];
             if (_stream.Read(header, 0, header.Length) != header.Length) throw new InvalidDataException("Invalid transcript header.");
-            for (int i = 0; i < header.Length; ++i) if (header[i] != Header[i]) throw new InvalidDataException("Unsupported transcript format.");
+            if (!AcceptHeader(header)) throw new InvalidDataException("Unsupported transcript format.");
             long valid = HeaderBytes, end = _stream.Length;
             while (_stream.Position < end)
             {
@@ -261,7 +264,7 @@ namespace MNN.Unity
         }
 
         /// <summary>Flushes journal bytes to the backing device. Session tails remain in memory.</summary>
-        public void Flush() { CheckOwner(); _stream?.Flush(true); }
+        public void Flush() { CheckOwner(); _stream?.Flush(true); if (_persistent) SaveIndex(); }
 
         public void Clear()
         {
@@ -269,7 +272,8 @@ namespace MNN.Unity
             if (_persistent) { _stream.SetLength(0); _stream.Position = 0; _stream.Write(Header, 0, Header.Length); _stream.Flush(); }
             else { _stream?.Dispose(); _stream = null; if (_path != null) File.Delete(_path); _path = null; }
             _offsets.Clear(); _tail.Clear(); _cache.Clear(); _cacheOrder.Clear(); Count = 0;
-            _tailStart = _appendOffset = HeaderBytes; RecoveredBytes = 0;
+            _tailStart = _appendOffset = HeaderBytes; RecoveredBytes = 0; _indexDirty = true;
+            if (_persistent && File.Exists(_path + ".idx")) File.Delete(_path + ".idx");
         }
 
         private void CheckOwner()
@@ -282,7 +286,7 @@ namespace MNN.Unity
         {
             if (_disposed) return;
             CheckOwner();
-            if (!_persistent) Clear();
+            if (_persistent) Flush(); else Clear();
             _stream?.Dispose(); _stream = null; _tail.Clear(); _cache.Clear(); _offsets.Clear(); _disposed = true;
         }
     }

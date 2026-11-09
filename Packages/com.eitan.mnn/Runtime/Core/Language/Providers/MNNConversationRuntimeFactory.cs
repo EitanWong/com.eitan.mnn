@@ -189,6 +189,14 @@ namespace MNN.Unity
                 Task.FromException(new NotSupportedException("The provider-owned realtime session has no text adapter."));
         }
 
+        /// <summary>After joining the previous response, restore bounded model memory from display history.</summary>
+        public Task RestoreConversationAsync(IMNNConversationTranscriptSource source)
+        {
+            RequireActive();
+            var memory = Active?.Memory ?? throw new NotSupportedException("This provider cannot restore conversation context without reloading.");
+            memory.Restore(source); return Task.CompletedTask;
+        }
+
         public Task ResetConversationAsync()
         {
             RequireActive();
