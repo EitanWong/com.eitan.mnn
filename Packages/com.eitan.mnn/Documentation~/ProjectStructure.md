@@ -247,8 +247,15 @@ Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有�
 迁移保留 `MNN.Samples.SiriAI.Harnesses` 公开命名空间、同名程序集及现有Unity GUID，
 这些名称用于既有消费者兼容，源码所有权已经归包。不得在SiriAI再保留或编译一份相同核心。
 应用及独立Host引用此程序集；产品UI、视觉、设备装配和SiriAI默认值继续由应用层拥有。
-Unity应用适配器与Host工具的后续迁移应通过可注入接口解除对应用层的依赖，
-不能让包反向引用SiriAI程序集。
+`HarnessTaskTool` 拥有 Submit/Status/Cancel/Update 工具契约、输入解析与受理语义；
+`HarnessTaskObserver` 拥有提交日志重放、单写入者轮询和 revision 去重；
+`HarnessResultFeedback` 拥有结果领取、续租和展示回执，使用 `IHarnessResultPresenter` /
+`IHarnessResultReply` 注入应用会话与真实展示证据，`HarnessResultConnection` 捕获客户端和会话范围。
+这些 API 不引用 Unity、MNN.Unity 或 SiriAIChat，也不创建前台模型或音频设备。
+调用方在所属上下文启动观察器与反馈；它们的 await 保留该上下文，Unity 事件仍在主线程执行。
+暂停只取消本地观察/投递，后台任务通过显式 Cancel 工具控制；模型生成完成、音频排队均不能伪造展示回执。
+SiriAI 四个适配器保留序列化字段、Unity 生命周期、凭据/设置和语音会话装配，调用上述包 API。
+不能让包反向引用 SiriAI 程序集。
 
 
 独立后台宿主位于 `Tools~/HarnessHost`（.NET8）及 `Tools~/DotCraftHost`（.NET10官方SDK），
