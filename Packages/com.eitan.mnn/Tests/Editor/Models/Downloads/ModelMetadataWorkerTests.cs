@@ -19,6 +19,55 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void OnlineCatalogPersistsAndReopensOnWorkerWithoutUnityRuntime()
+        {
+            string folder = Path.GetFullPath("TestArtifacts~/ModelCatalog/WorkerTests/" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            string path = Path.Combine(folder, "online.json");
+            try
+            {
+                var cache = new MNNOnlineModelCache(path, ct => Task.FromResult(new MNNOnlineModelCache.Discovery
+                {
+                    Succeeded = true,
+                    Models = new[] { new MNNRemoteModel { id = "MNN/test", modelScopeId = "MNN/test", isRepository = true, name = "语音", fileSize = 4294967300L,
+                        inputSpec = new MNNModelInputSpec { shape = new[] { 1, 80 } } } },
+                    ModelScopeNextPage = 2, Warnings = new[] { "fixture" }
+                }));
+                Task.Run(() => cache.LoadAsync(true)).GetAwaiter().GetResult();
+                var reopened = Task.Run(() => new MNNOnlineModelCache(path).Read()).GetAwaiter().GetResult();
+                Assert.AreEqual("语音", reopened.models[0].name);
+                Assert.AreEqual(4294967300L, reopened.models[0].fileSize);
+                CollectionAssert.AreEqual(new[] { 1, 80 }, reopened.models[0].inputSpec.shape);
+                Assert.AreEqual(2, reopened.modelScopeNextPage);
+                File.WriteAllText(path, "{\"schemaVersion\":3,\"updatedUtcTicks\":" + DateTime.UtcNow.Ticks + ",\"models\":[{\"id\":\"MNN/test\",\"modelScopeId\":\"MNN/test\",\"isRepository\":true,\"name\":\"legacy\"}],\"warnings\":[]}");
+                var legacy = Task.Run(() => new MNNOnlineModelCache(path).Read()).GetAwaiter().GetResult();
+                Assert.AreEqual("legacy", legacy.models[0].name, "Existing snapshots may omit optional fields.");
+            }
+            finally { Directory.Delete(folder, true); }
+        }
+
+        [Test]
+        public void CatalogProvidersDecodeOnWorkerWithoutUnityRuntime()
+        {
+            var handler = new MetadataHandler();
+            using (var client = new HttpClient(handler))
+            {
+                var catalog = new MNNModelCatalog();
+                var pool = new MNNHuggingFaceSourcePool(new[] { new MNNHuggingFaceSource("fixture", "https://catalog.test") });
+                handler.Body = "{\"id\":\"test/voice\",\"sha\":\"pinned\",\"siblings\":[{\"rfilename\":\"model.mnn\",\"size\":42}]}";
+                var model = Task.Run(() => catalog.LoadHuggingFaceModelAsync("test/voice", client, pool)).GetAwaiter().GetResult();
+                Assert.AreEqual("test/voice", model.repositoryId);
+                Assert.AreEqual("pinned", model.revision);
+                handler.Body = "[" + handler.Body + "]";
+                var page = Task.Run(() => catalog.FetchHuggingFacePageAsync(null, client, pool)).GetAwaiter().GetResult();
+                Assert.AreEqual("test/voice", page.Models[0].repositoryId);
+                handler.Body = "{\"success\":true,\"data\":{\"models\":[],\"total_count\":0}}";
+                var empty = Task.Run(() => catalog.FetchModelScopePageAsync(1, client, "https://scope.test")).GetAwaiter().GetResult();
+                Assert.AreEqual(0, empty.Models.Count);
+            }
+        }
+
+        [Test]
         public void RepositoryMetadataDecodesOnWorkerWithoutUnityRuntime()
         {
             var handler = new MetadataHandler { Body = "{\"Code\":200,\"Data\":{\"Files\":[{\"Path\":\"语音/model.mnn\",\"Type\":\"blob\",\"Size\":4294967300,\"Revision\":\"pinned\",\"Sha256\":\"abc\"}]}}" };

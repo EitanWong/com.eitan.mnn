@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Serialization;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -102,7 +103,7 @@ namespace MNN.Unity
                             var body = (await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false)).Trim();
                             if (!body.StartsWith("[", StringComparison.Ordinal) || !body.EndsWith("]", StringComparison.Ordinal))
                                 throw new InvalidDataException("Hugging Face returned an invalid search result.");
-                            var items = JsonUtility.FromJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
+                            var items = MNNModelMetadata.ReadJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
                             if (items == null) throw new InvalidDataException("Hugging Face search omitted its model list.");
                             var models = new List<MNNRemoteModel>();
                             foreach (var item in items)
@@ -374,7 +375,7 @@ namespace MNN.Unity
             using (var response = await MNNModelCatalogRequests.Shared.GetAsync(client, $"{root}/openapi/v1/models?{query}&page_size={pageSize}&sort={sort}&page_number={page}", cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                var result = JsonUtility.FromJson<ModelSearchResponse>(await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false));
+                var result = MNNModelMetadata.ReadJson<ModelSearchResponse>(await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false));
                 if (result == null || !result.success || result.data?.models == null)
                     throw new InvalidDataException("ModelScope returned an invalid search result.");
                 return result.data;
@@ -441,7 +442,7 @@ namespace MNN.Unity
                             var body = (await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false)).Trim();
                             if (!body.StartsWith("[", StringComparison.Ordinal) || !body.EndsWith("]", StringComparison.Ordinal))
                                 throw new InvalidDataException("Hugging Face returned an invalid search result.");
-                            var items = JsonUtility.FromJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
+                            var items = MNNModelMetadata.ReadJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
                             if (items == null)
                                 throw new InvalidDataException("Hugging Face search omitted its model list.");
                             foreach (var item in items)
@@ -745,10 +746,10 @@ namespace MNN.Unity
                 model.provider == MNNModelSource.HuggingFace && marker != null && marker.StartsWith(identity + "@", StringComparison.OrdinalIgnoreCase);
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceSearchResponse
         {
-            public HuggingFaceModel[] items;
+            [DataMember, UnityEngine.Scripting.Preserve] public HuggingFaceModel[] items;
         }
     }
 }

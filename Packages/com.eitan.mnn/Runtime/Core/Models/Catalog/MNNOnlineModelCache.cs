@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,17 +11,17 @@ namespace MNN.Unity
     /// <summary>Shared metadata cache. Automatic callers reuse disk/memory; only explicit refresh fetches again.</summary>
     public sealed class MNNOnlineModelCache
     {
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         public class Snapshot
         {
-            public int schemaVersion = 3;
-            public long updatedUtcTicks;
-            public MNNRemoteModel[] models = Array.Empty<MNNRemoteModel>();
-            public string[] warnings = Array.Empty<string>();
-            public int modelScopeNextPage;
-            public string huggingFaceNextCursor;
-            public int modelScopeStream, huggingFaceStream;
-            public bool huggingFaceHasMore;
+            [DataMember, UnityEngine.Scripting.Preserve] public int schemaVersion = 3;
+            [DataMember, UnityEngine.Scripting.Preserve] public long updatedUtcTicks;
+            [DataMember, UnityEngine.Scripting.Preserve] public MNNRemoteModel[] models = Array.Empty<MNNRemoteModel>();
+            [DataMember, UnityEngine.Scripting.Preserve] public string[] warnings = Array.Empty<string>();
+            [DataMember, UnityEngine.Scripting.Preserve] public int modelScopeNextPage;
+            [DataMember, UnityEngine.Scripting.Preserve] public string huggingFaceNextCursor;
+            [DataMember, UnityEngine.Scripting.Preserve] public int modelScopeStream, huggingFaceStream;
+            [DataMember, UnityEngine.Scripting.Preserve] public bool huggingFaceHasMore;
 
         }
 
@@ -68,7 +69,8 @@ namespace MNN.Unity
         private MNNOnlineModelCache(string path, Func<CancellationToken, Task<Discovery>> discover,
             Func<Snapshot, CancellationToken, Task<Discovery>> discoverNext, bool deferDisk)
         {
-            _store = new MNNJsonSettingsStore<Snapshot>(path, Validate, 16 * 1024 * 1024);
+            _store = new MNNJsonSettingsStore<Snapshot>(path, Validate, 16 * 1024 * 1024,
+                MNNModelMetadata.ReadJson<Snapshot>, MNNModelMetadata.WriteJson);
             _discover = discover ?? DiscoverAsync;
             _discoverNext = discoverNext ?? (discover == null ? DiscoverNextAsync : null);
             if (deferDisk) _diskReady = Task.Run(ReadDisk);

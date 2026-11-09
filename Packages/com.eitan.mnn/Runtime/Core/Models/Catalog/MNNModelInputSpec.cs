@@ -1,13 +1,14 @@
 using System;
+using System.Runtime.Serialization;
 
 namespace MNN.Unity
 {
-    [Serializable]
+    [Serializable, DataContract, UnityEngine.Scripting.Preserve]
     public class MNNModelInputSpec
     {
-        public string name;
-        public int[] shape;
-        public string dataType;
-        public string format;
+        [DataMember, UnityEngine.Scripting.Preserve] public string name;
+        [DataMember, UnityEngine.Scripting.Preserve] public int[] shape;
+        [DataMember, UnityEngine.Scripting.Preserve] public string dataType;
+        [DataMember, UnityEngine.Scripting.Preserve] public string format;
     }
 }
