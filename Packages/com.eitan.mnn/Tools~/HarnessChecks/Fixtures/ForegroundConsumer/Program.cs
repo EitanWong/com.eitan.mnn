@@ -89,6 +89,7 @@ internal static class Program
         var before = await Client.GetAsync(task.Id, default);
         Check(before.ResultPending && !before.PlaybackStarted && presenter.Reply.Completion.IsCompleted, "generation consumed result");
         Check(presenter.Id == task.Id && presenter.Context.Contains("fixture result: text"), "wrong foreground event");
+        Check(!presenter.Context.Contains("\nObjective:"), "execution objective leaked into spoken result data");
         presenter.Reply.TextDisplayed = true;
         await Wait(async () => { var t = await Client.GetAsync(task.Id, default); return !t.ResultPending && t.LeaseId == null; });
         await Stop(run, owner);

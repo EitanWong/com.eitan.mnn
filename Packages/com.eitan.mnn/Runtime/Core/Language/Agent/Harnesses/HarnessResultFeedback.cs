@@ -65,7 +65,7 @@ namespace MNN.Samples.SiriAI.Harnesses
             try
             {
                 if (!IsCurrent(connection)) return;
-                string data = "Task: " + task.Id + "\nState: " + task.State + "\nObjective: " + Bounded(task.Objective, 1024) +
+                string data = "Task: " + task.Id + "\nState: " + task.State +
                     "\nResult: " + Bounded(task.Result ?? task.Activity ?? task.State.ToString(), 6000) +
                     HarnessArtifactPresentation.Summary(task.Artifacts);
                 reply = _presenter.TryBeginReply(task.Id, data, production.Token);
