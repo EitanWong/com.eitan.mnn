@@ -43,6 +43,11 @@ namespace MNN.Unity
         protected long _acceptedRevision;
         protected MNNResponseId _response;
         protected MNNConversationTelemetry.Trace _activeTrace;
+        public bool TryReadAgentTrace(out MNNConversationTranscriptEntry entry)
+        {
+            if (_providers.Model is IMNNAgentTraceSource source) return source.TryReadTrace(out entry);
+            entry = default; return false;
+        }
         public MNNConversationTelemetry TurnTelemetry { get; } = new MNNConversationTelemetry();
         protected bool _stopped;
         private readonly HashSet<IMNNConversationProvider> _releasedProviders = new HashSet<IMNNConversationProvider>(MNNConversationProviders.Identity);

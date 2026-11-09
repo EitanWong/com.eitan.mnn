@@ -90,6 +90,13 @@ Packages/com.eitan.mnn/
 `AudioProcessing/Realtime` 保存增强/VAD/ASR输入路由、设备延迟校准及播报fade；
 `AudioProcessing/Common` 保存源贡献和说话人选择，`Analysis` 保存渲染波形/特征快照。
 这些是可独立使用的托管API，不依赖SiriAI、EasyMic或具体场景。
+会话目录、草稿、选择、日志恢复与外部执行事件去重位于 `Language/Realtime` 的
+`MNNConversationCatalog` / `MNNConversationTranscriptStore`；模型上下文使用
+`MNNConversationMemory.Restore` 从文字消息恢复，不注入显示用工具数据。Agent 的公开执行
+记录由 `Language/Agent/MNNAgentTrace` 提供。可展开的执行时间线、行布局与 Markdown
+虚拟化归 `Language/Markdown`；上层只绑定 UI toolkit、字体/颜色与调用展开接口。
+详见 [会话与执行时间线](ConversationTimeline.md)。
+
 共享图片资源缓存位于 `Language/Markdown`，UI组件只持有显示lease，Editor和Player不复制LRU。
 行为测试随实现放在 `Tests/Editor/AudioProcessing`、`Tests/Editor/Language/Markdown`；
 纯托管算法测试与实际权重/设备测试保持明确的验证范围；图片Player生命周期在

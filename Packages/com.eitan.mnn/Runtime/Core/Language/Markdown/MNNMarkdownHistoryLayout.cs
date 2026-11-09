@@ -50,6 +50,10 @@ namespace MNN.Unity
             public int Entry { get; internal set; }
             public int Start { get; internal set; }
             public MNNChatRole Role { get; internal set; }
+            public MNNConversationEntryKind Kind { get; internal set; }
+            public string EventId { get; internal set; }
+            public string ParentId { get; internal set; }
+            public MNNConversationEntryState State { get; internal set; }
             public string Text { get; internal set; }
             public MNNMarkdownRenderResult RenderResult { get; internal set; }
             public float BodyHeight { get; internal set; }
@@ -74,14 +78,20 @@ namespace MNN.Unity
 
         public float Rebuild(IMNNConversationTranscriptSource entries, int pageStart, int pageSize, int dirtyFrom,
             int fontSize, Func<MNNMarkdownRenderResult, MarkdownMeasurement> measure,
-            MNNMarkdownTheme theme = MNNMarkdownTheme.Dark)
+            MNNMarkdownTheme theme = MNNMarkdownTheme.Dark) =>
+            Rebuild(entries, pageStart, pageSize, dirtyFrom, fontSize, measure, theme, null);
+
+        public float Rebuild(IMNNConversationTranscriptSource entries, int pageStart, int pageSize, int dirtyFrom,
+            int fontSize, Func<MNNMarkdownRenderResult, MarkdownMeasurement> measure,
+            MNNMarkdownTheme theme,
+            Func<MNNConversationTranscriptEntry, MNNMarkdownRenderResult, MarkdownMeasurement> measureEntry)
         {
             if (entries == null) throw new ArgumentNullException(nameof(entries));
             if (pageStart < 0 || pageStart > entries.Count) throw new ArgumentOutOfRangeException(nameof(pageStart));
             if (pageSize < 1 || pageSize > 4096) throw new ArgumentOutOfRangeException(nameof(pageSize));
             if (dirtyFrom < 0) throw new ArgumentOutOfRangeException(nameof(dirtyFrom));
             if (fontSize < 1 || fontSize > 1024) throw new ArgumentOutOfRangeException(nameof(fontSize));
-            if (measure == null) throw new ArgumentNullException(nameof(measure));
+            if (measure == null && measureEntry == null) throw new ArgumentNullException(nameof(measure));
             if (_source != entries || _pageStart != pageStart || _pageSize != pageSize)
             {
                 _slices.Clear(); dirtyFrom = pageStart; _source = entries; _pageStart = pageStart; _pageSize = pageSize;
@@ -120,11 +130,11 @@ namespace MNN.Unity
                 for (int part = 0; part < rendered.Parts.Count; ++part)
                 {
                     MNNMarkdownRenderResult renderResult = rendered.Parts[part];
-                    MarkdownMeasurement measurement = measure(renderResult);
+                    MarkdownMeasurement measurement = measureEntry == null ? measure(renderResult) : measureEntry(entry, renderResult);
                     bool first = part == 0;
                     var slice = new Slice
                     {
-                        Entry = index, Start = renderResult.CharacterOffset, Role = entry.Role, Text = renderResult.RichText,
+                        Entry = index, Start = renderResult.CharacterOffset, Role = entry.Role, Kind = entry.Kind, EventId = entry.Id, ParentId = entry.ParentId, State = entry.State, Text = renderResult.RichText,
                         RenderResult = renderResult, BodyHeight = measurement.BodyHeight,
                         Top = top, First = first,
                         Height = (float)Math.Ceiling(Math.Max(fontSize * _minimumLineHeight, measurement.TotalHeight)) +

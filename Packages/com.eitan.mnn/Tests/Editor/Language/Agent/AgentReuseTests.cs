@@ -55,6 +55,25 @@ namespace MNN.Unity.Tests
         private static string Ask(MNNAgentProvider agent, IReadOnlyList<MNNOpenAIMessage> history = null)
         { var text = new StringBuilder(); agent.GenerateAsync(history ?? History(), null, 16000, v => { text.Append(v); return Task.CompletedTask; }, CancellationToken.None).GetAwaiter().GetResult(); return text.ToString(); }
         [Test]
+        public void ToolExecutionPublishesOrderedPublicEvidenceWithInvocationIdentity()
+        {
+            using (var agent = new MNNAgentProvider(new Model(), new MNNAgentOptions { Strategy = MNNAgentRoutingStrategy.Policy },
+                null, new[] { new Tool() }, policy: request => MNNAgentPlan.InvokeTool("fixture", "tool input")))
+            {
+                Assert.AreEqual("tool input", Ask(agent));
+                var entries = new List<MNNConversationTranscriptEntry>();
+                while (agent.TryReadTrace(out var entry)) entries.Add(entry);
+                var call = entries.Find(item => item.Kind == MNNConversationEntryKind.ToolCall);
+                var result = entries.Find(item => item.Kind == MNNConversationEntryKind.ToolResult);
+                Assert.AreEqual("tool input", call.Text); Assert.AreEqual("fixture", call.Title);
+                Assert.AreEqual(call.Id, result.ParentId); Assert.AreEqual("tool input", result.Text);
+                Assert.AreEqual(MNNConversationEntryState.Completed, result.State);
+                Assert.Less(entries.IndexOf(call), entries.IndexOf(result));
+                Assert.AreEqual("Agent completed", entries[entries.Count - 1].Title);
+            }
+        }
+
+        [Test]
         public void ToolAndClarificationRoutesSkipModelsAndCloudCreation()
         {
             var model = new Model(); var tool = new Tool(); int created = 0;
