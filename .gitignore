@@ -192,3 +192,7 @@ mono_cras*.blob
 # Hand-authored standalone Harness projects (not Unity-generated solutions)
 !/Packages/com.eitan.mnn/Tools~/HarnessCore/MNN.HarnessCore.csproj
 !/Packages/com.eitan.mnn/Tools~/HarnessChecks/Fixtures/PackageConsumer/Consumer.csproj
+
+!/Packages/com.eitan.mnn/Tools~/HarnessHost/SiriAI.HarnessHost.csproj
+!/Packages/com.eitan.mnn/Tools~/DotCraftHost/SiriAI.DotCraftHost.csproj
+!/Packages/com.eitan.mnn/Tools~/HarnessChecks/Fixtures/DotCraftPlugin/DotCraftPlugin.csproj

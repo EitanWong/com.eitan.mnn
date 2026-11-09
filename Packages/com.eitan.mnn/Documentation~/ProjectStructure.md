@@ -249,3 +249,10 @@ Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有�
 应用及独立Host引用此程序集；产品UI、视觉、设备装配和SiriAI默认值继续由应用层拥有。
 Unity应用适配器与Host工具的后续迁移应通过可注入接口解除对应用层的依赖，
 不能让包反向引用SiriAI程序集。
+
+
+独立后台宿主位于 `Tools~/HarnessHost`（.NET8）及 `Tools~/DotCraftHost`（.NET10官方SDK），
+统一引用包内HarnessCore项目，保留既有可执行程序集名和配置协议。
+`Tools~/HarnessChecks`拥有独立协议对端、行为runner和包独立消费者；`harness_paths.py`
+集中声明包/工程根路径。所有Host/测试输出归工程`TestArtifacts~/`，Tools~不是Unity程序集。
+SiriAI仅引用包能力并提供应用配置、UI和设备装配，不再保存Host或协议检查实现的副本。
