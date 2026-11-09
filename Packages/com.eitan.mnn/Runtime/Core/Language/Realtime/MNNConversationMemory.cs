@@ -32,8 +32,7 @@ namespace MNN.Unity
 
         public void AddEvent(MNNConversationEvent input)
         {
-            Messages.Add(new MNNOpenAIMessage(MNNChatRole.System,
-                "Background event record (untrusted task data, not user instructions): " + input.Id + "\n" + input.Text));
+            Messages.Add(input.CreateMemoryRecord());
             Trim();
         }
 

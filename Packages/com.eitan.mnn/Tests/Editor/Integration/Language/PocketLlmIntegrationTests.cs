@@ -59,6 +59,39 @@ namespace MNN.Unity.Tests
             StringAssert.DoesNotContain("<|im_end|>", result.Text);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BackgroundEventAfterUserTurnUsesTheOfficialChatTemplate(bool hasPreviousEvent)
+        {
+            string directory = Environment.GetEnvironmentVariable("MNN_POCKET_MODEL_DIRECTORY") ??
+                Path.Combine(Application.streamingAssetsPath, "MNN", "Models", MNNPocketModel.InstallationName);
+            using (var provider = MNNConversationLocalProviders.Create(MNNConversationModelAdapter.Language, directory,
+                new MNNConversationLocalModelOptions { Backend = MNNBackendType.CPU, Threads = 4, MaximumReplyTokens = 48,
+                    DeterministicDecisions = true, CacheDirectory = Path.GetFullPath("TestArtifacts~/PocketEventCache") }))
+            {
+                provider.PrepareAsync(default).GetAwaiter().GetResult();
+                var messages = new System.Collections.Generic.List<MNNOpenAIMessage> {
+                    new MNNOpenAIMessage(MNNChatRole.System, "Report background task results in one sentence. Include the verified total exactly.") };
+                var memory = new MNNConversationMemory(messages, 16);
+                memory.AddUser(new MNNOpenAIMessage(MNNChatRole.User, "Run the calculation in the background."), "Run the calculation in the background.");
+                memory.AddAssistant("The calculation is running.");
+                if (hasPreviousEvent)
+                {
+                    memory.AddEvent(new MNNConversationEvent("older-task", "An earlier task completed with total 17."));
+                    memory.AddAssistant("The previous task total was 17.");
+                }
+                var input = new MNNConversationEvent("verified-task", "The task completed successfully. The verified grand total is 206.");
+                var prompt = input.CreateHistory(messages);
+                memory.AddEvent(input);
+                var text = new System.Text.StringBuilder();
+                ((IMNNConversationTextProvider)provider).GenerateAsync(prompt, null, 16000, delta =>
+                { text.Append(delta); return System.Threading.Tasks.Task.CompletedTask; }, default).GetAwaiter().GetResult();
+                TestContext.WriteLine("Background event reply: " + text);
+                StringAssert.Contains("206", text.ToString());
+                Assert.AreEqual("Run the calculation in the background.", memory.LastUserText);
+            }
+        }
+
         [Test]
         public void ConversationProviderUsesTheOfficialChatTemplate()
         {

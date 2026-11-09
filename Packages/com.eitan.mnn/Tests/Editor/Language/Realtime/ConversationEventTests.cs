@@ -56,9 +56,9 @@ namespace MNN.Unity.Tests
                 Assert.True(reply.Response.IsValid);
                 Assert.AreEqual(0, plans);
                 Assert.IsNull(runtime.Memory.LastUserText);
-                Assert.False(model.Received.Any(m => m.Role == MNNChatRole.User));
+                Assert.AreEqual(1, model.Received.Count(m => m.Role == MNNChatRole.User));
                 StringAssert.Contains("report.txt", model.Received.Last().Text);
-                Assert.AreEqual(MNNChatRole.System, model.Received.Last().Role);
+                Assert.AreEqual(MNNChatRole.User, model.Received.Last().Role, "Untrusted event data is model input, while event origin bypasses user acceptance and planning.");
                 bool visible = false;
                 while (ports.TryRead(out var notification))
                 { Assert.True(notification.Assistant); visible |= notification.Text == "报告已经完成。"; }
