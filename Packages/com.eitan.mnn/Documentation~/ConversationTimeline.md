@@ -64,3 +64,29 @@ SiriAI Host 将任务活动、ACP 计划、工具调用和更新持久化到任�
 最多 128 条，溢出由错误记录报告。执行详情的 UI 预览最多 16000 字符，原始会话记录保留完整内容。
 
 此实现提供同类对话结构、工具展开、Markdown 与视口虚拟化能力，没有对 Codex 界面做逐像素一致性认证。
+
+## 草稿、命名与预测补全
+
+`new MNNConversationCatalog(directory, deferCreation: true)` 使用未提交草稿：
+`ActiveId == null`，`Conversations` 中没有空白行，也不创建持久化 `.bin`。
+`SetDraft` / `Flush` 保存未发送文字；重新打开目录会恢复草稿。
+`BeginDraft()` 开始新的空草稿；第一条用户消息被接受时先调用幂等的 `CommitDraft()`，
+再向新的 `History` 添加消息。旧的单参数构造和 `Create()` 保留立即创建语义。
+`BeginDraft` / `CommitDraft` 会替换 `History`，上层必须重新绑定显示适配器。
+
+`MNNConversationInfo.NeedsGeneratedTitle` 识别尚未命名的会话。
+`TrySetGeneratedTitle(id, title)` 只接受首次模型标题；手动 `Rename` 优先，
+迟到结果不会覆盖用户命名或重新创建已删除的会话。旧目录中已有的非默认名称保留。
+
+`MNNConversationRuntime.AssistTextAsync(MNNConversationTextTask.Title/Completion, input, token)`
+复用已加载文本提供者及同一个模型信号量，不创建第二个模型，不进入工具规划，
+不写入会话 Memory，不发送用户/助手消息或音频。语音录制/实时语音或正式回复进行中时不排队。
+只保留一个辅助请求；正式回复取消它，重置和停止会等待它结束后再释放提供者。
+补全与标题分别使用2.5秒/8秒取消预算，输入至多4000字符，收集至多256字符，
+输出标题至多80字符、补全后缀至多160字符。实际抢占时延取决于提供者响应取消的能力。
+
+`MNNConversationTextAssistance` 提供独立的提示和输出规范：保留用户语言，
+补全只返回后缀，保留英文词间的前导空格，移除重复前缀并拒绝代码围栏和控制字符。
+客户端在所有者线程上准备有界输入，等待打字暂停后发起请求；输入、光标、选择范围、
+焦点、IME或会话改变后丢弃旧建议，用户按 Tab 才写入输入框。
+本页测试采用可控文本提供者，不代表真实本地模型的质量、时延或原生推理已经验证。
