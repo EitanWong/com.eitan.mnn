@@ -15,13 +15,15 @@ namespace MNN.Samples.SiriAI.Harnesses
         {
             if (generation != Generation) return false;
             if (tasks == null) throw new ArgumentNullException(nameof(tasks));
+            bool changed = false;
             foreach (var task in tasks)
             {
                 task.Validate();
                 HarnessTask previous;
-                if (!_tasks.TryGetValue(task.Id, out previous) || task.Revision > previous.Revision) _tasks[task.Id] = task.Copy();
+                if (!_tasks.TryGetValue(task.Id, out previous) || task.Revision > previous.Revision)
+                { _tasks[task.Id] = task.Copy(); changed = true; }
             }
-            return true;
+            return changed;
         }
         public string InputUrl(long generation, string taskId, string requestId)
         {

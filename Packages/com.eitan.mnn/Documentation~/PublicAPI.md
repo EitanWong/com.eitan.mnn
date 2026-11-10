@@ -13723,6 +13723,12 @@ public static string MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindRuntim
 ```
 
 ```csharp
+public static string MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindWorkspace(System.Collections.Generic.IEnumerable<string> candidates)
+```
+
+Resolve saved, conversation and application project candidates in caller-defined order, without creating folders.
+
+```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessExecutionKind.HarnessExecutionKind()
 ```
 
@@ -13733,6 +13739,18 @@ public static System.Uri MNN.Samples.SiriAI.Harnesses.HarnessHostAddress.Parse(s
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.HarnessHostCatalog()
 ```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.ChooseBackend(string preferred = null)
+```
+
+Keep a saved choice when available; otherwise prefer a configured agent over bare text completion.
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.ChooseWorkspace(string preferred = null)
+```
+
+Choose only among workspace keys advertised by this authenticated host.
 
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessHostHealth.HarnessHostHealth()
@@ -13861,6 +13879,12 @@ public void MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Dispose()
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessHostProfile MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Get(string id)
 ```
+
+```csharp
+public bool MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Remove(string id)
+```
+
+Remove a saved profile atomically. Removing the selection leaves no selected host; a missing identity is a no-op.
 
 ```csharp
 public void MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Save(MNN.Samples.SiriAI.Harnesses.HarnessHostProfile profile, bool select)

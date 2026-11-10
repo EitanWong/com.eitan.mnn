@@ -21982,6 +21982,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindWorkspace(System.Collections.Generic.IEnumerable{System.String})",
+    "Signature": "public static string MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindWorkspace(System.Collections.Generic.IEnumerable\u003Cstring\u003E candidates)",
+    "Summary": "Resolve saved, conversation and application project candidates in caller-defined order, without creating folders."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessExecutionKind.#ctor",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessExecutionKind.HarnessExecutionKind()",
     "Summary": ""
@@ -21999,6 +22006,20 @@
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.#ctor",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.HarnessHostCatalog()",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.ChooseBackend(System.String)",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.ChooseBackend(string preferred = null)",
+    "Summary": "Keep a saved choice when available; otherwise prefer a configured agent over bare text completion."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.ChooseWorkspace(System.String)",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessHostCatalog.ChooseWorkspace(string preferred = null)",
+    "Summary": "Choose only among workspace keys advertised by this authenticated host."
   },
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
@@ -22223,6 +22244,13 @@
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Get(System.String)",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessHostProfile MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Get(string id)",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Remove(System.String)",
+    "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessProfileCatalog.Remove(string id)",
+    "Summary": "Remove a saved profile atomically. Removing the selection leaves no selected host; a missing identity is a no-op."
   },
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",

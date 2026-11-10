@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace MNN.Samples.SiriAI.Harnesses
@@ -8,6 +10,21 @@ namespace MNN.Samples.SiriAI.Harnesses
         [DataMember(Name = "configured")] public ConfiguredHarness[] Configured;
         [DataMember(Name = "installations")] public HarnessInstallation[] Installations;
         [DataMember(Name = "workspaces")] public string[] Workspaces;
+
+        /// <summary>Keep a saved choice when available; otherwise prefer a configured agent over bare text completion.</summary>
+        public string ChooseBackend(string preferred = null)
+        {
+            var available = (Configured ?? Array.Empty<ConfiguredHarness>()).Where(item => item != null && !string.IsNullOrWhiteSpace(item.Id)).ToArray();
+            return available.FirstOrDefault(item => item.Id == preferred)?.Id ??
+                available.FirstOrDefault(item => item.Backend != "llm")?.Id ?? available.FirstOrDefault()?.Id;
+        }
+        /// <summary>Choose only among workspace keys advertised by this authenticated host.</summary>
+        public string ChooseWorkspace(string preferred = null)
+        {
+            var available = Workspaces ?? Array.Empty<string>();
+            return available.Contains(preferred) && !string.IsNullOrWhiteSpace(preferred) ? preferred :
+                available.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
+        }
     }
     [DataContract]
     public sealed class ConfiguredHarness

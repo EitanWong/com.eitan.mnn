@@ -27,9 +27,12 @@ namespace MNN.Unity
         }
         public void RefreshEnvironment()
         {
-            Installations = HarnessLocalDiscovery.Scan();
+            var detected = HarnessLocalDiscovery.Scan();
+            bool changed = !DetectionCompleted || !System.Linq.Enumerable.SequenceEqual(
+                TaskHostJson.Write(Installations), TaskHostJson.Write(detected));
+            Installations = detected;
             DetectionCompleted = true; _nextEnvironmentScan = Time.unscaledTime + 15f;
-            Changed?.Invoke();
+            if (changed) Changed?.Invoke();
         }
         private string _activeDirectory;
         public HarnessInstallation[] Installations { get; private set; } = Array.Empty<HarnessInstallation>();

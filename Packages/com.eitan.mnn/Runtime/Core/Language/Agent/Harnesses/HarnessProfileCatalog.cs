@@ -54,6 +54,15 @@ namespace MNN.Samples.SiriAI.Harnesses
             if (profiles.Length > 64) throw new InvalidOperationException("The profile catalog is full.");
             Commit(new Document { Version = 1, Profiles = profiles, SelectedId = select || _document.SelectedId == null ? profile.Id : _document.SelectedId });
         }
+        /// <summary>Remove a saved profile atomically. Removing the selection leaves no selected host; a missing identity is a no-op.</summary>
+        public bool Remove(string id)
+        {
+            RequireOpen();
+            var remaining = _document.Profiles.Where(profile => profile.Id != id).ToArray();
+            if (remaining.Length == _document.Profiles.Length) return false;
+            Commit(new Document { Version = 1, Profiles = remaining, SelectedId = _document.SelectedId == id ? null : _document.SelectedId });
+            return true;
+        }
         public void Select(string id)
         {
             Get(id);

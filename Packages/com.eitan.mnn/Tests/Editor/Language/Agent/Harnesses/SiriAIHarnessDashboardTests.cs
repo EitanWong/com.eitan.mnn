@@ -179,5 +179,35 @@ namespace MNN.Samples.SiriAI.Tests
                 await runtime.WaitForIdleAsync();
             }
         }
+
+        [Test]
+        public void UnchangedTaskPollsDoNotReportDashboardChanges()
+        {
+            var dashboard = new HarnessTaskDashboard(); long generation = dashboard.ResetScope();
+            Assert.False(dashboard.Apply(generation, new HarnessTask[0]), "An empty repeated poll changes nothing.");
+            var task = TaskHostJson.Read<HarnessTask>(Encoding.UTF8.GetBytes("{\"Id\":\"one\",\"OwnerId\":\"alice\",\"ConversationId\":\"chat\",\"SubmissionKey\":\"key\",\"HarnessId\":\"codex\",\"WorkspaceKey\":\"project\",\"Objective\":\"work\",\"Revision\":1,\"CreatedUtcTicks\":1,\"UpdatedUtcTicks\":1}"));
+            Assert.True(dashboard.Apply(generation, new[] { task }));
+            Assert.False(dashboard.Apply(generation, new[] { task }), "Same revision must not trigger a settings rebuild.");
+        }
+        [Test]
+        public void RemovingProfilesIsPersistentIdempotentAndDoesNotSelectAnotherHost()
+        {
+            string directory = Fixtures.HarnessTestCase.NewDirectory();
+            try
+            {
+                using (var catalog = new HarnessProfileCatalog(directory))
+                {
+                    catalog.Save(new HarnessHostProfile("one", "One", "https://one.example/", "codex", "project"), true);
+                    catalog.Save(new HarnessHostProfile("two", "Two", "https://two.example/", "claude", "project"), false);
+                    var remove = typeof(HarnessProfileCatalog).GetMethod("Remove"); Assert.NotNull(remove);
+                    Assert.AreEqual(true, remove.Invoke(catalog, new object[] { "one" }));
+                    Assert.IsNull(catalog.SelectedId, "Deleting the selected profile must not silently connect another host.");
+                    Assert.AreEqual(false, remove.Invoke(catalog, new object[] { "one" }));
+                }
+                using (var reopened = new HarnessProfileCatalog(directory))
+                { Assert.AreEqual(1, reopened.Profiles.Length); Assert.AreEqual("Two", reopened.Get("two").Name); Assert.IsNull(reopened.SelectedId); }
+            }
+            finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+        }
     }
 }

@@ -7,6 +7,10 @@ namespace MNN.Samples.SiriAI.Harnesses
 {
     public static class HarnessDesktopPaths
     {
+        /// <summary>Resolve saved, conversation and application project candidates in caller-defined order, without creating folders.</summary>
+        public static string FindWorkspace(IEnumerable<string> candidates) =>
+            (candidates ?? Array.Empty<string>()).Where(path => !string.IsNullOrWhiteSpace(path) && Path.IsPathRooted(path))
+                .Where(Directory.Exists).Select(Path.GetFullPath).FirstOrDefault();
         public static string FindRuntime()
         {
             string filename = Path.DirectorySeparatorChar == '\\' ? "dotnet.exe" : "dotnet";
