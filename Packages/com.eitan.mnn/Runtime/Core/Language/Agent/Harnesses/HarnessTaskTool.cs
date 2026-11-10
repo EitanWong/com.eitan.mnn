@@ -22,7 +22,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         public bool RequiresNetwork { get; }
         public bool CanUseNetwork => _client != null;
         public string Description => _operation == HarnessTaskToolOperation.Submit ?
-            "Start sustained background work. Input is a self-contained objective. Returns a real task ID immediately; never claim completion from admission." :
+            "Submit sustained execution, project/file changes, investigation or research reports to the background host. Ordinary questions and short text answers stay in the foreground. Input is a self-contained objective with context and acceptance criteria. Returns host admission, not completion; reply promptly and keep chatting. Never poll or wait for completion after admission." :
             _operation == HarnessTaskToolOperation.Status ?
             "Read current task status. Input is an exact system-returned task ID, or empty to list recent work. Never create work to check progress." :
             _operation == HarnessTaskToolOperation.Update ?
@@ -56,15 +56,24 @@ namespace MNN.Samples.SiriAI.Harnesses
         private async Task<string> SubmitAsync(string input, CancellationToken cancellation)
         {
             string invocation = Guid.NewGuid().ToString("N");
-            try
+            using (var admission = CancellationTokenSource.CreateLinkedTokenSource(cancellation))
             {
-                var task = await _submit(new SubmitTaskRequest { ConversationId = _conversation,
-                    HarnessId = _harness, WorkspaceKey = _workspace, Objective = input,
-                    SubmissionKey = invocation }, cancellation).ConfigureAwait(false);
-                return "Task accepted: " + task.Id + ". State: " + task.State + ". Work continues independently of this conversation.";
+                admission.CancelAfter(TimeSpan.FromSeconds(5));
+                try
+                {
+                    var task = await _submit(new SubmitTaskRequest { ConversationId = _conversation,
+                        HarnessId = _harness, WorkspaceKey = _workspace, Objective = input,
+                        SubmissionKey = invocation }, admission.Token).ConfigureAwait(false);
+                    cancellation.ThrowIfCancellationRequested();
+                    if (task == null || string.IsNullOrWhiteSpace(task.Id) || task.SubmissionKey != invocation || task.ConversationId != _conversation)
+                        return "Admission is unconfirmed. Operation " + invocation + ". Check task status; do not submit a replacement.";
+                    return "Task accepted: " + task.Id + ". State: " + task.State + ". Work continues independently of this conversation.";
+                }
+                catch (PendingSubmissionException) when (!cancellation.IsCancellationRequested)
+                { return "Admission is unconfirmed. Operation " + invocation + " will retry from the local submission journal on reconnect. Check task status; do not submit a replacement."; }
+                catch (OperationCanceledException) when (!cancellation.IsCancellationRequested)
+                { return "Admission is unconfirmed. Operation " + invocation + ". The host did not confirm within 5 seconds. Check task status; do not submit a replacement."; }
             }
-            catch (PendingSubmissionException) when (!cancellation.IsCancellationRequested)
-            { return "Admission is unconfirmed. Operation " + invocation + " will retry from the local submission journal on reconnect. Check task status; do not submit a replacement."; }
         }
 
         private async Task<string> UpdateAsync(string input, CancellationToken cancellation)

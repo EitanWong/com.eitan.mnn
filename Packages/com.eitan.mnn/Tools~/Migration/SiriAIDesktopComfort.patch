@@ -1,0 +1,791 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIFloatingDragSurface.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIFloatingDragSurface.cs
+@@ -6,24 +6,56 @@
+ {
+     /// <summary>One mouse/touch owner for the complete gesture, including focus loss.</summary>
+     [AddComponentMenu("")]
+-    public sealed class SiriAIFloatingDragSurface : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
++    public sealed class SiriAIFloatingDragSurface : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler,
++        IInitializePotentialDragHandler
+     {
+         private Action<Vector2> begin, drag;
+         private Action end, doubleClick, cancelled;
+         internal void SetCancellation(Action onCancelled) => cancelled = onCancelled;
+         private int? pointer;
++        private Vector2 press, lastClick;
++        private float lastClickAt;
++        private int lastClickPointer;
++        private bool moved, hasClick;
++        private const float DoubleClickSeconds = .3f;
++        private float ClickSlop => 6f * (GetComponentInParent<Canvas>()?.scaleFactor ?? 1f);
+         internal bool IsHeld => pointer.HasValue;
+         internal void Configure(Action<Vector2> onBegin, Action<Vector2> onDrag, Action onEnd, Action onDoubleClick = null)
+         { begin = onBegin; drag = onDrag; end = onEnd; doubleClick = onDoubleClick; }
+         public void OnPointerDown(PointerEventData e)
+         {
+             if (pointer.HasValue || e.button != PointerEventData.InputButton.Left) return;
+-            if (e.clickCount == 2 && doubleClick != null) { doubleClick(); return; }
+-            pointer = e.pointerId; begin?.Invoke(e.position);
++            pointer = e.pointerId;
++            press = e.position;
++            moved = false;
++            begin?.Invoke(e.position);
+         }
+-        public void OnDrag(PointerEventData e) { if (pointer == e.pointerId) drag?.Invoke(e.position); }
+-        public void OnPointerUp(PointerEventData e) { if (pointer == e.pointerId) Cancel(false); }
+-        private void Cancel(bool lost) { if (!pointer.HasValue) return; pointer = null; if (lost && cancelled != null) cancelled(); else end?.Invoke(); }
++        public void OnInitializePotentialDrag(PointerEventData e) => e.useDragThreshold = false;
++        public void OnDrag(PointerEventData e)
++        {
++            if (pointer != e.pointerId) return;
++            moved |= (e.position - press).sqrMagnitude > ClickSlop * ClickSlop;
++            drag?.Invoke(e.position);
++        }
++        public void OnPointerUp(PointerEventData e)
++        {
++            if (pointer != e.pointerId || e.button != PointerEventData.InputButton.Left) return;
++            moved |= (e.position - press).sqrMagnitude > ClickSlop * ClickSlop;
++            bool twice = !moved && hasClick && lastClickPointer == e.pointerId &&
++                Time.unscaledTime - lastClickAt <= DoubleClickSeconds &&
++                (e.position - lastClick).sqrMagnitude <= ClickSlop * ClickSlop;
++            hasClick = !moved && !twice;
++            lastClick = e.position; lastClickAt = Time.unscaledTime; lastClickPointer = e.pointerId;
++            Cancel(false);
++            if (twice) doubleClick?.Invoke();
++        }
++        private void Cancel(bool lost)
++        {
++            if (lost) hasClick = false;
++            if (!pointer.HasValue) return;
++            pointer = null;
++            if (lost && cancelled != null) cancelled(); else end?.Invoke();
++        }
+         private void OnDisable() => Cancel(true);
+         private void OnApplicationFocus(bool focus) { if (!focus) Cancel(true); }
+         private void OnApplicationPause(bool pause) { if (pause) Cancel(true); }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Floating.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Floating.cs
+@@ -85,7 +85,7 @@
+         {
+             if (_floatingHeader != null) return;
+             ConfigureFloatingSurface(_panel, Vector2.zero);
+-            _floatingHeader = FloatingDrag("Move chat window", Vector2.zero);
++            _floatingHeader = FloatingDrag("Move chat window", Vector2.zero, true);
+             _floatingSides[0] = FloatingDrag("Move chat left", Vector2.zero);
+             _floatingSides[1] = FloatingDrag("Move chat right", Vector2.zero);
+             int i = 0;
+@@ -149,7 +149,7 @@
+             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvas, point, camera, out Vector2 local);
+             return local - canvas.rect.min;
+         }
+-        private RectTransform FloatingDrag(string title, Vector2 direction)
++        private RectTransform FloatingDrag(string title, Vector2 direction, bool maximize = false)
+         {
+             var rect = RectObject(title, _panel);
+             if (direction == Vector2.zero)
+@@ -162,10 +162,10 @@
+                 SetAppearanceColor(grip, Muted); grip.canvasRenderer.cullTransparentMesh = false; grip.Configure(direction, () => UiMotion);
+                 rect.gameObject.AddComponent<CanvasGroup>();
+             }
+-            ConfigureFloatingSurface(rect, direction);
++            ConfigureFloatingSurface(rect, direction, maximize);
+             return rect;
+         }
+-        private void ConfigureFloatingSurface(RectTransform rect, Vector2 direction)
++        private void ConfigureFloatingSurface(RectTransform rect, Vector2 direction, bool maximize = false)
+         {
+             var surface = rect.gameObject.AddComponent<SiriAIFloatingDragSurface>();
+             surface.Configure(
+@@ -179,7 +179,7 @@
+                 },
+                 point => { if (_floatingPanel.IsDragging) MoveFloating(FloatingPointer(point)); },
+                 () => { if (_floatingPanel.IsDragging) FinishFloatingMove(true); },
+-                direction == Vector2.zero ? (System.Action)(() =>
++                maximize ? (System.Action)(() =>
+                 { if (IsFloatingChat && !_floatingPanel.Tucked && !IsConversationDialogOpen && !IsSettingsOpen) { _floatingPanel.ToggleMaximized(); SaveFloatingPlacement(); } }) : null);
+             surface.SetCancellation(() => { if (_floatingPanel.IsDragging) FinishFloatingMove(false); });
+         }
+@@ -202,9 +202,9 @@
+             SetActiveIfChanged(_floatingTab, tucked || _floatingTab.GetComponent<SiriAIFloatingDragSurface>().IsHeld);
+             if (floating)
+             {
+-                Place(_floatingHeader, new Rect(72, bounds.height - 76, Mathf.Max(0, bounds.width - 144), 64));
+-                Place(_floatingSides[0], new Rect(12, 28, 18, Mathf.Max(0, bounds.height - 108)));
+-                Place(_floatingSides[1], new Rect(bounds.width - 30, 28, 18, Mathf.Max(0, bounds.height - 108)));
++                Place(_floatingHeader, new Rect(64, bounds.height - 84, Mathf.Max(0, bounds.width - 128), 72));
++                Place(_floatingSides[0], new Rect(20, 40, 24, Mathf.Max(0, bounds.height - 132)));
++                Place(_floatingSides[1], new Rect(bounds.width - 44, 40, 24, Mathf.Max(0, bounds.height - 132)));
+                 if (_floatingTab.gameObject.activeSelf)
+                 {
+                     Place(_floatingTab, _floatingPanel.TabBounds);
+@@ -222,8 +222,8 @@
+                     // Only resizing escapes the disabled chat group while a desktop sheet is open.
+                     edge.GetComponent<CanvasGroup>().ignoreParentGroups = IsDesktopMode && IsSettingsOpen;
+                     if (!floating) continue;
+-                    float w = x == 0 ? Mathf.Min(64, Mathf.Max(0, bounds.width - 48)) : y == 0 ? 12 : 24;
+-                    float h = y == 0 ? Mathf.Min(64, Mathf.Max(0, bounds.height - 48)) : x == 0 ? 12 : 24;
++                    float w = x == 0 ? Mathf.Max(0, bounds.width - 88) : y == 0 ? 20 : 44;
++                    float h = y == 0 ? Mathf.Max(0, bounds.height - 88) : x == 0 ? 20 : 44;
+                     Place(edge, new Rect(x < 0 ? 0 : x > 0 ? bounds.width - w : (bounds.width - w) * .5f,
+                         y < 0 ? 0 : y > 0 ? bounds.height - h : (bounds.height - h) * .5f, w, h));
+                 }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.GlassSurfaces.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.GlassSurfaces.cs
+@@ -45,8 +45,12 @@
+             bool waveform = role == GlassSurfaceRole.Waveform;
+             bool swatch = role == GlassSurfaceRole.ColorSwatch;
+             bool accent = role == GlassSurfaceRole.Primary || role == GlassSurfaceRole.Selected || role == GlassSurfaceRole.ToggleOn || role == GlassSurfaceRole.Destructive;
++            float depth = (IsSettingsOpen ? _settingsDraft.Appearance : _viewPreferences).windowBackgroundDepth;
++            float backing = Mathf.Clamp01(_darkAppearance ? .075f - (depth - .35f) * .12f : .97f + (depth - .35f) * .06f);
+             material.SetFloat("_LightAppearance", _darkAppearance ? 0f : 1f);
+-            material.SetColor("_GlassTint", _darkAppearance ? new Color(.075f, .075f, .075f) : new Color(.97f, .97f, .97f));
++            material.SetColor("_GlassTint", new Color(backing, backing, backing));
++            material.SetFloat("_SurfaceDepth", depth);
++            material.SetFloat("_Frosted", settings ? 1f : 0f);
+             if (thumb) material.SetColor("_GlassTint", _darkAppearance ? new Color(.72f, .72f, .72f) : new Color(.82f, .82f, .82f));
+             if (role == GlassSurfaceRole.ToggleOn)
+                 material.SetColor("_GlassTint", _darkAppearance ? new Color(.04f, .38f, .23f) : new Color(.48f, .88f, .65f));
+@@ -60,7 +64,7 @@
+             if (waveform) material.SetFloat("_TintStrength", .94f);
+             if (swatch) material.SetFloat("_TintStrength", .72f);
+             material.SetFloat("_SwatchTint", swatch ? 1f : 0f);
+-            material.SetFloat("_Blur", panel ? 3f : popup ? 10f : settings || notification ? 7f : composer ? 5f : message ? 4f : toggle || thumb ? 1.5f : 3f);
++            material.SetFloat("_Blur", panel ? 3f : popup ? 10f : settings ? 16f : notification ? 7f : composer ? 5f : message ? 4f : toggle || thumb ? 1.5f : 3f);
+             material.SetFloat("_Refraction", panel ? 180f : settings ? 64f : popup ? 52f : composer ? 40f : message ? 32f : thumb ? 10f : toggle ? 18f : 24f);
+             material.SetFloat("_EdgeWidth", panel ? 80f : settings ? 32f : popup ? 26f : composer ? 24f : message ? 18f : thumb ? 6f : icon || toggle ? 8f : 14f);
+             material.SetFloat("_EdgePower", 2.5f);
+@@ -91,7 +95,7 @@
+             }
+             if (IsDesktopMode && (panel || settings || notification || popup || composer))
+             {
+-                material.SetFloat("_TintStrength", popup || settings ? .30f : .22f);
++                material.SetFloat("_TintStrength", Mathf.Lerp(settings || popup ? .30f : .12f, .65f, depth));
+                 material.SetFloat("_VertexTintStrength", 0f);
+             }
+             material.SetFloat("_OpticalScale", _scaler != null ? Mathf.Max(.01f, _scaler.scaleFactor) : 1f);
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Visuals.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Visuals.cs
+@@ -8,6 +8,12 @@
+         private void BuildVisualSettings()
+         {
+             AddSettingsTitle("Orb & Background", null);
++            var depthRow = AddSettingsField("Window background depth", "Adjust the shared light or dark backing of chat, settings and popups. Preview immediately; save to keep.");
++            AddVisualSlider(depthRow, _settingsDraft.Appearance.windowBackgroundDepth, 0f, 1f, value =>
++            {
++                _settingsDraft.Appearance.windowBackgroundDepth = value;
++                ApplyAppearanceMaterials();
++            });
+             if (_settingsDraft.Appearance.desktopMode && SiriAIDesktopWindow.UsesSystemGlass(Application.platform))
+                 AddBoolField("Background blur", "Use frosted system glass. macOS adjusts the blur without Screen Recording permission.",
+                     () => _settingsDraft.Appearance.backgroundBlur > 0f,
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAIChatViewPreferences.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAIChatViewPreferences.cs
+@@ -15,6 +15,7 @@
+         public SiriAIOrbStyle orbStyle = SiriAIOrbStyle.Original;
+         public SiriAIBackgroundSettings background = new SiriAIBackgroundSettings();
+         public float backgroundBlur = 8f;
++        public float windowBackgroundDepth = .35f;
+         public SiriAILanguage language = SiriAILanguage.System;
+         public bool landscapeChatOnRight = true;
+         public bool smoothLayoutTransitions = true;
+@@ -60,6 +61,9 @@
+ 
+         public void Validate()
+         {
++            if (float.IsNaN(windowBackgroundDepth) || float.IsInfinity(windowBackgroundDepth) ||
++                windowBackgroundDepth < 0f || windowBackgroundDepth > 1f)
++                throw new ArgumentException("Window background depth must be between 0 and 1.");
+             if (floatingChatPlacement == null) floatingChatPlacement = new SiriAIFloatingPanelPlacement();
+             floatingChatPlacement.Validate();
+             desktopAlwaysOnTop = true; // Migrate older optional-topmost preferences.
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -151,6 +151,8 @@
+             { "Backend: {0} · permission mode: {1}", "后端：{0} · 权限模式：{1}" },
+             { "native", "后端原生审批" },
+             { "full", "完整权限" },
++            { "Window background depth", "窗口背景深浅" },
++            { "Adjust the shared light or dark backing of chat, settings and popups. Preview immediately; save to keep.", "统一调整对话、设置和弹窗的背景深浅。即时预览，保存后保留。" },
+             { "Background tasks", "后台任务" },
+             { "Foreground dispatch", "前台调度" },
+             { "SiriAI coordinates the conversation; the selected Harness host executes background tasks.", "SiriAI 负责前台对话与调度，所选 Harness 宿主负责执行后台任务。" },
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridPolicy.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridPolicy.cs
+@@ -17,6 +17,7 @@
+                 return Clarify(chinese ? "请说明具体对象、接收方和需要执行的操作。" : "Please specify the object, recipient and action.");
+             if (Match(text, @"^(?:(?:请)?(?:帮我|帮助我)(?:把|将)?|请(?:把|将)|(?:could|can|would) you(?: please)?|please)[。.!?？]*$"))
+                 return Clarify(chinese ? "这句话似乎没有说完，请补充具体任务和必要信息。" : "That request appears incomplete. Please supply the task and required details.");
++            if (IsBackgroundAction(text)) return Tool("spawn_thinking", text, hasTool, chinese);
+             if (Match(text, @"^(?:(?:请帮我|帮我|请)\s*)?(?:计算(?!机)|算一下|算算)|^(compute|calculate)\b|^what is\s*[-+(\d]|^[\d\s()+\-*/.×÷]+[?？。.]?$"))
+                 return Arithmetic(text, hasTool, chinese);
+             if (Match(text, @"助手音量|assistant(?:'s)?\s+volume")) return Volume(text, hasTool, chinese);
+@@ -41,6 +42,10 @@
+ 
+         private static SiriAIHybridPlan Command(string text, Func<string, bool> hasTool, bool chinese)
+         {
++            if (text.Equals("/background", StringComparison.OrdinalIgnoreCase))
++                return Clarify(chinese ? "请补充后台任务的目标、相关路径和完成要求。" : "Provide the background objective, relevant paths and acceptance criteria.");
++            if (text.StartsWith("/background ", StringComparison.OrdinalIgnoreCase))
++                return Tool("spawn_thinking", text.Substring(12).Trim(), hasTool, chinese);
+             var command = Regex.Match(text, @"^/(calc|docs|action|volume|time)(?:\s+(.*))?$", RegexOptions.IgnoreCase);
+             if (!command.Success) return Clarify(chinese ? "支持 /calc、/docs、/volume、/time 和 /action。" : "Use /calc, /docs, /volume, /time or /action.");
+             string name = command.Groups[1].Value.ToLowerInvariant(), input = command.Groups[2].Value.Trim();
+@@ -49,6 +54,15 @@
+             if (name == "calc") return Arithmetic(input, hasTool, chinese);
+             if (name == "volume") return Tool("assistant_volume", input, hasTool, chinese);
+             return Tool(name == "docs" ? "local_knowledge" : "application_action", input, hasTool, chinese);
++        }
++
++        private static bool IsBackgroundAction(string text)
++        {
++            // Policy mode stays conservative. The model planner handles semantic cases;
++            // words quoted in a translation or an explanatory question are not actions.
++            if (Match(text, @"^(?:请)?(?:翻译|总结|摘要|改写|解释|介绍|什么|如何|怎么)|^(?:translate|summari[sz]e|rewrite|explain|what|how|why)\b")) return false;
++            if (Match(text, @"^(?:(?:请|帮我|请帮我)\s*)?(?:在后台|交给后台|后台(?:运行|执行|调研|研究|修复|实现)).{2,}|^(?:(?:please|can you|could you)\s+)?(?:run|do|research|investigate|implement|fix|build)\b.+\bin (?:the )?background\b")) return true;
++            return Match(text, @"^(?:(?:请|帮我|请帮我)\s*)?(?:修复|实现|开发|重构|调研|调查).{3,}(?:项目|代码|文件|测试|报告)|^(?:(?:please|can you|could you)\s+)?(?:implement|debug|refactor|fix|build|research|investigate)\b.{4,}(?:\bproject\b|\bfiles?\b|\btests?\b|\breport\b|/|\\)");
+         }
+ 
+         private static SiriAIHybridPlan Arithmetic(string text, Func<string, bool> hasTool, bool chinese)
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridProvider.Planning.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIHybridProvider.Planning.cs
+@@ -12,6 +12,9 @@
+                 "{\"route\":\"clarify\",\"message\":\"question about missing information\"}\n" +
+                 "Rules, in order:\n" +
+                 "1. Missing location, unclear people/files/pronouns or incomplete ASR: clarify in the user's language. Never guess arguments.\n" +
++                "1a. Use spawn_thinking for an explicit background request or sustained execution: project/code/file changes, investigation with tools, research reports, or multi-step work. Input must include the objective, relevant context, paths and acceptance criteria from this conversation. Never submit a vague reference.\n" +
++                "1b. Ordinary questions, explanations, greetings and short text transformations stay in the foreground; complexity alone does not imply background work. Questions ABOUT agents or background work are not task submissions.\n" +
++                "1c. For background work select route=tool and tool=spawn_thinking. Its real host receipt is the immediate reply; do not wait or poll for completion. Never claim submission without calling it. If unavailable, clarify the missing task host. Completion is delivered separately; the foreground remains available for further conversation.\n" +
+                 "2. Arithmetic, local documents or registered actions: tool. A tool call MUST have route=tool, never route=local.\n" +
+                 "3. Current weather/facts require a registered data tool. If unavailable, clarify the limitation. A larger model alone is not a data source.\n" +
+                 "4. Long analysis, rigorous proofs, complex reasoning or tasks outside local capabilities: cloud.\n" +
+@@ -24,6 +27,8 @@
+             text.Append("Examples:\nUser: 把那个发给他。\n{\"route\":\"clarify\",\"message\":\"你要发送什么，发给谁？\"}\n" +
+                 "User: Prove a difficult theorem in full detail.\n{\"route\":\"cloud\"}\n");
+             if (_tools.ContainsKey("calculate")) text.Append("User: 计算 8*7\n{\"route\":\"tool\",\"tool\":\"calculate\",\"input\":\"8*7\"}\n");
++            if (_tools.ContainsKey("spawn_thinking")) text.Append("User: 请在后台调研 /workspace/app 的启动问题并运行测试。\n{\"route\":\"tool\",\"tool\":\"spawn_thinking\",\"input\":\"Investigate startup failures in /workspace/app, fix the cause and run the existing tests. Report changes and test results.\"}\n" +
++                "User: 后台任务是什么意思？\n{\"route\":\"local\"}\n");
+             if (_tools.ContainsKey("current_weather")) text.Append("User: How is the weather?\n{\"route\":\"clarify\",\"message\":\"Which city or postal code?\"}\n" +
+                 "User: Current weather in Paris, France\n{\"route\":\"tool\",\"tool\":\"current_weather\",\"input\":\"Paris|FR\"}\n");
+             if (_tools.ContainsKey("local_knowledge")) text.Append("User: Find the model folder in my local documents.\n{\"route\":\"tool\",\"tool\":\"local_knowledge\",\"input\":\"model folder\"}\n");
+--- a/Assets/Samples/SiriAI/Art/Shaders/LiquidGlassUI.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/LiquidGlassUI.shader
+@@ -12,6 +12,8 @@
+         _EdgePower ("Lens Curvature Power", Range(1, 8)) = 4
+         _EdgeWidth ("Lens Depth (Logical Pixels)", Range(1, 128)) = 80
+         _Blur ("Interior Blur", Range(0, 16)) = 8
++        _Frosted ("Frosted Reading Surface", Range(0, 1)) = 0
++        _SurfaceDepth ("Window Background Depth", Range(0, 1)) = 0.35
+         _ChromaticAberration ("Chromatic Dispersion", Range(0, 4)) = 0.8
+         _GlassTint ("Glass Tint", Color) = (0.52, 0.58, 0.68, 1)
+         _TintStrength ("Tint Strength", Range(0, 1)) = 0.12
+@@ -117,6 +119,7 @@
+             float _EdgePower;
+             float _EdgeWidth;
+             float _Blur;
++            float _Frosted, _SurfaceDepth;
+             float _ChromaticAberration;
+             float _TintStrength;
+             float _RimIntensity;
+@@ -205,6 +208,23 @@
+                 center = sampleGlass(uv);
+                 UNITY_BRANCH
+                 if (radius.x == 0.0 && radius.y == 0.0) return center;
++                UNITY_BRANCH
++                if (_Frosted > .5)
++                {
++                    // A dense separable Gaussian suppresses underlying text strokes.
++                    // Only the settings sheet pays for this reading-surface kernel.
++                    float3 frosted = 0;
++                    [unroll] for (int y = -2; y <= 2; ++y)
++                    {
++                        float wy = y == 0 ? 6.0 : abs(y) == 1 ? 4.0 : 1.0;
++                        [unroll] for (int x = -2; x <= 2; ++x)
++                        {
++                            float wx = x == 0 ? 6.0 : abs(x) == 1 ? 4.0 : 1.0;
++                            frosted += sampleGlass(uv + float2(x, y) * radius * .5) * (wx * wy / 256.0);
++                        }
++                    }
++                    return frosted;
++                }
+                 float3 color = center * .2;
+                 color += sampleGlass(uv + float2(radius.x, 0)) * .1;
+                 color += sampleGlass(uv - float2(radius.x, 0)) * .1;
+@@ -437,7 +457,7 @@
+                     _ReadableSurface * lerp(1.0, .15, desktopLens));
+ 
+                 float readingArea = 1.0 - smoothstep(.05, .8, edgeCurve);
+-                if (_SiriDesktopMode > .5 && _SiriDesktopBackdropAvailable < .5)
++                if (_SiriDesktopMode > .5 && _SiriDesktopBackdropAvailable < .5 && _GlassLayer < .5)
+                     glass = lerp(glass, glassTint, saturate(_ReadableSurface) * readingArea);
+ 
+                 // Schlick Fresnel strengthens reflection at grazing angles, matching
+@@ -484,8 +504,8 @@
+                 #endif
+                 // A color backing protects the reading area while the curved lip
+                 // transmits the native desktop material. Never paint over system glass.
+-                float backingOpacity = lerp(.68, .76, _LightAppearance);
+-                float desktopAlpha = _SiriDesktopMode > .5 && _SiriDesktopBackdropAvailable < .5
++                float backingOpacity = lerp(.68, .76, _LightAppearance) + (saturate(_SurfaceDepth) - .35) * .10;
++                float desktopAlpha = _SiriDesktopMode > .5 && _SiriDesktopBackdropAvailable < .5 && _GlassLayer < .5
+                     ? lerp(.26, backingOpacity, saturate(_ReadableSurface) * readingArea) : 1.0;
+                 return fixed4(glass * lerp(float3(1, 1, 1), input.color.rgb, _VertexTintStrength),
+                               spriteTexture.a * input.color.a * shape * desktopAlpha);
+--- a/Assets/Samples/SiriAI/Art/Shaders/LiquidGlassBackdrop.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/LiquidGlassBackdrop.shader
+@@ -12,6 +12,8 @@
+         _EdgePower ("Lens Curvature Power", Range(1, 8)) = 4
+         _EdgeWidth ("Lens Depth (Logical Pixels)", Range(1, 128)) = 80
+         _Blur ("Interior Blur", Range(0, 16)) = 8
++        _Frosted ("Frosted Reading Surface", Range(0, 1)) = 0
++        _SurfaceDepth ("Window Background Depth", Range(0, 1)) = 0.35
+         _ChromaticAberration ("Chromatic Dispersion", Range(0, 4)) = 0.8
+         _GlassTint ("Glass Tint", Color) = (0.52, 0.58, 0.68, 1)
+         _TintStrength ("Tint Strength", Range(0, 1)) = 0.12
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Execution.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Execution.cs
+@@ -6,6 +6,30 @@
+     public sealed partial class SiriAIChatView
+     {
+         private bool _harnessExecutionPending = true;
++        private long _harnessNotificationScope = -1;
++        private readonly System.Collections.Generic.HashSet<string> _notifiedHarnessTasks = new System.Collections.Generic.HashSet<string>();
++
++        private void NotifyHarnessCompletions()
++        {
++            if (harness == null || _canvasRoot == null) return;
++            if (_harnessNotificationScope != harness.Dashboard.Generation)
++            {
++                _harnessNotificationScope = harness.Dashboard.Generation;
++                _notifiedHarnessTasks.Clear();
++            }
++            foreach (var task in harness.Dashboard.Tasks)
++            {
++                if (!task.IsTerminal || !task.ResultPending || !_notifiedHarnessTasks.Add(task.Id)) continue;
++                string title = task.Title ?? task.Objective ?? "";
++                if (title.Length > 48) title = title.Substring(0, 48) + "…";
++                string result = task.Result ?? task.Activity ?? "";
++                if (result.Length > 120) result = result.Substring(0, 120) + "…";
++                ShowSettingsNotification(Localize("Background tasks") + " · " + Localize(task.State.ToString()) +
++                    ": " + title + "\n" + result);
++                _notificationDuration = 6f;
++            }
++        }
++
+         private void ImportHarnessExecution()
+         {
+             if (!_harnessExecutionPending || _conversations == null || harness == null || _editorPreview || _conversationSwitchBusy || _chat.IsProcessing) return;
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs
+@@ -44,6 +44,7 @@
+             // A host/account switch clears the previous scope immediately; normal polling never enters this path.
+             if (changedScope || changedConnection) RedrawHarnessContent();
+             _harnessDirty = true;
++            NotifyHarnessCompletions();
+             _harnessExecutionPending = true; ImportHarnessExecution();
+         }
+         private void ClearHarnessSecret()
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Layout/SiriAIFloatingPanel.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Layout/SiriAIFloatingPanel.cs
+@@ -105,7 +105,7 @@
+         {
+             if (Tucked) return;
+             coast = Vector2.zero; Bounds = presented;
+-            IsDragging = true; moved = false; pocketEdge = SiriAIPanelEdge.None; press = pointer; start = Bounds; resize = direction; maximized = false;
++            IsDragging = true; moved = false; pocketEdge = SiriAIPanelEdge.None; press = pointer; start = Bounds; resize = direction;
+         }
+         public void BeginPull(Vector2 pointer, Rect presented)
+         {
+@@ -136,6 +136,7 @@
+         {
+             if (!IsDragging) return;
+             Vector2 delta = pointer - press; moved |= delta.sqrMagnitude > 64;
++            if (moved) maximized = false;
+             if (resize == Vector2.zero)
+             {
+                 Rect raw = new Rect(start.position + delta, start.size);
+--- a/Assets/Samples/SiriAI/Documentation~/DesktopMode.md
++++ b/Assets/Samples/SiriAI/Documentation~/DesktopMode.md
+@@ -229,3 +229,9 @@
+ 滤波只在新快照或模糊值变化时执行，沿用已有捕获节流与区域限制；没有逐控件新增捕获、CPU 像素滤波或 GPU 回读。
+ 0 关闭模糊处理；液态玻璃也关闭时停止桌面背景捕获。桌面效果仍需系统屏幕捕获权限；
+ 不可用时保持原有透明/主题表面。GPU 行为测试验证图像与资源路径，不代表各平台桌面合成器的实际帧耗时。
++
++## 桌面交互与重叠可读性
++
++标题移动区为 72 个逻辑像素高，四边提供连续的 20 像素缩放区，四角为 44 × 44，侧边移动区为 24 像素宽。手势直接跟随指针；拖动清除双击配对，只有标题区 300 ms 内完成的两次静止点击会切换最大化。正文和侧边不触发放大；普通点击保留最大化的还原状态。
++
++设置 → 外观 → 窗口背景深浅统一调整聊天、设置和弹窗背景，即时预览，保存后保留，取消则恢复。设置页对已捕获的对话 UI 使用 16 像素高斯磨砂；本地 UI 捕获层完整覆盖，避免透明混合重新透出清晰的底层文字。外沿保留玻璃折射和高光。
+--- a/Assets/Samples/SiriAI/Documentation~/HybridRouting.md
++++ b/Assets/Samples/SiriAI/Documentation~/HybridRouting.md
+@@ -103,3 +103,11 @@
+ 验收设备为当前 Mac。手机真机性能、真实麦克风全链路、长期稳定性及目标业务任务的错路由率、p50/p95 首字/首音频延迟、成本、流量和内存仍需专门测量。没有新增 C++、原生桥接、自定义导出或官方 MNN 修改；现有托管模型调用结果不构成官方 C++ API 直接调用的 ABI 验证。
+ 
+ Apple 论文与架构研究见仓库 `TestArtifacts~/Research/AppleHybrid-2026-11-03/report.zh-CN.md`；前序规划器质量记录位于 `TestArtifacts~/HybridRouting-2026-11-03/`。
++
++## 后台执行与前台对话
++
++显式后台请求、代码/项目修复、需要工具的调查和报告任务通过 `spawn_thinking` 交给已连接的 Harness 宿主。Policy 路由采用保守的中英文动作匹配；ModelPlanner 根据目标、上下文和完成条件进行语义判断。日常问答、概念解释、简短翻译仍在前台回答；`/background 具体目标` 可显式提交。缺少工具时要求先配置，不声称已经派发。
++
++前台只等受理回执，最多 5 秒；匹配 conversation 和 submission identity 的真实 task ID 才能确认提交。超时或身份不匹配明确报告受理未确认，避免重复提交；持久提交日志负责已有待确认请求的恢复。宿主独立执行，后续前台问答不等待任务完成。
++
++Dashboard 收到完成状态后立即显示不拦截输入的文字结果，每个任务在连接范围内只提示一次，不依赖语音播报开关。已有结果投递通道继续在前台空闲时简短回报；真实文字显示/播放证据决定展示回执，模型生成不代表用户已收到。
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIDesktopComfortTests.cs
+@@ -0,0 +1,159 @@
++using System;
++using System.Collections.Generic;
++using System.Reflection;
++using System.Text;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Samples.SiriAI.Harnesses;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.EventSystems;
++using UnityEngine.UI;
++using Object = UnityEngine.Object;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIDesktopComfortTests
++    {
++        [Test]
++        public void DragThenRapidPressDoesNotMaximizeAndRealDoubleClickWaitsForRelease()
++        {
++            var root = new GameObject("Desktop click regression");
++            try
++            {
++                var surface = root.AddComponent<SiriAIFloatingDragSurface>();
++                int doubles = 0;
++                SiriAITestAccess.Call(surface, "Configure", new Action<Vector2>(_ => { }),
++                    new Action<Vector2>(_ => { }), new Action(() => { }), new Action(() => ++doubles));
++                var e = new PointerEventData(null) { pointerId = -1, position = new Vector2(100, 100), clickCount = 1 };
++                surface.OnPointerDown(e);
++                e.position += new Vector2(60, 0); surface.OnDrag(e); surface.OnPointerUp(e);
++                e.clickCount = 2; surface.OnPointerDown(e);
++                Assert.AreEqual(0, doubles, "The second press after dragging is still a move gesture.");
++                e.position += new Vector2(60, 0); surface.OnDrag(e); surface.OnPointerUp(e);
++                Assert.AreEqual(0, doubles);
++                e.clickCount = 1; surface.OnPointerDown(e); surface.OnPointerUp(e);
++                e.clickCount = 2; surface.OnPointerDown(e);
++                Assert.AreEqual(0, doubles, "Maximize only after a completed second click.");
++                surface.OnPointerUp(e); Assert.AreEqual(1, doubles);
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void ResizeAndMoveTargetsAreGenerousAndOnlyHeaderDoubleClickMaximizes()
++        {
++            var root = new GameObject("Desktop targets");
++            try
++            {
++                var view = root.AddComponent<SiriAIChatView>();
++                var viewport = new Rect(0, 0, 1440, 900);
++                view.TickEditorPreview(viewport, 1);
++                SiriAITestAccess.Set(view, "immersiveMode", false);
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").desktopMode = true;
++                view.ApplyViewport(viewport, 1, false);
++                var edges = SiriAITestAccess.Field<RectTransform[]>(view, "_floatingEdges");
++                foreach (var edge in edges)
++                    Assert.GreaterOrEqual(Mathf.Min(edge.rect.width, edge.rect.height), 20f);
++                var sides = SiriAITestAccess.Field<RectTransform[]>(view, "_floatingSides");
++                Assert.GreaterOrEqual(sides[0].rect.width, 24f);
++                var panel = SiriAITestAccess.Field<RectTransform>(view, "_panel");
++                var state = SiriAITestAccess.Field<SiriAIFloatingPanel>(view, "_floatingPanel");
++                var surface = panel.GetComponent<SiriAIFloatingDragSurface>();
++                var e = new PointerEventData(null) { pointerId = -1, position = state.Bounds.center, clickCount = 1 };
++                surface.OnPointerDown(e); surface.OnPointerUp(e);
++                e.clickCount = 2; surface.OnPointerDown(e); surface.OnPointerUp(e);
++                Assert.IsFalse(state.IsMaximized, "Conversation background cannot maximize the window.");
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void WindowDepthPreviewsAcrossChatAndSettingsAndPersists()
++        {
++            var field = typeof(SiriAIChatViewPreferences).GetField("windowBackgroundDepth");
++            Assert.IsNotNull(field, "One saved depth preference must control all window backings.");
++            var root = new GameObject("Glass depth regression");
++            try
++            {
++                var view = root.AddComponent<SiriAIChatView>(); view.TickEditorPreview(new Rect(0, 0, 1440, 900), 1);
++                view.OpenSettings();
++                var draft = SiriAITestAccess.Field<object>(view, "_settingsDraft");
++                var appearance = (SiriAIChatViewPreferences)draft.GetType().GetField("Appearance", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(draft);
++                var chat = SiriAITestAccess.Field<Material>(view, "_liquidGlassMaterial");
++                var sheet = SiriAITestAccess.Field<Material>(view, "_settingsGlassMaterial");
++                var depthRow = SiriAITestAccess.Field<RectTransform>(view, "_settingsContent").Find("Window background depth");
++                Assert.IsNotNull(depthRow);
++                var slider = depthRow.GetComponentInChildren<Slider>();
++                slider.value = 0f;
++                Color shallow = chat.GetColor("_GlassTint");
++                slider.value = 1f;
++                Assert.AreNotEqual(shallow, chat.GetColor("_GlassTint"));
++                Assert.AreEqual(chat.GetColor("_GlassTint"), sheet.GetColor("_GlassTint"));
++                Assert.GreaterOrEqual(sheet.GetFloat("_Blur"), 14f);
++                Assert.AreEqual(1, sheet.GetFloat("_Frosted"));
++                Assert.AreEqual(3, SiriAITestAccess.Field<RectTransform>(view, "_settingsPanel").Find("Settings Liquid Glass").GetComponentInChildren<Graphic>().materialForRendering.GetFloat("_GlassLayer"));
++                var saved = JsonUtility.FromJson<SiriAIChatViewPreferences>(JsonUtility.ToJson(appearance));
++                Assert.AreEqual(1f, field.GetValue(saved));
++                field.SetValue(saved, float.NaN); Assert.Throws<ArgumentException>(() => saved.Validate());
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [TestCase("请在后台调研 Unity 窗口方案并整理报告", "tool")]
++        [TestCase("请修复项目的登录错误并运行测试", "tool")]
++        [TestCase("Implement a login screen in /workspace/app and run the tests", "tool")]
++        [TestCase("你好", "local")]
++        [TestCase("后台任务是什么意思？", "cloud")]
++        [TestCase("Explain how to implement a login screen", "cloud")]
++        [TestCase("请翻译：后台任务完成了", "local")]
++        public void SustainedActionsDispatchButQuestionsStayForeground(string request, string route)
++        {
++            var plan = SiriAIHybridPolicy.Select(request, new SiriAIHybridConfiguration(), name => name == "spawn_thinking");
++            Assert.AreEqual(route, plan.route);
++            if (route == "tool") { Assert.AreEqual("spawn_thinking", plan.tool); Assert.AreEqual(request, plan.input); }
++        }
++
++        [Test]
++        public void ConfirmedAdmissionAllowsNextForegroundTurnBeforeBackgroundFinishes() => Task.Run(ConfirmedAdmissionAllowsNextForegroundTurnBeforeBackgroundFinishesAsync).GetAwaiter().GetResult();
++
++        private async Task ConfirmedAdmissionAllowsNextForegroundTurnBeforeBackgroundFinishesAsync()
++        {
++            var local = new ForegroundModel(); var task = new AdmittedTask();
++            using (var provider = new SiriAIHybridProvider(local, new SiriAIHybridConfiguration(), null, new[] { task }))
++            {
++                var output = new StringBuilder();
++                await provider.GenerateAsync(new[] { new MNNOpenAIMessage(MNNChatRole.User, "请在后台调研 Unity 窗口方案并整理报告") }, null, 16000,
++                    text => { output.Append(text); return Task.CompletedTask; }, CancellationToken.None);
++                Assert.AreEqual(1, task.Submissions);
++                StringAssert.Contains("task-42", output.ToString()); Assert.IsFalse(task.Work.Task.IsCompleted);
++                output.Clear();
++                await provider.GenerateAsync(new[] { new MNNOpenAIMessage(MNNChatRole.User, "你好") }, null, 16000,
++                    text => { output.Append(text); return Task.CompletedTask; }, CancellationToken.None);
++                Assert.AreEqual("你好，随时可以继续聊。", output.ToString());
++                Assert.IsFalse(task.Work.Task.IsCompleted); Assert.AreEqual(1, task.Submissions);
++                task.Work.SetResult(true);
++            }
++        }
++
++        private sealed class AdmittedTask : ISiriAIRequestTool
++        {
++            internal int Submissions;
++            internal readonly TaskCompletionSource<bool> Work = new TaskCompletionSource<bool>();
++            public string Name => "spawn_thinking";
++            public string Description => "Submit sustained work; admission only.";
++            public bool RequiresNetwork => false;
++            public Task<string> ExecuteAsync(string input, CancellationToken cancellation)
++            { ++Submissions; return Task.FromResult("Task accepted: task-42. State: Running."); }
++        }
++
++        private sealed class ForegroundModel : ISiriAITextProvider
++        {
++            public MNNRealtimeCapabilities Capabilities => new MNNRealtimeCapabilities(MNNRealtimeFeature.TextInput, "Managed", "No model inference.", execution: MNNRealtimeExecution.Managed);
++            public Task PrepareAsync(CancellationToken cancellation) => Task.CompletedTask;
++            public Task GenerateAsync(IReadOnlyList<MNNOpenAIMessage> history, float[] audio, int sampleRate, Func<string, Task> delta, CancellationToken cancellation) => delta("你好，随时可以继续聊。");
++            public void Dispose() { }
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIDesktopComfortTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: e3c989a02f024bd093aa3a9d64251fe9
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIDesktopResultTests.cs
+@@ -0,0 +1,99 @@
++using System;
++using System.IO;
++using System.Text;
++using MNN.Samples.SiriAI.Harnesses;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.Rendering;
++using UnityEngine.UI;
++using Object = UnityEngine.Object;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIDesktopResultTests
++    {
++        [Test]
++        public void ClickingMaximizedHeaderPreservesTheRestoreAction()
++        {
++            var panel = new SiriAIFloatingPanel(); panel.SetViewport(new Rect(0, 0, 1440, 900));
++            Rect original = panel.Bounds; panel.ToggleMaximized();
++            panel.Begin(panel.Bounds.center, Vector2.zero); panel.End();
++            Assert.IsTrue(panel.IsMaximized, "A click cannot discard maximize state before its double-click action.");
++            panel.ToggleMaximized(); Assert.AreEqual(original, panel.Bounds);
++        }
++
++        [Test]
++        public void CompletionAppearsWithoutSpeechAndRepeatedPollingDoesNotRepeatIt()
++        {
++            var root = new GameObject("Background completion notification");
++            try
++            {
++                var controller = root.AddComponent<SiriAIHarnessController>();
++                var view = root.AddComponent<SiriAIChatView>(); view.ConfigureHarness(controller);
++                view.TickEditorPreview(new Rect(0, 0, 1440, 900), 1);
++                Assert.IsFalse(controller.SpeakResults);
++                var task = TaskHostJson.Read<HarnessTask>(Encoding.UTF8.GetBytes(
++                    "{\"Id\":\"task-1\",\"OwnerId\":\"owner\",\"ConversationId\":\"chat\",\"SubmissionKey\":\"operation\",\"HarnessId\":\"harness\",\"WorkspaceKey\":\"workspace\",\"Objective\":\"Check the project\",\"State\":3,\"Revision\":2,\"CreatedUtcTicks\":1,\"UpdatedUtcTicks\":2,\"ResultPending\":true,\"Result\":\"All 12 checks passed\"}"));
++                controller.Dashboard.Apply(controller.Dashboard.Generation, new[] { task });
++                SiriAITestAccess.Call(view, "HarnessChanged");
++                var label = SiriAITestAccess.Field<Text>(view, "_notificationLabel");
++                Assert.IsNotNull(label, "Completion must not depend on starting a foreground model response.");
++                StringAssert.Contains("All 12 checks passed", label.text);
++                SiriAITestAccess.Call(view, "ShowSettingsNotification", "A newer user notification", false);
++                SiriAITestAccess.Call(view, "HarnessChanged");
++                Assert.AreEqual("A newer user notification", label.text);
++                Assert.IsFalse(SiriAITestAccess.Field<CanvasGroup>(view, "_notificationGroup").blocksRaycasts);
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void SettingsFrostingSuppressesUnderlyingTextStrokesWithoutDesktopCapture()
++        {
++            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) Assert.Ignore("Requires GPU.");
++            var owner = new GameObject("Settings material");
++            var root = new GameObject("Settings frosting render"); var cameraObject = new GameObject("Frosting camera");
++            var target = new RenderTexture(256, 192, 24, RenderTextureFormat.ARGB32);
++            var pixels = new Texture2D(256, 192, TextureFormat.RGBA32, false);
++            var strokes = new Texture2D(256, 192, TextureFormat.RGBA32, false);
++            float oldMode = Shader.GetGlobalFloat("_SiriDesktopMode"), oldAvailable = Shader.GetGlobalFloat("_SiriDesktopBackdropAvailable");
++            var oldLayer = Shader.GetGlobalTexture("_SiriGlassLayer3"); var active = RenderTexture.active;
++            Material material = null;
++            try
++            {
++                var view = owner.AddComponent<SiriAIChatView>(); view.TickEditorPreview(new Rect(0, 0, 1440, 900), 1); view.OpenSettings();
++                material = new Material(SiriAITestAccess.Field<Material>(view, "_settingsGlassMaterial"));
++                material.SetFloat("_OpticalScale", 1); material.SetFloat("_CornerRadiusPixels", 0); material.SetFloat("_Refraction", 0);
++                material.SetFloat("_RimIntensity", 0); material.SetFloat("_EdgeWidth", 1);
++                for (int y = 0; y < 192; ++y) for (int x = 0; x < 256; ++x)
++                    strokes.SetPixel(x, y, x % 6 < 3 ? Color.white : Color.black);
++                strokes.Apply();
++                Shader.SetGlobalFloat("_SiriDesktopMode", 1); Shader.SetGlobalFloat("_SiriDesktopBackdropAvailable", 0);
++                Shader.SetGlobalTexture("_SiriGlassLayer3", strokes);
++                var camera = cameraObject.AddComponent<Camera>(); camera.transform.position = new Vector3(0, 0, -10);
++                camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = Color.clear; camera.targetTexture = target;
++                var canvas = root.AddComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 1;
++                var lower = SiriAIUIFactory.CreateRect("Underlying text strokes", root.transform);
++                SiriAIUIFactory.Stretch(lower); lower.gameObject.AddComponent<RawImage>().texture = strokes;
++                var upper = SiriAIUIFactory.CreateSurface(root.transform, "Settings reading surface", material, Color.white, false);
++                upper.GetComponent<SiriAIGlassLayer>().OverrideLayer = 3;
++                Canvas.ForceUpdateCanvases(); camera.Render(); RenderTexture.active = target;
++                pixels.ReadPixels(new Rect(0, 0, 256, 192), 0, 0); pixels.Apply();
++                float min = 1, max = 0;
++                for (int y = 80; y < 112; ++y) for (int x = 100; x < 156; ++x)
++                { float value = pixels.GetPixel(x, y).grayscale; min = Mathf.Min(min, value); max = Mathf.Max(max, value); }
++                TestContext.WriteLine("Underlying stroke contrast after settings frosting: " + (max - min));
++                string output = Environment.GetEnvironmentVariable("SIRIAI_COMFORT_ARTIFACTS");
++                if (!string.IsNullOrEmpty(output)) { Directory.CreateDirectory(output); File.WriteAllBytes(Path.Combine(output, "settings-frosting.png"), pixels.EncodeToPNG()); }
++                Assert.Less(max - min, .16f, "Sharp lower text must not leak through the settings alpha blend.");
++            }
++            finally
++            {
++                Shader.SetGlobalFloat("_SiriDesktopMode", oldMode); Shader.SetGlobalFloat("_SiriDesktopBackdropAvailable", oldAvailable);
++                Shader.SetGlobalTexture("_SiriGlassLayer3", oldLayer); RenderTexture.active = active;
++                Object.DestroyImmediate(root); Object.DestroyImmediate(owner); Object.DestroyImmediate(cameraObject);
++                Object.DestroyImmediate(target); Object.DestroyImmediate(pixels); Object.DestroyImmediate(strokes); if (material != null) Object.DestroyImmediate(material);
++            }
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIDesktopResultTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 674c3e80bc264c13a59409ba7fefce57
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIBackgroundAdmissionTests.cs
+@@ -0,0 +1,78 @@
++using System;
++using System.Diagnostics;
++using System.Text;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Samples.SiriAI.Harnesses;
++using NUnit.Framework;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIBackgroundAdmissionTests
++    {
++        [Test]
++        public void MismatchedHostReceiptCannotClaimSubmission() => Task.Run(MismatchedHostReceiptCannotClaimSubmissionAsync).GetAwaiter().GetResult();
++
++        private async Task MismatchedHostReceiptCannotClaimSubmissionAsync()
++        {
++            using (var client = new RemoteTaskClient(new Uri("http://127.0.0.1:1"), "fixture-only"))
++            {
++                var tool = new HarnessTaskTool(client, (request, token) => Task.FromResult(Receipt("wrong-operation")),
++                    "conversation", HarnessTaskToolOperation.Submit, "harness", "workspace", false);
++                string reply = await tool.ExecuteAsync("Investigate the startup failure", CancellationToken.None);
++                StringAssert.Contains("unconfirmed", reply);
++                StringAssert.DoesNotContain("Task accepted", reply);
++            }
++        }
++
++        [Test]
++        public void SilentHostReleasesForegroundWithUnconfirmedAdmission() => Task.Run(SilentHostReleasesForegroundWithUnconfirmedAdmissionAsync).GetAwaiter().GetResult();
++
++        private async Task SilentHostReleasesForegroundWithUnconfirmedAdmissionAsync()
++        {
++            using (var caller = new CancellationTokenSource())
++            using (var client = new RemoteTaskClient(new Uri("http://127.0.0.1:1"), "fixture-only"))
++            {
++                var tool = new HarnessTaskTool(client, async (request, token) =>
++                {
++                    await Task.Delay(30000, token);
++                    return Receipt(request.SubmissionKey);
++                }, "conversation", HarnessTaskToolOperation.Submit, "harness", "workspace", false);
++                var clock = Stopwatch.StartNew();
++                var reply = tool.ExecuteAsync("Investigate the startup failure", caller.Token);
++                try
++                {
++                    Assert.AreSame(reply, await Task.WhenAny(reply, Task.Delay(6500)), "A silent host must not occupy the foreground for its HTTP timeout.");
++                    StringAssert.Contains("unconfirmed", await reply);
++                    Assert.Less(clock.Elapsed.TotalSeconds, 6.5);
++                }
++                finally
++                {
++                    caller.Cancel();
++                    try { await reply; } catch (OperationCanceledException) { }
++                }
++            }
++        }
++
++        [Test]
++        public void MatchingReceiptReturnsExactTaskWithoutWaitingForWork() => Task.Run(MatchingReceiptReturnsExactTaskWithoutWaitingForWorkAsync).GetAwaiter().GetResult();
++
++        private async Task MatchingReceiptReturnsExactTaskWithoutWaitingForWorkAsync()
++        {
++            using (var client = new RemoteTaskClient(new Uri("http://127.0.0.1:1"), "fixture-only"))
++            {
++                int calls = 0;
++                var tool = new HarnessTaskTool(client, (request, token) =>
++                { ++calls; return Task.FromResult(Receipt(request.SubmissionKey)); },
++                    "conversation", HarnessTaskToolOperation.Submit, "harness", "workspace", false);
++                var reply = await tool.ExecuteAsync("Investigate the startup failure", CancellationToken.None);
++                StringAssert.Contains("Task accepted: confirmed-task", reply);
++                StringAssert.Contains("Running", reply); Assert.AreEqual(1, calls);
++            }
++        }
++
++        private static HarnessTask Receipt(string key) => TaskHostJson.Read<HarnessTask>(Encoding.UTF8.GetBytes(
++            "{\"Id\":\"confirmed-task\",\"ConversationId\":\"conversation\",\"SubmissionKey\":\"" + key +
++            "\",\"HarnessId\":\"harness\",\"WorkspaceKey\":\"workspace\",\"State\":1}"));
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Backends/SiriAIBackgroundAdmissionTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 522ce65b7ea24814b51022e96cae090c

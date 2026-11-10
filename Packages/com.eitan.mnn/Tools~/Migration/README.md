@@ -311,3 +311,26 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 
 远程连接一步自动发现配置，名称可留空采用主机名；保留有效的后端/工作区选择。
 本地优先恢复仍有效的已保存项目，再使用会话目录和应用项目目录。
+
+## Desktop comfort and independent background work
+
+After the `tasks` stage, apply this stage only to its exact imported SiriAI baseline:
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage comfort
+```
+
+`SiriAIDesktopComfort.patch` preserves larger move/resize targets, completed header
+double-clicks, shared window background depth, settings frosting, background action
+routing and nonblocking completion notifications. The matching package directly
+provides the five-second admission deadline and identity validation in `HarnessTaskTool`.
+The patch contains imported source, shaders, documentation and tests; model assets,
+credentials, user settings and diagnostic output remain local.
+
+Complete before/after SHA-256 checks preserve existing meta GUIDs, reject mismatched
+or partial imports without writing, and make repeat application a zero-write operation.
+This local import is already updated. All 211 selected Editor behavior/GPU checks and
+nine independent HTTP/ACP fixture checks pass. Pristine and rolled-back source both
+reproduce the same twelve failing behaviors; the seventeen new cases all pass after
+the change. This validates Editor behavior and rendering, without measuring desktop
+Player feel, production model decisions or performance on every operating system.
