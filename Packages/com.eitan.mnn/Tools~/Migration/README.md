@@ -270,3 +270,23 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 补丁包含相关默认值、设置和回归测试修改，保留已有 `.meta` GUID；逐文件 SHA-256
 检查拒绝不匹配或部分迁移，重复应用零写入。权重、凭据及其他场景配置不加入包。
 模型格式和验收范围见 [MNN-Pocket 接入](../../Documentation~/MNNPocket.md)。
+
+## 产品交互、玻璃可读性与任务设置
+
+对本轮精确匹配的 SiriAI 导入基线，可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage product
+```
+
+`SiriAIProductPolish.patch` 保存透明桌面/常规布局共用的可读玻璃、窗口收纳后的
+全局录音/取消/转写、连续文字输入、设置分类、错误/加载详情及弹窗过渡。
+任务设置复用包中的自动环境检测和后端目录，默认选择完整的本机CLI＋适配器；
+远端发现后通过选择器指定后端和工作区。详情与接入边界见
+[Harness后端接入](../../Documentation~/HarnessBackendSetup.md)。
+
+本机导入已应用，不必重放。迁移器逐文件检查完整SHA-256，版本不符和部分迁移
+拒绝且不写入，重复应用零写入；原有meta GUID保持不变。补丁仅包含当前任务
+涉及的示例源码、Shader、测试及meta，不包含模型、凭据、用户配置或临时验收输出。
+验证覆盖Editor行为/GPU、真实macOS服务生命周期和独立协议替身；不代表全部
+第三方账号/模型、其他桌面系统或物理移动设备已经完成发布验收。
