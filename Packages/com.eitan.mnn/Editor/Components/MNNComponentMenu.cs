@@ -7,6 +7,9 @@ namespace MNN.Unity.Editor
     /// <summary>Shared, undoable component commands for MNN and imported sample menus.</summary>
     public static class MNNComponentMenu
     {
+        [MenuItem("GameObject/MNN/Agents/Harness Backend Setup", false, 10)]
+        private static void AddHarnessBackendSetup(MenuCommand command) => AddToSelection<MNNHarnessBackendSetup>(command);
+
         [MenuItem("GameObject/MNN/Inference/Inference Component", false, 10)]
         private static void AddInferenceComponent(MenuCommand command) => AddToSelection<MNNInferenceComponent>(command);
 

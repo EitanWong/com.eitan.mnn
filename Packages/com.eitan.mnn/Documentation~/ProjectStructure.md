@@ -243,7 +243,6 @@ Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有�
 `Common/Layout`仅放通用几何/运动，`Common/Diagnostics`放可复用系统采样，
 平台公开导出统一声明在对应`MNNInterop.*`文件。不得把Siri的产品视觉或业务默认值放进这些目录。
 
-
 ## Harness 核心所有权
 
 `Runtime/Core/Language/Agent/Harnesses` 拥有纯托管任务领域、持久任务运行时、文件存储、
@@ -264,9 +263,18 @@ Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有�
 SiriAI 四个适配器保留序列化字段、Unity 生命周期、凭据/设置和语音会话装配，调用上述包 API。
 不能让包反向引用 SiriAI 程序集。
 
-
 独立后台宿主位于 `Tools~/HarnessHost`（.NET8）及 `Tools~/DotCraftHost`（.NET10官方SDK），
 统一引用包内HarnessCore项目，保留既有可执行程序集名和配置协议。
 `Tools~/HarnessChecks`拥有独立协议对端、行为runner和包独立消费者；`harness_paths.py`
 集中声明包/工程根路径。所有Host/测试输出归工程`TestArtifacts~/`，Tools~不是Unity程序集。
 SiriAI仅引用包能力并提供应用配置、UI和设备装配，不再保存Host或协议检查实现的副本。
+
+## Harness 后端引导与复用组件
+
+`HarnessBackendCatalog` 是安装说明、显示名称和 CLI/适配器组合的单一来源；
+`DesktopHostServiceClient` 提供显式安装、配置准备与 OS 服务生命周期调用。
+`Runtime/Components/Harnesses` 的 `MNN.Unity.Harnesses.Components` 程序集仅依赖
+纯托管 Harness 契约，提供 `MNNHarnessBackendSetup` Unity 组件；Editor 菜单引用此组件。
+它不依赖 SiriAI、不加载前台模型、不自动安装或启动第三方工具。
+SiriAI 仅负责本地/远程选择、凭据输入、目录选择与连接后的应用装配。
+使用方法、部署与验证范围见 [Harness 后端接入](HarnessBackendSetup.md)。

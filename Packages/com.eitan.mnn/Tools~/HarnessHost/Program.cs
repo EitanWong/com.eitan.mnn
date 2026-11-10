@@ -16,6 +16,8 @@ if (args.Length > 0 && args[0] == "script-worker")
 }
 #endif
 
+if (args.Length > 0 && args[0] is "--backend-install" or "--setup-local")
+    return await BackendSetupCli.ExecuteAsync(args);
 if (args.Length > 0 && args[0] == "--service")
 {
     if (args.Length > 1 && args[1] == "run")

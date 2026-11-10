@@ -8855,6 +8855,10 @@ class MNN.Unity.MNNWaveAudio
 ## Components
 
 ```csharp
+public System.Action MNN.Unity.MNNHarnessBackendSetup.Changed
+```
+
+```csharp
 public static System.Action<string> MNN.Unity.MNNModelManager.OnModelLoaded
 ```
 
@@ -8994,6 +8998,42 @@ public MNN.Unity.InferenceErrorEvent.InferenceErrorEvent()
 
 ```csharp
 public MNN.Unity.InferenceEvent.InferenceEvent()
+```
+
+```csharp
+public MNN.Unity.MNNHarnessBackendSetup.MNNHarnessBackendSetup()
+```
+
+```csharp
+public void MNN.Unity.MNNHarnessBackendSetup.Configure(string runtime = null, string assembly = null, string serviceDirectory = null)
+```
+
+```csharp
+public System.Threading.Tasks.Task<string> MNN.Unity.MNNHarnessBackendSetup.InstallAsync(string backend)
+```
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup> MNN.Unity.MNNHarnessBackendSetup.PrepareAsync(string backend, string workspace, int port = 0, string endpoint = null, string model = null, string apiKey = null)
+```
+
+```csharp
+public string MNN.Unity.MNNHarnessBackendSetup.ReadAccessToken(MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup setup)
+```
+
+```csharp
+public string MNN.Unity.MNNHarnessBackendSetup.ReadSavedAccessToken(string scope)
+```
+
+```csharp
+public void MNN.Unity.MNNHarnessBackendSetup.RefreshEnvironment()
+```
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessInstallation[]> MNN.Unity.MNNHarnessBackendSetup.ScanAsync()
+```
+
+```csharp
+public System.Threading.Tasks.Task<string> MNN.Unity.MNNHarnessBackendSetup.StartHostAsync()
 ```
 
 ```csharp
@@ -9385,6 +9425,38 @@ public string MNN.Unity.ModelRuntimeInfo.GetStatusString()
 ```
 
 ```csharp
+public bool MNN.Unity.MNNHarnessBackendSetup.AutomaticDetection { get; set; }
+```
+
+```csharp
+public bool MNN.Unity.MNNHarnessBackendSetup.DetectionCompleted { get; private set; }
+```
+
+```csharp
+public string MNN.Unity.MNNHarnessBackendSetup.HostAssemblyPath { get; private set; }
+```
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessInstallation[] MNN.Unity.MNNHarnessBackendSetup.Installations { get; private set; }
+```
+
+```csharp
+public bool MNN.Unity.MNNHarnessBackendSetup.IsBusy { get; private set; }
+```
+
+```csharp
+public string MNN.Unity.MNNHarnessBackendSetup.RecommendedBackend { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNHarnessBackendSetup.RuntimePath { get; private set; }
+```
+
+```csharp
+public string MNN.Unity.MNNHarnessBackendSetup.ServiceDirectory { get; private set; }
+```
+
+```csharp
 public bool MNN.Unity.MNNInferenceComponent.IsInferring { get; }
 ```
 
@@ -9575,6 +9647,12 @@ class MNN.Unity.InferenceErrorEvent
 ```csharp
 class MNN.Unity.InferenceEvent
 ```
+
+```csharp
+class MNN.Unity.MNNHarnessBackendSetup
+```
+
+Reusable desktop backend setup. Discovery is read-only; installation and host startup are explicit.
 
 ```csharp
 class MNN.Unity.MNNInferenceComponent
@@ -11809,6 +11887,26 @@ MNN.Samples.SiriAI.Harnesses.HarnessInstructionState.Uncertain = 3
 ```
 
 ```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Address
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Backend
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.ScopeId
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.TokenPath
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Workspace
+```
+
+```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessNativeHistoryEntry[] MNN.Samples.SiriAI.Harnesses.HarnessNativeHistory.Entries
 ```
 
@@ -13509,7 +13607,19 @@ public System.Threading.Tasks.Task<string> MNN.Samples.SiriAI.Harnesses.DesktopH
 ```
 
 ```csharp
+public System.Threading.Tasks.Task<string> MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.InstallBackendAsync(string backend)
+```
+
+```csharp
 public System.Threading.Tasks.Task<string> MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.PrepareAsync(string id, string config, System.Collections.Generic.IDictionary<string, string> environment = null)
+```
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup> MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.PrepareBackendAsync(string backend, string workspace, int port = 8765, string endpoint = null, string model = null, System.Collections.Generic.IDictionary<string, string> environment = null)
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.ReadLocalAccessToken(MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup setup)
 ```
 
 ```csharp
@@ -13553,6 +13663,22 @@ public static string MNN.Samples.SiriAI.Harnesses.HarnessArtifactPresentation.Su
 ```
 
 ```csharp
+public static string MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.ChooseLocal(System.Collections.Generic.IEnumerable<MNN.Samples.SiriAI.Harnesses.HarnessInstallation> installations, string preferred = null)
+```
+
+```csharp
+public static string MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.DisplayName(string id)
+```
+
+```csharp
+public static MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.Get(string id)
+```
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent[] MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.MissingComponents(MNN.Samples.SiriAI.Harnesses.HarnessInstallation installation)
+```
+
+```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessBackendVersion.HarnessBackendVersion()
 ```
 
@@ -13586,6 +13712,14 @@ public MNN.Samples.SiriAI.Harnesses.HarnessContentKind.HarnessContentKind()
 
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessContentPart.HarnessContentPart(MNN.Samples.SiriAI.Harnesses.HarnessContentKind kind, string payload, string mediaType = null, string fileName = null)
+```
+
+```csharp
+public static string MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindHost(System.Collections.Generic.IEnumerable<string> roots)
+```
+
+```csharp
+public static string MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindRuntime()
 ```
 
 ```csharp
@@ -13650,6 +13784,18 @@ public MNN.Samples.SiriAI.Harnesses.HarnessInstallation.HarnessInstallation()
 
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessInstructionState.HarnessInstructionState()
+```
+
+```csharp
+public static MNN.Samples.SiriAI.Harnesses.HarnessInstallation[] MNN.Samples.SiriAI.Harnesses.HarnessLocalDiscovery.Scan(System.Collections.Generic.IEnumerable<string> searchDirectories = null)
+```
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.HarnessLocalSetup()
+```
+
+```csharp
+public static string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.ScopeFor(string backend, string workspace)
 ```
 
 ```csharp
@@ -16421,6 +16567,50 @@ public string MNN.Samples.SiriAI.Harnesses.HarnessArtifact.SourceTaskId { get; p
 ```
 
 ```csharp
+public static System.Collections.Generic.IReadOnlyList<MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition> MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.All { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Adapter { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.AdapterVariable { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Command { get; }
+```
+
+```csharp
+public System.Collections.Generic.IReadOnlyList<MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent> MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Components { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.ConfigurationHint { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.DocumentationUrl { get; }
+```
+
+```csharp
+public System.Collections.Generic.IReadOnlyList<string> MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.ExecutableVariables { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Id { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Integration { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Name { get; }
+```
+
+```csharp
 public string MNN.Samples.SiriAI.Harnesses.HarnessCollectedResult.ContentHash { get; private set; }
 ```
 
@@ -16526,6 +16716,18 @@ public string MNN.Samples.SiriAI.Harnesses.HarnessInputPrompt.NativeId { get; pr
 
 ```csharp
 public string MNN.Samples.SiriAI.Harnesses.HarnessInputPrompt.Url { get; private set; }
+```
+
+```csharp
+public bool MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.Adapter { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.Package { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.ScriptUrl { get; }
 ```
 
 ```csharp
@@ -18649,6 +18851,16 @@ class MNN.Samples.SiriAI.Harnesses.HarnessArtifactPresentation
 ```
 
 ```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog
+```
+
+```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition
+```
+
+Reusable onboarding metadata, independent of Unity, process execution and product UI.
+
+```csharp
 class MNN.Samples.SiriAI.Harnesses.HarnessBackendVersion
 ```
 
@@ -18679,6 +18891,10 @@ class MNN.Samples.SiriAI.Harnesses.HarnessContentPart
 ```
 
 A bounded value; URI parts are references and are never automatically downloaded.
+
+```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths
+```
 
 ```csharp
 enum MNN.Samples.SiriAI.Harnesses.HarnessExecutionKind
@@ -18735,6 +18951,10 @@ class MNN.Samples.SiriAI.Harnesses.HarnessInputPrompt
 Immutable pending text or external URL handoff. Completion is a backend report, not proof of authentication.
 
 ```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent
+```
+
+```csharp
 class MNN.Samples.SiriAI.Harnesses.HarnessInstallation
 ```
 
@@ -18745,6 +18965,18 @@ class MNN.Samples.SiriAI.Harnesses.HarnessInstruction
 ```csharp
 enum MNN.Samples.SiriAI.Harnesses.HarnessInstructionState
 ```
+
+```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessLocalDiscovery
+```
+
+Read-only local inventory without a running host, Node.js or .NET CLI. Presence is not authentication or protocol proof.
+
+```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup
+```
+
+Non-secret result of local host preparation. Read the private token only when connecting.
 
 ```csharp
 class MNN.Samples.SiriAI.Harnesses.HarnessNativeHistory
@@ -19967,6 +20199,10 @@ public static readonly string[] MNN.Unity.MNNHuggingFaceSourcePool.DefaultDiscov
 ```
 
 ```csharp
+public const string MNN.Unity.MNNInsufficientDiskSpaceException.ErrorCode = "insufficient_disk_space"
+```
+
+```csharp
 public const int MNN.Unity.MNNModelArchiveInstaller.MaximumEntries = 8192
 ```
 
@@ -21145,6 +21381,18 @@ public string MNN.Unity.MNNModelTransferFile.Sha256
 ```csharp
 public long MNN.Unity.MNNModelTransferFile.Size
 ```
+
+```csharp
+public System.Func<string, long> MNN.Unity.MNNModelTransferOptions.AvailableSpaceBytes
+```
+
+Optional platform-specific destination-volume query. Return available bytes; called on workers.
+
+```csharp
+public long MNN.Unity.MNNModelTransferOptions.DiskSpaceReserveBytes
+```
+
+Free bytes kept for manifests, receipts and other application writes. Defaults to 16 MiB.
 
 ```csharp
 public int MNN.Unity.MNNModelTransferOptions.MaxConnections
@@ -22361,6 +22609,28 @@ public static MNN.Unity.MNNHuggingFaceSourcePool MNN.Unity.MNNHuggingFaceSourceP
 ```
 
 ```csharp
+public long MNN.Unity.MNNInsufficientDiskSpaceException.AvailableBytes { get; }
+```
+
+```csharp
+public long MNN.Unity.MNNInsufficientDiskSpaceException.BytesToFree { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNInsufficientDiskSpaceException.DirectoryPath { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNInsufficientDiskSpaceException.RepositoryId { get; }
+```
+
+```csharp
+public long MNN.Unity.MNNInsufficientDiskSpaceException.RequiredBytes { get; }
+```
+
+Additional free bytes required, including assembly workspace and the configured reserve.
+
+```csharp
 public System.Collections.Generic.IReadOnlyList<string> MNN.Unity.MNNModelCatalog.DiscoveryWarnings { get; }
 ```
 
@@ -22649,6 +22919,12 @@ class MNN.Unity.MNNHuggingFaceSourcePool
 ```
 
 Known and discovered Hugging Face-compatible sources with failure cooling.
+
+```csharp
+class MNN.Unity.MNNInsufficientDiskSpaceException
+```
+
+A model download cannot fit on its destination volume. Catch this at the application boundary.
 
 ```csharp
 class MNN.Unity.MNNModelArchiveInstaller
@@ -24547,4 +24823,3 @@ class MNN.Unity.MNNYoloV8Config
 ```
 
 YOLOv8 box/class graph, RGB float32 NCHW input and no objectness channel.
-

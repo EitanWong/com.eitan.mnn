@@ -1,0 +1,8 @@
+{
+  "name": "MNN.Unity.Harnesses.Components",
+  "rootNamespace": "MNN.Unity",
+  "references": [
+    "MNN.Samples.SiriAI.Harnesses"
+  ],
+  "autoReferenced": true
+}

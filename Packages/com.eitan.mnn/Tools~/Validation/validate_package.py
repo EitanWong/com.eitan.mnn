@@ -14,6 +14,9 @@ from urllib.parse import unquote, urlsplit
 
 
 ASSEMBLIES = {
+    "MNN.Unity.Harnesses.Components": (
+        "Runtime/Components/Harnesses/MNN.Unity.Harnesses.Components.asmdef", {"MNN.Samples.SiriAI.Harnesses"}
+    ),
     "MNN.Samples.SiriAI.Harnesses": (
         "Runtime/Core/Language/Agent/Harnesses/MNN.Samples.SiriAI.Harnesses.asmdef", set()
     ),
@@ -23,7 +26,7 @@ ASSEMBLIES = {
     ),
     "MNN.Unity": ("Runtime/MNN.Unity.asmdef", set()),
     "MNN.Unity.Burst": ("Runtime/Core/Performance/Burst/MNN.Unity.Burst.asmdef", {"MNN.Unity"}),
-    "MNN.Unity.Editor": ("Editor/MNN.Unity.Editor.asmdef", {"MNN.Unity"}),
+    "MNN.Unity.Editor": ("Editor/MNN.Unity.Editor.asmdef", {"MNN.Unity", "MNN.Unity.Harnesses.Components"}),
     "MNN.Unity.Tests": (
         "Tests/Editor/MNN.Unity.Tests.asmdef", {"MNN.Unity", "MNN.Unity.Editor", "MNN.Unity.Tests.Fixtures"}
     ),

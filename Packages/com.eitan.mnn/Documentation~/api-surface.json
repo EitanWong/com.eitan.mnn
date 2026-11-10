@@ -14238,6 +14238,13 @@
     "Summary": ""
   },
   {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "E:MNN.Unity.MNNHarnessBackendSetup.Changed",
+    "Signature": "public System.Action MNN.Unity.MNNHarnessBackendSetup.Changed",
+    "Summary": ""
+  },
+  {
     "Assembly": "MNN.Unity",
     "Domain": "Components",
     "Id": "E:MNN.Unity.MNNModelManager.OnModelLoaded",
@@ -14480,6 +14487,69 @@
     "Domain": "Components",
     "Id": "M:MNN.Unity.InferenceEvent.#ctor",
     "Signature": "public MNN.Unity.InferenceEvent.InferenceEvent()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.#ctor",
+    "Signature": "public MNN.Unity.MNNHarnessBackendSetup.MNNHarnessBackendSetup()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.Configure(System.String,System.String,System.String)",
+    "Signature": "public void MNN.Unity.MNNHarnessBackendSetup.Configure(string runtime = null, string assembly = null, string serviceDirectory = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.InstallAsync(System.String)",
+    "Signature": "public System.Threading.Tasks.Task\u003Cstring\u003E MNN.Unity.MNNHarnessBackendSetup.InstallAsync(string backend)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.PrepareAsync(System.String,System.String,System.Int32,System.String,System.String,System.String)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessLocalSetup\u003E MNN.Unity.MNNHarnessBackendSetup.PrepareAsync(string backend, string workspace, int port = 0, string endpoint = null, string model = null, string apiKey = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.ReadAccessToken(MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup)",
+    "Signature": "public string MNN.Unity.MNNHarnessBackendSetup.ReadAccessToken(MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup setup)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.ReadSavedAccessToken(System.String)",
+    "Signature": "public string MNN.Unity.MNNHarnessBackendSetup.ReadSavedAccessToken(string scope)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.RefreshEnvironment",
+    "Signature": "public void MNN.Unity.MNNHarnessBackendSetup.RefreshEnvironment()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.ScanAsync",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessInstallation[]\u003E MNN.Unity.MNNHarnessBackendSetup.ScanAsync()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNHarnessBackendSetup.StartHostAsync",
+    "Signature": "public System.Threading.Tasks.Task\u003Cstring\u003E MNN.Unity.MNNHarnessBackendSetup.StartHostAsync()",
     "Summary": ""
   },
   {
@@ -15022,6 +15092,62 @@
     "Summary": ""
   },
   {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.AutomaticDetection",
+    "Signature": "public bool MNN.Unity.MNNHarnessBackendSetup.AutomaticDetection { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.DetectionCompleted",
+    "Signature": "public bool MNN.Unity.MNNHarnessBackendSetup.DetectionCompleted { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.HostAssemblyPath",
+    "Signature": "public string MNN.Unity.MNNHarnessBackendSetup.HostAssemblyPath { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.Installations",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessInstallation[] MNN.Unity.MNNHarnessBackendSetup.Installations { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.IsBusy",
+    "Signature": "public bool MNN.Unity.MNNHarnessBackendSetup.IsBusy { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.RecommendedBackend",
+    "Signature": "public string MNN.Unity.MNNHarnessBackendSetup.RecommendedBackend { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.RuntimePath",
+    "Signature": "public string MNN.Unity.MNNHarnessBackendSetup.RuntimePath { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNHarnessBackendSetup.ServiceDirectory",
+    "Signature": "public string MNN.Unity.MNNHarnessBackendSetup.ServiceDirectory { get; private set; }",
+    "Summary": ""
+  },
+  {
     "Assembly": "MNN.Unity",
     "Domain": "Components",
     "Id": "P:MNN.Unity.MNNInferenceComponent.IsInferring",
@@ -15335,6 +15461,13 @@
     "Id": "T:MNN.Unity.InferenceEvent",
     "Signature": "class MNN.Unity.InferenceEvent",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity.Harnesses.Components",
+    "Domain": "Components",
+    "Id": "T:MNN.Unity.MNNHarnessBackendSetup",
+    "Signature": "class MNN.Unity.MNNHarnessBackendSetup",
+    "Summary": "Reusable desktop backend setup. Discovery is read-only; installation and host startup are explicit."
   },
   {
     "Assembly": "MNN.Unity",
@@ -18643,6 +18776,41 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Address",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Address",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Backend",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Backend",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.ScopeId",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.ScopeId",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.TokenPath",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.TokenPath",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Workspace",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.Workspace",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessNativeHistory.Entries",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessNativeHistoryEntry[] MNN.Samples.SiriAI.Harnesses.HarnessNativeHistory.Entries",
     "Summary": ""
@@ -21611,8 +21779,29 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.InstallBackendAsync(System.String)",
+    "Signature": "public System.Threading.Tasks.Task\u003Cstring\u003E MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.InstallBackendAsync(string backend)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.PrepareAsync(System.String,System.String,System.Collections.Generic.IDictionary{System.String,System.String})",
     "Signature": "public System.Threading.Tasks.Task\u003Cstring\u003E MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.PrepareAsync(string id, string config, System.Collections.Generic.IDictionary\u003Cstring, string\u003E environment = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.PrepareBackendAsync(System.String,System.String,System.Int32,System.String,System.String,System.Collections.Generic.IDictionary{System.String,System.String})",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessLocalSetup\u003E MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.PrepareBackendAsync(string backend, string workspace, int port = 8765, string endpoint = null, string model = null, System.Collections.Generic.IDictionary\u003Cstring, string\u003E environment = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.ReadLocalAccessToken(MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup)",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient.ReadLocalAccessToken(MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup setup)",
     "Summary": ""
   },
   {
@@ -21688,6 +21877,34 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.ChooseLocal(System.Collections.Generic.IEnumerable{MNN.Samples.SiriAI.Harnesses.HarnessInstallation},System.String)",
+    "Signature": "public static string MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.ChooseLocal(System.Collections.Generic.IEnumerable\u003CMNN.Samples.SiriAI.Harnesses.HarnessInstallation\u003E installations, string preferred = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.DisplayName(System.String)",
+    "Signature": "public static string MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.DisplayName(string id)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.Get(System.String)",
+    "Signature": "public static MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.Get(string id)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.MissingComponents(MNN.Samples.SiriAI.Harnesses.HarnessInstallation)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent[] MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.MissingComponents(MNN.Samples.SiriAI.Harnesses.HarnessInstallation installation)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessBackendVersion.#ctor",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessBackendVersion.HarnessBackendVersion()",
     "Summary": ""
@@ -21746,6 +21963,20 @@
     "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessContentPart.#ctor(MNN.Samples.SiriAI.Harnesses.HarnessContentKind,System.String,System.String,System.String)",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessContentPart.HarnessContentPart(MNN.Samples.SiriAI.Harnesses.HarnessContentKind kind, string payload, string mediaType = null, string fileName = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindHost(System.Collections.Generic.IEnumerable{System.String})",
+    "Signature": "public static string MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindHost(System.Collections.Generic.IEnumerable\u003Cstring\u003E roots)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindRuntime",
+    "Signature": "public static string MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths.FindRuntime()",
     "Summary": ""
   },
   {
@@ -21858,6 +22089,27 @@
     "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessInstructionState.#ctor",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessInstructionState.HarnessInstructionState()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessLocalDiscovery.Scan(System.Collections.Generic.IEnumerable{System.String})",
+    "Signature": "public static MNN.Samples.SiriAI.Harnesses.HarnessInstallation[] MNN.Samples.SiriAI.Harnesses.HarnessLocalDiscovery.Scan(System.Collections.Generic.IEnumerable\u003Cstring\u003E searchDirectories = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.#ctor",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.HarnessLocalSetup()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.ScopeFor(System.String,System.String)",
+    "Signature": "public static string MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup.ScopeFor(string backend, string workspace)",
     "Summary": ""
   },
   {
@@ -26462,6 +26714,83 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.All",
+    "Signature": "public static System.Collections.Generic.IReadOnlyList\u003CMNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition\u003E MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog.All { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Adapter",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Adapter { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.AdapterVariable",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.AdapterVariable { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Command",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Command { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Components",
+    "Signature": "public System.Collections.Generic.IReadOnlyList\u003CMNN.Samples.SiriAI.Harnesses.HarnessInstallComponent\u003E MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Components { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.ConfigurationHint",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.ConfigurationHint { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.DocumentationUrl",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.DocumentationUrl { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.ExecutableVariables",
+    "Signature": "public System.Collections.Generic.IReadOnlyList\u003Cstring\u003E MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.ExecutableVariables { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Id",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Id { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Integration",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Integration { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Name",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition.Name { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessCollectedResult.ContentHash",
     "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessCollectedResult.ContentHash { get; private set; }",
     "Summary": ""
@@ -26646,6 +26975,27 @@
     "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessInputPrompt.Url",
     "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessInputPrompt.Url { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.Adapter",
+    "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.Adapter { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.Package",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.Package { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.ScriptUrl",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent.ScriptUrl { get; }",
     "Summary": ""
   },
   {
@@ -30256,6 +30606,20 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessBackendCatalog",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessBackendDefinition",
+    "Summary": "Reusable onboarding metadata, independent of Unity, process execution and product UI."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessBackendVersion",
     "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessBackendVersion",
     "Summary": "Normalized numeric version evidence, never raw backend process output."
@@ -30294,6 +30658,13 @@
     "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessContentPart",
     "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessContentPart",
     "Summary": "A bounded value; URI parts are references and are never automatically downloaded."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessDesktopPaths",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
@@ -30382,6 +30753,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessInstallComponent",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessInstallation",
     "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessInstallation",
     "Summary": ""
@@ -30399,6 +30777,20 @@
     "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessInstructionState",
     "Signature": "enum MNN.Samples.SiriAI.Harnesses.HarnessInstructionState",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessLocalDiscovery",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessLocalDiscovery",
+    "Summary": "Read-only local inventory without a running host, Node.js or .NET CLI. Presence is not authentication or protocol proof."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessLocalSetup",
+    "Summary": "Non-secret result of local host preparation. Read the private token only when connecting."
   },
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
@@ -32134,6 +32526,13 @@
     "Domain": "Models",
     "Id": "F:MNN.Unity.MNNHuggingFaceSourcePool.DefaultDiscoveryUrls",
     "Signature": "public static readonly string[] MNN.Unity.MNNHuggingFaceSourcePool.DefaultDiscoveryUrls",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "F:MNN.Unity.MNNInsufficientDiskSpaceException.ErrorCode",
+    "Signature": "public const string MNN.Unity.MNNInsufficientDiskSpaceException.ErrorCode = \u0022insufficient_disk_space\u0022",
     "Summary": ""
   },
   {
@@ -34204,6 +34603,20 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Models",
+    "Id": "F:MNN.Unity.MNNModelTransferOptions.AvailableSpaceBytes",
+    "Signature": "public System.Func\u003Cstring, long\u003E MNN.Unity.MNNModelTransferOptions.AvailableSpaceBytes",
+    "Summary": "Optional platform-specific destination-volume query. Return available bytes; called on workers."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "F:MNN.Unity.MNNModelTransferOptions.DiskSpaceReserveBytes",
+    "Signature": "public long MNN.Unity.MNNModelTransferOptions.DiskSpaceReserveBytes",
+    "Summary": "Free bytes kept for manifests, receipts and other application writes. Defaults to 16 MiB."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
     "Id": "F:MNN.Unity.MNNModelTransferOptions.MaxConnections",
     "Signature": "public int MNN.Unity.MNNModelTransferOptions.MaxConnections",
     "Summary": ""
@@ -36178,6 +36591,41 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNInsufficientDiskSpaceException.AvailableBytes",
+    "Signature": "public long MNN.Unity.MNNInsufficientDiskSpaceException.AvailableBytes { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNInsufficientDiskSpaceException.BytesToFree",
+    "Signature": "public long MNN.Unity.MNNInsufficientDiskSpaceException.BytesToFree { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNInsufficientDiskSpaceException.DirectoryPath",
+    "Signature": "public string MNN.Unity.MNNInsufficientDiskSpaceException.DirectoryPath { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNInsufficientDiskSpaceException.RepositoryId",
+    "Signature": "public string MNN.Unity.MNNInsufficientDiskSpaceException.RepositoryId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNInsufficientDiskSpaceException.RequiredBytes",
+    "Signature": "public long MNN.Unity.MNNInsufficientDiskSpaceException.RequiredBytes { get; }",
+    "Summary": "Additional free bytes required, including assembly workspace and the configured reserve."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
     "Id": "P:MNN.Unity.MNNModelCatalog.DiscoveryWarnings",
     "Signature": "public System.Collections.Generic.IReadOnlyList\u003Cstring\u003E MNN.Unity.MNNModelCatalog.DiscoveryWarnings { get; }",
     "Summary": ""
@@ -36664,6 +37112,13 @@
     "Id": "T:MNN.Unity.MNNHuggingFaceSourcePool",
     "Signature": "class MNN.Unity.MNNHuggingFaceSourcePool",
     "Summary": "Known and discovered Hugging Face-compatible sources with failure cooling."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "T:MNN.Unity.MNNInsufficientDiskSpaceException",
+    "Signature": "class MNN.Unity.MNNInsufficientDiskSpaceException",
+    "Summary": "A model download cannot fit on its destination volume. Catch this at the application boundary."
   },
   {
     "Assembly": "MNN.Unity",

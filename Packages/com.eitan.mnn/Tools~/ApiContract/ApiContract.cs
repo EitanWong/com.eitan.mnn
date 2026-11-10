@@ -44,16 +44,31 @@ internal static class ApiContract
             .ToDictionary(path => Path.GetDirectoryName(path)!, path => JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("name").GetString()!);
         var sources = Directory.GetFiles(runtime, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains(Path.DirectorySeparatorChar + "Plugins" + Path.DirectorySeparatorChar))
-            .GroupBy(path => Owner(path, folders));
-        foreach (var group in sources.Where(group => group.Key != "MNN.Unity.Burst").OrderBy(group => group.Key, StringComparer.Ordinal))
+            .GroupBy(path => Owner(path, folders)).ToDictionary(group => group.Key, group => group.ToArray());
+        var definitions = Directory.GetFiles(runtime, "*.asmdef", SearchOption.AllDirectories)
+            .Select(path => JsonDocument.Parse(File.ReadAllText(path)).RootElement.Clone())
+            .ToDictionary(definition => definition.GetProperty("name").GetString()!);
+        var compiled = new Dictionary<string, CSharpCompilation>(StringComparer.Ordinal);
+        var pending = sources.Keys.Where(name => name != "MNN.Unity.Burst").OrderBy(name => name, StringComparer.Ordinal).ToList();
+        while (pending.Count != 0)
         {
-            var trees = group.OrderBy(path => path, StringComparer.Ordinal).Select(Parse).ToArray();
-            var compilation = CSharpCompilation.Create(group.Key, trees, references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
-            foreach (var diagnostic in compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error))
-                errors.Add(diagnostic.ToString());
-            CheckLayers(compilation, errors);
-            Collect(compilation.Assembly.GlobalNamespace, package, group.Key, entries, errors);
+            bool progressed = false;
+            foreach (string name in pending.ToArray())
+            {
+                string[] dependencies = definitions[name].GetProperty("references").EnumerateArray()
+                    .Select(item => item.GetString()!).Where(sources.ContainsKey).ToArray();
+                if (dependencies.Any(dependency => !compiled.ContainsKey(dependency))) continue;
+                var trees = sources[name].OrderBy(path => path, StringComparer.Ordinal).Select(Parse).ToArray();
+                var compilation = CSharpCompilation.Create(name, trees,
+                    references.Concat(dependencies.Select(dependency => compiled[dependency].ToMetadataReference())),
+                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
+                foreach (var diagnostic in compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error))
+                    errors.Add(diagnostic.ToString());
+                CheckLayers(compilation, errors);
+                Collect(compilation.Assembly.GlobalNamespace, package, name, entries, errors);
+                compiled.Add(name, compilation); pending.Remove(name); progressed = true;
+            }
+            if (!progressed) throw new InvalidDataException("Runtime assembly dependency cycle: " + string.Join(", ", pending));
         }
         var ordered = entries.OrderBy(entry => entry.Domain, StringComparer.Ordinal).ThenBy(entry => entry.Id, StringComparer.Ordinal).ToArray();
         string manifest = JsonSerializer.Serialize(ordered, new JsonSerializerOptions { WriteIndented = true }) + "\n";
@@ -222,7 +237,7 @@ internal static class ApiContract
                 if (entry.Summary.Length != 0) text.Append(entry.Summary.Replace("<", "&lt;").Replace(">", "&gt;")).Append("\n\n");
             }
         }
-        return text.ToString();
+        return text.ToString().TrimEnd() + "\n";
     }
 
     private static int SelfTest()

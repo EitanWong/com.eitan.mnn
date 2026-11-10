@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace MNN.Samples.SiriAI.Harnesses
 {
     /// <summary>Desktop-only CLI control. The OS owns the host; disposing a Unity client never stops it.</summary>
-    public sealed class DesktopHostServiceClient
+    public sealed partial class DesktopHostServiceClient
     {
         private readonly string _runtime, _assembly, _directory;
         public DesktopHostServiceClient(string runtime, string assembly, string directory, bool mobile)
@@ -29,7 +29,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                 throw new ArgumentException("Choose a desktop service lifecycle command.", nameof(command));
             return RunAsync(new[] { "--service", command, "--directory", _directory }, null);
         }
-        private async Task<string> RunAsync(string[] arguments, IDictionary<string, string> environment)
+        private async Task<string> RunAsync(string[] arguments, IDictionary<string, string> environment, int timeoutMilliseconds = 45000)
         {
             if (!File.Exists(_runtime) || !File.Exists(_assembly)) throw new FileNotFoundException("Select an existing dotnet runtime and SiriAI.HarnessHost.dll.");
             var start = new ProcessStartInfo(_runtime, string.Join(" ", new[] { _assembly }.Concat(arguments).Select(Quote)))
@@ -44,7 +44,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                 if (!process.Start()) throw new IOException("The desktop service command did not start.");
                 var output = ReadBoundedAsync(process.StandardOutput);
                 var error = ReadBoundedAsync(process.StandardError);
-                var exit = Task.Run(() => process.WaitForExit(45000));
+                var exit = Task.Run(() => process.WaitForExit(timeoutMilliseconds));
                 if (!await exit.ConfigureAwait(false))
                 {
                     // Only this short-lived CLI is ours. Never kill the independent host or its backend processes.

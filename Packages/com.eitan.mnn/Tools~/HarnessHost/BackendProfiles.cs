@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MNN.Samples.SiriAI.Harnesses;
 
 namespace SiriAI.HarnessHost;
 
@@ -16,22 +17,22 @@ internal static class BackendProfiles
 #endif
     internal static readonly BackendProfile[] All =
     [
-        new("qwen", "Qwen Code", "qwen", null, ["--acp"], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["QWEN_CODE_"], ExecutableVariables: ["QWEN_CODE_BIN"], MinimumVersion: "0.21.6", SkillsInstaller: "qwen-code"),
-        new("qoder", "Qoder", "qodercli", null, ["--acp"], [], ["QODER_", "QODERCLI_"], ExecutableVariables: ["QODERCLI_PATH", "QODER_CLI_PATH"], SkillsInstaller: "qoder"),
-        new("opencode", "OpenCode", "opencode", null, ["acp"], ["DASHSCOPE_API_KEY"], ["OPENCODE_"], ExecutableVariables: ["OPENCODE_BIN"], MinimumVersion: "1.18.0", SkillsInstaller: "opencode"),
-        new("minimax", "MiniMax Code", "mcode", null, ["acp"], [], ["MINIMAX_"], ExecutableVariables: ["MINIMAX_CODE_BIN"], MinimumVersion: "0.3.7"),
-        new("kimi", "Kimi Code", "kimi", null, ["acp"], [], ["KIMI_"], ExecutableVariables: ["KIMI_CODE_BIN"], MinimumVersion: "0.31.0", SkillsInstaller: "kimi-code-cli"),
-        new("hermes", "Hermes", "hermes", null, ["acp", "--accept-hooks"], [], ["HERMES_"], ExecutableVariables: ["HERMES_BIN"], SkillsInstaller: "hermes-agent"),
-        new("codebuddy", "CodeBuddy", "codebuddy", null, ["--acp"], [], ["CODEBUDDY_"], ExecutableVariables: ["CODEBUDDY_BIN"], SkillsInstaller: "codebuddy"),
-        new("deepseek", "DeepSeek Harness", "dsh", null, ["--profile", "acp"], ["DEEPSEEK_API_KEY"], ["DEEPSEEK_", "DSH_"], ExecutableVariables: ["DEEPSEEK_HARNESS_BIN"], MinimumVersion: "0.1.5"),
-        new("codex", "Codex", "codex", "codex-acp", [], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["CODEX_"], ExecutableVariables: ["CODEX_PATH"], AdapterVariable: "CODEX_ACP_BIN", SkillsInstaller: "codex"),
-        new("claude", "Claude Code", "claude", "claude-agent-acp", [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "CLAUDE_API_KEY"], ["CLAUDE_"], ExecutableVariables: ["CLAUDE_CODE_EXECUTABLE"], AdapterVariable: "CLAUDE_CODE_ACP_BIN", SkillsInstaller: "claude-code"),
-        new("pi", "Pi", "pi", "pi-acp", [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "GEMINI_API_KEY", "GOOGLE_API_KEY"], ["PI_"], AlwaysFull: true, ExecutableVariables: ["PI_ACP_PI_COMMAND", "PI_BIN"], AdapterVariable: "PI_ACP_BIN", MinimumVersion: "0.80.4", SkillsInstaller: "pi"),
-        new("openclaw", "OpenClaw", "openclaw", null, ["acp"], ["DASHSCOPE_API_KEY", "AGENT_API_KEY"], ["OPENCLAW_"], FullPermission: false, ExecutableVariables: ["OPENCLAW_BIN"], SkillsInstaller: "openclaw"),
+        new("qwen", HarnessBackendCatalog.Get("qwen").Name, HarnessBackendCatalog.Get("qwen").Command, HarnessBackendCatalog.Get("qwen").Adapter, ["--acp"], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["QWEN_CODE_"], ExecutableVariables: HarnessBackendCatalog.Get("qwen").ExecutableVariables.ToArray(), MinimumVersion: "0.21.6", SkillsInstaller: "qwen-code"),
+        new("qoder", HarnessBackendCatalog.Get("qoder").Name, HarnessBackendCatalog.Get("qoder").Command, HarnessBackendCatalog.Get("qoder").Adapter, ["--acp"], [], ["QODER_", "QODERCLI_"], ExecutableVariables: HarnessBackendCatalog.Get("qoder").ExecutableVariables.ToArray(), SkillsInstaller: "qoder"),
+        new("opencode", HarnessBackendCatalog.Get("opencode").Name, HarnessBackendCatalog.Get("opencode").Command, HarnessBackendCatalog.Get("opencode").Adapter, ["acp"], ["DASHSCOPE_API_KEY"], ["OPENCODE_"], ExecutableVariables: HarnessBackendCatalog.Get("opencode").ExecutableVariables.ToArray(), MinimumVersion: "1.18.0", SkillsInstaller: "opencode"),
+        new("minimax", HarnessBackendCatalog.Get("minimax").Name, HarnessBackendCatalog.Get("minimax").Command, HarnessBackendCatalog.Get("minimax").Adapter, ["acp"], [], ["MINIMAX_"], ExecutableVariables: HarnessBackendCatalog.Get("minimax").ExecutableVariables.ToArray(), MinimumVersion: "0.3.7"),
+        new("kimi", HarnessBackendCatalog.Get("kimi").Name, HarnessBackendCatalog.Get("kimi").Command, HarnessBackendCatalog.Get("kimi").Adapter, ["acp"], [], ["KIMI_"], ExecutableVariables: HarnessBackendCatalog.Get("kimi").ExecutableVariables.ToArray(), MinimumVersion: "0.31.0", SkillsInstaller: "kimi-code-cli"),
+        new("hermes", HarnessBackendCatalog.Get("hermes").Name, HarnessBackendCatalog.Get("hermes").Command, HarnessBackendCatalog.Get("hermes").Adapter, ["acp", "--accept-hooks"], [], ["HERMES_"], ExecutableVariables: HarnessBackendCatalog.Get("hermes").ExecutableVariables.ToArray(), SkillsInstaller: "hermes-agent"),
+        new("codebuddy", HarnessBackendCatalog.Get("codebuddy").Name, HarnessBackendCatalog.Get("codebuddy").Command, HarnessBackendCatalog.Get("codebuddy").Adapter, ["--acp"], [], ["CODEBUDDY_"], ExecutableVariables: HarnessBackendCatalog.Get("codebuddy").ExecutableVariables.ToArray(), SkillsInstaller: "codebuddy"),
+        new("deepseek", HarnessBackendCatalog.Get("deepseek").Name, HarnessBackendCatalog.Get("deepseek").Command, HarnessBackendCatalog.Get("deepseek").Adapter, ["--profile", "acp"], ["DEEPSEEK_API_KEY"], ["DEEPSEEK_", "DSH_"], ExecutableVariables: HarnessBackendCatalog.Get("deepseek").ExecutableVariables.ToArray(), MinimumVersion: "0.1.5"),
+        new("codex", HarnessBackendCatalog.Get("codex").Name, HarnessBackendCatalog.Get("codex").Command, HarnessBackendCatalog.Get("codex").Adapter, [], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["CODEX_"], ExecutableVariables: HarnessBackendCatalog.Get("codex").ExecutableVariables.ToArray(), AdapterVariable: HarnessBackendCatalog.Get("codex").AdapterVariable, SkillsInstaller: "codex"),
+        new("claude", HarnessBackendCatalog.Get("claude").Name, HarnessBackendCatalog.Get("claude").Command, HarnessBackendCatalog.Get("claude").Adapter, [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "CLAUDE_API_KEY"], ["CLAUDE_"], ExecutableVariables: HarnessBackendCatalog.Get("claude").ExecutableVariables.ToArray(), AdapterVariable: HarnessBackendCatalog.Get("claude").AdapterVariable, SkillsInstaller: "claude-code"),
+        new("pi", HarnessBackendCatalog.Get("pi").Name, HarnessBackendCatalog.Get("pi").Command, HarnessBackendCatalog.Get("pi").Adapter, [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "GEMINI_API_KEY", "GOOGLE_API_KEY"], ["PI_"], AlwaysFull: true, ExecutableVariables: HarnessBackendCatalog.Get("pi").ExecutableVariables.ToArray(), AdapterVariable: HarnessBackendCatalog.Get("pi").AdapterVariable, MinimumVersion: "0.80.4", SkillsInstaller: "pi"),
+        new("openclaw", HarnessBackendCatalog.Get("openclaw").Name, HarnessBackendCatalog.Get("openclaw").Command, HarnessBackendCatalog.Get("openclaw").Adapter, ["acp"], ["DASHSCOPE_API_KEY", "AGENT_API_KEY"], ["OPENCLAW_"], FullPermission: false, ExecutableVariables: HarnessBackendCatalog.Get("openclaw").ExecutableVariables.ToArray(), SkillsInstaller: "openclaw"),
         new("acp", "ACP Agent", null, null, [], [], ["ACP_"], FullPermission: false, ExecutableVariables: ["ACP_COMMAND"]),
         new("a2a", "A2A Agent", null, null, [], [], [], FullPermission: false, Integration: "a2a"),
         new("http", "SiriAI HTTP v1", null, null, [], [], [], FullPermission: false, Integration: "http"),
-        new("muse", "Muse Code", "muse", null, ["serve"], ["META_API_KEY"], ["MUSE_"], Integration: "msp", ExecutableVariables: ["MUSE_CODE_BIN"]),
+        new("muse", HarnessBackendCatalog.Get("muse").Name, HarnessBackendCatalog.Get("muse").Command, HarnessBackendCatalog.Get("muse").Adapter, ["serve"], ["META_API_KEY"], ["MUSE_"], Integration: "msp", ExecutableVariables: HarnessBackendCatalog.Get("muse").ExecutableVariables.ToArray()),
         new("llm", "LLM", null, null, [], [], [], FullPermission: false, Integration: "llm"),
         new("dotcraft", "DotCraft", "dotcraft", null, [], [], [], FullPermission: false, Integration: "dotcraft", Implemented: DotCraftImplemented)
     ];
