@@ -126,6 +126,7 @@ are excluded from source control. Tests do not automatically download large mode
 
 ## Documentation
 
+- [Harness background tasks and application integration](Documentation~/Harness.md)
 - [Documentation index](Documentation~/README.md)
 - [Desktop Mono contracts and evidence](Documentation~/DesktopMono.md)
 - [API reference](Documentation~/API.md)
