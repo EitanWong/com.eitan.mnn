@@ -37,6 +37,11 @@ internal static class Program
     }
     private static async Task RunAsync()
     {
+        var skills = new SiriAIHarnessSkillsTests();
+        skills.SkillRequestsRequireExplicitNamesAndClosedOperations();
+        Console.WriteLine("PASS explicit closed skill management requests preserve literal source arguments");
+        await skills.VerifyAsync();
+        Console.WriteLine("PASS durable skill admission journal reopens and replays the exact management route and identity");
         var readiness = new SiriAIHarnessReadinessTests();
         readiness.VersionEvidenceSurvivesThePublicJsonContract();
         Console.WriteLine("PASS typed backend version evidence, optional old-Host fields and readiness consistency");

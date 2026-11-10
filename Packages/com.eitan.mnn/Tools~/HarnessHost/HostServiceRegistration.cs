@@ -50,6 +50,7 @@ internal sealed class HostServiceRegistration
             .Concat(config.CoordinatorMcpScopes.Select(s => s.TokenEnvironmentVariable))
             .Concat(config.Harnesses.Select(h => h.TokenEnvironmentVariable))
             .Concat(config.Harnesses.SelectMany(h => h.ForwardEnvironment ?? []))
+            .Concat(config.Skills?.ForwardEnvironment ?? [])
             .Concat(config.Harnesses.SelectMany(AcpMcpConfiguration.EnvironmentNames))
             .Concat(extraEnvironment).Concat(BackendProcessEnvironment.AvailableSystemNames()).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal).ToArray();
         var credentials = new Dictionary<string, string>(StringComparer.Ordinal);

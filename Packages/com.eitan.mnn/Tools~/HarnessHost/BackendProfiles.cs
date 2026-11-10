@@ -5,7 +5,7 @@ namespace SiriAI.HarnessHost;
 /// <summary>One source for launch defaults, discovery and backend environment policy; no installation side effects.</summary>
 internal sealed record BackendProfile(string Id, string Name, string Command, string Adapter, string[] Arguments,
     string[] EnvironmentNames, string[] EnvironmentPrefixes, bool FullPermission = true, bool AlwaysFull = false,
-    string Integration = "acp", bool Implemented = true, string[] ExecutableVariables = null, string AdapterVariable = null, string MinimumVersion = null);
+    string Integration = "acp", bool Implemented = true, string[] ExecutableVariables = null, string AdapterVariable = null, string MinimumVersion = null, string SkillsInstaller = null);
 
 internal static class BackendProfiles
 {
@@ -16,18 +16,18 @@ internal static class BackendProfiles
 #endif
     internal static readonly BackendProfile[] All =
     [
-        new("qwen", "Qwen Code", "qwen", null, ["--acp"], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["QWEN_CODE_"], ExecutableVariables: ["QWEN_CODE_BIN"], MinimumVersion: "0.21.6"),
-        new("qoder", "Qoder", "qodercli", null, ["--acp"], [], ["QODER_", "QODERCLI_"], ExecutableVariables: ["QODERCLI_PATH", "QODER_CLI_PATH"]),
-        new("opencode", "OpenCode", "opencode", null, ["acp"], ["DASHSCOPE_API_KEY"], ["OPENCODE_"], ExecutableVariables: ["OPENCODE_BIN"], MinimumVersion: "1.18.0"),
+        new("qwen", "Qwen Code", "qwen", null, ["--acp"], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["QWEN_CODE_"], ExecutableVariables: ["QWEN_CODE_BIN"], MinimumVersion: "0.21.6", SkillsInstaller: "qwen-code"),
+        new("qoder", "Qoder", "qodercli", null, ["--acp"], [], ["QODER_", "QODERCLI_"], ExecutableVariables: ["QODERCLI_PATH", "QODER_CLI_PATH"], SkillsInstaller: "qoder"),
+        new("opencode", "OpenCode", "opencode", null, ["acp"], ["DASHSCOPE_API_KEY"], ["OPENCODE_"], ExecutableVariables: ["OPENCODE_BIN"], MinimumVersion: "1.18.0", SkillsInstaller: "opencode"),
         new("minimax", "MiniMax Code", "mcode", null, ["acp"], [], ["MINIMAX_"], ExecutableVariables: ["MINIMAX_CODE_BIN"], MinimumVersion: "0.3.7"),
-        new("kimi", "Kimi Code", "kimi", null, ["acp"], [], ["KIMI_"], ExecutableVariables: ["KIMI_CODE_BIN"], MinimumVersion: "0.31.0"),
-        new("hermes", "Hermes", "hermes", null, ["acp", "--accept-hooks"], [], ["HERMES_"], ExecutableVariables: ["HERMES_BIN"]),
-        new("codebuddy", "CodeBuddy", "codebuddy", null, ["--acp"], [], ["CODEBUDDY_"], ExecutableVariables: ["CODEBUDDY_BIN"]),
+        new("kimi", "Kimi Code", "kimi", null, ["acp"], [], ["KIMI_"], ExecutableVariables: ["KIMI_CODE_BIN"], MinimumVersion: "0.31.0", SkillsInstaller: "kimi-code-cli"),
+        new("hermes", "Hermes", "hermes", null, ["acp", "--accept-hooks"], [], ["HERMES_"], ExecutableVariables: ["HERMES_BIN"], SkillsInstaller: "hermes-agent"),
+        new("codebuddy", "CodeBuddy", "codebuddy", null, ["--acp"], [], ["CODEBUDDY_"], ExecutableVariables: ["CODEBUDDY_BIN"], SkillsInstaller: "codebuddy"),
         new("deepseek", "DeepSeek Harness", "dsh", null, ["--profile", "acp"], ["DEEPSEEK_API_KEY"], ["DEEPSEEK_", "DSH_"], ExecutableVariables: ["DEEPSEEK_HARNESS_BIN"], MinimumVersion: "0.1.5"),
-        new("codex", "Codex", "codex", "codex-acp", [], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["CODEX_"], ExecutableVariables: ["CODEX_PATH"], AdapterVariable: "CODEX_ACP_BIN"),
-        new("claude", "Claude Code", "claude", "claude-agent-acp", [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "CLAUDE_API_KEY"], ["CLAUDE_"], ExecutableVariables: ["CLAUDE_CODE_EXECUTABLE"], AdapterVariable: "CLAUDE_CODE_ACP_BIN"),
-        new("pi", "Pi", "pi", "pi-acp", [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "GEMINI_API_KEY", "GOOGLE_API_KEY"], ["PI_"], AlwaysFull: true, ExecutableVariables: ["PI_ACP_PI_COMMAND", "PI_BIN"], AdapterVariable: "PI_ACP_BIN", MinimumVersion: "0.80.4"),
-        new("openclaw", "OpenClaw", "openclaw", null, ["acp"], ["DASHSCOPE_API_KEY", "AGENT_API_KEY"], ["OPENCLAW_"], FullPermission: false, ExecutableVariables: ["OPENCLAW_BIN"]),
+        new("codex", "Codex", "codex", "codex-acp", [], ["DASHSCOPE_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"], ["CODEX_"], ExecutableVariables: ["CODEX_PATH"], AdapterVariable: "CODEX_ACP_BIN", SkillsInstaller: "codex"),
+        new("claude", "Claude Code", "claude", "claude-agent-acp", [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "CLAUDE_API_KEY"], ["CLAUDE_"], ExecutableVariables: ["CLAUDE_CODE_EXECUTABLE"], AdapterVariable: "CLAUDE_CODE_ACP_BIN", SkillsInstaller: "claude-code"),
+        new("pi", "Pi", "pi", "pi-acp", [], ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "GEMINI_API_KEY", "GOOGLE_API_KEY"], ["PI_"], AlwaysFull: true, ExecutableVariables: ["PI_ACP_PI_COMMAND", "PI_BIN"], AdapterVariable: "PI_ACP_BIN", MinimumVersion: "0.80.4", SkillsInstaller: "pi"),
+        new("openclaw", "OpenClaw", "openclaw", null, ["acp"], ["DASHSCOPE_API_KEY", "AGENT_API_KEY"], ["OPENCLAW_"], FullPermission: false, ExecutableVariables: ["OPENCLAW_BIN"], SkillsInstaller: "openclaw"),
         new("acp", "ACP Agent", null, null, [], [], ["ACP_"], FullPermission: false, ExecutableVariables: ["ACP_COMMAND"]),
         new("a2a", "A2A Agent", null, null, [], [], [], FullPermission: false, Integration: "a2a"),
         new("http", "SiriAI HTTP v1", null, null, [], [], [], FullPermission: false, Integration: "http"),

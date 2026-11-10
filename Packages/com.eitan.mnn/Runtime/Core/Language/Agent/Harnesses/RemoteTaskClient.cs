@@ -31,6 +31,12 @@ namespace MNN.Samples.SiriAI.Harnesses
             SendAsync<HarnessReadiness>(HttpMethod.Post, ReadinessPath(harnessId),
                 new HarnessReadinessRequest { WorkspaceKey = HarnessText.Required(workspaceKey, 1024) }, cancellation);
         private static string ReadinessPath(string harnessId) => "v1/harnesses/" + Uri.EscapeDataString(HarnessText.Required(harnessId, 128)) + "/readiness";
+        public Task<HarnessSkillCatalog> GetSkillCatalogAsync(CancellationToken cancellation) => SendAsync<HarnessSkillCatalog>(HttpMethod.Get, "v1/skills/catalog", null, cancellation);
+        public Task<HarnessTask[]> ListSkillOperationsAsync(CancellationToken cancellation) => SendAsync<HarnessTask[]>(HttpMethod.Get, "v1/skills/operations", null, cancellation);
+        public Task<HarnessTask> SubmitSkillOperationAsync(HarnessSkillRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, "v1/skills/operations", request, cancellation);
+        public Task<HarnessTask> GetSkillOperationAsync(string id, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Get, SkillPath(id), null, cancellation);
+        public Task<HarnessTask> CancelSkillOperationAsync(string id, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, SkillPath(id) + "/cancel", null, cancellation);
+        private static string SkillPath(string id) => "v1/skills/operations/" + Uri.EscapeDataString(HarnessText.Required(id, 128));
         public Task<HarnessHostCatalog> GetCatalogAsync(CancellationToken cancellation) => SendAsync<HarnessHostCatalog>(HttpMethod.Get, "v1/harnesses", null, cancellation);
         public Task<HarnessTask> GetAsync(string taskId, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Get, TaskPath(taskId), null, cancellation);
         public Task<HarnessNativeSessionPage> ListNativeSessionsAsync(string taskId, string cursor, CancellationToken cancellation) =>
@@ -51,7 +57,8 @@ namespace MNN.Samples.SiriAI.Harnesses
             using (var request = new HttpRequestMessage(method, new Uri(_endpoint, path)))
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
-                if (body is HarnessReadinessRequest probe) request.Content = Content(probe);
+                if (body is HarnessSkillRequest skill) request.Content = Content(skill);
+                else if (body is HarnessReadinessRequest probe) request.Content = Content(probe);
                 else if (body is SubmitTaskRequest submit) request.Content = Content(submit);
                 else if (body is TaskControlRequest control) request.Content = Content(control);
                 else if (body is ResultClaimRequest claim) request.Content = Content(claim);

@@ -69,6 +69,7 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 var app = builder.Build();
 var readiness = new HarnessReadinessService(configuration, adapters);
+using var skills = new SkillLibraryService(configuration);
 app.Lifetime.ApplicationStarted.Register(() => coordinatorRuns.Attach(runtime));
 var coordinator = new CoordinatorMcpServer(configuration, runtime, coordinatorRuns);
 app.Use(async (context, next) =>
@@ -91,6 +92,16 @@ app.MapGet("/v1/health", async context => await WriteAsync(context, new HarnessH
     ProtocolVersion = 1, HostId = configuration.HostId, InstanceId = instanceId, ServiceLabel = HostServiceCli.ActiveLabel,
     ProcessId = Environment.ProcessId, StartedUtcTicks = startedUtcTicks, OwnerId = Owner(context)
 }));
+app.MapGet("/v1/skills/catalog", async context => await WriteAsync(context, skills.Catalog(Owner(context))));
+app.MapGet("/v1/skills/operations", async context => await WriteAsync(context, skills.List(Owner(context))));
+app.MapPost("/v1/skills/operations", async context =>
+{
+    var request = await ReadAsync<HarnessSkillRequest>(context);
+    var operation = skills.Submit(Owner(context), request);
+    context.Response.StatusCode = 202; await WriteAsync(context, operation);
+});
+app.MapGet("/v1/skills/operations/{id}", async context => await WriteAsync(context, skills.Get(Owner(context), Id(context))));
+app.MapPost("/v1/skills/operations/{id}/cancel", async context => await WriteAsync(context, await skills.CancelAsync(Owner(context), Id(context), context.RequestAborted)));
 app.MapGet("/v1/tasks", async context => await WriteAsync(context, runtime.List(Owner(context))));
 app.MapGet("/v1/harnesses", async context => await WriteAsync(context, new HarnessHostCatalog
 {

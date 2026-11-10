@@ -12,6 +12,7 @@ internal sealed class HostConfiguration
     public HostIdentity[] Identities { get; set; } = [];
     public Dictionary<string, string> Workspaces { get; set; } = new();
     public HarnessConfiguration[] Harnesses { get; set; } = [];
+    public SkillsConfiguration Skills { get; set; }
     public CoordinatorMcpScope[] CoordinatorMcpScopes { get; set; } = [];
 
     internal string HostId => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(DataDirectory))).ToLowerInvariant();
@@ -85,6 +86,7 @@ internal sealed class HostConfiguration
             }
 #endif
         }
+        config.Skills?.Resolve(baseDirectory, config.Identities);
         CoordinatorMcpScope.Resolve(config);
         CoordinatorMcpRuns.Validate(config);
         return config;
