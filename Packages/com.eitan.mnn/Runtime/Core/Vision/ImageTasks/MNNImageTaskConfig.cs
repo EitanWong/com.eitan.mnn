@@ -24,7 +24,7 @@ namespace MNN.Unity
             return config;
         }
 
-        internal string Resolve(string directory, bool verifyHash)
+        public string Resolve(string directory, bool verifyHash)
         {
             var source = MNNImageTaskProfiles.Get(profile);
             string path = Path.Combine(Path.GetFullPath(directory), source.Graph);

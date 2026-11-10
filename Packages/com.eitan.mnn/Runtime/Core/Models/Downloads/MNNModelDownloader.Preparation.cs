@@ -5,7 +5,7 @@ namespace MNN.Unity
 {
     public sealed partial class MNNModelDownloader
     {
-        internal static void PrepareArchives(string directory, MNNModelSource source, string repository, CancellationToken token = default)
+        public static void PrepareArchives(string directory, MNNModelSource source, string repository, CancellationToken token = default)
         {
             if (source == MNNModelSource.HuggingFace && MNNCosyVoiceModel.IsRepository(repository))
                 MNNCosyVoiceAssets.Install(directory, token);

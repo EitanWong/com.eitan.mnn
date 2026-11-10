@@ -5,6 +5,6 @@ namespace MNN.Unity
     {
         public string Text { get; }
         public float Confidence { get; }
-        internal MNNTextRecognition(string text, float confidence) { Text = text; Confidence = confidence; }
+        public MNNTextRecognition(string text, float confidence) { Text = text; Confidence = confidence; }
     }
 }

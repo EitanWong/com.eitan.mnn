@@ -513,14 +513,14 @@ namespace MNN.Unity
             return null;
         }
 
-        internal static bool HasMnnArtifacts(IEnumerable<string> paths) => paths.Any(path => path != null &&
+        public static bool HasMnnArtifacts(IEnumerable<string> paths) => paths.Any(path => path != null &&
             (path.EndsWith(".mnn", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".mnn.weight", StringComparison.OrdinalIgnoreCase) ||
             HasMnnLabel(path, null) && IsArchive(path)));
 
-        internal static bool HasMnnRepositoryArtifacts(string id, string[] tags, IEnumerable<string> paths) => HasMnnArtifacts(paths) ||
+        public static bool HasMnnRepositoryArtifacts(string id, string[] tags, IEnumerable<string> paths) => HasMnnArtifacts(paths) ||
             !IsKnownArchiveSearchFalsePositive(id, paths) && HasMnnLabel(id, tags) && paths.Any(IsArchive);
 
-        internal static bool IsKnownArchiveSearchFalsePositive(string id, IEnumerable<string> paths)
+        public static bool IsKnownArchiveSearchFalsePositive(string id, IEnumerable<string> paths)
         {
             // Its public card defines MNN as Multi-Head Attention Network; Flickr8k_text.zip
             // is dataset text, not an Alibaba MNN model. Re-admit it if actual MNN artifacts appear.
@@ -723,7 +723,7 @@ namespace MNN.Unity
                 .ToList();
         }
 
-        internal static string InstallFolderName(MNNRemoteModel model)
+        public static string InstallFolderName(MNNRemoteModel model)
         {
             string repository = model.repositoryId ?? model.modelScopeId ?? model.id;
             string name = string.IsNullOrWhiteSpace(model.name) ? "model" : model.name;
@@ -740,7 +740,7 @@ namespace MNN.Unity
             }
         }
 
-        internal static bool MatchesInstallMarker(MNNRemoteModel model, string marker)
+        public static bool MatchesInstallMarker(MNNRemoteModel model, string marker)
         {
             string repository = model.repositoryId ?? model.modelScopeId ?? model.id;
             string identity = model.provider == MNNModelSource.HuggingFace ? "hf:" + repository : repository;

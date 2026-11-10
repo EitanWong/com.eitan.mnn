@@ -12,6 +12,10 @@ namespace MNN.Unity
     /// Each instance owns one stream. Reset before changing recording; dispose after use.</summary>
     public sealed class MNNKeywordSpotter : IDisposable
     {
+        public static string DefaultKeywords => MNNKwsModel.DefaultKeywords;
+        /// <summary>Resolve the installed keyword assets without opening native models.</summary>
+        public static string AssetDirectory(string directory) => MNNKwsModel.AssetDirectory(directory);
+
         /// <summary>Shared wake defaults for file, streaming, Studio and application callers.</summary>
         public const float DefaultThreshold = .15f;
         public const int DefaultTrailingBlanks = 0; // Automatic: English 4, Chinese 1.

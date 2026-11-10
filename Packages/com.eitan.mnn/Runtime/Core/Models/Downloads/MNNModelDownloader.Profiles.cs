@@ -13,7 +13,7 @@ namespace MNN.Unity
 {
     public sealed partial class MNNModelDownloader
     {
-        internal static MNNModelRepositoryFile[] DtlnAecDownloadPlan(string repository)
+        public static MNNModelRepositoryFile[] DtlnAecDownloadPlan(string repository)
         {
             int units = MNNDtlnAecModel.Units(repository);
             var sizes = MNNDtlnAecModel.Sizes(units);
@@ -39,7 +39,7 @@ namespace MNN.Unity
             return files.Concat(new[]{new MNNModelRepositoryFile{Path = modelScope ? "README.md" : "LICENSE", Type = "blob", Size = modelScope ? 1456 : 11357, Sha256 = modelScope ? "722b386a136f5b4f2afe8d8ef9efc2e3db40fdf7b8db82aa9c982ac2dd8269bf" : "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4", Revision = modelScope ? "dccf04663faa19b24af3f9d3fd0835d308d51687" : MNNQwen3AsrModel.Revision}}).ToArray();
         }
 
-        internal static MNNModelRepositoryFile[] ReferenceSpeechDownloadPlan(string repositoryId, string revision)
+        public static MNNModelRepositoryFile[] ReferenceSpeechDownloadPlan(string repositoryId, string revision)
         {
             if (!MNNReferenceSpeechModel.IsRepository(repositoryId))
                 throw new ArgumentException("Unknown speech repository.", nameof(repositoryId));

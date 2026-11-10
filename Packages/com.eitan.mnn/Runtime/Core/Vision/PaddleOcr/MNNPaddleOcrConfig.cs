@@ -23,7 +23,7 @@ namespace MNN.Unity
             JsonUtility.FromJson<MNNPaddleOcrConfig>(File.ReadAllText(Path.Combine(directory, FileName)))
             ?? throw new InvalidDataException("Invalid Paddle page OCR profile.");
 
-        internal static MNNPaddleOcrConfig ReadForProfile(string directory, string profile)
+        public static MNNPaddleOcrConfig ReadForProfile(string directory, string profile)
         {
             string recognizerDirectory = RecognizerDirectory(directory, profile);
             string name = MNNPaddleTextConfig.Read(recognizerDirectory).pageConfig;
@@ -33,7 +33,8 @@ namespace MNN.Unity
 
         internal MNNPaddleOcrConfig Clone() => (MNNPaddleOcrConfig)MemberwiseClone();
 
-        internal void Validate(string directory)
+        /// <summary>Validate the declared OCR profile before loading native resources.</summary>
+        public void Validate(string directory)
         {
             if (maximumSide < 32 || maximumSide > 4096 || maximumSide % 32 != 0 ||
                 maximumCandidates < 1 || maximumCandidates > 10000 || !Probability(pixelThreshold) ||
@@ -48,7 +49,7 @@ namespace MNN.Unity
 
         private static bool Probability(float value) => !float.IsNaN(value) && value >= 0 && value <= 1;
 
-        internal static string RecognizerDirectory(string directory, string profile)
+        public static string RecognizerDirectory(string directory, string profile)
         {
             string metadata = MNNPaddleTextConfig.ResolveFile(directory, Path.Combine(profile ?? ".", MNNPaddleTextConfig.FileName));
             string resolved = Path.GetDirectoryName(metadata);

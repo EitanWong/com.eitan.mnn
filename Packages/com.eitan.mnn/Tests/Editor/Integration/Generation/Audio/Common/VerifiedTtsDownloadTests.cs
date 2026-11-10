@@ -73,7 +73,7 @@ namespace MNN.Unity.Tests
                     CollectionAssert.AreEquivalent(files.Select(file => file.Hash), MNNVerifiedTtsModel.Files(repository).Select(file => file.Hash));
                     Assert.IsTrue(MNNVerifiedTtsModel.Files(repository).All(file => file.Revision == MNNVerifiedTtsModel.Kokoro11ModelScopeRevision));
                     var studio = MNNStudioModel.Read(destination);
-                    Assert.AreEqual(MNNTtsModelProfile.Kokoro, studio.TtsProfile);
+                    Assert.AreEqual(MNNSpeechModelKind.Kokoro, studio.TtsProfile);
                     Assert.AreEqual(103, studio.TtsVoices.Length);
                     Assert.IsTrue(studio.HasGenerationPipeline);
                 }
@@ -106,7 +106,7 @@ namespace MNN.Unity.Tests
                     CollectionAssert.AreEquivalent(files.Select(file => "/" + repository + "/resolve/" + MNNVerifiedTtsModel.MmsTamilRevision + "/" + file.Path), calls);
                     var studio = MNNStudioModel.Read(destination);
                     CollectionAssert.AreEqual(new[]{"int8", "fp16_int8", "fp32"}, MNNMmsTamil.InstalledPrecisions(destination));
-                    Assert.AreEqual(MNNTtsModelProfile.MmsTamil, studio.TtsProfile);
+                    Assert.AreEqual(MNNSpeechModelKind.MmsTamil, studio.TtsProfile);
                     Assert.AreEqual(MNNStudioTask.SpeechSynthesis, studio.Task);
                     CollectionAssert.AreEqual(new[]{"Tamil"}, studio.TtsVoices);
                     Assert.IsTrue(studio.HasGenerationPipeline);
@@ -141,7 +141,7 @@ namespace MNN.Unity.Tests
                         Assert.AreEqual(files.Length, calls.Count);
                         Assert.AreEqual(files.Sum(file => file.Bytes), task.Result);
                         var studio = MNNStudioModel.Read(destination);
-                        Assert.AreEqual(MNNTtsModelProfile.SherpaVitsChinese, studio.TtsProfile);
+                        Assert.AreEqual(MNNSpeechModelKind.SherpaVitsChinese, studio.TtsProfile);
                         Assert.AreEqual(MNNStudioTask.SpeechSynthesis, studio.Task);
                         Assert.AreEqual(5, studio.TtsVoices.Length);
                         Assert.IsTrue(studio.HasGenerationPipeline);
@@ -182,7 +182,7 @@ namespace MNN.Unity.Tests
                     Assert.AreEqual(files.Length, calls.Count);
                     Assert.AreEqual(files.Sum(file => file.Bytes), task.Result);
                     var studio = MNNStudioModel.Read(destination);
-                    Assert.AreEqual(MNNTtsModelProfile.MossNano, studio.TtsProfile);
+                    Assert.AreEqual(MNNSpeechModelKind.MossNano, studio.TtsProfile);
                     Assert.AreEqual(MNNStudioTask.SpeechSynthesis, studio.Task);
                     Assert.AreEqual(18, studio.TtsVoices.Length);
                     Assert.IsTrue(studio.HasGenerationPipeline);
@@ -235,7 +235,7 @@ namespace MNN.Unity.Tests
                     Assert.AreEqual(files.Sum(file => file.Bytes), task.Result);
                     CollectionAssert.AreEquivalent(files.Select(file => "/" + (file.SourceRepository ?? repository) + "/resolve/" + file.Revision + "/" + file.Path), calls);
                     var studio = MNNStudioModel.Read(destination);
-                    Assert.AreEqual(indic ? MNNTtsModelProfile.IndicF5 : pocket ? MNNTtsModelProfile.Pocket : kokoro ? MNNTtsModelProfile.Kokoro : piper ? MNNTtsModelProfile.Piper : qwen ? MNNTtsModelProfile.Qwen3Explicit : MNNTtsModelProfile.DhVaani, studio.TtsProfile);
+                    Assert.AreEqual(indic ? MNNSpeechModelKind.IndicF5 : pocket ? MNNSpeechModelKind.Pocket : kokoro ? MNNSpeechModelKind.Kokoro : piper ? MNNSpeechModelKind.Piper : qwen ? MNNSpeechModelKind.Qwen3Explicit : MNNSpeechModelKind.DhVaani, studio.TtsProfile);
                     Assert.AreEqual(MNNStudioTask.SpeechSynthesis, studio.Task);
                     Assert.IsTrue(studio.HasGenerationPipeline);
                     Assert.AreEqual(!qwen && !piper && !kokoro && !pocket, studio.RequiresReferenceTranscript);
@@ -284,7 +284,7 @@ namespace MNN.Unity.Tests
                         Assert.AreEqual(files.Sum(file => file.Bytes), task.Result);
                         Assert.AreEqual(files.Length, calls.Count);
                         var model = MNNStudioModel.Read(destination);
-                        Assert.AreEqual(bert ? MNNTtsModelProfile.BertVits2 : MNNTtsModelProfile.Kokoro, model.TtsProfile);
+                        Assert.AreEqual(bert ? MNNSpeechModelKind.BertVits2 : MNNSpeechModelKind.Kokoro, model.TtsProfile);
                         if (!bert) Assert.AreEqual(103, model.TtsVoices.Length);
                         Assert.IsTrue(model.HasGenerationPipeline);
                         task = hf ? service.DownloadHuggingFaceRepositoryAsync(repository, destination) : service.DownloadRepositoryAsync(repository, destination);

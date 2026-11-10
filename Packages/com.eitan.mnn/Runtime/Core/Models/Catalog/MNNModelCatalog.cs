@@ -20,6 +20,15 @@ namespace MNN.Unity
         private const string ApiRoot = "https://www.modelscope.cn";
         internal List<MNNRemoteModel> models = new List<MNNRemoteModel>();
         public IReadOnlyList<MNNRemoteModel> Models => models;
+
+        public MNNModelCatalog() { }
+        /// <summary>Start a catalog from an existing collection without sharing its mutable list.</summary>
+        public MNNModelCatalog(IEnumerable<MNNRemoteModel> initialModels)
+        {
+            if (initialModels == null) throw new ArgumentNullException(nameof(initialModels));
+            models = initialModels.Where(model => model != null).ToList();
+        }
+
         public static readonly string[] FeaturedHuggingFaceRepositories = { MNNKwsModel.Repository, "VicenTrent/Cosy-Voice-MNN", MNNReferenceSpeechModel.IndexRepository, MNNReferenceSpeechModel.FireRedRepository };
         [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private class ModelSearchResponse
@@ -291,7 +300,7 @@ namespace MNN.Unity
             MatchesSearch(query, model.name, model.displayName, model.description, model.modelScopeId,
                 model.repositoryId, model.tags, model.tasks, model.category);
 
-        internal static bool MatchesSearch(string query, string name, string displayName, string description,
+        public static bool MatchesSearch(string query, string name, string displayName, string description,
             string modelScopeId, string repositoryId, string[] tags, string[] tasks, string category)
         {
             if (string.IsNullOrWhiteSpace(query)) return true;

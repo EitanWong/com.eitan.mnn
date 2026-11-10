@@ -4,7 +4,7 @@ using System.Threading;
 namespace MNN.Unity
 {
     /// <summary>Buffered synthesis over all registered TTS export protocols. Owns one task runner.</summary>
-    public sealed class MNNSpeechSynthesizer : IDisposable
+    public sealed partial class MNNSpeechSynthesizer : IDisposable
     {
         private readonly IDisposable _owner;
         private readonly Func<string, CancellationToken, MNNGeneratedAudio> _synthesize;
@@ -12,24 +12,13 @@ namespace MNN.Unity
         public string[] Languages { get; }
         private MNNSpeechSynthesizer(IDisposable owner, int rate, string[] languages, Func<string, CancellationToken, MNNGeneratedAudio> synthesize)
         { _owner = owner; SampleRate = rate; Languages = languages; _synthesize = synthesize; }
-        public static bool HasProfile(string directory)
-        {
-            switch (MNNTtsModelProfiles.Detect(directory))
-            {
-                case MNNTtsModelProfile.Unknown: return false;
-                case MNNTtsModelProfile.IndexTts25: return MNNReferenceSpeechModel.IsComplete(directory, true);
-                case MNNTtsModelProfile.FireRedTts3: return MNNReferenceSpeechModel.IsComplete(directory, false);
-                case MNNTtsModelProfile.Qwen3Explicit: return MNNQwen3ExplicitTts.IsComplete(directory);
-                case MNNTtsModelProfile.CosyVoice300M: return MNNCosyVoice300MModel.IsComplete(directory);
-                case MNNTtsModelProfile.CosyVoice: return MNNCosyVoiceModel.IsComplete(directory);
-                default: return true;
-            }
-        }
+        /// <summary>Check the detected frontend's required local assets without loading weights.</summary>
+        public static bool HasProfile(string directory) => IsComplete(directory, DetectModelKind(directory));
         public static bool RequiresReferenceAudio(string directory)
         {
             var profile = MNNTtsModelProfiles.Detect(directory);
-            return profile == MNNTtsModelProfile.IndexTts25 || profile == MNNTtsModelProfile.FireRedTts3 ||
-                profile == MNNTtsModelProfile.IndicF5 || profile == MNNTtsModelProfile.Pocket || profile == MNNTtsModelProfile.DhVaani;
+            return profile == MNNSpeechModelKind.IndexTts25 || profile == MNNSpeechModelKind.FireRedTts3 ||
+                profile == MNNSpeechModelKind.IndicF5 || profile == MNNSpeechModelKind.Pocket || profile == MNNSpeechModelKind.DhVaani;
         }
         public static bool RequiresReferenceAudio(MNNRemoteModel model)
         {
@@ -65,67 +54,67 @@ namespace MNN.Unity
                 if (string.IsNullOrWhiteSpace(options.ReferenceWavePath))
                     throw new ArgumentException("Select a reference WAV recording for this speech model.");
                 reference = MNNReferenceAudio.FromWaveFile(options.ReferenceWavePath);
-                if ((profile == MNNTtsModelProfile.FireRedTts3 || profile == MNNTtsModelProfile.IndicF5 || profile == MNNTtsModelProfile.DhVaani) &&
+                if ((profile == MNNSpeechModelKind.FireRedTts3 || profile == MNNSpeechModelKind.IndicF5 || profile == MNNSpeechModelKind.DhVaani) &&
                     string.IsNullOrWhiteSpace(options.ReferenceText)) throw new ArgumentException("Enter the exact transcript of the reference WAV recording.");
             }
             Func<string, string> language = text => MNNSpeechLanguages.Select(text, new[] { "zh", "en" }, options.Language);
             string voice = string.IsNullOrWhiteSpace(options.Voice) ? null : options.Voice;
             switch (profile)
             {
-                case MNNTtsModelProfile.IndexTts25:
+                case MNNSpeechModelKind.IndexTts25:
                     var index = MNNIndexTts25.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(index, 22050, new[] { "zh", "en" }, (text, token) => index.Synthesize(text, reference, language(text), options.Seed, token));
-                case MNNTtsModelProfile.FireRedTts3:
+                case MNNSpeechModelKind.FireRedTts3:
                     var fire = MNNFireRedTts3.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(fire, 24000, new[] { "zh", "en" }, (text, token) => fire.Synthesize(text, reference, options.ReferenceText, language(text), options.Seed, token));
-                case MNNTtsModelProfile.IndicF5:
+                case MNNSpeechModelKind.IndicF5:
                     var indicF5 = MNNIndicF5Tts.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(indicF5, 24000, new[] { "hi", "bn", "te", "mr", "ta", "gu", "kn", "ml", "pa", "or", "as" },
                         (text, token) => indicF5.Synthesize(text, reference, options.ReferenceText, options.Seed, options.Steps < 1 ? 32 : options.Steps, options.Speed, token));
-                case MNNTtsModelProfile.Pocket:
+                case MNNSpeechModelKind.Pocket:
                     var pocket = MNNPocketTts.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(pocket, 24000, new[] { "en" }, (text, token) => pocket.Synthesize(text, reference, options.Seed, cancellationToken: token));
-                case MNNTtsModelProfile.DhVaani:
+                case MNNSpeechModelKind.DhVaani:
                     var dh = MNNDhVaani.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(dh, 24000, new[] { "hi", "en" }, (text, token) => dh.Synthesize(text, reference, options.ReferenceText,
                         options.Steps < 1 ? 32 : options.Steps, options.Speed, options.Seed, token));
-                case MNNTtsModelProfile.Qwen3Explicit:
+                case MNNSpeechModelKind.Qwen3Explicit:
                     var qwen = MNNQwen3ExplicitTts.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(qwen, 24000, new[] { "zh", "en" },
                         (text, token) => qwen.Synthesize(text, language(text), options.Seed, cancellationToken: token, voice: voice));
-                case MNNTtsModelProfile.CosyVoice300M:
+                case MNNSpeechModelKind.CosyVoice300M:
                     var cosy300 = MNNCosyVoice300M.Load(directory, threadCount, acousticBackend: backendType);
                     return new MNNSpeechSynthesizer(cosy300, cosy300.SampleRate, new[] { "zh", "en" },
                         (text, token) => cosy300.Synthesize(text, options.Seed, cancellationToken: token));
-                case MNNTtsModelProfile.MmsTamil:
+                case MNNSpeechModelKind.MmsTamil:
                     var tamil = MNNMmsTamil.Load(directory, threadCount, string.IsNullOrWhiteSpace(options.Precision) ? "int8" : options.Precision);
                     return new MNNSpeechSynthesizer(tamil, tamil.SampleRate, new[] { "ta" }, (text, token) => tamil.Synthesize(text, options.Speed, token));
-                case MNNTtsModelProfile.IndicVits:
+                case MNNSpeechModelKind.IndicVits:
                     var indic = MNNIndicVits.Load(directory, threadCount);
                     int speaker = voice == null ? 18 : Array.IndexOf(MNNIndicVits.SpeakerNames, voice);
                     if (speaker < 0) { indic.Dispose(); throw new ArgumentException("Unknown IndicVITS voice: " + voice); }
                     return new MNNSpeechSynthesizer(indic, indic.SampleRate, new[] { IndicVoiceLanguage(MNNIndicVits.SpeakerNames[speaker]) },
                         (text, token) => indic.Synthesize(text, speaker, cancellationToken: token));
-                case MNNTtsModelProfile.CosyVoice:
+                case MNNSpeechModelKind.CosyVoice:
                     var cosy = MNNCosyVoice.Load(directory, threadCount, backendType: backendType);
                     return new MNNSpeechSynthesizer(cosy, cosy.SampleRate, new[] { "zh", "en" }, (text, token) => cosy.Synthesize(text, options.Seed, token));
-                case MNNTtsModelProfile.Kokoro:
+                case MNNSpeechModelKind.Kokoro:
                     var kokoro = MNNKokoro.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(kokoro, kokoro.SampleRate, new[] { "zh", "en" }, (text, token) => kokoro.Synthesize(text, voice, options.Speed, token));
-                case MNNTtsModelProfile.Piper:
+                case MNNSpeechModelKind.Piper:
                     var piper = MNNPiper.Load(directory, threadCount, backendType: backendType);
                     return new MNNSpeechSynthesizer(piper, piper.SampleRate, piper.Languages, (text, token) => piper.Synthesize(text, voice, token));
-                case MNNTtsModelProfile.Supertonic:
+                case MNNSpeechModelKind.Supertonic:
                     var super = MNNSupertonic.Load(directory, threadCount, string.IsNullOrWhiteSpace(options.Precision) ? "fp16" : options.Precision, backendType: backendType);
                     return new MNNSpeechSynthesizer(super, super.SampleRate, super.Languages, (text, token) => super.Synthesize(text, voice ?? "M1",
                         options.Steps < 1 ? 4 : options.Steps, options.Speed, options.Seed, token, string.IsNullOrWhiteSpace(options.Language) ? "en" : options.Language));
-                case MNNTtsModelProfile.BertVits2:
+                case MNNSpeechModelKind.BertVits2:
                     var bert = MNNBertVits2.Load(directory, threadCount, backendType: backendType);
                     return new MNNSpeechSynthesizer(bert, bert.SampleRate, new[] { "zh", "en" }, bert.Synthesize);
-                case MNNTtsModelProfile.SherpaVitsChinese:
+                case MNNSpeechModelKind.SherpaVitsChinese:
                     var sherpa = MNNSherpaVitsChinese.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(sherpa, sherpa.SampleRate, new[] { "zh" }, (text, token) => sherpa.Synthesize(text, 0, options.Speed, token));
-                case MNNTtsModelProfile.MossNano:
+                case MNNSpeechModelKind.MossNano:
                     var moss = MNNMossNano.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(moss, 48000, new[] { "zh", "en" }, (text, token) => moss.Synthesize(text, voice ?? "Junhao", options.Seed, cancellationToken: token));
                 default: throw new NotSupportedException("No supported speech synthesis export profile in " + directory);

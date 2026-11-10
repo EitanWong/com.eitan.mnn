@@ -28,7 +28,7 @@ namespace MNN.Unity
         private readonly string[] _voices;
         public string[] Voices => (string[])_voices.Clone();
 
-        internal static string[] InstalledVoices(string directory) => MNNKokoroModel.IsSherpa(directory) ? MNNKokoroModel.SherpaVoices(directory) : Directory.Exists(Path.Combine(directory, "voices"))
+        public static string[] InstalledVoices(string directory) => MNNKokoroModel.IsSherpa(directory) ? MNNKokoroModel.SherpaVoices(directory) : Directory.Exists(Path.Combine(directory, "voices"))
             ? Directory.GetFiles(Path.Combine(directory, "voices"), "*.bin").Where(path => new FileInfo(path).Length == 510 * 256 * 4)
                 .Select(Path.GetFileNameWithoutExtension).OrderBy(name => name, StringComparer.Ordinal).ToArray()
             : MNNKokoroModel.ConstantVoiceNames(directory);

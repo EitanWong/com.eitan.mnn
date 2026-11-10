@@ -12,7 +12,7 @@ namespace MNN.Unity
         public float energyThreshold = .025f;
         public string instructions = "You are a helpful voice assistant.";
         public IReadOnlyList<string> SpeechLanguages = Array.Empty<string>();
-        internal MNNConversationOptions Snapshot()
+        public MNNConversationOptions Snapshot()
         {
             if (minimumSpeechMilliseconds < 20 || minimumSpeechMilliseconds > 2000 || silenceMilliseconds < 100 || silenceMilliseconds > 5000 ||
                 turnRetryMilliseconds < 100 || turnRetryMilliseconds > 5000 || maximumUtteranceSeconds < 2 || maximumUtteranceSeconds > MNNRealtimeUtteranceBuffer.MaximumSeconds ||

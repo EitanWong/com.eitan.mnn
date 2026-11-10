@@ -9,7 +9,7 @@ namespace MNN.Unity
     /// select a frontend: each graph family has a different tokenizer and tensor
     /// contract.
     /// </summary>
-    internal enum MNNTtsModelProfile
+    public enum MNNSpeechModelKind
     {
         Unknown,
         Supertonic,

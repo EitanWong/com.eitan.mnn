@@ -25,6 +25,7 @@ namespace MNN.Unity
             if (source != MNNModelSource.ModelScope && source != MNNModelSource.HuggingFace)
                 throw new ArgumentOutOfRangeException(nameof(source));
             ValidateRepositoryId(repositoryId);
+            revision = MNNModelRevisions.Resolve(source, repositoryId, revision);
             if (string.IsNullOrWhiteSpace(directory))
                 throw new ArgumentException("A dedicated writable model directory is required.", nameof(directory));
             string target = Path.GetFullPath(directory);

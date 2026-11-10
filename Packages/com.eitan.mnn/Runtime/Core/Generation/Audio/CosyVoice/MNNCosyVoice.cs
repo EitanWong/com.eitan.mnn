@@ -16,6 +16,10 @@ namespace MNN.Unity
     /// Uses the bundled macOS Mono C++ ABI. Voice enrollment is not included.</summary>
     public sealed partial class MNNCosyVoice : IDisposable
     {
+        public static string ArchiveName => MNNCosyVoiceModel.Archive;
+        public static bool SupportsRepository(string repository) => MNNCosyVoiceModel.IsRepository(repository);
+        public static string ResolveDirectory(string directory) => MNNCosyVoiceModel.ResolveDirectory(directory);
+
         private readonly object _gate = new object ();
         private LlmHandle _llm;
         private MNNModelOptions _llmOptions;

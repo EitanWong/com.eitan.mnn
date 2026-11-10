@@ -6,7 +6,7 @@ namespace MNN.Unity
     {
         // Published immutable profiles remain searchable before a hub indexes new uploads,
         // including when displaying an older disk cache. Downloads still verify each hash.
-        internal void IncludeDtlnAecProfiles()
+        public void IncludeDtlnAecProfiles()
         {
             foreach (int units in MNNDtlnAecModel.Variants)
             {

@@ -7,7 +7,7 @@ namespace MNN.Unity
     public sealed partial class MNNImageTask
     {
         private static readonly string[] DeepLabLabels = "background|aeroplane|bicycle|bird|boat|bottle|bus|car|cat|chair|cow|diningtable|dog|horse|motorbike|person|pottedplant|sheep|sofa|train|tvmonitor".Split('|');
-        internal static byte SegmentationColor(int id, int channel)
+        public static byte SegmentationColor(int id, int channel)
         {
             byte color = 0;
             for (int bit = 0; bit < 3; ++bit, id >>= 3)

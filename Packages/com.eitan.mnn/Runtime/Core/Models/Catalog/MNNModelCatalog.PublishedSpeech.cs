@@ -68,14 +68,14 @@ namespace MNN.Unity
             new PublishedSpeechProfile("TurnSense-SmolLM2-135M-MNN", "turn-detection", 543693449L, "model_fp32.mnn"),
         };
 
-        internal static bool IsPublishedSpeechRepository(string repositoryId) =>
+        public static bool IsPublishedSpeechRepository(string repositoryId) =>
             PublishedSpeechProfiles.Any(profile => string.Equals("EitanWang/" + profile.Name, repositoryId, StringComparison.OrdinalIgnoreCase));
 
         private static bool IsPublishedSileroRepository(MNNRemoteModel model) =>
             model.provider == MNNModelSource.ModelScope && string.Equals(model.repositoryId,
                 "EitanWang/Silero-v5.1-MNN", StringComparison.OrdinalIgnoreCase);
 
-        internal void IncludePublishedSpeechProfiles()
+        public void IncludePublishedSpeechProfiles()
         {
             foreach (var profile in PublishedSpeechProfiles)
             {

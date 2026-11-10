@@ -51,7 +51,7 @@ namespace MNN.Unity.Tests
             {
                 var studio = MNNStudioModel.Read(root);
                 Assert.IsTrue(studio.HasGenerationPipeline);
-                Assert.AreEqual(MNNTtsModelProfile.IndicVits, studio.TtsProfile);
+                Assert.AreEqual(MNNSpeechModelKind.IndicVits, studio.TtsProfile);
                 CollectionAssert.AreEqual(model.Voices, studio.TtsVoices);
                 for (int speaker = 0; speaker < model.Voices.Length; ++speaker)
                 {

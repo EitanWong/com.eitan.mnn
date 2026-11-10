@@ -4,7 +4,7 @@ namespace MNN.Unity
 {
     public partial class MNNModelCatalog
     {
-        internal void IncludeCosyVoice300MProfile()
+        public void IncludeCosyVoice300MProfile()
         {
             string repository = MNNVerifiedTtsModel.CosyVoice300MRepository;
             var model = models.FirstOrDefault(item => item.provider == MNNModelSource.ModelScope && item.repositoryId == repository);

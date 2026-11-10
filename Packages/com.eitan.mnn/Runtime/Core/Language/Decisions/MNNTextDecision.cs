@@ -10,6 +10,8 @@ namespace MNN.Unity
     /// pass; probabilities are checkpoint outputs, not application calibration.</summary>
     public sealed partial class MNNTextDecision : IDisposable
     {
+        public static string[] ModelFiles => (string[])MNNTextDecisionModel.Files.Clone();
+
         private readonly object _gate = new object();
         private readonly MNNBytePairTokenizer _tokenizer;
         private readonly MNNGenerationGraph _graph;

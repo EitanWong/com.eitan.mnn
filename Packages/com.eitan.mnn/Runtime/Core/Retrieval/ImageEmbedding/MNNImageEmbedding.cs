@@ -9,6 +9,8 @@ namespace MNN.Unity
     /// <summary>Image and text vectors in the same 512-dimensional MobileCLIP space.</summary>
     public sealed class MNNImageEmbedding : IDisposable
     {
+        public static string MarkerFileName => MNNImageEmbeddingModel.Marker;
+
         private readonly object _gate = new object();
         private readonly MNNGenerationGraph _vision, _text;
         private readonly MNNClipTokenizer _tokenizer;

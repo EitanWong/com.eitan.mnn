@@ -23,7 +23,7 @@ namespace MNN.Unity
         private static readonly string[] Outputs = new[]{"global_hidden"}.Concat(Enumerable.Range(0, 12).SelectMany(i => new[]{"present_key_" + i, "present_value_" + i})).ToArray();
         public string[] Voices => _voices.Keys.ToArray();
         private static string TtsRoot(string directory) => File.Exists(Path.Combine(directory, "tts", "tokenizer.model")) ? Path.Combine(directory, "tts") : directory;
-        internal static string[] InstalledVoices(string directory) => MNNModelData.Array(MNNModelData.Get(MNNModelData.Read(Path.Combine(TtsRoot(directory), "browser_poc_manifest.json")), "builtin_voices"))
+        public static string[] InstalledVoices(string directory) => MNNModelData.Array(MNNModelData.Get(MNNModelData.Read(Path.Combine(TtsRoot(directory), "browser_poc_manifest.json")), "builtin_voices"))
             .Select(voice => (string)MNNModelData.Get(voice, "voice")).ToArray();
         internal static bool IsComplete(string directory)
         {

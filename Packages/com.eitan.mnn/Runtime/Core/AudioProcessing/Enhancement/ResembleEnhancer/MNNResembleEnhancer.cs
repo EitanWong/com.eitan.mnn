@@ -7,6 +7,8 @@ namespace MNN.Unity
     /// <summary>Complete offline Resemble CFM enhancement: 44.1 kHz, seed 0, 32-NFE midpoint.</summary>
     public sealed partial class MNNResembleEnhancer : IDisposable
     {
+        public static string ConfigFileName => MNNResembleEnhancerConfig.FileName;
+
         public const int SampleRate = 44100, MinimumSamples = 400, MaximumSamples = 132300;
         private readonly object _gate = new object();
         private readonly MNNResembleEnhancerConfig _config;

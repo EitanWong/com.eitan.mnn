@@ -212,7 +212,8 @@ namespace MNN.Unity
 
         private void Update() => PollCapture(Time.realtimeSinceStartup, Stopwatch.GetTimestamp());
 
-        internal void PollCapture(float now, long nowTicks)
+        /// <summary>Poll capture on the Unity main thread when driven by an Editor host. Player Update polls automatically.</summary>
+        public void PollCapture(float now, long nowTicks)
         {
             if (!IsWaitingForBuffer && !IsCapturing) return;
             try

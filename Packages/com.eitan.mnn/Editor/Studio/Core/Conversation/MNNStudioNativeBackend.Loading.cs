@@ -14,7 +14,7 @@ namespace MNN.Unity.Editor
         internal static Func<IMNNStudioBackend> CreateLoader(MNNStudioModel model, int threads, bool thinking)
         {
             string package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(MNNStudioNativeBackend).Assembly).resolvedPath;
-            string device = MNNInferenceCache.GraphicsDevice;
+            string device = MNNRuntime.GraphicsDevice;
             string executable = model?.IsPiper == true ? MNNStudioPiperSettings.ResolveExecutable(model.Directory) : null;
             string data = model?.IsPiper == true ? MNNStudioPiperSettings.ResolveDataDirectory(model) : null;
             return () => Load(model, threads, thinking, package, device, executable, data);
@@ -82,7 +82,7 @@ namespace MNN.Unity.Editor
                             backend._dualTurn = MNNDualTurnEndpointing.Load(model.Directory, threads);
                         else if (File.Exists(Path.Combine(model.Directory, MNNTurnSenseConfig.FileName)))
                             backend._turnSense = MNNTurnSense.Load(model.Directory);
-                        else if (File.Exists(Path.Combine(model.Directory, MNNVoxTurnModel.ConfigFile)))
+                        else if (File.Exists(Path.Combine(model.Directory, MNNVoxTurn.ConfigFileName)))
                             backend._voxTurn = MNNVoxTurn.Load(model.Directory);
                         else if (File.Exists(Path.Combine(model.Directory, MNNSegConfig.FileName)))
                             backend._seg = MNNSegExtraction.Load(model.Directory, threads);
@@ -122,7 +122,7 @@ namespace MNN.Unity.Editor
                             backend._convTasNet = MNNConvTasNetSeparation.Load(model.Directory, threads);
                         else if (File.Exists(Path.Combine(model.Directory, MNNSepFormerConfig.FileName)))
                             backend._sepFormer = MNNSepFormerSeparation.Load(model.Directory, threads);
-                        else if (File.Exists(Path.Combine(model.Directory, MNNResembleEnhancerConfig.FileName)))
+                        else if (File.Exists(Path.Combine(model.Directory, MNNResembleEnhancer.ConfigFileName)))
                             backend._resembleEnhancer = MNNResembleEnhancer.Load(model.Directory);
                         else if (File.Exists(Path.Combine(model.Directory, MNNResembleDenoiserConfig.FileName)))
                             backend._resembleDenoiser = MNNResembleDenoiser.Load(model.Directory, threads);
@@ -202,21 +202,21 @@ namespace MNN.Unity.Editor
                             backend._pocket = MNNPocketTts.Load(model.Directory, threads);
                         else if (model.IsDhVaani)
                             backend._dhVaani = MNNDhVaani.Load(model.Directory, threads);
-                        else if (model.TtsProfile == MNNTtsModelProfile.MossNano)
+                        else if (model.TtsProfile == MNNSpeechModelKind.MossNano)
                             backend._mossNano = MNNMossNano.Load(model.Directory, threads);
-                        else if (model.TtsProfile == MNNTtsModelProfile.Kokoro)
+                        else if (model.TtsProfile == MNNSpeechModelKind.Kokoro)
                             backend._kokoro = MNNKokoro.Load(model.Directory, threads);
-                        else if (model.TtsProfile == MNNTtsModelProfile.SherpaVitsChinese)
+                        else if (model.TtsProfile == MNNSpeechModelKind.SherpaVitsChinese)
                             backend._sherpaVits = MNNSherpaVitsChinese.Load(model.Directory, threads);
-                        else if (model.TtsProfile == MNNTtsModelProfile.MmsTamil)
+                        else if (model.TtsProfile == MNNSpeechModelKind.MmsTamil)
                             backend._mmsTamil = MNNMmsTamil.Load(model.Directory, threads, model.MmsTamilPrecision);
-                        else if (model.TtsProfile == MNNTtsModelProfile.IndicVits)
+                        else if (model.TtsProfile == MNNSpeechModelKind.IndicVits)
                             backend._indicVits = MNNIndicVits.Load(model.Directory, threads);
                         else if (model.IsPiper)
                             backend._piper = MNNPiper.Load(model.Directory, threads, piperExecutable, piperData);
                         else if (model.IsBertVits2)
                             backend._bertVits = MNNBertVits2.Load(model.Directory, threads);
-                        else if (model.TtsProfile == MNNTtsModelProfile.Supertonic)
+                        else if (model.TtsProfile == MNNSpeechModelKind.Supertonic)
                             backend._tts = MNNSupertonic.Load(model.Directory, threads, model.SupertonicPrecision);
                         else
                             throw new NotSupportedException("This TTS repository needs its matching tokenizer and inference pipeline before Studio can synthesize speech.");

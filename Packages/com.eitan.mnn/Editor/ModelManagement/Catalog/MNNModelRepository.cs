@@ -55,7 +55,7 @@ namespace MNN.Unity.Editor
             await refresh(catalog);
             // Merge only this provider, retaining concurrent refreshes and editor installation state elsewhere.
             models = models.Where(model => model != null && model.provider != provider)
-                .Concat(catalog.models.Select(FromRemote)).ToList();
+                .Concat(catalog.Models.Select(FromRemote)).ToList();
             string prefix = provider == MNNModelProvider.ModelScope ? "ModelScope:" : "HuggingFace:";
             _discoveryWarnings.RemoveAll(warning => warning.StartsWith(prefix, StringComparison.Ordinal));
             _discoveryWarnings.AddRange(catalog.DiscoveryWarnings);
@@ -65,21 +65,18 @@ namespace MNN.Unity.Editor
         {
             IncludeProfiles(catalog => catalog.IncludePocketProfiles(), repository => repository?.StartsWith("MNN/MNN-Pocket-0.3B", StringComparison.OrdinalIgnoreCase) == true);
             IncludeDtlnAecProfiles();
-            IncludeProfiles(catalog => catalog.IncludeCosyVoice300MProfile(), MNNVerifiedTtsModel.IsCosyVoice300MRepository);
+            IncludeProfiles(catalog => catalog.IncludeCosyVoice300MProfile(), MNNModelSources.IsCosyVoice300M);
             IncludeProfiles(catalog => catalog.IncludePublishedSpeechProfiles(), MNNModelCatalog.IsPublishedSpeechRepository);
         }
 
-        internal void IncludeDtlnAecProfiles() => IncludeProfiles(catalog => catalog.IncludeDtlnAecProfiles(), MNNDtlnAecModel.IsRepository);
+        internal void IncludeDtlnAecProfiles() => IncludeProfiles(catalog => catalog.IncludeDtlnAecProfiles(), MNNDtlnAec.SupportsRepository);
 
         private void IncludeProfiles(Action<MNNModelCatalog> include, Func<string, bool> matches)
         {
-            var catalog = new MNNModelCatalog
-            {
-                models = models.Where(item => item.provider == MNNModelProvider.ModelScope && matches(item.repositoryId))
-                    .Select(ToRemote).ToList()
-            };
+            var catalog = new MNNModelCatalog(models.Where(item => item.provider == MNNModelProvider.ModelScope && matches(item.repositoryId))
+                .Select(ToRemote));
             include(catalog);
-            foreach (var model in catalog.models)
+            foreach (var model in catalog.Models)
             {
                 var existing = models.FirstOrDefault(item => item.provider == (MNNModelProvider)model.provider && string.Equals(item.repositoryId, model.repositoryId, StringComparison.OrdinalIgnoreCase));
                 if (existing == null)

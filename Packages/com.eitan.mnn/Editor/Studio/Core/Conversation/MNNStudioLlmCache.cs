@@ -1,8 +1,6 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace MNN.Unity.Editor
 {
@@ -21,24 +19,12 @@ namespace MNN.Unity.Editor
 
         internal static MNNStudioLlmCache Acquire(string root, string model, string nativeLibrary, string device, int threads)
         {
-            var identity = new StringBuilder("studio-llm-cache-v1|low|high|");
-            identity.Append(threads).Append('|').Append(device).Append('|').Append(MNNPlatformSupport.AbiContract);
+            string nativeIdentity;
             using (var hash = SHA256.Create())
             using (var native = File.OpenRead(nativeLibrary))
-                identity.Append('|').Append(BitConverter.ToString(hash.ComputeHash(native)));
-            identity.Append('|').Append(Path.GetFullPath(model));
-            foreach (string path in Directory.GetFiles(model, "*", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.Ordinal))
-            {
-                var file = new FileInfo(path);
-                identity.Append('|').Append(path).Append(':').Append(file.Length).Append(':').Append(file.LastWriteTimeUtc.Ticks);
-                if (file.Name.Equals("config.json", StringComparison.OrdinalIgnoreCase) ||
-                    file.Name.Equals("llm_config.json", StringComparison.OrdinalIgnoreCase))
-                    identity.Append(':').Append(File.ReadAllText(path));
-            }
-            MNNModelOptions.ReadLlmConfiguration(model, out string metadata);
-            identity.Append('|').Append(metadata);
-            if (File.Exists(metadata)) identity.Append(':').Append(File.ReadAllText(metadata));
-            return new MNNStudioLlmCache(MNNLlmCache.AcquireIdentity(root, identity.ToString()));
+                nativeIdentity = BitConverter.ToString(hash.ComputeHash(native));
+            return new MNNStudioLlmCache(MNNLlmCache.Acquire(root, model, nativeIdentity, device,
+                new MNNLlmPerformanceOptions { ThreadCount = threads }));
         }
 
         public void Dispose()

@@ -17,7 +17,7 @@ namespace MNN.Unity.Editor
                 if (rate < 8000 || rate > 96000 || source.Length > (long)rate * 600)
                     throw new ArgumentException("Supply a mono WAV at 8–96 kHz, up to ten minutes.");
                 duration = (double)source.Length / rate;
-                samples = MNNSpeechDsp.Resample(source, rate, 16000, request.Cancellation, tailSamples: 128000);
+                samples = MNNAudioResampling.Resample(source, rate, 16000, request.Cancellation, tailSamples: 128000);
             }
             var input = new MNNVoxTurnRequest(samples, request.Prompt, request.TurnLanguage, request.TurnSpeaker);
             var decision = _voxTurn.Predict(input, request.TurnQuestions, request.Cancellation);

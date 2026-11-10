@@ -8,7 +8,7 @@ namespace MNN.Unity
 {
     public sealed partial class MNNModelDownloader
     {
-        internal async Task<long> DownloadDocumentLayoutProfileAsync(string repository, string directory,
+        public async Task<long> DownloadDocumentLayoutProfileAsync(string repository, string directory,
             Action<long, long, string> onProgress, CancellationToken cancellationToken)
         {
             if (!MNNDocumentLayoutModel.IsRepository(repository)) throw new ArgumentException("Unsupported layout repository.", nameof(repository));
@@ -25,7 +25,7 @@ namespace MNN.Unity
             return received;
         }
 
-        internal async Task<long> DownloadImageEmbeddingProfileAsync(string repository, string directory,
+        public async Task<long> DownloadImageEmbeddingProfileAsync(string repository, string directory,
             Action<long, long, string> onProgress, CancellationToken cancellationToken)
         {
             Directory.CreateDirectory(directory);
@@ -43,7 +43,7 @@ namespace MNN.Unity
 
         // Exact task assets only: do not download unrelated precision variants,
         // PyTorch checkpoints or ONNX weights from a publisher's collection.
-        internal async Task<long> DownloadImageProfileAsync(string repository, string directory,
+        public async Task<long> DownloadImageProfileAsync(string repository, string directory,
             Action<long, long, string> onProgress, CancellationToken cancellationToken)
         {
             var source = MNNImageTaskProfiles.All.Single(item => string.Equals(item.Repository, repository, StringComparison.OrdinalIgnoreCase));

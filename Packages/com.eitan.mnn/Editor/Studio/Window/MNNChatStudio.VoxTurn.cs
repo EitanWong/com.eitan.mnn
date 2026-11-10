@@ -25,7 +25,7 @@ namespace MNN.Unity.Editor
 
         private string[] BuildVoxTurnQuestions()
         {
-            return MNNVoxTurnPrompt.Tasks.Where((task, index) => (_voxTurnQuestions & (1 << index)) != 0).ToArray();
+            return MNNVoxTurn.SupportedTasks.Where((task, index) => (_voxTurnQuestions & (1 << index)) != 0).ToArray();
         }
 
         private string VoxTurnValidation()

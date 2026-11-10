@@ -30,8 +30,8 @@ namespace MNN.Unity.Tests
             catalog.IncludePublishedProfiles();
             var models = catalog.models.Where(model => model.repositoryId != null && model.repositoryId.StartsWith("EitanWang/") &&
                 model.repositoryId != Repository).ToArray();
-            Assert.AreEqual(49, models.Length);
-            Assert.AreEqual(49, models.Select(model => model.repositoryId).Distinct().Count());
+            Assert.AreEqual(50, models.Length);
+            Assert.AreEqual(50, models.Select(model => model.repositoryId).Distinct().Count());
             Assert.AreEqual("SpeechEnhancement", models.Single(model => model.name == "GTCRN-MNN").category);
             Assert.AreEqual("SpeakerRecognition", models.Single(model => model.name == "ECAPA-TDNN-MNN").category);
             Assert.AreEqual("TurnDetection", models.Single(model => model.name == "TurnSense-SmolLM2-135M-MNN").category);

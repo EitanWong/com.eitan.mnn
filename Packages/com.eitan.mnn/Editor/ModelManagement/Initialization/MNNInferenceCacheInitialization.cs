@@ -5,6 +5,6 @@ namespace MNN.Unity.Editor
     internal static class MNNInferenceCacheInitialization
     {
         [InitializeOnLoadMethod]
-        private static void Initialize() => MNNInferenceCache.CaptureEnvironment();
+        private static void Initialize() => MNNRuntime.Initialize();
     }
 }

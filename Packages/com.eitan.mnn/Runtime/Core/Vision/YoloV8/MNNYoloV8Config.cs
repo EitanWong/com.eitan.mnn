@@ -32,7 +32,7 @@ namespace MNN.Unity
 
         internal MNNYoloV8Config Clone() => JsonUtility.FromJson<MNNYoloV8Config>(JsonUtility.ToJson(this));
 
-        internal string ResolveGraph(string directory)
+        public string ResolveGraph(string directory)
         {
             if (width < 32 || height < 32 || width > 4096 || height > 4096 || width % 32 != 0 || height % 32 != 0 ||
                 string.IsNullOrWhiteSpace(input) || string.IsNullOrWhiteSpace(output) || labels == null || labels.Length < 1 || labels.Length > 10000 ||

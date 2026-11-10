@@ -5,7 +5,7 @@ namespace MNN.Unity
 {
     public partial class MNNModelCatalog
     {
-        internal void IncludePocketProfiles()
+        public void IncludePocketProfiles()
         {
             AddPocket("MNN-Pocket-0.3B", "BF16 instruction source; use MNN-Pocket-0.3B-MNN for inference.");
             AddPocket("MNN-Pocket-0.3B-Base", "BF16 pretrained base; export with official llmexport before loading.");

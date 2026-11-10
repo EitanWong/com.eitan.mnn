@@ -25,6 +25,11 @@ namespace MNN.Unity
             "नमस्कार, तपाईंलाई स्वागत छ।", "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ।", "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ।",
             "नमस्ते, स्वागतम्।", "வணக்கம் உலகம். இது ஒரு குரல் தொகுப்பு சோதனை.", "నమస్కారం, మీకు స్వాగతం."
         };
+        /// <summary>Installed frontend speaker identifiers; each call returns an independent snapshot.</summary>
+        public static string[] InstalledSpeakers => (string[])SpeakerNames.Clone();
+        public static string[] InstalledStyles => (string[])StyleNames.Clone();
+        public static int[] InstalledStyleIds => (int[])StyleIds.Clone();
+        public static string[] SpeakerExampleTexts => (string[])SpeakerExamples.Clone();
         /// <summary>Documented speaker labels, ordered by speaker ID (0–19).</summary>
         public string[] Voices => (string[])SpeakerNames.Clone();
         private readonly object _gate = new object();

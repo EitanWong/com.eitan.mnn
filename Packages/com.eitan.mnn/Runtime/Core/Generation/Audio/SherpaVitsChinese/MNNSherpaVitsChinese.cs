@@ -27,7 +27,7 @@ namespace MNN.Unity
 
         internal static bool IsComplete(string directory) => new[]{"model.mnn", "model.mnn.weight", "tokens.txt", "lexicon.txt", "G_multisperaker_latest.json"}.All(file => File.Exists(Path.Combine(directory, file)));
 
-        internal static string[] InstalledVoices(string directory)
+        public static string[] InstalledVoices(string directory)
         {
             var config = MNNModelData.Read(Path.Combine(directory, "G_multisperaker_latest.json"));
             var speakers = MNNModelData.Object(MNNModelData.Get(config, "speakers"));

@@ -12,7 +12,7 @@ namespace MNN.Unity
 {
     public sealed partial class MNNSupertonic
     {
-        internal static string[] InstalledVoices(string directory) => new[]{"M1", "M2", "M3", "M4", "M5", "F1", "F2", "F3", "F4", "F5"}.Where(name => File.Exists(VoicePath(directory, name))).ToArray();
+        public static string[] InstalledVoices(string directory) => new[]{"M1", "M2", "M3", "M4", "M5", "F1", "F2", "F3", "F4", "F5"}.Where(name => File.Exists(VoicePath(directory, name))).ToArray();
         private static string VoicePath(string directory, string name)
         {
             string path = Path.Combine(directory, "voice_styles", name + ".json");

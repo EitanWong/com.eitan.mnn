@@ -125,7 +125,7 @@ namespace MNN.Unity.Tests
             File.WriteAllText(Path.Combine(_root, MNNCosyVoice300MModel.ConfigName), "{\"model\":\"iic/CosyVoice-300M\",\"schema_version\":1,\"sample_rate\":22050}");
             var model = MNNStudioModel.Read(_root);
             Assert.AreEqual(MNNStudioTask.SpeechSynthesis, model.Task);
-            Assert.AreEqual(MNNTtsModelProfile.CosyVoice300M, model.TtsProfile);
+            Assert.AreEqual(MNNSpeechModelKind.CosyVoice300M, model.TtsProfile);
             Assert.IsTrue(model.IsCosyVoice300M);
             Assert.IsFalse(model.IsCosyVoice);
             Assert.IsFalse(model.HasGenerationPipeline);
@@ -158,7 +158,7 @@ namespace MNN.Unity.Tests
         public void LegacyCosyVoiceProfileKeepsItsOwnRoute()
         {
             File.WriteAllText(Path.Combine(_root, "config-cpu-cosyvoice-ras.json"), "{}");
-            Assert.AreEqual(MNNTtsModelProfile.CosyVoice, MNNTtsModelProfiles.Detect(_root));
+            Assert.AreEqual(MNNSpeechModelKind.CosyVoice, MNNTtsModelProfiles.Detect(_root));
         }
 
         [Test]
