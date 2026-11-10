@@ -68,6 +68,7 @@ namespace MNN.Unity
         {
             ValidateRepositoryId(modelScopeId);
             cancellationToken.ThrowIfCancellationRequested();
+            if (MNNEnglishKwsModel.IsModelScopeRepository(modelScopeId)) revision = MNNEnglishKwsModel.ResolveRevision(revision);
             if (MNNPocketModel.IsRepository(modelScopeId)) revision = MNNPocketModel.ResolveRevision(revision);
             revision = MNNVerifiedTtsModel.IsCosyVoice300MRepository(modelScopeId) ? MNNVerifiedTtsModel.ResolveCosyVoice300MRevision(revision)
                 : string.IsNullOrWhiteSpace(revision) ? "master" : revision;
@@ -80,6 +81,8 @@ namespace MNN.Unity
                 // Verified profiles use their immutable plan even when resuming an older mutable manifest.
                 if (MNNPocketModel.IsRepository(modelScopeId))
                     files = MNNPocketModel.Files();
+                else if (MNNEnglishKwsModel.IsModelScopeRepository(modelScopeId))
+                    files = MNNEnglishKwsModel.Files();
                 else if (MNNDtlnAecModel.IsRepository(modelScopeId))
                     files = DtlnAecDownloadPlan(modelScopeId);
                 else if (MNNVerifiedTtsModel.IsRepository(modelScopeId))

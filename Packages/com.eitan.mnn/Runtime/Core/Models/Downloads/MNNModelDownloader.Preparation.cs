@@ -44,6 +44,8 @@ namespace MNN.Unity
                 MNNReferenceSpeechModel.Validate(directory, MNNReferenceSpeechModel.IsIndex(repository));
             if (source == MNNModelSource.ModelScope && MNNVerifiedTtsModel.IsRepository(repository) || source == MNNModelSource.HuggingFace && MNNVerifiedTtsModel.IsHuggingFaceRepository(repository))
                 MNNVerifiedTtsModel.Prepare(directory, repository);
+            if (source == MNNModelSource.ModelScope && MNNEnglishKwsModel.IsModelScopeRepository(repository))
+                MNNEnglishKwsModel.Prepare(directory);
             if (source == MNNModelSource.HuggingFace && MNNKwsModel.IsRepository(repository))
                 MNNKwsModel.Prepare(directory);
             if (source == MNNModelSource.HuggingFace && MNNSileroModel.IsRepository(repository))

@@ -19,6 +19,7 @@ namespace MNN.Unity
         // Published repositories only. The existing DTLN AEC entries have their own pinned plans.
         private static readonly PublishedSpeechProfile[] PublishedSpeechProfiles =
         {
+            new PublishedSpeechProfile("English-KWS-GigaSpeech-MNN", "keyword-spotting", MNNEnglishKwsModel.Files().Sum(file => file.Size), MNNKwsModel.Encoder, MNNKwsModel.Decoder, MNNKwsModel.Joiner),
             new PublishedSpeechProfile("Silero-v5.1-MNN", "voice-activity-detection", 1266761L, "silero_v5_16k_fp32.mnn"),
             new PublishedSpeechProfile("SmartTurn-v3.2-FP32-MNN", "turn-detection", 32073447L, "smart_turn_v32_fp32.mnn"),
             new PublishedSpeechProfile("MarbleNet-VAD-MNN", "voice-activity-detection", 380052L, "marblenet_fp32.mnn"),
@@ -102,6 +103,13 @@ namespace MNN.Unity
             model.supportSummary = (profile.Name == "VoxTurn-v1-MNN" ? "Noncommercial license. " : string.Empty) +
                 "Published MNN deployment files. Consult the model card for input, license and validation limits; catalog availability does not validate inference.";
             model.runtimeAvailable = profile.Task != "target-speaker-extraction" && profile.Task != "speaker-diarization";
+            if (MNNEnglishKwsModel.IsModelScopeRepository(model.repositoryId))
+            {
+                model.revision = model.version = MNNEnglishKwsModel.Revision;
+                model.tags = model.tags.Concat(new[] { "en", "gigaspeech", "English-KWS-GigaSpeech" }).ToArray();
+                model.description = "English GigaSpeech 3.3M streaming wake-word detection, 16 kHz mono.";
+                model.supportSummary = "Pinned English GigaSpeech MNN graphs, 500-token vocabulary and unigram model; SHA-256 verified on install. Ordinary English wake phrases, managed streaming keyword search. Native loading requires the package's supported compiler/platform ABI.";
+            }
             model.requiresTranscript = profile.Name == "NAMO-Turn-Detector-v1-Multilingual-MNN" ||
                 profile.Name == "TurnSense-SmolLM2-135M-MNN";
         }

@@ -67,6 +67,8 @@ namespace MNN.Unity
         public static string DefaultRevision(MNNModelSource source) => source == MNNModelSource.ModelScope ? "master" : "main";
 
         public static string DefaultInstallationName(MNNRemoteModel model) => model != null && model.provider == MNNModelSource.ModelScope &&
+            MNNEnglishKwsModel.IsModelScopeRepository(model.repositoryId ?? model.modelScopeId)
+            ? MNNKeywordSpotterConfig.EnglishDirectoryName : model != null && model.provider == MNNModelSource.ModelScope &&
             MNNPocketModel.IsRepository(model.repositoryId ?? model.modelScopeId) && model.revision == MNNPocketModel.Revision
             ? MNNPocketModel.InstallationName : DtlnProfile(model)?.name ?? Defaults.OrderByDescending(known => known.Id == model.name).FirstOrDefault(known =>
             known.Source == model.provider && string.Equals(known.Repository, model.repositoryId ?? model.modelScopeId, StringComparison.OrdinalIgnoreCase) &&
