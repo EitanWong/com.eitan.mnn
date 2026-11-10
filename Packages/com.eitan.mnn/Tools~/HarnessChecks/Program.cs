@@ -37,6 +37,11 @@ internal static class Program
     }
     private static async Task RunAsync()
     {
+        var readiness = new SiriAIHarnessReadinessTests();
+        readiness.VersionEvidenceSurvivesThePublicJsonContract();
+        Console.WriteLine("PASS typed backend version evidence, optional old-Host fields and readiness consistency");
+        readiness.VersionContractRejectsMalformedOrContradictoryEvidence();
+        Console.WriteLine("PASS standalone backend version contract rejects malformed and contradictory evidence");
         new SiriAIDesktopHostTests().MobileCannotLaunchAHostAndCommandsAreClosed();
         Console.WriteLine("PASS mobile refuses local process launch and lifecycle commands are closed");
         var content = new SiriAIHarnessContentUITests();

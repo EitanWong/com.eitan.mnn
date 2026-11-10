@@ -16,7 +16,7 @@ internal static class BackendDiscovery
             ProtocolCandidate = profile.Integration != "dotcraft" && profile.Implemented && executable != null && adapter != null,
             Backend = profile.Id, Integration = profile.Integration,
             InteroperabilityVerified = false,
-            RequiresExplicitConfiguration = true
+            RequiresExplicitConfiguration = true, MinimumVersion = profile.MinimumVersion
         };
     }).ToArray();
 

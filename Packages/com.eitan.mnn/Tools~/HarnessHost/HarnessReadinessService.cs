@@ -53,17 +53,22 @@ internal sealed class HarnessReadinessService
     private async Task<HarnessReadiness> CheckAsync(Entry entry, HarnessConfiguration config, string directory, string workspace, CancellationToken cancellation)
     {
         HarnessReadiness result;
+        HarnessBackendVersion version = null;
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         budget.CancelAfter(TimeSpan.FromSeconds(10));
         try
         {
-            result = await HarnessProtocolProbes.CheckAsync(config, _adapters[config.Id], directory, budget.Token);
+            version = await BackendVersionProbe.CheckAsync(config, directory, budget.Token);
+            result = version != null && version.State != "compatible"
+                ? State(config, workspace, "unavailable", version.State == "too_old" ? "backend_version_too_old" : "backend_version_unconfirmed")
+                : await HarnessProtocolProbes.CheckAsync(config, _adapters[config.Id], directory, budget.Token);
             result.State ??= "protocol_verified";
         }
         catch (Exception error)
         {
             result = State(config, workspace, "unavailable", error is OperationCanceledException ? "probe_cancelled_or_timed_out" : "probe_failed");
         }
+        result.BackendVersion = version;
         result.HarnessId = config.Id; result.WorkspaceKey = workspace; result.Protocol = config.Protocol;
         result.CheckedUtcTicks = DateTime.UtcNow.Ticks;
         lock (_sync) entry.Current = result;

@@ -14,12 +14,15 @@ namespace MNN.Samples.SiriAI.Harnesses
         [DataMember(Order = 4)] public string Evidence;
         [DataMember(Order = 5)] public long CheckedUtcTicks;
         [DataMember(Order = 6)] public HarnessAcpCapabilities AcpCapabilities;
+        [DataMember(Order = 7, EmitDefaultValue = false)] public HarnessBackendVersion BackendVersion;
         [OnDeserialized] private void OnDeserialized(StreamingContext context)
         {
             HarnessText.Required(HarnessId, 128); HarnessText.Required(WorkspaceKey, 1024); HarnessText.Required(Protocol, 128);
             if (Array.IndexOf(new[] { "unknown", "checking", "protocol_verified", "unavailable", "unsupported" }, State) < 0)
                 throw new SerializationException("Invalid backend check state.");
             ValidateTimestamp();
+            if (BackendVersion != null && BackendVersion.State != "compatible" && State != "unavailable")
+                throw new SerializationException("An incompatible or unconfirmed version cannot confirm backend readiness.");
             if (Evidence != null) HarnessText.Required(Evidence, 128);
             if (AcpCapabilities != null && (Protocol != "acp" || State != "protocol_verified"))
                 throw new SerializationException("Backend capabilities require a confirmed ACP protocol check.");
@@ -30,6 +33,34 @@ namespace MNN.Samples.SiriAI.Harnesses
                 throw new SerializationException("Invalid backend check timestamp.");
             if (State != "unknown" && State != "checking" && CheckedUtcTicks == 0)
                 throw new SerializationException("Completed backend check requires a timestamp.");
+        }
+    }
+    /// <summary>Normalized numeric version evidence, never raw backend process output.</summary>
+    [DataContract]
+    public sealed class HarnessBackendVersion
+    {
+        [DataMember(Order = 0)] public string Version;
+        [DataMember(Order = 1)] public string Minimum;
+        [DataMember(Order = 2)] public string State;
+        [OnDeserialized] private void OnDeserialized(StreamingContext context)
+        {
+            if (!Numeric(Minimum) || Array.IndexOf(new[] { "compatible", "too_old", "unconfirmed" }, State) < 0 ||
+                (State == "unconfirmed" ? Version != null : !Numeric(Version)))
+                throw new SerializationException("Invalid backend version evidence.");
+            if (State != "unconfirmed" && (System.Version.Parse(Version) >= System.Version.Parse(Minimum)) != (State == "compatible"))
+                throw new SerializationException("Backend version state contradicts its numeric evidence.");
+        }
+        private static bool Numeric(string value)
+        {
+            if (value == null || value.Length > 32) return false;
+            string[] parts = value.Split('.');
+            if (parts.Length != 3) return false;
+            foreach (string part in parts)
+            {
+                int number;
+                if (!int.TryParse(part, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out number)) return false;
+            }
+            return true;
         }
     }
     [DataContract]

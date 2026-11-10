@@ -31,6 +31,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         [DataMember(Name = "installed")] public bool Installed;
         [DataMember(Name = "protocolCandidate")] public bool ProtocolCandidate;
         [DataMember(Name = "interoperabilityVerified")] public bool InteroperabilityVerified;
+        [DataMember(Name = "minimumVersion", EmitDefaultValue = false)] public string MinimumVersion;
         [DataMember(Name = "requiresExplicitConfiguration")] public bool RequiresExplicitConfiguration;
     }
 }
