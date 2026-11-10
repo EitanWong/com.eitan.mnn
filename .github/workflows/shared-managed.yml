@@ -38,10 +38,17 @@ jobs:
         run: |
           test -x "$UNITY_EDITOR" || { echo 'Set MNN_UNITY_EXECUTABLE to an activated Unity 2021.3.45f2 executable.'; exit 1; }
           python3 --version
+          dotnet --list-sdks
       - name: Test the regression and preflight tools
         run: python3 -B -m unittest discover -s Packages/com.eitan.mnn/Tools~/Validation -p 'test_*.py'
       - name: Report quality tool availability
         run: python3 -B Packages/com.eitan.mnn/Tools~/Testing/probe_quality_tools.py --output "$OUTPUT/quality-tools.json"
+      - name: Check public API, layer permissions and generated reference
+        run: |
+          python3 -B Packages/com.eitan.mnn/Tools~/Validation/validate_public_api.py \
+            --self-test --output "$OUTPUT/API/SelfTest"
+          python3 -B Packages/com.eitan.mnn/Tools~/Validation/validate_public_api.py \
+            --unity "$UNITY_EDITOR" --output "$OUTPUT/API"
       - name: Run every offline shared EditMode test
         shell: bash
         run: |
@@ -59,6 +66,9 @@ jobs:
             TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/*.json
             TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/*.xml
             TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/*.log
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/API/*.json
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/API/*.stdout
+            TestArtifacts~/CI/SharedManaged/${{ github.run_id }}-${{ github.run_attempt }}/API/*.stderr
           if-no-files-found: warn
           retention-days: 14
       - name: Measure the original allocation cases on host Mono

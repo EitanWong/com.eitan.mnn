@@ -1,5 +1,7 @@
 # MNN for Unity - C# API Documentation
 
+统一分层、权限和调用约定见[统一 API 层](PublicApiLayer.md)；类型、重载和参数的源码清单见[公共 API 参考](PublicAPI.md)。
+
 ## Overview
 
 本文档介绍 MNN Unity Package 的 C# API。当前接口直接调用官方 C++ API，

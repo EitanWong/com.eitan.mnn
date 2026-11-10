@@ -13,6 +13,8 @@ The package version is 3.6.2.
 
 ### Added
 
+- Unified managed API contracts for offline model inspection, pinned revisions, curated sources and runtime initialization. Studio now uses public APIs without Runtime friendship; semantic checks enforce component/Core/Interop boundaries and generate the public API reference. See [API layers](Documentation~/PublicApiLayer.md).
+
 - Added the official MNN-Pocket 0.3B family catalog, pinned W4A16 deployment plan,
   `.mtok` tokenizer and shared conversation alias. SiriAI now defaults to Pocket;
   source-only/GGUF/Dec entries retain their format requirements. See

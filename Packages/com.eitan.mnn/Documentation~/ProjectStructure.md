@@ -170,6 +170,13 @@ Runtime 与 Editor 仅向实际使用内部 API 的测试程序集开放友元�
 按类型或 category 筛选仍使用原名称；按程序集筛选原生/模型测试时改用
 `MNN.Unity.Integration.Tests`，完整 Editor 回归选择两个测试程序集。
 
+## 公共 API 与内部权限
+
+开发者和上层使用 `Runtime/Core` 中的公共任务契约，分类、线程与所有权见[统一 API 层](PublicApiLayer.md)。
+Editor 没有 Runtime 友元权限；组件到 Core 的调用由 Roslyn 语义检查限制为公共符号，
+Core 不能反向依赖组件，Interop 与句柄保持 internal。保留原程序集及 Unity 序列化身份。
+`Tools~/Validation/validate_public_api.py` 同时检查边界和源码生成的公共 API 清单/参考文档。
+
 ## 文件与代码规则
 
 - 先按层级划分，再按职责归类；不要重新建立无明确职责的 `Utils`、`Misc` 或 `Temp` 目录。

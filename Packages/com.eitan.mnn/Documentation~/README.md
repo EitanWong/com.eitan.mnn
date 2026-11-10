@@ -47,6 +47,9 @@ results retain their original scope and do not replace validation of a new build
 
 ## API and models
 
+- [统一 API 层](PublicApiLayer.md)：领域入口、权限、线程、所有权和文档生成。
+- [生成的公共 API 参考](PublicAPI.md)：实际公共符号、重载和 XML 说明。
+
 - [API reference](API.md): public C# types and inference workflows.
 - [Model recommendations](ModelRecommendations.md): hardware/workload budgets, KV caches and joint LLM/ASR/TTS selection.
 - [Acceleration](Acceleration.md): backend selection, precision, fallback and caching.

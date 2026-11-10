@@ -1,5 +1,7 @@
 # MNN for Unity
 
+开发者从[统一 API 层](Documentation~/PublicApiLayer.md)选择任务入口；完整签名见[生成的公共 API 参考](Documentation~/PublicAPI.md)。
+
 Unity APIs and editor tools for MNN 3.6.2 inference, language and multimodal models,
 retrieval, speech synthesis and image generation. Requires Unity 2021.3 or later;
 the verified Unity version is 2021.3.45f2.
