@@ -102,6 +102,18 @@ namespace MNN.Unity.Tests
             Assert.That(messages[1].Content, Is.EqualTo("reply"));
             Assert.That(messages[2].Content, Does.Not.Contain("<audio>"));
         }
+        [TestCase("总金额206元，共4条记录。", true, "总金额二百零六元，共四条记录。")]
+        [TestCase("总金额1,160.50元。", true, "总金额一千一百六十点五零元。")]
+        [TestCase("共10条，编号006。", true, "共十条，编号零零六。")]
+        [TestCase("余额-12.05元。", true, "余额负十二点零五元。")]
+        [TestCase("完成率25%。", true, "完成率百分之二十五。")]
+        [TestCase("已完成0项。", true, "已完成零项。")]
+        [TestCase("总额10001元。", true, "总额一万零一元。")]
+        [TestCase("总额99999999元。", true, "总额九千九百九十九万九千九百九十九元。")]
+        [TestCase("编号123456789。", true, "编号一二三四五六七八九。")]
+        [TestCase("金额２０６元。", true, "金额二百零六元。")]
+        [TestCase("共四条记录。", true, "共四条记录。")]
+        [TestCase("Total 206 across 4 records.", true, "Total 206 across 4 records.")]
         [TestCase(" ~ ~ ", false, "")]
         [TestCase("你好~world", true, "你好 world")]
         public void KokoroNormalizationPreservesSpokenContent(string input, bool pronounceable, string expected)

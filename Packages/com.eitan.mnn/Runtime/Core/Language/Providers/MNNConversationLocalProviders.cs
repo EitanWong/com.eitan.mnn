@@ -55,7 +55,7 @@ namespace MNN.Unity
                 default: throw new NotSupportedException("Unsupported local conversation task: " + kind);
             }
         }
-        public static string PrepareKokoroText(string text) => text?.Replace('~', ' ').Trim();
+        public static string PrepareKokoroText(string text) => MNNMandarinNumber.NormalizeKokoro(text?.Replace('~', ' ').Trim());
 
         public static bool HasPronounceableText(string text)
         {

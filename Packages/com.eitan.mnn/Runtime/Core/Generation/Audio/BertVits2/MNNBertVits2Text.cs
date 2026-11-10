@@ -226,7 +226,7 @@ namespace MNN.Unity
                 throw new ArgumentException("Enter 1–300 Chinese characters for Bert-VITS2.", nameof(text));
             if (Regex.IsMatch(text, @"[A-Za-z]"))
                 throw new NotSupportedException("Split Chinese and English segments before Chinese normalization.");
-            text = Regex.Replace(text.Normalize(NormalizationForm.FormC), @"[0-9]+(?:\.[0-9]+)?", m => Number(m.Value));
+            text = Regex.Replace(text.Normalize(NormalizationForm.FormC), @"[0-9]+(?:\.[0-9]+)?", m => MNNMandarinNumber.ToWords(m.Value));
             var result = new StringBuilder();
             foreach (char c in text)
             {
@@ -242,58 +242,6 @@ namespace MNN.Unity
             return result.ToString();
         }
 
-        private static string Number(string value)
-        {
-            const string digits = "零一二三四五六七八九";
-            string[] parts = value.Split('.');
-            var result = new StringBuilder();
-            if (parts[0].Length > 8 || parts[0].Length > 1 && parts[0][0] == '0')
-                foreach (char c in parts[0])
-                    result.Append(digits[c - '0']);
-            else
-            {
-                int number = int.Parse(parts[0], CultureInfo.InvariantCulture);
-                string Group(int n)
-                {
-                    if (n == 0)
-                        return "零";
-                    string s = n.ToString(CultureInfo.InvariantCulture);
-                    var b = new StringBuilder();
-                    bool zero = false;
-                    for (int i = 0; i < s.Length; ++i)
-                    {
-                        int d = s[i] - '0';
-                        if (d == 0)
-                        {
-                            zero = b.Length > 0;
-                            continue;
-                        }
 
-                        if (zero)
-                        {
-                            b.Append('零');
-                            zero = false;
-                        }
-
-                        b.Append(digits[d]);
-                        b.Append(" 十百千"[s.Length - i - 1] == ' ' ? "" : " 十百千"[s.Length - i - 1].ToString());
-                    }
-
-                    string r = b.ToString();
-                    return r.StartsWith("一十") ? r.Substring(1) : r;
-                }
-
-                result.Append(number >= 10000 ? Group(number / 10000) + "万" + (number % 10000 == 0 ? "" : (number % 10000 < 1000 ? "零" : "") + Group(number % 10000)) : Group(number));
-            }
-
-            if (parts.Length > 1)
-            {
-                result.Append('点');
-                foreach (char c in parts[1])
-                    result.Append(digits[c - '0']);
-            }
-
-            return result.ToString();
-        }
     }
 }
