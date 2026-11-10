@@ -290,3 +290,24 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 涉及的示例源码、Shader、测试及meta，不包含模型、凭据、用户配置或临时验收输出。
 验证覆盖Editor行为/GPU、真实macOS服务生命周期和独立协议替身；不代表全部
 第三方账号/模型、其他桌面系统或物理移动设备已经完成发布验收。
+
+## Tasks设置稳定性与自定义宿主配置
+
+在已经完成 `product`、且匹配本轮基线的本地导入上，运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage tasks
+```
+
+`SiriAITaskSettings.patch` 保留正在编辑的连接字段和打开的选择器，后台只局部更新
+任务内容；无变化的任务快照、本机检测和技能历史不再发出多余更新。
+真正切换宿主/账户时仍清除旧任务草稿和过期操作。
+远程列表排除当前及旧版自动本地配置，用户自行保存的localhost配置仍可选择。
+用户可命名、新增、编辑和删除宿主配置；删除有界面确认，清除连接与对应凭据，
+已接收的宿主任务继续运行。修改名称保留连接，修改后端或工作区保留凭据供重新连接。
+
+该stage使用独立的前后SHA-256，不改写历史 `product` 补丁；重复应用零写入，
+不匹配或部分应用拒绝且零写入，原meta GUID保持不变。本机源码已应用。
+
+远程连接一步自动发现配置，名称可留空采用主机名；保留有效的后端/工作区选择。
+本地优先恢复仍有效的已保存项目，再使用会话目录和应用项目目录。
