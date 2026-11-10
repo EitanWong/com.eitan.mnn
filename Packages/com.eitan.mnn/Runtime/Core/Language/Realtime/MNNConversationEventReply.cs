@@ -29,11 +29,12 @@ namespace MNN.Unity
         public void AcknowledgeTextDisplayed(MNNResponseId response, int characters)
         { if (response == Response && response.IsValid) Volatile.Write(ref _displayedLength, characters); }
 
-        /// <summary>Conservative segment-level evidence: queued or device-submitted audio alone never means heard.</summary>
+        /// <summary>Presentation starts at the first presented frame; completion still requires every complete segment.</summary>
         public void ObservePresentation(MNNRealtimeOutputPipeline output)
         {
             var response = Response;
             if (!response.IsValid || output == null) return;
+            if (output.HasPresentationStarted(response)) Volatile.Write(ref _playbackStarted, 1);
             bool hasSegments = false;
             bool allPresented = true;
             for (int i = 0; i < output.SegmentCount; ++i)
@@ -42,7 +43,6 @@ namespace MNN.Unity
                 if (segment.Response != response) continue;
                 hasSegments = true;
                 allPresented &= segment.IsPresented;
-                if (segment.IsPresented) Volatile.Write(ref _playbackStarted, 1);
             }
             if (hasSegments && allPresented && Completion.IsCompleted && Succeeded)
                 Volatile.Write(ref _playbackCompleted, 1);

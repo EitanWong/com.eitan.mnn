@@ -83,6 +83,8 @@ namespace MNN.Unity
 
         public MNNConversationSegment GetSegment(int index) => _ledger.GetSegment(index);
 
+        internal bool HasPresentationStarted(MNNResponseId response) => _ledger.HasPresentationStarted(response);
+
         /// <summary>
         /// Explicit context rollover after the caller joins old producers and snapshots presented text.
         /// Late device receipts from these epochs are ignored conservatively. The presentation clock is preserved.

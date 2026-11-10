@@ -18,6 +18,7 @@ namespace MNN.Unity
             internal int NextChunk;
             internal int NextSourceFrame;
             internal long SubmittedFrames;
+            internal long StartFrame;
             internal long EndFrame;
             internal bool Complete;
             internal bool Interrupted;
@@ -88,6 +89,7 @@ namespace MNN.Unity
                     receipt.SourceStartFrame != segment.NextSourceFrame || receipt.OutputStartFrame < segment.EndFrame)
                     throw new InvalidOperationException("Missing, duplicate or out-of-order playback receipt.");
                 segment.NextSourceFrame += receipt.FrameCount;
+                if (segment.SubmittedFrames == 0) segment.StartFrame = receipt.OutputStartFrame;
                 segment.SubmittedFrames += receipt.FrameCount;
                 segment.EndFrame = receipt.OutputEndFrame;
                 if (receipt.EndsChunk)
@@ -130,6 +132,20 @@ namespace MNN.Unity
                     if (_segments[i].Response == response)
                         _segments[i].Interrupted = true;
                 }
+            }
+        }
+
+        internal bool HasPresentationStarted(MNNResponseId response)
+        {
+            lock (_gate)
+            {
+                for (int i = 0; i < _count; ++i)
+                {
+                    var segment = _segments[i];
+                    if (segment.Response == response && segment.SubmittedFrames > 0 && segment.StartFrame < _presentedThrough)
+                        return true;
+                }
+                return false;
             }
         }
 

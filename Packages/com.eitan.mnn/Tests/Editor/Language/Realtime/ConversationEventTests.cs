@@ -1,10 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 
 namespace MNN.Unity.Tests
 {
@@ -41,6 +43,12 @@ namespace MNN.Unity.Tests
             Assert.Throws<ArgumentException>(() => input.CreateHistory(history, prompt[0].Text.Length + prompt.Last().Text.Length - 1));
         }
 
+        private static IEnumerator Await(Task task)
+        {
+            while (!task.IsCompleted) yield return null;
+            task.GetAwaiter().GetResult();
+        }
+
         private sealed class Capture : IMNNAudioCaptureSource
         {
             public MNNPcmFormat CaptureFormat => new MNNPcmFormat(16000, 1);
@@ -63,8 +71,10 @@ namespace MNN.Unity.Tests
             public void Dispose() { }
         }
 
-        [Test]
-        public async Task BackgroundResultUsesTheForegroundModelWithoutUserAcceptanceOrPlanning()
+        [UnityTest]
+        public IEnumerator BackgroundResultUsesTheForegroundModelWithoutUserAcceptanceOrPlanning() => Await(BackgroundResultUsesTheForegroundModelWithoutUserAcceptanceOrPlanningAsync());
+
+        private async Task BackgroundResultUsesTheForegroundModelWithoutUserAcceptanceOrPlanningAsync()
         {
             var model = new Model();
             int plans = 0;
@@ -118,8 +128,10 @@ namespace MNN.Unity.Tests
             public void Dispose() { }
         }
 
-        [Test]
-        public async Task BackgroundSpeechUsesTtsAndRequiresPresentationEvidence()
+        [UnityTest]
+        public IEnumerator BackgroundSpeechUsesTtsAndRequiresPresentationEvidence() => Await(BackgroundSpeechUsesTtsAndRequiresPresentationEvidenceAsync());
+
+        private async Task BackgroundSpeechUsesTtsAndRequiresPresentationEvidenceAsync()
         {
             var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(24000, 1), 512);
             MNNRealtimeSession session = null;
@@ -158,8 +170,63 @@ namespace MNN.Unity.Tests
             finally { await session.StopAsync(); }
         }
 
-        [Test]
-        public async Task BackgroundResultWaitsWhileRecordingOrGenerating()
+
+        [UnityTest]
+        public IEnumerator BackgroundSpeechStartsAtFirstPresentedFrameWithoutCompletingItsSegment() => Await(BackgroundSpeechStartsAtFirstPresentedFrameWithoutCompletingItsSegmentAsync());
+
+        private async Task BackgroundSpeechStartsAtFirstPresentedFrameWithoutCompletingItsSegmentAsync()
+        {
+            var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(24000, 1), 512);
+            MNNRealtimeSession session = null;
+            var ports = new MNNConversationPorts(new Capture(), () => session);
+            var runtime = new MNNConversationRuntime(ports, new MNNConversationOptions { speechOutput = true }, output,
+                MNNRealtimeRoute.CascadedSpeech, new MNNConversationProviders { Model = new Model(), Tts = new Tts() });
+            session = new MNNRealtimeSession(runtime, output);
+            try
+            {
+                await session.StartAsync();
+                // Advance the device clock with silence before this response exists.
+                output.Render(new float[512], 0, 512);
+                output.AcknowledgePresentation(512, false);
+                var reply = runtime.TryBeginEventReply(new MNNConversationEvent("partial-speech", "completed"), CancellationToken.None);
+                await reply.Completion;
+                reply.ObservePresentation(output);
+                Assert.False(reply.PlaybackStarted, "Queued audio cannot borrow an earlier response's watermark.");
+                var audio = new float[256];
+                output.Render(audio, 0, audio.Length);
+                Assert.True(audio.Any(v => v > 0));
+                output.DrainReceipts(256);
+                reply.ObservePresentation(output);
+                Assert.False(reply.PlaybackStarted, "Submitting a partial segment alone is insufficient.");
+                output.AcknowledgePresentation(512, false);
+                reply.ObservePresentation(output);
+                Assert.False(reply.PlaybackStarted, "The exclusive watermark at the first frame has not presented it.");
+                output.AcknowledgePresentation(513, true);
+                reply.ObservePresentation(output);
+                Assert.True(reply.PlaybackStarted, "PARTIAL_PRESENTATION_MISSING: first presented audio must count before segment completion.");
+                Assert.False(reply.PlaybackCompleted);
+                Assert.False(output.GetSegment(0).IsPresented, "Partial audio must never commit the whole segment to spoken history.");
+                await session.InterruptAsync();
+                reply.ObservePresentation(output);
+                Assert.True(reply.Interrupted);
+                Assert.True(reply.PlaybackStarted);
+                Assert.False(reply.PlaybackCompleted);
+                // Let the device discard the interrupted queue before admitting another response.
+                output.Render(new float[512], 0, 512);
+                output.DrainReceipts(256);
+                var next = runtime.TryBeginEventReply(new MNNConversationEvent("not-yet-played", "another result"), CancellationToken.None);
+                Assert.IsNotNull(next);
+                await next.Completion;
+                next.ObservePresentation(output);
+                Assert.False(next.PlaybackStarted, "A new response must not inherit the interrupted response's start evidence.");
+            }
+            finally { await session.StopAsync(); }
+        }
+
+        [UnityTest]
+        public IEnumerator BackgroundResultWaitsWhileRecordingOrGenerating() => Await(BackgroundResultWaitsWhileRecordingOrGeneratingAsync());
+
+        private async Task BackgroundResultWaitsWhileRecordingOrGeneratingAsync()
         {
             var model = new Model();
             var hold = new TaskCompletionSource<bool>();
