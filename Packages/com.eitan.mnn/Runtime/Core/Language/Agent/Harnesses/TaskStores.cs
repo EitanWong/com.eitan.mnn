@@ -27,6 +27,7 @@ namespace MNN.Samples.SiriAI.Harnesses
     /// <summary>One process holds the writer lease. File replacement commits tasks and outbox together.</summary>
     public sealed class FileTaskStore : IHarnessTaskStore, IDisposable
     {
+        private const long MaximumDocumentBytes = 64L * 1024 * 1024;
         private readonly string _path;
         private readonly FileStream _writerLease;
         private bool _disposed;
@@ -40,7 +41,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         {
             RequireOpen();
             if (!File.Exists(_path)) return new HarnessTask[0];
-            if (new FileInfo(_path).Length > 64 * 1024 * 1024) throw new SerializationException("Task store exceeds its budget.");
+            if (new FileInfo(_path).Length > MaximumDocumentBytes) throw new SerializationException("Task store exceeds its budget.");
             using (var input = File.OpenRead(_path))
             {
                 var data = (StoreDocument)new DataContractJsonSerializer(typeof(StoreDocument)).ReadObject(input);
@@ -57,6 +58,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                 using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
                     new DataContractJsonSerializer(typeof(StoreDocument)).WriteObject(output, new StoreDocument { Version = 1, Tasks = tasks });
+                    if (output.Position > MaximumDocumentBytes) throw new SerializationException("Task store exceeds its budget.");
                     output.Flush(true);
                 }
                 if (File.Exists(_path)) File.Replace(temporary, _path, null);

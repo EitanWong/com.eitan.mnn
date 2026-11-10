@@ -66,6 +66,8 @@ internal static class Program
         Console.WriteLine("PASS native tool state remains detached, bounded, durable and separate from task result, permissions and stale dashboards");
         await new SiriAIHarnessSessionConfigurationTests().VerifyAsync();
         Console.WriteLine("PASS native session configuration snapshots retain exact values, detached arrays, typed booleans and durable permission/task ownership");
+        await new SiriAIHarnessStoreBudgetTests().OversizedWritePreservesCommittedResultAndRestart();
+        Console.WriteLine("PASS oversized durable store write preserves the prior committed result and restart");
         var tests = new SiriAITaskRuntimeTests();
         var dashboard = new SiriAIHarnessDashboardTests();
         await dashboard.StructuredInputPreservesTypesAndSnapshotOwnership();
