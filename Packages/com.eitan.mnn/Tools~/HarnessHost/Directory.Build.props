@@ -1,5 +1,7 @@
 <Project>
   <PropertyGroup>
+    <!-- The desktop task host has one state writer; keep its default GC footprint small. -->
+    <ServerGarbageCollection Condition="'$(ServerGarbageCollection)' == ''">false</ServerGarbageCollection>
     <HarnessArtifactsRoot Condition="'$(HarnessArtifactsRoot)' == ''">$(MSBuildThisFileDirectory)../../../../TestArtifacts~/SiriAIHarness/Host/</HarnessArtifactsRoot>
     <BaseIntermediateOutputPath>$(HarnessArtifactsRoot)obj/</BaseIntermediateOutputPath>
     <BaseOutputPath>$(HarnessArtifactsRoot)bin/</BaseOutputPath>
