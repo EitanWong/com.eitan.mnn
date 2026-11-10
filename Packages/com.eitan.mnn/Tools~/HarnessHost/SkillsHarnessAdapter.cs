@@ -7,8 +7,9 @@ namespace SiriAI.HarnessHost;
 internal sealed class SkillsHarnessAdapter : ILocalCancellationHarnessAdapter
 {
     private readonly HostConfiguration _host;
+    private readonly CancellationToken _hostStopping;
     private SkillsConfiguration Configuration => _host.Skills;
-    internal SkillsHarnessAdapter(HostConfiguration host) { _host = host; }
+    internal SkillsHarnessAdapter(HostConfiguration host, CancellationToken hostStopping = default) { _host = host; _hostStopping = hostStopping; }
     public string Id => "skills";
     public HarnessCapabilities Capabilities => HarnessCapabilities.Cancel;
     public string CancellationScope => "local-installer-process";
@@ -21,26 +22,30 @@ internal sealed class SkillsHarnessAdapter : ILocalCancellationHarnessAdapter
         var plan = TaskHostJson.Read<SkillLibraryPlan>(Encoding.UTF8.GetBytes(task.Objective));
         if (plan.Fingerprint != SkillLibraryPlan.Identity(Configuration))
             return HarnessOutcome.Interrupted("Skill installer configuration changed after admission; no process was started.");
-        var request = plan.Request;
+        var guarded = SkillStartup.Prepare(plan, Configuration, task.OwnerId, out var request);
+        if (guarded != null) return guarded;
         string[] arguments = Arguments(request, plan.Installers);
-        activity(new HarnessActivity(HarnessWaitingFor.None, null, "Running explicit skill operation: " + request.Operation));
-        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellation, stopping);
+        activity(new HarnessActivity(HarnessWaitingFor.None, null, "Running " + (plan.Startup == null ? "explicit skill operation: " : "startup skill synchronization: ") + request.Operation));
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellation, stopping, _hostStopping);
         budget.CancelAfter(Configuration.TimeoutMilliseconds);
         Process process = null;
         try
         {
             var start = StartInfo(arguments);
+            budget.Token.ThrowIfCancellationRequested();
             process = Process.Start(start) ?? throw new IOException("Installer did not start.");
             process.StandardInput.Close();
             var output = ReadAsync(process.StandardOutput.BaseStream, budget.Token);
             var error = ReadAsync(process.StandardError.BaseStream, budget.Token);
             await Task.WhenAll(output, error, process.WaitForExitAsync(budget.Token));
             string result = "skills CLI exit " + process.ExitCode + "\n" + output.Result + "\n[stderr]\n" + error.Result;
+            if (process.ExitCode == 0 && plan.Startup != null && request.Names.Any(name => SkillStartup.Missing(plan.Startup.HomeDirectory, plan.Installers[0], name)))
+                return HarnessOutcome.Failed(result + "\nStartup synchronization did not produce every expected SKILL.md.");
             return process.ExitCode == 0 ? HarnessOutcome.Completed(result) : HarnessOutcome.Failed(result);
         }
         catch (OperationCanceledException)
         {
-            if (stopping.IsCancellationRequested) return HarnessOutcome.Interrupted("Host stopped during skill operation; installer side effects are unconfirmed. No automatic replay.");
+            if (stopping.IsCancellationRequested || _hostStopping.IsCancellationRequested) return HarnessOutcome.Interrupted("Host stopped during skill operation; installer side effects are unconfirmed. No automatic replay.");
             return cancellation.IsCancellationRequested ? HarnessOutcome.Cancelled("Stopped the local skill installer; completed filesystem changes may remain.") :
                 HarnessOutcome.Failed("Skill installer timed out; filesystem changes may remain. Inspect the installed list before retrying.");
         }

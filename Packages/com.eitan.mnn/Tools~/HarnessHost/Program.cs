@@ -43,6 +43,9 @@ if (args.Length != 2 || args[0] != "--config")
 string instanceId = Guid.NewGuid().ToString("N");
 long startedUtcTicks = DateTime.UtcNow.Ticks;
 var configuration = HostConfiguration.Load(Path.GetFullPath(args[1]));
+using var store = new FileTaskStore(configuration.DataDirectory);
+using var skills = new SkillLibraryService(configuration);
+if (!await StartupCancellation.RunAsync(token => skills.SynchronizeStartupAsync(Console.Error.WriteLine, token))) return 130;
 var coordinatorRuns = new CoordinatorMcpRuns(configuration);
 var adapters = configuration.Harnesses.Select<HarnessConfiguration, IHarnessAdapter>(item => item.Protocol switch
 {
@@ -57,7 +60,6 @@ var adapters = configuration.Harnesses.Select<HarnessConfiguration, IHarnessAdap
 #endif
     _ => throw new NotSupportedException("Backend protocol is not implemented: " + item.Protocol)
 }).ToArray();
-using var store = new FileTaskStore(configuration.DataDirectory);
 using var runtime = new PersistentTaskRuntime(store, adapters, configuration.MaximumConcurrent);
 var builder = WebApplication.CreateSlimBuilder();
 builder.WebHost.UseKestrelHttpsConfiguration();
@@ -69,7 +71,6 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 var app = builder.Build();
 var readiness = new HarnessReadinessService(configuration, adapters);
-using var skills = new SkillLibraryService(configuration);
 app.Lifetime.ApplicationStarted.Register(() => coordinatorRuns.Attach(runtime));
 var coordinator = new CoordinatorMcpServer(configuration, runtime, coordinatorRuns);
 app.Use(async (context, next) =>

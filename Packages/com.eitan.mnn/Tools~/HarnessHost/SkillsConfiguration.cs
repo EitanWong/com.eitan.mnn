@@ -10,6 +10,7 @@ internal sealed class SkillsConfiguration
     public string[] ForwardEnvironment { get; set; } = [];
     public string WorkingDirectory { get; set; }
     public int TimeoutMilliseconds { get; set; } = 600000;
+    public SkillStartupConfiguration Startup { get; set; }
     internal void Resolve(string baseDirectory, HostIdentity[] identities)
     {
         if (AllowedOwners == null || AllowedOwners.Length == 0 || AllowedOwners.Any(owner => !identities.Any(i => i.OwnerId == owner)))
@@ -23,6 +24,7 @@ internal sealed class SkillsConfiguration
         if (Package.Length > 4096 || Package[0] == '-' || Package.Any(char.IsControl)) throw new ArgumentException("Invalid skills installer package.");
         WorkingDirectory = Path.GetFullPath(WorkingDirectory ?? baseDirectory, baseDirectory);
         if (!Directory.Exists(WorkingDirectory)) throw new ArgumentException("Skills working directory does not exist.");
+        Startup?.Resolve(baseDirectory, AllowedOwners);
         Command = BackendDiscovery.Find(Command) ?? Command;
         if (OperatingSystem.IsWindows() && Path.GetExtension(Command).ToLowerInvariant() is ".cmd" or ".bat")
         {
@@ -32,5 +34,20 @@ internal sealed class SkillsConfiguration
             if (node == null || cli == null) throw new ArgumentException("Configure Skills.Command as node.exe and Skills.Arguments with the absolute npm npx-cli.js path.");
             Command = node; Arguments = new[] { cli }.Concat(Arguments).ToArray();
         }
+    }
+}
+
+internal sealed class SkillStartupConfiguration
+{
+    public string OwnerId { get; set; }
+    public string HomeDirectory { get; set; }
+    internal void Resolve(string baseDirectory, string[] owners)
+    {
+        if (OwnerId == null || !owners.Contains(OwnerId, StringComparer.Ordinal))
+            throw new ArgumentException("Skills.Startup requires an explicitly authorized owner.");
+        string home = HomeDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(home) || home.Any(char.IsControl)) throw new ArgumentException("Invalid startup skill inspection home.");
+        HomeDirectory = Path.GetFullPath(home, baseDirectory);
+        if (!Directory.Exists(HomeDirectory)) throw new ArgumentException("The startup skill inspection home does not exist.");
     }
 }
