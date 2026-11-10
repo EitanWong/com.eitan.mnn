@@ -232,7 +232,15 @@ finally:
     if args.native and LABEL:
         cleanup = subprocess.run(['/bin/launchctl', 'bootout', 'gui/' + str(os.getuid()) + '/' + LABEL], text=True, capture_output=True)
         RECORDS.append(dict(command=cleanup.args, stdout=cleanup.stdout, stderr=cleanup.stderr, exit_code=cleanup.returncode))
-        check = subprocess.run(['/bin/launchctl', 'print', 'gui/' + str(os.getuid()) + '/' + LABEL], text=True, capture_output=True)
+        # bootout returns before launchd has removed the temporary job.
+        deadline = time.monotonic() + 20
+        while True:
+            check = subprocess.run(['/bin/launchctl', 'print', 'gui/' + str(os.getuid()) + '/' + LABEL], text=True, capture_output=True)
+            if check.returncode != 0 or time.monotonic() >= deadline:
+                break
+            time.sleep(.1)
+        RECORDS.append(dict(command=check.args, stdout=check.stdout, stderr=check.stderr, exit_code=check.returncode))
+        (OUT / 'commands.json').write_text(json.dumps(RECORDS, indent=2, ensure_ascii=False))
         assert check.returncode != 0, 'temporary job left loaded'
         assert not (Path.home() / 'Library/LaunchAgents' / (LABEL + '.plist')).exists()
         passed('temporary launchd job removed; no login service installed')

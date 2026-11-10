@@ -143,7 +143,8 @@ internal sealed class HostServiceManager
         while (true)
         {
             var status = await StatusAsync();
-            if (status.EndpointState != "Ready") return status;
+            // macOS bootout is asynchronous: report stopped only after launchd unloads this job.
+            if (status.EndpointState != "Ready" && (_registration.Platform != "macos" || !status.ManagerLoaded)) return status;
             if (DateTime.UtcNow >= deadline) throw new TimeoutException("The service has not confirmed shutdown; no other process was killed.");
             await Task.Delay(100);
         }
