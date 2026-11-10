@@ -60,6 +60,7 @@ var adapters = configuration.Harnesses.Select<HarnessConfiguration, IHarnessAdap
 using var store = new FileTaskStore(configuration.DataDirectory);
 using var runtime = new PersistentTaskRuntime(store, adapters, configuration.MaximumConcurrent);
 var builder = WebApplication.CreateSlimBuilder();
+builder.WebHost.UseKestrelHttpsConfiguration();
 builder.WebHost.UseUrls(configuration.Listen);
 builder.WebHost.ConfigureKestrel(options =>
 {

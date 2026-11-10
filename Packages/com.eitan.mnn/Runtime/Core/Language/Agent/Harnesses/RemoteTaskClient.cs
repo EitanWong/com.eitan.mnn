@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -61,12 +62,20 @@ namespace MNN.Samples.SiriAI.Harnesses
                     byte[] bytes = await ReadBoundedAsync(response.Content, cancellation).ConfigureAwait(false);
                     if (!response.IsSuccessStatusCode)
                     {
-                        var error = TaskHostJson.Read<TaskHostError>(bytes);
-                        throw new TaskHostRequestException((int)response.StatusCode, error?.Message);
+                        throw new TaskHostRequestException((int)response.StatusCode, ReadErrorMessage(bytes));
                     }
                     return TaskHostJson.Read<T>(bytes);
                 }
             }
+        }
+        private static string ReadErrorMessage(byte[] bytes)
+        {
+            if (bytes.Length != 0)
+            {
+                try { return TaskHostJson.Read<TaskHostError>(bytes)?.Message ?? "Host request failed."; }
+                catch (SerializationException) { return "Host returned a non-protocol error response."; }
+            }
+            return "Host request failed.";
         }
         private static HttpContent Content<T>(T value)
         {
