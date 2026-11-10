@@ -13,7 +13,7 @@ Packages/com.eitan.mnn/
 │   ├── Core/
 │   │   ├── Common/                Types、Platform、Security、Settings、Audio、Numerics、Layout、Diagnostics
 │   │   ├── Inference/             Backend、Loading、Interpreter、Session、Tensor
-│   │   ├── Models/                Configuration、Catalog、Downloads、Delivery、Transfer、Serialization、Profiles
+│   │   ├── Models/                Configuration、Catalog、Downloads、Delivery、Transfer、Serialization、Profiles、Recommendations
 │   │   ├── Language/              Llm、Decisions、Tokenization、Realtime、Remote、Providers、Agent、Markdown
 │   │   ├── Retrieval/             Bert、Embedding、ImageEmbedding、Reranking、Tokenization
 │   │   ├── Vision/                Common、YoloV8、PaddleOcr、DocumentLayout、ImageTasks

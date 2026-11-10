@@ -93,6 +93,9 @@ and `Application.persistentDataPath/MNN/Models` for runtime downloads.
 Upper layers can query and acquire models through the runtime `MNNModelCatalog`
 and `MNNModelDownloader` APIs, including progress, cancellation and resumable transfers.
 See [model acquisition API](Documentation~/ModelAcquisition.md) for examples.
+Use the offline `MNNModelRecommendation` API to rank runnable exports and plan shared
+LLM/ASR/TTS memory budgets from hardware and workload metadata. See
+[model recommendations](Documentation~/ModelRecommendations.md) for formulas, calibration and estimation limits.
 
 Open **Window > MNN > Chat Studio** for streaming conversations, image/WAV inputs,
 search, folders, embeddings and reranking. Its task entries

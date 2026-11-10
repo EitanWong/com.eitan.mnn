@@ -48,6 +48,7 @@ results retain their original scope and do not replace validation of a new build
 ## API and models
 
 - [API reference](API.md): public C# types and inference workflows.
+- [Model recommendations](ModelRecommendations.md): hardware/workload budgets, KV caches and joint LLM/ASR/TTS selection.
 - [Acceleration](Acceleration.md): backend selection, precision, fallback and caching.
 - [OmniVoice](OmniVoice.md): conversion, synthesis, model licensing and measured limits.
 - [Native build and ABI contract](../Native~/README.md): required compiler and library assumptions.
