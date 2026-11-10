@@ -15,6 +15,7 @@ namespace MNN.Unity
         /// <summary>Shared wake defaults for file, streaming, Studio and application callers.</summary>
         public const float DefaultThreshold = .15f;
         public const int DefaultTrailingBlanks = 0; // Automatic: English 4, Chinese 1.
+        public const int DefaultMaxActivePaths = 0; // Automatic: English 6, Chinese 4.
 
         private readonly object _gate = new object();
         private readonly MNNInterpreter _encoder;
@@ -108,21 +109,23 @@ namespace MNN.Unity
 
         /// <summary>Set ordinary wake words in the loaded model language, one phrase per line (e.g. Hey Siri or 小爱同学).
         /// Automatically prepares model input and resets the stream. Legacy token specifications remain accepted.
-        /// trailingBlanks=0 selects language-specific confirmation; positive values explicitly override it.</summary>
-        public void Reset(string keywords, float threshold = DefaultThreshold, float score = 1.0f, int trailingBlanks = DefaultTrailingBlanks, int maxActivePaths = 4)
+        /// trailingBlanks=0 and maxActivePaths=0 select language-specific confirmation and beam width;
+        /// positive values explicitly override them.</summary>
+        public void Reset(string keywords, float threshold = DefaultThreshold, float score = 1.0f, int trailingBlanks = DefaultTrailingBlanks, int maxActivePaths = DefaultMaxActivePaths)
         {
             lock (_gate)
             {
                 ThrowIfDisposed();
                 var search = new MNNKeywordDecoder(MNNKeywordText.Prepare(keywords, Language), _tokens, threshold, score,
-                    trailingBlanks == DefaultTrailingBlanks ? (Language == MNNKeywordLanguage.English ? 4 : 1) : trailingBlanks, maxActivePaths,
+                    trailingBlanks == DefaultTrailingBlanks ? (Language == MNNKeywordLanguage.English ? 4 : 1) : trailingBlanks,
+                    maxActivePaths == DefaultMaxActivePaths ? (Language == MNNKeywordLanguage.English ? 6 : 4) : maxActivePaths,
                     context => _decoder.Run(context, 1, 2),
                     (encoded, decoded) =>
                     {
                         if (decoded.Length != 320) throw new InvalidDataException("Expected 320-wide KWS decoder output.");
                         return _joiner.Run("logit", new MNNGenerationGraph.Input("encoder_out", encoded, 1, 320),
                             new MNNGenerationGraph.Input("decoder_out", decoded, 1, 320));
-                    }, Language == MNNKeywordLanguage.English ? 1 : 2);
+                    }, Language == MNNKeywordLanguage.English ? 1 : 2, Language == MNNKeywordLanguage.English ? 18 : 38);
                 _search = search;
                 _pcm.Clear();
                 if (_primingSamples > 0) _pcm.AddRange(new float[_primingSamples]);
