@@ -47,7 +47,9 @@ internal abstract class RemotePollingAdapter : IRecoverableHarnessAdapter, IAsyn
             configuration.Endpoint, configuration.RemoteHarnessId, configuration.RemoteWorkspace, configuration.TokenEnvironmentVariable,
             configuration.RemoteCapabilities, configuration.PollMilliseconds, configuration.AgentCardPath, configuration.AllowedOrigins
         };
-        _fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(remoteIdentity))));
+        string identity = JsonSerializer.Serialize(remoteIdentity);
+        if (configuration.Protocol == "a2a" && configuration.ReuseContext) identity += "\nA2aReuseContext=true";
+        _fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
     }
     private RemoteCheckpoint Read(string text) => text == null ? new RemoteCheckpoint { Fingerprint = _fingerprint } :
         JsonSerializer.Deserialize<RemoteCheckpoint>(text) ?? throw new ArgumentException("Missing remote checkpoint.");
@@ -159,7 +161,7 @@ internal abstract class RemotePollingAdapter : IRecoverableHarnessAdapter, IAsyn
         }
     }
     private Session GetSession(HarnessTask task) => _sessions.GetOrAdd(task.Id, _ => new Session());
-    public async Task<bool> CancelAsync(HarnessTask task, CancellationToken cancellation)
+    public virtual async Task<bool> CancelAsync(HarnessTask task, CancellationToken cancellation)
     {
         var session = GetSession(task);
         if (!await session.Ready.Task.WaitAsync(cancellation)) return false;

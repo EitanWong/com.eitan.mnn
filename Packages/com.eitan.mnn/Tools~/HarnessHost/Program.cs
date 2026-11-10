@@ -114,7 +114,7 @@ app.MapPost("/v1/tasks", async context =>
     var request = await ReadAsync<SubmitTaskRequest>(context);
     if (!configuration.Workspaces.TryGetValue(request.WorkspaceKey ?? "", out var workspace)) throw new ArgumentException("Workspace is not configured.");
     var task = runtime.Submit(new TaskSubmission(Owner(context), request.ConversationId, request.SubmissionKey,
-        request.HarnessId, workspace, request.Objective, request.Attachments));
+        request.HarnessId, workspace, request.Objective, request.Attachments, isolatedContext: request.IsolatedContext));
     context.Response.StatusCode = 202;
     await WriteAsync(context, task);
 });

@@ -21,7 +21,7 @@ internal sealed partial class HttpHarnessAdapter : RemotePollingAdapter
     {
         // Local ID is an idempotency key only, never the downstream task ID. Do not forward owner, history or local paths.
         var request = new SubmitTaskRequest { ConversationId = task.Id, SubmissionKey = task.Id,
-            HarnessId = Configuration.RemoteHarnessId, WorkspaceKey = Configuration.RemoteWorkspace, Objective = task.Objective, Attachments = task.Attachments };
+            HarnessId = Configuration.RemoteHarnessId, WorkspaceKey = Configuration.RemoteWorkspace, Objective = task.Objective, Attachments = task.Attachments, IsolatedContext = task.IsolatedContext };
         while (true)
         {
             try { return Project(await _client.SubmitAsync(request, cancellation)); }

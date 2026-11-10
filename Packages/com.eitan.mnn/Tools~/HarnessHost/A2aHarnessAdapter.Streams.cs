@@ -18,7 +18,7 @@ internal sealed partial class A2aHarnessAdapter
                 if (!_streams.TryAdd(state.RemoteId, session)) throw new InvalidOperationException("A stream already owns this remote task.");
                 return seed;
             }
-            var first = await session.FirstAsync(cancellation);
+            var first = ObserveContext(state, await session.FirstAsync(cancellation));
             if (first.Id == null || first.Outcome != null) await session.DisposeAsync();
             else if (!_streams.TryAdd(first.Id, session)) throw new InvalidOperationException("A stream already owns this remote task.");
             return first;
@@ -63,8 +63,19 @@ internal sealed partial class A2aHarnessAdapter
         { response.Dispose();throw new A2aStreamProtocolException("A2A stream requires text/event-stream content."); }
         return response;
     }
-    protected override async ValueTask FinishAsync(RemoteCheckpoint state)
+    private async ValueTask CloseStreamAsync(RemoteCheckpoint state)
     {
         if (state.RemoteId != null && _streams.TryRemove(state.RemoteId, out var stream)) await stream.DisposeAsync();
+    }
+    protected override async ValueTask FinishAsync(RemoteCheckpoint state)
+    {
+        try
+        {
+            await CloseStreamAsync(state);
+        }
+        finally
+        {
+            if (_contextLeases.TryRemove(state, out var lease)) lease.Dispose();
+        }
     }
 }

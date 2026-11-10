@@ -157,6 +157,7 @@ internal sealed class HarnessConfiguration
     public string TokenEnvironmentVariable { get; set; }
     public int RemoteCapabilities { get; set; }
     public int PollMilliseconds { get; set; } = 1000;
+    public bool ReuseContext { get; set; }
     public string AgentCardPath { get; set; } = ".well-known/agent-card.json";
     public string[] AllowedOrigins { get; set; } = [];
 }

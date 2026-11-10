@@ -19,11 +19,8 @@ internal static class A2aWire
         if (schema) message["kind"] = "message";
         object part = schema ? new { kind = "text", text } : (object)new { text, mediaType = "text/plain" };
         message[Legacy(state) && !schema ? "content" : "parts"] = new[] { part }.Concat((attachments ?? []).Select(value => OutgoingPart(value, state))).ToArray();
-        if (continuation)
-        {
-            message["taskId"] = state.RemoteId;
-            if (state.ContextId != null) message["contextId"] = state.ContextId;
-        }
+        if (continuation) message["taskId"] = state.RemoteId;
+        if (state.ContextId != null) message["contextId"] = state.ContextId;
         var configuration = new Dictionary<string, object> { ["acceptedOutputModes"] = new[] { "text/plain", "application/json" }, ["historyLength"] = 20 };
         configuration[Legacy(state) ? "blocking" : "returnImmediately"] = Legacy(state) ? stream : !stream;
         return new Dictionary<string, object> { ["message"] = message, ["configuration"] = configuration };

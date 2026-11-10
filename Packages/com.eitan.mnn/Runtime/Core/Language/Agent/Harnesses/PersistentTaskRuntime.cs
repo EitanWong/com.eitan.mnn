@@ -86,6 +86,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                     if (existing.Objective != request.Objective || existing.HarnessId != request.HarnessId ||
                         existing.WorkspaceKey != request.WorkspaceKey || existing.ConversationId != request.ConversationId ||
                         existing.ResultConversationId != request.ResultConversationId || existing.Title != request.Title ||
+                        existing.IsolatedContext != request.IsolatedContext ||
                         !HarnessContentPart.SameInputs(existing.Attachments, request.Attachments))
                         throw new ArgumentException("The submission key already belongs to a different request.");
                     return existing.Copy();

@@ -14,6 +14,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         [DataMember] public string HarnessId;
         [DataMember] public string WorkspaceKey;
         [DataMember] public string Objective;
+        [DataMember(EmitDefaultValue = false)] public bool IsolatedContext;
         [DataMember(EmitDefaultValue = false)] public HarnessContentPart[] Attachments;
     }
     [DataContract]

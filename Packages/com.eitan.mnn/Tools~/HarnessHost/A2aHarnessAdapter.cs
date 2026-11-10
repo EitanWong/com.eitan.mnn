@@ -22,6 +22,8 @@ internal sealed partial class A2aHarnessAdapter : RemotePollingAdapter
     }
     protected override async Task<RemoteSnapshot> AdmitAsync(HarnessTask task, RemoteCheckpoint state, Action save, CancellationToken cancellation)
     {
+        if (!await AcquireContextAsync(task, state, cancellation))
+            return new RemoteSnapshot(null, null, null, HarnessOutcome.Cancelled());
         var cardUri = new Uri(Endpoint, Configuration.AgentCardPath);
         var card = await RequestAsync(HttpMethod.Get, cardUri, null, cancellation, "1.0");
         SelectInterface(card, state);
@@ -73,7 +75,7 @@ internal sealed partial class A2aHarnessAdapter : RemotePollingAdapter
         if (_streams.TryGetValue(state.RemoteId, out var stream))
         {
             var update = await stream.NextAsync();
-            if (update != null) return update;
+            if (update != null) return ObserveContext(state, update);
             return await CallAsync(state, "get", new { id = state.RemoteId, historyLength = 20 }, cancellation);
         }
         var snapshot = await CallAsync(state, "get", new { id = state.RemoteId, historyLength = 20 }, cancellation);
@@ -84,7 +86,7 @@ internal sealed partial class A2aHarnessAdapter : RemotePollingAdapter
         CallAsync(state, "cancel", new { id = state.RemoteId }, cancellation);
     protected override async Task<RemoteSnapshot> RespondRemoteAsync(RemoteCheckpoint state, string requestId, string reply, bool allow, CancellationToken cancellation)
     {
-        await FinishAsync(state);
+        await CloseStreamAsync(state);
         var snapshot = await SendAsync(state, reply, true, cancellation);
         return state.Streaming && snapshot.Outcome == null && snapshot.Activity.WaitingFor == HarnessWaitingFor.None
             ? await OpenStreamAsync(state, new { id = state.RemoteId }, true, snapshot, cancellation) : snapshot;
@@ -108,7 +110,7 @@ internal sealed partial class A2aHarnessAdapter : RemotePollingAdapter
             string path = operation == "send" ? "/message:send" : "/tasks/" + Uri.EscapeDataString(state.RemoteId) + (operation == "cancel" ? ":cancel" : "?historyLength=20");
             response = await RequestAsync(operation == "get" ? HttpMethod.Get : HttpMethod.Post, new Uri(state.Endpoint.TrimEnd('/') + prefix + path), operation == "get" ? null : operation == "send" ? parameters : new { }, cancellation, state.Version);
         }
-        return A2aWire.Project(response, state, operation == "send");
+        return ObserveContext(state, A2aWire.Project(response, state, operation == "send"));
     }
     private async Task<JsonElement> RequestAsync(HttpMethod method, Uri address, object body, CancellationToken cancellation, string version = null)
     {
@@ -139,6 +141,6 @@ internal sealed partial class A2aHarnessAdapter : RemotePollingAdapter
     public override async ValueTask DisposeAsync()
     {
         foreach (var stream in _streams.Values) await stream.DisposeAsync();
-        _streams.Clear();_http.Dispose();
+        _streams.Clear();_contexts.Clear();_http.Dispose();
     }
 }

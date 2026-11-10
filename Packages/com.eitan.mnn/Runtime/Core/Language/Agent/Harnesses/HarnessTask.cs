@@ -48,6 +48,8 @@ namespace MNN.Samples.SiriAI.Harnesses
 
         [DataMember(Order = 34, EmitDefaultValue = false)] public HarnessNativeToolState NativeTools { get; internal set; }
 
+        [DataMember(Order = 35, EmitDefaultValue = false)] public bool IsolatedContext { get; internal set; }
+
         public string DeliveryConversationId => ResultConversationId ?? ConversationId;
 
         public bool IsTerminal => State == HarnessTaskState.Completed || State == HarnessTaskState.Failed ||
@@ -70,7 +72,7 @@ namespace MNN.Samples.SiriAI.Harnesses
             Id = Guid.NewGuid().ToString("N"), OwnerId = request.OwnerId,
             ConversationId = request.ConversationId, SubmissionKey = request.SubmissionKey,
             HarnessId = request.HarnessId, WorkspaceKey = request.WorkspaceKey, Objective = request.Objective,
-            Attachments = request.Attachments,
+            Attachments = request.Attachments, IsolatedContext = request.IsolatedContext,
             ResultConversationId = request.ResultConversationId, Title = request.Title,
             Revision = 1, CreatedUtcTicks = DateTime.UtcNow.Ticks, UpdatedUtcTicks = DateTime.UtcNow.Ticks,
             State = HarnessTaskState.Queued
@@ -79,7 +81,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         internal void Validate()
         {
             HarnessText.Required(Id, 128);
-            new TaskSubmission(OwnerId, ConversationId, SubmissionKey, HarnessId, WorkspaceKey, Objective, Attachments, ResultConversationId, Title);
+            new TaskSubmission(OwnerId, ConversationId, SubmissionKey, HarnessId, WorkspaceKey, Objective, Attachments, ResultConversationId, Title, IsolatedContext);
             if (Revision < 1 || CreatedUtcTicks < 1 || UpdatedUtcTicks < CreatedUtcTicks ||
                 !Enum.IsDefined(typeof(HarnessTaskState), State) || !Enum.IsDefined(typeof(HarnessWaitingFor), WaitingFor))
                 throw new SerializationException("Invalid persisted task state.");

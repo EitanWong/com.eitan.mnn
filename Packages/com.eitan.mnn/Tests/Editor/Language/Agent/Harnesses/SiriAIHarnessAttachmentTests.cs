@@ -20,11 +20,13 @@ namespace MNN.Samples.SiriAI.Tests
                 using (var store = new FileTaskStore(folder))
                 using (var runtime = new PersistentTaskRuntime(store, new[] { harness }))
                 {
-                    var request = new TaskSubmission("alice", "chat", "key", "controlled", "workspace", "Inspect input", parts);
+                    var request = new TaskSubmission("alice", "chat", "key", "controlled", "workspace", "Inspect input", parts, isolatedContext: true);
                     parts[0] = new HarnessContentPart(HarnessContentKind.Text, "caller changed");
                     var task = runtime.Submit(request);
                     Assert.AreEqual(HarnessContentKind.Url, task.Attachments[0].Kind);
+                    Assert.IsTrue(task.IsolatedContext);
                     Assert.AreEqual(task.Id, runtime.Submit(request).Id);
+                    Assert.Throws<ArgumentException>(() => runtime.Submit(new TaskSubmission("alice", "chat", "key", "controlled", "workspace", "Inspect input", request.Attachments)));
                     Assert.Throws<ArgumentException>(() => runtime.Submit(new TaskSubmission("alice", "chat", "key", "controlled", "workspace", "Inspect input", parts)));
                     task.Attachments[0] = parts[0];
                     Assert.AreEqual(HarnessContentKind.Url, runtime.Get(task.Id, "alice").Attachments[0].Kind);
@@ -32,18 +34,22 @@ namespace MNN.Samples.SiriAI.Tests
                 }
                 using (var store = new FileTaskStore(folder))
                 using (var runtime = new PersistentTaskRuntime(store, new[] { harness }))
+                {
+                    Assert.IsTrue(runtime.List("alice")[0].IsolatedContext);
                     Assert.AreEqual("https://example.org/input.png", runtime.List("alice")[0].Attachments[0].Payload);
-                var dto = new SubmitTaskRequest { ConversationId = "chat", SubmissionKey = "admission", HarnessId = "controlled", WorkspaceKey = "workspace", Objective = "Inspect input", Attachments = parts };
+                }
+                var dto = new SubmitTaskRequest { ConversationId = "chat", SubmissionKey = "admission", HarnessId = "controlled", WorkspaceKey = "workspace", Objective = "Inspect input", Attachments = parts, IsolatedContext = true };
                 using (var journal = new SubmissionJournal(Path.Combine(folder, "journal")))
                 {
                     try { await journal.SubmitAsync(dto, (r, c) => Task.FromException<HarnessTask>(new IOException("lost response")), CancellationToken.None); }
                     catch (PendingSubmissionException) { }
+                    dto.IsolatedContext = false;
                     parts[0] = new HarnessContentPart(HarnessContentKind.Text, "changed after admission");
                 }
                 using (var journal = new SubmissionJournal(Path.Combine(folder, "journal")))
                 {
                     string payload = null;
-                    try { await journal.ReplayAsync((r, c) => { payload = r.Attachments[0].Payload; throw new IOException("still disconnected"); }, CancellationToken.None); }
+                    try { await journal.ReplayAsync((r, c) => { Assert.IsTrue(r.IsolatedContext); payload = r.Attachments[0].Payload; throw new IOException("still disconnected"); }, CancellationToken.None); }
                     catch (PendingSubmissionException) { }
                     Assert.AreEqual("caller changed", payload);
                 }

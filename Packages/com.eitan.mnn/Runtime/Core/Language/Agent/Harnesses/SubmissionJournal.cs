@@ -127,11 +127,11 @@ namespace MNN.Samples.SiriAI.Harnesses
 
         private static string Key(SubmitTaskRequest request) => request.ConversationId + "\n" + request.SubmissionKey;
         private static SubmitTaskRequest Copy(SubmitTaskRequest r) => new SubmitTaskRequest
-        { ConversationId = r.ConversationId, SubmissionKey = r.SubmissionKey, HarnessId = r.HarnessId, WorkspaceKey = r.WorkspaceKey, Objective = r.Objective, Attachments = HarnessContentPart.CheckedInputs(r.Attachments) };
+        { ConversationId = r.ConversationId, SubmissionKey = r.SubmissionKey, HarnessId = r.HarnessId, WorkspaceKey = r.WorkspaceKey, Objective = r.Objective, IsolatedContext = r.IsolatedContext, Attachments = HarnessContentPart.CheckedInputs(r.Attachments) };
         private static void Validate(SubmitTaskRequest r)
         {
             if (r == null) throw new ArgumentNullException(nameof(r));
-            new TaskSubmission("foreground", r.ConversationId, r.SubmissionKey, r.HarnessId, r.WorkspaceKey, r.Objective, r.Attachments);
+            new TaskSubmission("foreground", r.ConversationId, r.SubmissionKey, r.HarnessId, r.WorkspaceKey, r.Objective, r.Attachments, isolatedContext: r.IsolatedContext);
             if (r.ConversationId.Contains("\n") || r.SubmissionKey.Contains("\n")) throw new ArgumentException("Invalid invocation identity.");
         }
         private void RequireOpen() { if (_disposed) throw new ObjectDisposedException(nameof(SubmissionJournal)); }

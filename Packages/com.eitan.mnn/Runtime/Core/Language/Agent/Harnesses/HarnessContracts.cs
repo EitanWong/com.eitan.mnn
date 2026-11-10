@@ -21,11 +21,17 @@ namespace MNN.Samples.SiriAI.Harnesses
         public string Objective { get; }
         public string ResultConversationId { get; }
         public string Title { get; }
+        public bool IsolatedContext { get; }
         private readonly HarnessContentPart[] _attachments;
         public HarnessContentPart[] Attachments => (HarnessContentPart[])_attachments.Clone();
         public TaskSubmission(string ownerId, string conversationId, string submissionKey,
+            string harnessId, string workspaceKey, string objective, HarnessContentPart[] attachments,
+            string resultConversationId, string title)
+            : this(ownerId, conversationId, submissionKey, harnessId, workspaceKey, objective,
+                attachments, resultConversationId, title, false) { }
+        public TaskSubmission(string ownerId, string conversationId, string submissionKey,
             string harnessId, string workspaceKey, string objective, HarnessContentPart[] attachments = null,
-            string resultConversationId = null, string title = null)
+            string resultConversationId = null, string title = null, bool isolatedContext = false)
         {
             OwnerId = HarnessText.Required(ownerId, 128);
             ConversationId = HarnessText.Required(conversationId, 128);
@@ -35,6 +41,7 @@ namespace MNN.Samples.SiriAI.Harnesses
             Objective = HarnessText.Required(objective, 32768);
             ResultConversationId = resultConversationId == null ? null : HarnessText.Required(resultConversationId, 128);
             Title = title == null ? null : HarnessText.Required(title, 256);
+            IsolatedContext = isolatedContext;
             _attachments = HarnessContentPart.CheckedInputs(attachments);
         }
     }
