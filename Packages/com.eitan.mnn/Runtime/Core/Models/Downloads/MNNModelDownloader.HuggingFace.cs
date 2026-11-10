@@ -64,9 +64,10 @@ namespace MNN.Unity
                 }).ToArray();
                 if (destinations.Distinct(StringComparer.OrdinalIgnoreCase).Count() != destinations.Length)
                     throw new InvalidDataException("Hugging Face returned duplicate file paths.");
+                await EnsureRepositorySpaceAsync(repositoryId, blobs, destinations, cancellationToken, mirrorRetryCount).ConfigureAwait(false);
                 Directory.CreateDirectory(stagingDirectory);
                 if (_options.PreservePartialDownloads)
-                    File.WriteAllText(manifestPath, WriteMetadata(new FileListData { Files = blobs }));
+                    _transfers.WriteDownloadMetadata(manifestPath, WriteMetadata(new FileListData { Files = blobs }), repositoryId);
                 var candidates = mirrorPool.GetFileCandidates().ToArray();
                 if (candidates.Length == 0)
                     throw new HttpRequestException("No Hugging Face file source is available.");

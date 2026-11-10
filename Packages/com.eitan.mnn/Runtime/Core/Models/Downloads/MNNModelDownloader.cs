@@ -97,7 +97,7 @@ namespace MNN.Unity
                     files = profile.Paths.Select((path, i) => new MNNModelRepositoryFile { Path = path, Type = "blob", Size = profile.Sizes[i], Sha256 = profile.Hashes[i], Revision = profile.Revision }).ToArray();
                 }
                 else if (_options.PreservePartialDownloads && File.Exists(manifestPath) && File.Exists(identityPath) && File.ReadAllText(identityPath) == identity)
-                    files = ReadMetadata<FileListData>(File.ReadAllText(manifestPath)).Files;
+                    files = ReadResumeFiles(manifestPath) ?? await GetRepositoryFilesAsync(modelScopeId, cancellationToken, revision).ConfigureAwait(false);
                 else
                     files = await GetRepositoryFilesAsync(modelScopeId, cancellationToken, revision).ConfigureAwait(false);
                 var blobs = SelectInferenceFiles(modelScopeId, files);
@@ -115,11 +115,12 @@ namespace MNN.Unity
                 }).ToArray();
                 if (destinations.Distinct(StringComparer.OrdinalIgnoreCase).Count() != destinations.Length)
                     throw new InvalidDataException("ModelScope returned duplicate file paths.");
+                await EnsureRepositorySpaceAsync(modelScopeId, blobs, destinations, cancellationToken).ConfigureAwait(false);
                 Directory.CreateDirectory(stagingDirectory);
                 if (_options.PreservePartialDownloads)
                 {
-                    File.WriteAllText(manifestPath, WriteMetadata(new FileListData { Files = blobs }));
-                    File.WriteAllText(identityPath, identity);
+                    _transfers.WriteDownloadMetadata(manifestPath, WriteMetadata(new FileListData { Files = blobs }), modelScopeId);
+                    _transfers.WriteDownloadMetadata(identityPath, identity, modelScopeId);
                 }
 
                 var total = blobs.Sum(file => Math.Max(0L, file.Size));
@@ -158,6 +159,25 @@ namespace MNN.Unity
 
                 throw;
             }
+        }
+
+        private static MNNModelRepositoryFile[] ReadResumeFiles(string path)
+        {
+            try { return ReadMetadata<FileListData>(File.ReadAllText(path))?.Files; }
+            catch (InvalidDataException) { return null; } // A full disk can leave an older truncated checkpoint.
+        }
+
+        private async Task EnsureRepositorySpaceAsync(string repository, MNNModelRepositoryFile[] files, string[] destinations, CancellationToken token, int retryLimit = -1)
+        {
+            long required = 0;
+            for (int index = 0; index < files.Length; ++index)
+            {
+                var file = files[index];
+                var transfer = new MNNModelTransferFile { Path = file.Path, Revision = file.Revision, Size = file.Size, Sha256 = file.Sha256 };
+                long bytes = await _transfers.RequiredSpaceAsync(file.SourceRepository ?? repository, transfer, destinations[index], token, retryLimit).ConfigureAwait(false);
+                required = MNNModelFileTransfer.AddBytes(required, bytes);
+            }
+            _transfers.EnsureSpace(Path.GetDirectoryName(destinations[0]), repository, required);
         }
 
         public async Task<MNNModelRepositoryFile[]> GetRepositoryFilesAsync(string modelScopeId, CancellationToken cancellationToken = default, string revision = "master")

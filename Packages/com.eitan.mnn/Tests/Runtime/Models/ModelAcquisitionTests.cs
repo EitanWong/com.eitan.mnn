@@ -401,6 +401,61 @@ namespace MNN.Unity.Tests
         }
 
         [UnityTest]
+        public IEnumerator InsufficientDiskSpaceStopsBeforeTransferringModelBytes()
+        {
+            Directory.CreateDirectory(_root);
+            string manifest = Path.Combine(_root, ".mnn-download-manifest.json");
+            File.WriteAllText(manifest, "original metadata");
+            int transfers = 0;
+            using (var client = Client(request =>
+            {
+                if (request.RequestUri.AbsolutePath.EndsWith("/repo/files"))
+                    return Json("{\"Code\":200,\"Data\":{\"Files\":[{\"Path\":\"model.mnn\",\"Type\":\"blob\",\"Size\":2305843009213693951}]}}");
+                ++transfers;
+                throw new InvalidOperationException("Model data must not be requested when it cannot fit.");
+            }))
+            using (var downloader = new MNNModelDownloader(client, "https://runtime-space.test"))
+            {
+                var task = downloader.DownloadRepositoryAsync("MNN/fixture", _root);
+                yield return Until(task);
+                Assert.True(task.IsFaulted);
+                Assert.That(task.Exception.GetBaseException(), Is.InstanceOf<IOException>());
+                StringAssert.Contains("Insufficient disk space", task.Exception.GetBaseException().Message);
+                Assert.AreEqual(0, transfers);
+                Assert.AreEqual("original metadata", File.ReadAllText(manifest));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TruncatedResumeManifestIsRefetchedWithoutLosingCompletedFiles()
+        {
+            Directory.CreateDirectory(_root);
+            File.WriteAllText(Path.Combine(_root, ".mnn-download-manifest.json"), "{");
+            File.WriteAllText(Path.Combine(_root, ".mnn-download-repository"), "MNN/fixture");
+            File.WriteAllBytes(Path.Combine(_root, "model.mnn"), ModelBytes);
+            int listings = 0, transfers = 0;
+            using (var client = Client(request =>
+            {
+                if (request.RequestUri.AbsolutePath.EndsWith("/repo/files"))
+                {
+                    ++listings;
+                    return ModelScopeFiles("model.mnn", Hash(ModelBytes));
+                }
+                ++transfers;
+                return Bytes();
+            }))
+            using (var downloader = new MNNModelDownloader(client, "https://runtime-manifest.test"))
+            {
+                var task = downloader.DownloadRepositoryAsync("MNN/fixture", _root);
+                yield return Until(task);
+                AssertSucceeded(task);
+                Assert.AreEqual(1, listings);
+                Assert.AreEqual(0, transfers);
+                CollectionAssert.AreEqual(ModelBytes, File.ReadAllBytes(Path.Combine(_root, "model.mnn")));
+            }
+        }
+
+        [UnityTest]
         public IEnumerator HashMismatchNeverPublishesAnInvalidModelFile()
         {
             using (var client = Client(request => request.RequestUri.AbsolutePath.EndsWith("/repo/files")

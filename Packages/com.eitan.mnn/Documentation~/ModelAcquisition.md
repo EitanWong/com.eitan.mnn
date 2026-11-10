@@ -182,3 +182,48 @@ SiriAI 中 DTLN 在捕获工作线程处理；其他增强模型在语句结束�
 Editor 中已有的 `MNNModelRepository`、`MNNModelDownloadService` 和镜像类型保留原
 命名空间与调用签名，内部委托给以上 Runtime API；窗口继续负责安装索引、任务持久化、
 最终目录发布与 AssetDatabase 刷新。
+
+## Download capacity and application errors
+
+`MNNModelDownloader` checks the selected repository's additional disk requirements before
+writing a resume manifest or requesting model payloads. The estimate subtracts SHA-256
+verified completed files and compatible partial segments, includes parallel-segment
+assembly workspace, and keeps `MNNModelTransferOptions.DiskSpaceReserveBytes` free
+(default: 16 MiB). Single-segment downloads are verified and moved without creating a
+second payload copy. Capacity is queried on the destination volume. Applications with
+platform-specific storage/quota APIs can set `AvailableSpaceBytes` to a worker-safe
+`Func<string, long>` returning available bytes for the supplied directory.
+
+Catch the typed error at the application boundary; callbacks and continuations may run
+on worker threads, so marshal UI updates to Unity's main thread:
+
+```csharp
+try
+{
+    await MNNModelInstallation.EnsureAsync(directory, model, token: token);
+}
+catch (MNNInsufficientDiskSpaceException error)
+{
+    // Forward these fields to your application's UI state and telemetry.
+    string code = MNNInsufficientDiskSpaceException.ErrorCode; // insufficient_disk_space
+    string repository = error.RepositoryId;
+    string target = error.DirectoryPath;
+    long required = error.RequiredBytes;
+    long available = error.AvailableBytes;
+    long bytesToFree = error.BytesToFree;
+}
+```
+
+`EnsureAsync` reports `Phase.Failed` and propagates the typed exception. Capacity
+failures are not retried as network failures or used to discard parallel segments for
+a sequential fallback. With `PreservePartialDownloads` enabled (the downloader default),
+valid partial files remain available for a retry after freeing space or changing the
+destination. Resume metadata is replaced atomically; truncated legacy ModelScope
+manifests are refetched without discarding completed model files.
+
+The check is advisory: other applications can consume space after it runs. Native
+disk-full I/O failures are also wrapped in the typed error, retaining the original
+exception as `InnerException`. Unknown listing sizes are checked against response
+`Content-Length`, when available, and while streaming. Archive expansion and subsequent
+model conversion can need additional space beyond the download estimate. Independent
+simultaneous downloads do not reserve filesystem capacity for one another.
