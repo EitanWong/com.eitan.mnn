@@ -34,6 +34,11 @@ namespace MNN.Unity.Editor
 
         private static string GetInstalledPath(MNNModelInfo model, MNNModelInstallIndex installations = null)
         {
+            if (model.repositoryId == MNNMiniMindO.Repository)
+            {
+                string prepared = Path.Combine(MODELS_FOLDER, MNNMiniMindO.InstallationName);
+                if (MNNMiniMindO.IsComplete(prepared)) return prepared;
+            }
             var legacy = Path.Combine(MODELS_FOLDER, SanitizeFolderName(model.name));
             var marker = Path.Combine(legacy, INSTALL_MARKER);
             if (File.Exists(marker) && MNNModelRepository.MatchesInstallMarker(model, File.ReadAllText(marker).Trim()))

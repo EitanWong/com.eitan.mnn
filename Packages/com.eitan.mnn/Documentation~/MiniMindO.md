@@ -98,3 +98,22 @@ UNITY_EXECUTABLE -batchmode -nographics -projectPath PROJECT_ROOT \
 The native fixtures are explicit and require the existing local installation. They
 never download weights. The preprocessing/sampling fixtures use small deterministic
 reference data included with the package.
+
+## Discovery and distribution
+
+Search for `MiniMind-o`, `MiniMindO` or `minimind` in Model Manager and
+`MNNModelCatalog.CreateDefault().SearchModels(query)`. Both use the shared OmniModel
+profile. `MNNConversationModelCatalog` resolves it to the dedicated `MiniMindO`
+adapter; `MNNConversationLocalProviders.Create` loads that protocol rather than
+the generic MNN LLM layout. Complete local exports are reusable without a legacy
+ModelScope install marker; raw PyTorch and core-only exports are not runnable Omni
+installations. Online refresh retains this dedicated protocol.
+
+Deployment repository: `EitanWang/MiniMindO-113M-MNN` on ModelScope. The catalog's
+release revision is pinned after publication. Download through
+`MNNModelDownloader.DownloadAsync` or Model Manager; use the whole repository.
+
+`Tools~/Models/MiniMindO/publish.py` verifies payload hashes and successful shared
+discovery/native runtime test evidence before uploading. It uses the existing
+ModelScope SDK login and excludes Unity `.meta` files. Model onboarding acceptance
+is recorded in the project's `AGENTS.md`.

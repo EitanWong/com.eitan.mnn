@@ -22,6 +22,11 @@ namespace MNN.Unity
             {
                 if (File.Exists(Path.Combine(target, MNNModelInstallation.ReceiptName)) || IsExistingComplete(target, model)) return target;
                 if (!Directory.Exists(root)) return null;
+                if (model.provider == MNNModelSource.ModelScope && model.repositoryId == MNNMiniMindO.Repository)
+                {
+                    string prepared = Path.Combine(root, MNNMiniMindO.InstallationName);
+                    if (IsExistingComplete(prepared, model)) return prepared;
+                }
                 string repository = model.repositoryId ?? model.modelScopeId;
                 string name = repository.Split('/').Last();
                 bool defaultRevision = string.IsNullOrEmpty(model.revision) || model.revision == MNNConversationModelCatalog.DefaultRevision(model.provider);
@@ -84,6 +89,8 @@ namespace MNN.Unity
             {
                 switch (adapter)
                 {
+                    case MNNConversationModelAdapter.MiniMindO:
+                        return MNNMiniMindO.IsComplete(directory);
                     case MNNConversationModelAdapter.Language:
                     case MNNConversationModelAdapter.Omni:
                         var language = Config();

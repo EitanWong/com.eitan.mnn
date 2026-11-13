@@ -48,3 +48,22 @@ source hashes and conversion checks are repeated. Inputs and outputs are kept se
 Large ONNX and converter intermediates are rebuildable; retain logs/check reports and
 source/model manifests when reclaiming their disk space. Model redistribution remains
 subject to each upstream model's license and terms.
+
+## Publish an accepted deployment
+
+Both Model Manager and runtime discovery must resolve the dedicated MiniMind-o
+adapter before publishing. Run `MiniMindOCatalogTests` and
+`MiniMindOIntegrationTests` against the installed assets (these fixtures are explicit).
+Then, with Python 3.11+ and a logged-in official ModelScope SDK:
+
+```sh
+python publish.py --model PROJECT/Assets/StreamingAssets/MNN/Models/MiniMindO-113M-MNN \
+  --results PROJECT/TestArtifacts~/minimind-results.xml
+```
+
+The publisher verifies all 14 payload hashes, required discovery/native-runtime
+cases, and zero failing/skipped tests. It uploads deployment files and model card,
+excluding Unity metadata. After publishing, pin the actual commit in
+`MNNMiniMindO.Revision` and run `MiniMindOModelScopeTests` explicitly: it downloads
+through `MNNModelInstallation`/`MNNModelDownloader`, compares all 14 payloads with
+the validated export, and runs the discovered runtime provider on downloaded bytes.

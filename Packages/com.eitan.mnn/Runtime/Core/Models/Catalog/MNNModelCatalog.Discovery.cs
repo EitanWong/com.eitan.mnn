@@ -549,6 +549,19 @@ namespace MNN.Unity
                 : model.runtimeAvailable ? "Files for an existing package pipeline found. Architecture and operator compatibility are checked when loading; this repository has not been inference-validated by this catalog."
                 : !hasGraph && paths.Any(IsArchive) ? "MNN-labeled archive candidate. Archive contents have not been inspected; extract and verify the model files before use."
                 : "MNN artifacts found. Use the matching task pipeline or graph API; nested variants may require preparation. Repository discovery does not verify inference compatibility.";
+            if (model.provider == MNNModelSource.ModelScope && model.repositoryId == MNNMiniMindO.Repository)
+            {
+                var profile = CreateMiniMindOProfile();
+                model.category = profile.category;
+                model.family = profile.family;
+                model.displayName = profile.displayName;
+                model.tags = profile.tags;
+                model.tasks = profile.tasks;
+                model.revision = model.version = profile.revision;
+                model.parameterCount = profile.parameterCount;
+                model.runtimeAvailable = profile.mnnFiles.Concat(new[] { MNNMiniMindO.ConfigFileName, "tokenizer.json" }).All(files.Contains);
+                model.supportSummary = profile.supportSummary;
+            }
             if (model.provider == MNNModelSource.ModelScope && MNNPocketModel.IsRepository(model.repositoryId))
                 ApplyPocketDeploymentProfile(model);
             if (model.provider == MNNModelSource.ModelScope && MNNDocumentLayoutModel.IsRepository(model.repositoryId))

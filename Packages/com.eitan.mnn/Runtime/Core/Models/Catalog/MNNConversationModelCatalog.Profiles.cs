@@ -70,7 +70,8 @@ namespace MNN.Unity
             MNNEnglishKwsModel.IsModelScopeRepository(model.repositoryId ?? model.modelScopeId)
             ? MNNKeywordSpotterConfig.EnglishDirectoryName : model != null && model.provider == MNNModelSource.ModelScope &&
             MNNPocketModel.IsRepository(model.repositoryId ?? model.modelScopeId) && model.revision == MNNPocketModel.Revision
-            ? MNNPocketModel.InstallationName : DtlnProfile(model)?.name ?? Defaults.OrderByDescending(known => known.Id == model.name).FirstOrDefault(known =>
+            ? MNNPocketModel.InstallationName : model?.repositoryId == MNNMiniMindO.Repository
+            ? MNNMiniMindO.InstallationName : DtlnProfile(model)?.name ?? Defaults.OrderByDescending(known => known.Id == model.name).FirstOrDefault(known =>
             known.Source == model.provider && string.Equals(known.Repository, model.repositoryId ?? model.modelScopeId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(known.Revision, model.revision, StringComparison.Ordinal))?.Id;
 
@@ -79,6 +80,8 @@ namespace MNN.Unity
             adapter = default;
             if (!IsCatalogModel(model) || !model.runtimeAvailable) return false;
             string repository = model.repositoryId ?? model.modelScopeId;
+            if (model.provider == MNNModelSource.ModelScope && repository == MNNMiniMindO.Repository)
+            { adapter = MNNConversationModelAdapter.MiniMindO; return true; }
             // Speech graphs have task-specific tokenizers, preprocessing and installation plans.
             // Match registered export protocols, never infer an adapter from a display name.
             foreach (var known in Defaults)

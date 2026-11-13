@@ -17,6 +17,8 @@ namespace MNN.Unity
             int recognitionThreads = settings.RecognitionThreads;
             switch (kind)
             {
+                case MNNConversationModelAdapter.MiniMindO:
+                    return new MiniMindO(caps, directory, settings);
                 case MNNConversationModelAdapter.Language:
                 case MNNConversationModelAdapter.Omni:
                     return new Language(caps, null, directory, settings, settings.ScratchDirectory,
@@ -93,6 +95,10 @@ namespace MNN.Unity
             var features = supported ? MNNRealtimeFeature.SupportedAbi | MNNRealtimeFeature.InProcessMnn : MNNRealtimeFeature.None;
             switch (kind)
             {
+                case MNNConversationModelAdapter.MiniMindO:
+                    features |= MNNRealtimeFeature.TextInput | MNNRealtimeFeature.StableSpokenText |
+                        MNNRealtimeFeature.MemoryAudioInput | MNNRealtimeFeature.BufferedSpeech;
+                    break;
                 case MNNConversationModelAdapter.Language:
                 case MNNConversationModelAdapter.Omni:
                     features |= MNNRealtimeFeature.TextInput | MNNRealtimeFeature.StableSpokenText | MNNRealtimeFeature.ContextRecovery;

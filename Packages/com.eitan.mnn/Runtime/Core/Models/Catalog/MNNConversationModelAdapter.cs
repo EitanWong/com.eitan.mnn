@@ -6,6 +6,6 @@ namespace MNN.Unity
         Language, Omni, SenseVoice, Kokoro, CosyVoice, Silero, SmartTurn, Qwen3Asr,
         Supertonic, Piper, BertVits2, SherpaVitsChinese, MossNano, DtlnAec, Paraformer,
         VoiceActivity, AudioTurn, TextTurn, NoiseReduction, Separation, SpeakerEmbedding,
-        KeywordSpotting, SpeechRecognition, SpeechSynthesis
+        KeywordSpotting, SpeechRecognition, SpeechSynthesis, MiniMindO
     }
 }

@@ -13331,6 +13331,18 @@ public const string MNN.Unity.MNNMiniMindO.ConfigFileName = "mnn_minimind_o.json
 ```
 
 ```csharp
+public const string MNN.Unity.MNNMiniMindO.InstallationName = "MiniMindO-113M-MNN"
+```
+
+```csharp
+public const string MNN.Unity.MNNMiniMindO.Repository = "EitanWang/MiniMindO-113M-MNN"
+```
+
+```csharp
+public const string MNN.Unity.MNNMiniMindO.Revision = "a3f5375a295b201697da0f0dd86eb8e94be2dd29"
+```
+
+```csharp
 MNN.Unity.MNNModelCapabilities.AudioInput = 2
 ```
 
@@ -20293,6 +20305,10 @@ MNN.Unity.MNNConversationModelAdapter.Language = 0
 ```
 
 ```csharp
+MNN.Unity.MNNConversationModelAdapter.MiniMindO = 24
+```
+
+```csharp
 MNN.Unity.MNNConversationModelAdapter.MossNano = 12
 ```
 
@@ -22203,6 +22219,12 @@ public void MNN.Unity.MNNModelCatalog.IncludeCosyVoice300MProfile()
 ```csharp
 public void MNN.Unity.MNNModelCatalog.IncludeDtlnAecProfiles()
 ```
+
+```csharp
+public void MNN.Unity.MNNModelCatalog.IncludeMiniMindOProfile()
+```
+
+Register the complete MiniMind-o MNN export shared by Editor and runtime catalogs.
 
 ```csharp
 public void MNN.Unity.MNNModelCatalog.IncludePocketProfiles()

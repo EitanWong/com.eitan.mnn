@@ -21303,6 +21303,27 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNMiniMindO.InstallationName",
+    "Signature": "public const string MNN.Unity.MNNMiniMindO.InstallationName = \u0022MiniMindO-113M-MNN\u0022",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNMiniMindO.Repository",
+    "Signature": "public const string MNN.Unity.MNNMiniMindO.Repository = \u0022EitanWang/MiniMindO-113M-MNN\u0022",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNMiniMindO.Revision",
+    "Signature": "public const string MNN.Unity.MNNMiniMindO.Revision = \u0022a3f5375a295b201697da0f0dd86eb8e94be2dd29\u0022",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
     "Id": "F:MNN.Unity.MNNModelCapabilities.AudioInput",
     "Signature": "MNN.Unity.MNNModelCapabilities.AudioInput = 2",
     "Summary": ""
@@ -32629,6 +32650,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Models",
+    "Id": "F:MNN.Unity.MNNConversationModelAdapter.MiniMindO",
+    "Signature": "MNN.Unity.MNNConversationModelAdapter.MiniMindO = 24",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
     "Id": "F:MNN.Unity.MNNConversationModelAdapter.MossNano",
     "Signature": "MNN.Unity.MNNConversationModelAdapter.MossNano = 12",
     "Summary": ""
@@ -35887,6 +35915,13 @@
     "Id": "M:MNN.Unity.MNNModelCatalog.IncludeDtlnAecProfiles",
     "Signature": "public void MNN.Unity.MNNModelCatalog.IncludeDtlnAecProfiles()",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelCatalog.IncludeMiniMindOProfile",
+    "Signature": "public void MNN.Unity.MNNModelCatalog.IncludeMiniMindOProfile()",
+    "Summary": "Register the complete MiniMind-o MNN export shared by Editor and runtime catalogs."
   },
   {
     "Assembly": "MNN.Unity",

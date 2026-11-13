@@ -29,6 +29,10 @@ namespace MNN.Unity.Editor
         {
             var repository = new MNNModelRepository();
             repository.IncludePublishedProfiles();
+            var miniMind = repository.models.Find(model => model.repositoryId == MNNMiniMindO.Repository);
+            string directory = System.IO.Path.Combine(Application.streamingAssetsPath, "MNN/Models", MNNMiniMindO.InstallationName);
+            if (miniMind != null && MNNMiniMindO.IsComplete(directory))
+            { miniMind.isInstalled = true; miniMind.localPath = directory; }
             return repository;
         }
 
@@ -65,6 +69,7 @@ namespace MNN.Unity.Editor
         {
             IncludeProfiles(catalog => catalog.IncludePocketProfiles(), repository => repository?.StartsWith("MNN/MNN-Pocket-0.3B", StringComparison.OrdinalIgnoreCase) == true);
             IncludeDtlnAecProfiles();
+            IncludeProfiles(catalog => catalog.IncludeMiniMindOProfile(), repository => repository == MNNMiniMindO.Repository);
             IncludeProfiles(catalog => catalog.IncludeCosyVoice300MProfile(), MNNModelSources.IsCosyVoice300M);
             IncludeProfiles(catalog => catalog.IncludePublishedSpeechProfiles(), MNNModelCatalog.IsPublishedSpeechRepository);
         }

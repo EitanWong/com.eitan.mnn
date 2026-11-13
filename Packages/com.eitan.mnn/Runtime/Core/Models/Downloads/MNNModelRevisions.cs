@@ -33,6 +33,11 @@ namespace MNN.Unity
                 revision = MNNSileroModel.ResolveRevision(revision);
             if (source == MNNModelSource.HuggingFace && MNNSmartTurnModel.IsRepository(repositoryId))
                 revision = MNNSmartTurnModel.ResolveRevision(revision);
+            if (source == MNNModelSource.ModelScope && repositoryId == MNNMiniMindO.Repository)
+            {
+                if (revision == "master") revision = MNNMiniMindO.Revision;
+                if (revision != MNNMiniMindO.Revision) throw new ArgumentException("Unsupported MiniMind-o release revision.", nameof(revision));
+            }
             return revision;
         }
     }

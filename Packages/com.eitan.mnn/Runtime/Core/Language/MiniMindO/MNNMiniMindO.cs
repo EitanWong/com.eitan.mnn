@@ -10,6 +10,9 @@ namespace MNN.Unity
     /// Accepts completed turns, streams text and speech, and supports cancellation. The released model is not native full duplex.</summary>
     public sealed partial class MNNMiniMindO : IDisposable
     {
+        public const string Repository = "EitanWang/MiniMindO-113M-MNN";
+        public const string Revision = "a3f5375a295b201697da0f0dd86eb8e94be2dd29";
+        public const string InstallationName = "MiniMindO-113M-MNN";
         public const string ConfigFileName = "mnn_minimind_o.json";
         private readonly object _gate = new object();
         private readonly string _directory;

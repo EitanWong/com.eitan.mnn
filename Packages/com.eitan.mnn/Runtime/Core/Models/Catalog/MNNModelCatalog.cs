@@ -66,6 +66,7 @@ namespace MNN.Unity
             repository.IncludeCosyVoice300MProfile();
             repository.IncludePublishedSpeechProfiles();
             repository.IncludePocketProfiles();
+            repository.IncludeMiniMindOProfile();
             return repository;
         }
 
