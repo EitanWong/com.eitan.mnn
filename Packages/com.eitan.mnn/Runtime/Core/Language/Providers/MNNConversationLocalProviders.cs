@@ -97,7 +97,7 @@ namespace MNN.Unity
             {
                 case MNNConversationModelAdapter.MiniMindO:
                     features |= MNNRealtimeFeature.TextInput | MNNRealtimeFeature.StableSpokenText |
-                        MNNRealtimeFeature.MemoryAudioInput | MNNRealtimeFeature.BufferedSpeech;
+                        MNNRealtimeFeature.MemoryAudioInput | MNNRealtimeFeature.BufferedSpeech | MNNRealtimeFeature.ContextRecovery;
                     break;
                 case MNNConversationModelAdapter.Language:
                 case MNNConversationModelAdapter.Omni:

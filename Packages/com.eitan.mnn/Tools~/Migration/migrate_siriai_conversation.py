@@ -10,7 +10,7 @@ import subprocess
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
-    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'comfort'], default='conversation',
+    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'comfort', 'minimind-o'], default='conversation',
                         help='Apply conversation, reuse, full capability, acceptance-contract, recording-gate, glass-continuity, source-reflection, optical-detail, fold-caustics, soft-endpoint, glass-refraction, Pocket-model, product-interaction, task-settings, or desktop-comfort migration')
     args = parser.parse_args()
     root = args.root.resolve()
@@ -28,9 +28,10 @@ def main():
                                     'pocket': 'SiriAIPocketModels.patch',
                                     'product': 'SiriAIProductPolish.patch',
                                     'tasks': 'SiriAITaskSettings.patch',
-                                    'comfort': 'SiriAIDesktopComfort.patch'}[args.stage]).resolve()
+                                    'comfort': 'SiriAIDesktopComfort.patch',
+                                    'minimind-o': 'SiriAIMiniMindOVoice.patch'}[args.stage]).resolve()
     command = ['git', '-C', str(root), 'apply', '--whitespace=nowarn']
-    if args.stage in ('full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'comfort'):
+    if args.stage in ('full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'comfort', 'minimind-o'):
         # git apply checks surrounding lines, not every byte in changed files.
         # Reject a partial or independently edited import before any mutation.
         records = json.loads(patch.with_suffix('.files.json').read_text())['files']

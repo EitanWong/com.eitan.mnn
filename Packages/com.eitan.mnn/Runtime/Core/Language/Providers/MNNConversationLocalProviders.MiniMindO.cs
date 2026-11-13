@@ -31,14 +31,12 @@ namespace MNN.Unity
                 if (history == null || history.Count == 0) throw new ArgumentException("Supply the current user turn.", nameof(history));
                 var last = history[history.Count - 1];
                 if (last.Role != MNNChatRole.User) throw new ArgumentException("MiniMind-o requires a final user turn.", nameof(history));
-                // Previous audio cannot be silently converted to invented transcripts.
-                if (history.Take(history.Count - 1).Any(message => message.Audio != null))
-                    throw new NotSupportedException("MiniMind-o accepts audio on the current turn; retain earlier turns as text.");
                 if (audio == null && last.Audio != null) { audio = last.Audio; rate = last.SampleRate; }
                 var request = new MNNMiniMindORequest
                 {
                     Text = last.Text ?? "请听取这条语音并简短回答。",
-                    History = history.Take(history.Count - 1).Select(message => new MNNChatMessage(message.Role, message.Text ?? "")).ToArray(),
+                    TrimHistoryToFit = true,
+                    History = history.Take(history.Count - 1).Select(message => new MNNChatMessage(message.Role, message.Text ?? (message.Audio == null ? "" : "[先前语音输入，未转写]"))).ToArray(),
                     Audio16Khz = audio == null ? null : MNNAudioResampling.Resample(audio, rate, 16000, token)
                 };
                 string previous = "";

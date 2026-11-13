@@ -33,7 +33,16 @@ namespace MNN.Unity
                 content = string.Concat(Enumerable.Repeat("<|image_pad|>", 64)) + content;
             }
             cancellation.ThrowIfCancellationRequested();
-            int[] tokens = _tokenizer.Encode(MNNMiniMindOTokenizer.Prompt(content, request.History));
+            var history = (request.History ?? Array.Empty<MNNChatMessage>()).ToList();
+            int[] tokens = _tokenizer.Encode(MNNMiniMindOTokenizer.Prompt(content, history.ToArray()));
+            while (request.TrimHistoryToFit && tokens.Length + budget > 512)
+            {
+                int oldest = history.FindIndex(message => message.Role != MNNChatRole.System);
+                if (oldest < 0) break;
+                history.RemoveAt(oldest);
+                while (oldest < history.Count && history[oldest].Role == MNNChatRole.Assistant) history.RemoveAt(oldest);
+                tokens = _tokenizer.Encode(MNNMiniMindOTokenizer.Prompt(content, history.ToArray()));
+            }
             if (tokens.Length + budget > 512)
                 throw new ArgumentException("MiniMind-o's prompt plus generation budget exceeds the adapter's 512-token memory bound.");
             var inputs = new List<Input> { new Input("tokens", tokens, 1, tokens.Length),

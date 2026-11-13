@@ -334,3 +334,22 @@ nine independent HTTP/ACP fixture checks pass. Pristine and rolled-back source b
 reproduce the same twelve failing behaviors; the seventeen new cases all pass after
 the change. This validates Editor behavior and rendering, without measuring desktop
 Player feel, production model decisions or performance on every operating system.
+
+
+## MiniMind-o 语音案例
+
+对于精确匹配当前基线的 SiriAI 导入：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage minimind-o
+```
+
+`SiriAIMiniMindOVoice.patch` 接通 MiniMind-o 的独立适配器筛选、自动语音路由、专用
+`minimind-o` 设置 profile 和默认场景。选择 **Use MiniMind-o voice** 后直接输入音频、
+使用模型自身的语音回答，同时保留 Silero VAD 和 SmartTurn，不依赖单独的 ASR/TTS。
+模型通过共享目录发现并从已固定 revision 的 ModelScope 安装；补丁不包含模型权重。
+修改前后文件哈希、原 GUID、新增文件和重复执行均使用现有迁移器检查。
+
+真实权重验证覆盖通过采集接口发送的生成语音 PCM、VAD/轮次模型准备、输出渲染和
+第二轮语音。物理麦克风/扬声器和声学环境需要另测；该模型仍是轮次式推理。
+加速对比和运行限制见 [MiniMind-o](../../Documentation~/MiniMindO.md)。

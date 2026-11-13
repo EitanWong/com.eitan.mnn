@@ -6,6 +6,7 @@ namespace MNN.Unity
         public string Text { get; set; } = "";
         /// <summary>Previous text turns, excluding the current user turn. Historical media must be supplied again to be understood.</summary>
         public MNNChatMessage[] History { get; set; }
+        internal bool TrimHistoryToFit;
         public float[] Audio16Khz { get; set; }
         public float[] ImagePixels { get; set; }
     }

@@ -94,6 +94,7 @@ namespace MNN.Unity
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             return new MNNMiniMindORequest { Text = request.Text ?? throw new ArgumentNullException(nameof(request.Text)),
+                TrimHistoryToFit = request.TrimHistoryToFit,
                 History = request.History == null ? null : (MNNChatMessage[])request.History.Clone(),
                 Audio16Khz = request.Audio16Khz == null ? null : (float[])request.Audio16Khz.Clone(),
                 ImagePixels = request.ImagePixels == null ? null : (float[])request.ImagePixels.Clone() };
