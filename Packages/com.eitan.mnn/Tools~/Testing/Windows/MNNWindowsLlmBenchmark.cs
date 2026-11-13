@@ -15,7 +15,8 @@ public static class MNNWindowsLlmBenchmark
     [Serializable] public sealed class Request
     {
         public string model, output, backend = "CPU", precision = "Normal", power = "Normal";
-        public int threads = 4, repeats = 3, tokens = 64;
+        public string gpuTuning = "Wide", attention = "Default", cacheDirectory;
+        public int threads = 4, repeats = 3, tokens = 64, promptCopies = 24, chunk = -1;
         public bool automatic, reorder;
     }
     [Serializable] public sealed class Sample
@@ -24,6 +25,7 @@ public static class MNNWindowsLlmBenchmark
         public long firstTextUs, prefillUs, decodeUs, sampleUs;
         public double wallMs;
         public string text;
+        public string startUtc, endUtc;
         public int[] tokenIds;
     }
     [Serializable] public sealed class Report
@@ -32,6 +34,7 @@ public static class MNNWindowsLlmBenchmark
         public bool passed;
         public int threads, repeats, unicodeTokens;
         public double loadMs;
+        public string loadStartUtc, loadEndUtc;
         public long peakWorkingSetBytes;
         public Sample[] samples;
     }
@@ -67,6 +70,11 @@ public static class MNNWindowsLlmBenchmark
             throw new ArgumentException("Provide an existing MNN model installation.");
         if (request.threads < 1 || request.threads > 64 || request.repeats < 1 || request.repeats > 20 || request.tokens < 16 || request.tokens > 256)
             throw new ArgumentException("Invalid benchmark workload.");
+        if (request.promptCopies < 1 || request.promptCopies > 512 || request.chunk < -1 ||
+            (request.attention != "Default" && request.attention != "Enabled" && request.attention != "Disabled"))
+            throw new ArgumentException("Invalid prompt, prefill chunk or attention setting.");
+        if (request.automatic && (request.gpuTuning != "Wide" || request.attention != "Default" || request.chunk != -1 || request.reorder))
+            throw new ArgumentException("Automatic load cannot apply explicit tuning overrides.");
         if (File.Exists(request.output)) throw new IOException("Refusing to overwrite a benchmark result.");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.output)));
     }
@@ -85,11 +93,17 @@ public static class MNNWindowsLlmBenchmark
             ThreadCount = request.threads,
             PrecisionMode = (MNNPrecisionMode)Enum.Parse(typeof(MNNPrecisionMode), request.precision),
             PowerMode = (MNNPowerMode)Enum.Parse(typeof(MNNPowerMode), request.power),
+            OpenClTuningMode = (MNNGpuTuningMode)Enum.Parse(typeof(MNNGpuTuningMode), request.gpuTuning),
             EnableWeightReordering = request.reorder };
+        if (request.attention != "Default") tuning.FlashAttention = request.attention == "Enabled";
+        if (request.chunk >= 0) tuning.PrefillChunkSize = request.chunk;
+        report.loadStartUtc = DateTime.UtcNow.ToString("o");
         var timer = Stopwatch.StartNew();
-        using (var model = request.automatic ? MNNLlm.Load(request.model) : MNNLlm.Load(request.model, tuning))
+        using (var model = request.automatic ? MNNLlm.Load(request.model, cacheDirectory: request.cacheDirectory) :
+            MNNLlm.Load(request.model, tuning, cacheDirectory: request.cacheDirectory))
         {
             report.loadMs = timer.Elapsed.TotalMilliseconds;
+            report.loadEndUtc = DateTime.UtcNow.ToString("o");
             report.actualBackend = model.Backend.ToString();
             report.requestedConfiguration = JsonUtility.ToJson(request);
             if (!request.automatic && tuning.BackendType != MNNBackendType.Auto && model.Backend != tuning.BackendType)
@@ -100,16 +114,18 @@ public static class MNNWindowsLlmBenchmark
             if (report.unicodeTokens <= 1 || !report.capital.ToLowerInvariant().Contains("paris") || report.arithmetic.Trim() != "4")
                 throw new InvalidOperationException("Correctness gate failed: capital=" + report.capital + "; arithmetic=" + report.arithmetic);
             var messages = new[] { new MNNChatMessage(MNNChatRole.System,
-                string.Concat(Enumerable.Repeat("Follow the user's instructions. Be clear and accurate. ", 24))),
+                string.Concat(Enumerable.Repeat("Follow the user's instructions. Be clear and accurate. ", request.promptCopies))),
                 new MNNChatMessage(MNNChatRole.User, "Count from 1 to 40. Output only the numbers separated by commas.") };
             int promptTokens = model.CountConversationTokens(messages);
             int[] expected = null;
             for (int repeat = -1; repeat < request.repeats; ++repeat)
             {
                 var text = new StringBuilder();
+                string startUtc = DateTime.UtcNow.ToString("o");
                 timer.Restart();
                 var result = model.GenerateConversationStreamingDeltas(messages, d => text.Append(d.Text), request.tokens);
                 double wallMs = timer.Elapsed.TotalMilliseconds;
+                string endUtc = DateTime.UtcNow.ToString("o");
                 if (result.Cancelled || result.GeneratedTokens < 16 || result.TotalPromptTokens != promptTokens || text.ToString() != result.Text)
                     throw new InvalidOperationException("Incomplete or inconsistent generation.");
                 int[] ids = result.GeneratedTokenIds.ToArray();
@@ -118,7 +134,8 @@ public static class MNNWindowsLlmBenchmark
                 if (repeat >= 0) report.samples[repeat] = new Sample { repeat = repeat, promptTokens = promptTokens,
                     generatedTokens = result.GeneratedTokens, firstTextUs = result.FirstTextMicroseconds,
                     prefillUs = result.PrefillMicroseconds, decodeUs = result.DecodeMicroseconds,
-                    sampleUs = result.SampleMicroseconds, wallMs = wallMs, text = result.Text, tokenIds = ids };
+                    sampleUs = result.SampleMicroseconds, wallMs = wallMs, text = result.Text, tokenIds = ids,
+                    startUtc = startUtc, endUtc = endUtc };
             }
         }
         var memory = new ProcessMemoryCounters { Size = (uint)Marshal.SizeOf<ProcessMemoryCounters>() };

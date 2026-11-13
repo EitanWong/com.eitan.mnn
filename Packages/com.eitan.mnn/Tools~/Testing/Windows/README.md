@@ -32,6 +32,10 @@ to an absolute UTF-8 JSON file with all fields present, for example:
   "precision": "Normal",
   "power": "Normal",
   "threads": 4,
+  "gpuTuning": "Wide",
+  "attention": "Default",
+  "chunk": -1,
+  "promptCopies": 24,
   "repeats": 3,
   "tokens": 64,
   "automatic": false,
@@ -58,3 +62,44 @@ peak host working set (Windows `GetProcessMemoryInfo`; excludes GPU VRAM).
 For OpenCL, use a matching audited official backend build and verify the report's
 actual backend plus the device identity in the log. See
 [Windows validation](../../../Documentation~/WindowsPlayer.md).
+
+For an NVIDIA GPU, run the Player through the PowerShell telemetry wrapper:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./Measure-MNNWindowsGpuBenchmark.ps1 `
+    -Player 'E:/PROJECT/Benchmark/Benchmark.exe' `
+    -Request 'E:/PROJECT/TestArtifacts~/request.json' `
+    -EvidenceDirectory 'E:/PROJECT/TestArtifacts~/case-01-evidence'
+```
+
+The wrapper requires one NVIDIA GPU, records executable/DLL hashes and samples
+whole-device utilization, memory, power, clocks and temperature with a requested
+100 ms interval. Driver/query overhead can make the actual interval longer;
+use the CSV timestamps. These are sampled counters, not kernel profiling or an
+exact peak-memory measurement. Stdout redirection retains short traces; NVIDIA's
+`-f` file output left the short forced-stop probe empty.
+It refuses to launch when another Unity workload is active, GPU utilization is
+above 5%, or idle GPU memory exceeds 2048 MiB. It retains the idle reading and
+does not stop other applications. These checks do not guarantee exclusivity
+throughout a run; inspect the trace and retain all failures. The counters include
+display and other applications, and do not measure per-process VRAM. Each warm
+sample and model load has UTC boundaries in the result for trace correlation.
+
+`gpuTuning` selects exactly one of `None`, `Heavy`, `Wide`, `Normal`, `Fast`;
+`threads` remains the CPU count, including CPU fallback. MNN supplies OpenCL LLM
+buffer mode internally. `attention` accepts `Default`, `Enabled` or `Disabled`;
+`chunk: -1` preserves the export, zero disables chunking, and a positive value
+sets the prefill chunk size (exports with `chunk_limits` reject overrides).
+`promptCopies` controls the repeated system text; 24 preserves the original
+298-token Qwen workload. Compare identical workloads and generated token IDs.
+An optional absolute `cacheDirectory` retains native shader caches across
+processes; isolate it by model, native build, GPU/driver and tuning settings.
+Report cache reuse and first-load compilation separately from warm inference.
+Automatic loading rejects explicit GPU/attention/chunk/reordering overrides.
+
+Sweep GPU tuning first, then attention/chunks on both short and long prompts.
+Confirm a candidate in separate Mono and IL2CPP processes with at least five
+measured repetitions after warmup. Keep `Wide` until a matched, correct benchmark
+proves an improvement. `Low` only requests FP16: the official backend uses FP32
+when the driver lacks `cl_khr_fp16`/half-float support. An OpenCL result is not
+evidence of CUDA or Tensor Core use.
