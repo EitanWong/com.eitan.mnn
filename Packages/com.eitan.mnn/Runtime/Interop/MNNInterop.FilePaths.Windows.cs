@@ -1,4 +1,4 @@
-#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
 using System;
 using System.IO;
 using System.Runtime.InteropServices;

@@ -20,7 +20,7 @@ namespace MNN.Unity
 #elif UNITY_IOS && !UNITY_EDITOR
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Apple libc++ ABI v1 / ARM64 IL2CPP";
 #elif UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
-                return $"MNN {MNNVersion.RequiredNativeVersion} / MinGW-w64 GCC 16.2 libstdc++ C++11 x64 ABI / Windows x86_64 Mono (bundled binary only)";
+                return $"MNN {MNNVersion.RequiredNativeVersion} / MinGW-w64 GCC 16.2 libstdc++ C++11 x64 ABI / Windows x86_64 {(UsesIl2Cpp ? "IL2CPP" : "Mono")} (bundled binary only)";
 #elif UNITY_EDITOR_LINUX || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR)
                 return $"MNN {MNNVersion.RequiredNativeVersion} / GCC 13 libstdc++ C++11 ABI / Linux x86_64 Mono (bundled binary only)";
 #elif UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR)
@@ -60,8 +60,8 @@ namespace MNN.Unity
             if (platform == RuntimePlatform.WindowsEditor || platform == RuntimePlatform.WindowsPlayer ||
                 platform == RuntimePlatform.LinuxEditor || platform == RuntimePlatform.LinuxPlayer)
             {
-                if (il2cpp)
-                    return "Direct Windows/Linux MNN C++ binding requires Mono.";
+                if (il2cpp && platform != RuntimePlatform.WindowsPlayer)
+                    return "Direct Windows Editor/Linux MNN C++ binding requires Mono.";
                 if (architecture != Architecture.X64)
                     return "Direct Windows/Linux MNN C++ binding requires x86_64.";
                 return null;

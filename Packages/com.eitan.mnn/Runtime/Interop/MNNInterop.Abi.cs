@@ -4,7 +4,7 @@
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
 #define MNN_MOBILE_LLM_CPP_ABI
 #endif
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN && !UNITY_EDITOR) || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR && !ENABLE_IL2CPP))
 #define MNN_GNU_DESKTOP_CPP_ABI
 #endif
 using System;
@@ -14,7 +14,8 @@ using System.Text;
 
 namespace MNN.Unity.Interop
 {
-    // STL ownership: pinned MNN 3.6.2 desktop Mono or ARM64 mobile IL2CPP.
+    // STL ownership: pinned MNN 3.6.2 desktop Mono, Windows x64 IL2CPP,
+    // or ARM64 mobile IL2CPP.
     // Apple libc++ / Android NDK r25c contracts are documented in MobileInterop.md.
     // These are compiler ABI representations, not a portable MNN C# interface.
     internal static partial class MNNInterop

@@ -23,7 +23,7 @@ namespace MNN.Unity.Tests
                 {
                     foreach (bool il2cpp in new[]{false, true})
                     {
-                        bool supported = (!il2cpp && (platform == RuntimePlatform.OSXEditor || platform == RuntimePlatform.OSXPlayer || platform == RuntimePlatform.WindowsEditor || platform == RuntimePlatform.WindowsPlayer || platform == RuntimePlatform.LinuxEditor || platform == RuntimePlatform.LinuxPlayer)) || (il2cpp && (platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer));
+                        bool supported = (!il2cpp && (platform == RuntimePlatform.OSXEditor || platform == RuntimePlatform.OSXPlayer || platform == RuntimePlatform.WindowsEditor || platform == RuntimePlatform.WindowsPlayer || platform == RuntimePlatform.LinuxEditor || platform == RuntimePlatform.LinuxPlayer)) || (il2cpp && (platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer || platform == RuntimePlatform.WindowsPlayer));
                         yield return new TestCaseData(platform, il2cpp, supported).SetName($"AbiContract_{platform}_{(il2cpp ? "IL2CPP" : "Mono")}");
                     }
                 }
@@ -50,11 +50,17 @@ namespace MNN.Unity.Tests
 
         [TestCase(RuntimePlatform.WindowsEditor), TestCase(RuntimePlatform.WindowsPlayer)]
         [TestCase(RuntimePlatform.LinuxEditor), TestCase(RuntimePlatform.LinuxPlayer)]
-        public void DesktopMono_RejectsNonX64AndIl2Cpp(RuntimePlatform platform)
+        public void Desktop_RejectsNonX64AndUnsupportedIl2Cpp(RuntimePlatform platform)
         {
             Assert.IsNull(MNNPlatformSupport.GetUnsupportedReason(platform, false, 8, true, Architecture.X64));
             Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, false, 8, true, Architecture.Arm64));
-            Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 8, true, Architecture.X64));
+            if (platform == RuntimePlatform.WindowsPlayer)
+            {
+                Assert.IsNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 8, true, Architecture.X64));
+                Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 8, true, Architecture.Arm64));
+            }
+            else
+                Assert.IsNotNull(MNNPlatformSupport.GetUnsupportedReason(platform, true, 8, true, Architecture.X64));
         }
 
         [TestCase(4, true), TestCase(8, false), TestCase(4, false)]
