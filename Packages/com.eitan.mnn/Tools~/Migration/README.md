@@ -353,3 +353,26 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 真实权重验证覆盖通过采集接口发送的生成语音 PCM、VAD/轮次模型准备、输出渲染和
 第二轮语音。物理麦克风/扬声器和声学环境需要另测；该模型仍是轮次式推理。
 加速对比和运行限制见 [MiniMind-o](../../Documentation~/MiniMindO.md)。
+
+
+## Omni End-to-End 轮次检测修复
+
+在已应用 `minimind-o`、精确匹配对应基线的 SiriAI 导入上执行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage omni-turns
+```
+
+`SiriAIOmniTurns.patch` 将本地对话模式显示为 **Omni End-to-End**，保留序列化枚举值。
+启动恢复、应用配置和运行时快照共用同一约束：本地 Omni 语音模式启用 VAD 和
+Turn Detection 的 Provider；旧 profile 中错误的 false 标志会修复并持久化。
+简单设置也显示这两个必需阶段及模型选择入口；级联模式仍保留用户的可选检测偏好。
+
+该 stage 不修改历史迁移补丁、权重或账户凭据。重复执行零写入；版本不匹配或
+部分应用在写入前拒绝；现有 Unity GUID 保持不变。本地导入已应用。
+测试包括旧设置恢复、持久化幂等性、模式切换、简易设置，以及真实权重下两轮
+带噪声尾部的生成语音采集与模型语音输出。测试为软件 PCM，未验证物理声学回声。
+
+Omni 表示模型直接接受音频并生成语音，不等于模型原生 Full-duplex。MiniMind-o
+发布权重仍按完整轮次推理；此补丁不会把它升级为持续输入输出的全双工模型。
+详见 [MiniMind-o](../../Documentation~/MiniMindO.md)。

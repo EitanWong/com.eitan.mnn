@@ -155,3 +155,30 @@ observations; rejected GPU/thread configurations are reported, never auto-select
 SiriAI acceptance feeds generated speech PCM through the same capture interface,
 loads the real Silero/SmartTurn models, renders the model's 24 kHz PCM and completes
 a second audio turn. It does not test a physical microphone, speaker or acoustic echo.
+
+
+### Omni End-to-End endpointing and latency
+
+After `minimind-o`, apply the checked `omni-turns` migration to its exact baseline.
+The local conversation mode is displayed as **Omni End-to-End**; the serialized
+`RealtimeSpeech` enum name and ordinal remain compatible. Local Omni voice always
+uses provider VAD and turn detection. Startup repairs and persists legacy profiles
+whose false detector flags previously overrode the enabled scene. The simple
+settings page exposes both required detectors and their model selectors.
+
+Two paced generated-speech turns with an above-energy-threshold noise tail loaded
+real MiniMind-o, Silero and SmartTurn. Measured input-end to submission was 348/332 ms;
+input-end to first nonzero software-rendered PCM was 1660/2176 ms. Input-end means the
+end of the generated input buffer, including its own trailing silence. These are two
+observations on the current Mac, not p95, microphone-to-speaker latency, or an
+extremely-low-latency guarantee. No dropped or expired capture blocks were observed.
+Separate ASR/TTS was not loaded. Human response quality was not assessed.
+
+The current SiriAI provider still returns a complete waveform. The released model
+consumes completed audio turns, not continuous audio during its own generation.
+Capture/playback concurrency and VAD/turn detection do not establish native model
+full duplex. The fixture has no qualified acoustic echo control; diagnostics report
+half-duplex echo suppression. A physical speakerphone additionally needs verified
+AEC, double-talk handling and interruption/recovery. Genuine model-native Full-duplex
+requires a model and provider with a continuous input/output session contract;
+conversion, naming and shorter silence thresholds cannot supply that capability.

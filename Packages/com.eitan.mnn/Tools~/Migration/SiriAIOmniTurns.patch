@@ -1,0 +1,490 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs
+@@ -74,6 +74,7 @@
+         private SiriAIBackendConfiguration ResolveConfiguration()
+         {
+             var value = configuration.Snapshot();
++            SiriAISettingsConstraints.NormalizeOmniListening(value);
+             if (promptDocument != null)
+             {
+                 if (string.IsNullOrWhiteSpace(promptDocument.text))
+@@ -87,6 +88,7 @@
+             if (value == null) throw new ArgumentNullException(nameof(value));
+             value.Validate();
+             configuration = value.Snapshot();
++            SiriAISettingsConstraints.NormalizeOmniListening(configuration);
+             // An explicit host/UI configuration owns its selected models, including Pocket.
+             _deviceDefaultsApplied = true;
+         }
+@@ -117,6 +119,7 @@
+             var loaded = Settings.Load();
+             if (loaded == null) return false;
+             ApplyConfiguration(loaded);
++            if (JsonUtility.ToJson(loaded) != JsonUtility.ToJson(configuration)) Settings.Save(configuration);
+             _settingsRestored = true;
+             return true;
+         }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Cloud.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Cloud.cs
+@@ -27,8 +27,8 @@
+                 () => config.textOnly, value => UpdateListeningSettings(() => { config.textOnly = value; if (value) config.speechOutput = false; }));
+             AddBoolField("Speak replies", "Required for live voice. Off: text replies only.",
+                 () => config.speechOutput, value => UpdateListeningSettings(() => { config.speechOutput = value; if (value) config.textOnly = false; }));
+-            AddSetupShortcut("Speech recognition setup", config.asr, 2);
+-            if (config.speechOutput) AddSetupShortcut("Speech synthesis setup", config.tts, 1);
++            if (SiriAISettingsConstraints.InactiveReason(2, config) == null) AddSetupShortcut("Speech recognition setup", config.asr, 2);
++            if (SiriAISettingsConstraints.UsesSynthesis(config)) AddSetupShortcut("Speech synthesis setup", config.tts, 1);
+         }
+         private void SelectAnswerProcessing(int value)
+         {
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Diagnostics.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Diagnostics.cs
+@@ -188,7 +188,7 @@
+             var backend = _chat.Backend as SiriAIConfigurableBackend;
+             if (backend == null) return "This backend does not expose model instance diagnostics.";
+             var config = backend.GetConfiguration(); // Saved/live configuration, never the settings draft.
+-            var text = new StringBuilder("Configured mode: ").Append(config.mode).Append("\nConfigured inference threads: ").Append(config.threads == 0 ? "Automatic" : config.threads.ToString())
++            var text = new StringBuilder("Configured mode: ").Append(config.mode == SiriAIConversationMode.RealtimeSpeech ? SiriAISettingsConstraints.OmniModeLabel(config.model.location) : config.mode.ToString()).Append("\nConfigured inference threads: ").Append(config.threads == 0 ? "Automatic" : config.threads.ToString())
+                 .Append("\nRuntime thread budget: ").Append(backend.RuntimeInferenceThreads?.ToString() ?? "Not started").Append(" (stage overrides may apply)")
+                 .Append("\nVAD: ").Append(config.EffectiveVadMode).Append(" · turn detection: ").Append(config.EffectiveTurnMode)
+                 .Append("\nSpeech output: ").Append(config.speechOutput).Append("\n");
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
+@@ -11,12 +11,13 @@
+         {
+             AddSettingsTitle("Conversation", "Saving restarts the session and clears model context; displayed history stays.");
+             BuildSimpleConversationSettings();
++            AddEnumField("Conversation mode", "Model selections adjust to this mode.",
++                () => (int)_settingsDraft.Configuration.mode, value => UpdateListeningSettings(() => _settingsDraft.Configuration.mode = (SiriAIConversationMode)value),
++                new[] { "Automatic", SiriAISettingsConstraints.OmniModeLabel(_settingsDraft.Configuration.model.location), "Omni + speech synthesis", "Cascaded" });
++            BuildListeningModelSettings();
+             AddBoolField("Advanced conversation settings", null,
+                 () => _settingsConversationAdvanced, value => UpdateListeningSettings(() => _settingsConversationAdvanced = value));
+             if (!_settingsConversationAdvanced) return;
+-            AddEnumField("Conversation mode", "Model selections adjust to this mode.",
+-                () => (int)_settingsDraft.Configuration.mode, value => UpdateListeningSettings(() => _settingsDraft.Configuration.mode = (SiriAIConversationMode)value),
+-                new[] { "Automatic", "Realtime speech", "Omni + speech synthesis", "Cascaded" });
+             if (_settingsDraft.Configuration.mode != SiriAIConversationMode.Cascaded)
+                 AddBoolField("Allow fallback", "Try another route if unavailable.",
+                     () => _settingsDraft.Configuration.allowFallback, value => UpdateListeningSettings(() => _settingsDraft.Configuration.allowFallback = value));
+@@ -75,24 +76,38 @@
+             AddBoolField("Validate voice input", "Validate speech before replying or interrupting. Adds recognition delay.",
+                 () => _settingsDraft.Configuration.filterVoiceInput,
+                 value => UpdateListeningSettings(() => _settingsDraft.Configuration.filterVoiceInput = value));
+-            AddBoolField("Voice activity model", "Off: use energy detection.",
+-                () => _settingsDraft.Configuration.useVoiceActivityModel,
+-                value => UpdateListeningSettings(() => _settingsDraft.Configuration.useVoiceActivityModel = value));
+-            if (_settingsDraft.Configuration.useVoiceActivityModel)
+-                AddEnumField("Voice activity", null, () => (int)_settingsDraft.Configuration.vadMode,
+-                    value => UpdateListeningSettings(() => _settingsDraft.Configuration.vadMode = (SiriAIVadMode)value), new[] { "Energy", "Provider" });
+-            AddBoolField("Turn detection model", "Off: use silence duration.",
+-                () => _settingsDraft.Configuration.useTurnDetectionModel,
+-                value => UpdateListeningSettings(() => _settingsDraft.Configuration.useTurnDetectionModel = value));
+-            if (_settingsDraft.Configuration.useTurnDetectionModel)
+-                AddEnumField("Turn completion", null, () => (int)_settingsDraft.Configuration.turnMode,
+-                    value => UpdateListeningSettings(() => _settingsDraft.Configuration.turnMode = (SiriAITurnMode)value), new[] { "Silence", "Provider" });
+             AddIntField("Minimum speech (ms)", "20 to 2000", () => _settingsDraft.Configuration.minimumSpeechMilliseconds,
+                 value => _settingsDraft.Configuration.minimumSpeechMilliseconds = value, 20, 2000);
+             AddIntField("Silence before reply (ms)", "100 to 5000", () => _settingsDraft.Configuration.silenceMilliseconds,
+                 value => _settingsDraft.Configuration.silenceMilliseconds = value, 100, 5000);
+             AddIntField("Maximum recording (seconds)", "2 to 120", () => _settingsDraft.Configuration.maximumUtteranceSeconds,
+                 value => _settingsDraft.Configuration.maximumUtteranceSeconds = value, 2, 120);
++        }
++
++        private void BuildListeningModelSettings()
++        {
++            var config = _settingsDraft.Configuration;
++            bool required = SiriAISettingsConstraints.RequiresOmniDetectors(config);
++            const string requiredDetail = "Local Omni End-to-End requires VAD and turn detection.";
++            AddBoolField("Voice activity model", required ? requiredDetail : "Off: use energy detection.",
++                () => config.useVoiceActivityModel,
++                value => UpdateListeningSettings(() => config.useVoiceActivityModel = value), !required);
++            if (config.useVoiceActivityModel)
++                AddEnumField("Voice activity", null, () => (int)config.vadMode,
++                    value => UpdateListeningSettings(() => config.vadMode = (SiriAIVadMode)value),
++                    required ? new[] { "Provider" } : new[] { "Energy", "Provider" }, required ? new[] { 1 } : null);
++            AddBoolField("Turn detection model", required ? requiredDetail : "Off: use silence duration.",
++                () => config.useTurnDetectionModel,
++                value => UpdateListeningSettings(() => config.useTurnDetectionModel = value), !required);
++            if (config.useTurnDetectionModel)
++                AddEnumField("Turn completion", null, () => (int)config.turnMode,
++                    value => UpdateListeningSettings(() => config.turnMode = (SiriAITurnMode)value),
++                    required ? new[] { "Provider" } : new[] { "Silence", "Provider" }, required ? new[] { 1 } : null);
++            if (required)
++            {
++                AddSetupShortcut("Voice activity setup", config.vad, 3);
++                AddSetupShortcut("Turn detection setup", config.turn, 4);
++            }
+         }
+ 
+         private void UpdateListeningSettings(System.Action update)
+@@ -117,12 +132,9 @@
+                     if (!ReadSettingsFields()) return;
+                     _settingsProvider = value;
+                     ShowSettingsTab(1, false);
+-                }, _settingsConversationAdvanced ? (_settingsDraft.Configuration.hybrid?.enabled == true ?
++                }, _settingsDraft.Configuration.hybrid?.enabled == true ?
+                     new[] { "Model", "Speech synthesis", "Speech recognition", "Voice activity", "Turn completion", "Cloud answer" } :
+-                    new[] { "Model", "Speech synthesis", "Speech recognition", "Voice activity", "Turn completion" }) :
+-                    (_settingsDraft.Configuration.hybrid?.enabled == true ? new[] { "Local answer model", "Speech synthesis", "Speech recognition", "Cloud answer" } :
+-                    new[] { "Model", "Speech synthesis", "Speech recognition" }),
+-                _settingsConversationAdvanced ? null : (_settingsDraft.Configuration.hybrid?.enabled == true ? new[] { 0, 1, 2, 5 } : new[] { 0, 1, 2 }));
++                    new[] { "Model", "Speech synthesis", "Speech recognition", "Voice activity", "Turn completion" });
+             if (_settingsProvider == 5) { BuildHybridCloudSettings(); return; }
+             string inactive = SiriAISettingsConstraints.InactiveReason(_settingsProvider, _settingsDraft.Configuration);
+             if (inactive != null)
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIBackendConfiguration.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAIBackendConfiguration.cs
+@@ -4,7 +4,7 @@
+ 
+ namespace MNN.Samples.SiriAI
+ {
+-    public enum SiriAIConversationMode { Automatic, RealtimeSpeech, OmniWithTts, Cascaded }
++    public enum SiriAIConversationMode { Automatic, [InspectorName("Omni End-to-End")] RealtimeSpeech, OmniWithTts, Cascaded }
+     public enum SiriAIProviderLocation { OpenAICompatible, LocalMnn, Custom }
+     public enum SiriAIVadMode { Energy, Provider, Server }
+     public enum SiriAITurnMode { Silence, Provider, ServerSemantic }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs
+@@ -6,6 +6,21 @@
+     /// <summary>Compatibility rules for the built-in providers exposed by the settings page.</summary>
+     public static class SiriAISettingsConstraints
+     {
++        internal static bool RequiresOmniDetectors(SiriAIBackendConfiguration config) =>
++            config.mode == SiriAIConversationMode.RealtimeSpeech &&
++            config.model.location == SiriAIProviderLocation.LocalMnn && config.speechOutput && !config.textOnly;
++
++        internal static string OmniModeLabel(SiriAIProviderLocation location) =>
++            location == SiriAIProviderLocation.LocalMnn ? "Omni End-to-End" : "Omni";
++
++        internal static void NormalizeOmniListening(SiriAIBackendConfiguration config)
++        {
++            if (!RequiresOmniDetectors(config)) return;
++            config.useVoiceActivityModel = config.useTurnDetectionModel = true;
++            config.vadMode = SiriAIVadMode.Provider;
++            config.turnMode = SiriAITurnMode.Provider;
++        }
++
+         public static bool IsOmni(SiriAIModelAdapter adapter) => adapter == SiriAIModelAdapter.Omni || adapter == SiriAIModelAdapter.MiniMindO;
+ 
+         public static bool SupportsModel(SiriAIModelAdapter adapter, SiriAIConversationMode mode) =>
+@@ -41,7 +56,7 @@
+         {
+             if (stage == 1 && !UsesSynthesis(config))
+                 return config.speechOutput
+-                    ? "Realtime speech uses the Omni model's own voice. Enable Allow fallback to configure separate speech synthesis."
++                    ? "Omni uses the model's own voice. Enable Allow fallback to configure separate speech synthesis."
+                     : "Voice replies are off. Enable Speak replies in Conversation to configure synthesis.";
+             if (stage == 2 && !config.TurnRequiresTranscript && !config.filterVoiceInput && !config.endRealtimeOnExitIntent && config.mode != SiriAIConversationMode.Cascaded &&
+                 config.mode != SiriAIConversationMode.Automatic && !config.allowFallback)
+@@ -70,6 +85,7 @@
+                 else if (config.mode == SiriAIConversationMode.OmniWithTts)
+                     config.model.acceptsAudioInput = true;
+             }
++            NormalizeOmniListening(config);
+             if (config.vadMode == SiriAIVadMode.Server) config.vadMode = SiriAIVadMode.Provider;
+             if (config.turnMode == SiriAITurnMode.ServerSemantic) config.turnMode = SiriAITurnMode.Provider;
+             if (config.vad.location == SiriAIProviderLocation.OpenAICompatible) config.vad.location = SiriAIProviderLocation.LocalMnn;
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -8,6 +8,9 @@
+     {
+         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
+         {
++            { "Local Omni End-to-End requires VAD and turn detection.", "本地 Omni 端到端模式需要启用 VAD 和轮次检测。" },
++            { "Voice activity setup", "VAD 模型设置" },
++            { "Turn detection setup", "轮次检测模型设置" },
+             { "Models ready", "模型已就绪" },
+             { "Details copied to clipboard", "详情已复制到剪贴板" },
+             { "Something went wrong", "遇到问题" },
+@@ -784,7 +787,7 @@
+             { "Settings saved", "设置已保存" },
+             { "80 to 140. Automatically fits small screens.", "范围为 80 至 140；自动适配小屏幕。" },
+             { "Listening", "监听" }, { "Voice detection and turn completion settings.", "语音检测与发言结束设置。" },
+-            { "Automatic", "自动" }, { "Auto", "自动" }, { "Realtime speech", "实时语音" },
++            { "Automatic", "自动" }, { "Auto", "自动" }, { "Omni", "Omni" }, { "Omni End-to-End", "Omni End-to-End" },
+             { "Omni + speech synthesis", "Omni + 语音合成" }, { "Cascaded", "级联" },
+             { "Energy", "能量" }, { "Provider", "提供商" }, { "Silence", "静音" },
+             { "Stage", "阶段" }, { "Inference backend", "推理后端" }, { "API base URL", "API 基础地址" },
+@@ -995,7 +998,7 @@
+             { "iOS reports an external or Bluetooth route whose headphone type cannot be verified. Confirm manually.", "iOS 报告当前为外接或蓝牙路由，但无法确认设备是否为耳机，请手动确认。" },
+             { "iOS reports a headphone output route.", "iOS 报告当前为耳机输出路由。" },
+             { "iOS reports a built-in speaker/receiver route.", "iOS 报告当前为内置扬声器或听筒路由。" },
+-            { "Realtime speech uses the Omni model's own voice. Enable Allow fallback to configure separate speech synthesis.", "实时语音使用 Omni 模型自身的声音。启用允许回退后可配置独立语音合成。" },
++            { "Omni uses the model's own voice. Enable Allow fallback to configure separate speech synthesis.", "Omni 使用模型自身的声音。启用允许回退后可配置独立语音合成。" },
+             { "Voice replies are off. Enable Speak replies in Conversation to configure synthesis.", "语音回复已关闭。在对话设置中启用朗读回复后可配置语音合成。" },
+             { "Omni accepts audio directly. Enable Allow fallback in Conversation to configure speech recognition for the cascaded route.", "Omni 直接接受音频。在对话设置中启用允许回退后可为级联路径配置语音识别。" },
+             { "No voice activity model is active. Select Provider under Voice activity in Conversation to configure it.", "没有启用语音活动检测模型。在对话设置的语音活动检测中选择提供商以进行配置。" },
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIOmniEndpointingNativeTests.cs
+@@ -0,0 +1,150 @@
++using System;
++using System.Collections;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using System.Threading;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.TestTools;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIOmniEndpointingNativeTests
++    {
++        [UnityTest, Explicit("Uses installed MiniMind-o, Silero and SmartTurn. Generated speech with a noise tail; software capture/playback, not a physical microphone or duplex acceptance.")]
++        public IEnumerator LegacyOmniProfileEndsTwoCapturedTurnsAndReportsLatency()
++        {
++            string directory = Path.Combine(Application.streamingAssetsPath, "MNN/Models", MNNMiniMindO.InstallationName);
++            Assert.True(MNNMiniMindO.IsComplete(directory));
++            float[] speech;
++            using (var seed = MNNMiniMindO.Load(directory))
++                speech = MNNAudioResampling.Resample(seed.Generate("请说：你好。", 128).Waveform
++                    .Select(x => Math.Max(-1, Math.Min(1, x))).ToArray(), 24000, 16000);
++            Assert.Greater(speech.Length, 1600);
++            var random = new System.Random(7);
++            // RMS ~0.029 exceeds the old energy threshold. Silero must distinguish noise from speech.
++            var input = speech.Concat(Enumerable.Range(0, 48000).Select(_ => (float)(random.NextDouble() * .1 - .05))).ToArray();
++            var root = new GameObject("Omni endpointing native acceptance"); root.SetActive(false);
++            var backend = SiriAITestAccess.CreateBackend(root);
++            string settings = Path.Combine(backend.StorageDirectory, "settings.json");
++            var legacy = SiriAIConfigurableBackend.CreateMiniMindOVoiceConfiguration();
++            legacy.useVoiceActivityModel = legacy.useTurnDetectionModel = false;
++            Directory.CreateDirectory(Path.GetDirectoryName(settings));
++            File.WriteAllText(settings, JsonUtility.ToJson(legacy));
++            Assert.True(backend.LoadSettings());
++            var capture = new Capture();
++            var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(24000, 1), 240, blockCapacity: 1024);
++            var device = new MNNRealtimeCapabilities(MNNRealtimeFeature.DuplexDevice | MNNRealtimeFeature.PresentationClock |
++                MNNRealtimeFeature.HalfDuplexDevice, "Software PCM latency fixture", "No acoustic echo-control qualification", execution: MNNRealtimeExecution.Managed);
++            MNNRealtimeSession session = null;
++            var context = new SiriAIChatContext(capture, () => session, device);
++            var registration = backend.CreateRegistration(context);
++            var report = MNNRealtimeRouteSelector.SelectBest(registration.Model, registration.Device, registration.Tts,
++                registration.Asr, registration.Vad, registration.ExcludedRoutes, registration.RequireMeasuredSpeech,
++                registration.AllowBufferedSpeech).RequireSelected();
++            Assert.AreEqual(MNNRealtimeRoute.EndToEndSpeech, report.Route);
++            Assert.IsNull(registration.Asr); Assert.IsNull(registration.Tts);
++            var creating = registration.Factory.CreateAsync(report, output, CancellationToken.None);
++            while (!creating.IsCompleted) yield return null;
++            var runtime = creating.GetAwaiter().GetResult();
++            session = new MNNRealtimeSession(runtime, output);
++            var clock = System.Diagnostics.Stopwatch.StartNew();
++            var rendered = new List<float>();
++            var pcm = new float[240];
++            long presented = 0;
++            var measurements = new List<string>();
++            try
++            {
++                var start = session.StartAsync();
++                while (!start.IsCompleted) yield return null;
++                start.GetAwaiter().GetResult();
++                CollectionAssert.AreEquivalent(new[] { "model", "vad", "turn" }, backend.RuntimeModels.Select(entry => entry.Stage));
++                foreach (var entry in backend.RuntimeModels)
++                    TestContext.WriteLine("PREPARED=" + entry.Stage + " | " + entry.Model + " | " + entry.State + " | " + entry.Backend);
++                context.Input.SetRealtime(true);
++                for (int turn = 1; turn <= 2; ++turn)
++                {
++                    int sent = 0, samplesBefore = rendered.Count;
++                    double speechEnd = -1, submitted = -1, firstPcm = -1;
++                    double nextCapture = clock.Elapsed.TotalSeconds, nextRender = nextCapture;
++                    double deadline = nextCapture + 60;
++                    while (clock.Elapsed.TotalSeconds < deadline)
++                    {
++                        double now = clock.Elapsed.TotalSeconds;
++                        if (sent < input.Length && now >= nextCapture)
++                        {
++                            capture.Push(input, sent); sent += 512; nextCapture += .032;
++                            if (speechEnd < 0 && sent >= speech.Length) speechEnd = now;
++                        }
++                        while (context.TryReadTranscript(out var notice))
++                        {
++                            TestContext.WriteLine("TRANSCRIPT=" + notice.Text);
++                            if (!notice.Assistant && submitted < 0) submitted = now;
++                        }
++                        if (now >= nextRender)
++                        {
++                            nextRender = now + .01;
++                            output.Render(pcm, 0, pcm.Length);
++                            if (pcm.Any(x => Math.Abs(x) > 1e-6f))
++                            {
++                                if (firstPcm < 0) firstPcm = now;
++                                rendered.AddRange(pcm);
++                            }
++                            presented += pcm.Length;
++                            output.DrainReceipts(4096); output.AcknowledgePresentation(presented, false);
++                        }
++                        if (session.Fault != null) throw session.Fault;
++                        if (sent >= input.Length && firstPcm > 0 && output.QueuedFrames == 0) break;
++                        yield return null;
++                    }
++                    TestContext.WriteLine("INPUT_DIAGNOSTICS=" + ((MNNConversationRuntime)runtime).InputDiagnostics);
++                    Assert.Greater(submitted, 0, "A captured sentence must be submitted despite above-threshold background noise.");
++                    Assert.Greater(firstPcm, submitted, "Submission must produce software-rendered model speech.");
++                    Assert.Greater(rendered.Count, samplesBefore + 2400);
++                    double submitMs = (submitted - speechEnd) * 1000, firstMs = (firstPcm - speechEnd) * 1000;
++                    measurements.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture,
++                        "TURN={0} END_TO_SUBMIT_MS={1:F3} END_TO_FIRST_PCM_MS={2:F3} RENDERED_SAMPLES={3}",
++                        turn, submitMs, firstMs, rendered.Count - samplesBefore));
++                    Assert.Less(submitMs, 2500, "Endpointing should not wait for the recording limit.");
++                    var join = session.InterruptAsync();
++                    while (!join.IsCompleted) yield return null;
++                    join.GetAwaiter().GetResult();
++                }
++                string artifacts = Environment.GetEnvironmentVariable("SIRIAI_MINIMINDO_ARTIFACTS");
++                File.WriteAllLines(Path.Combine(artifacts, "endpointing-latency.txt"), measurements);
++                File.WriteAllBytes(Path.Combine(artifacts, "endpointing-replies.wav"), MNNWaveAudio.EncodePcm16(
++                    rendered.Select(x => Math.Max(-1, Math.Min(1, x))).ToArray(), 24000));
++                foreach (string measurement in measurements) TestContext.WriteLine(measurement);
++                TestContext.WriteLine("MODEL_NATIVE_FULL_DUPLEX=false; PHYSICAL_AUDIO_VERIFIED=false; ROUTE=" + report.Route);
++            }
++            finally
++            {
++                session.StopAsync().GetAwaiter().GetResult();
++                registration.ReleaseAsync?.Invoke().GetAwaiter().GetResult();
++                if (File.Exists(settings)) File.Delete(settings);
++                UnityEngine.Object.DestroyImmediate(root);
++            }
++        }
++
++        private sealed class Capture : IMNNAudioCaptureSource
++        {
++            private readonly MNNAudioCaptureBuffer _queue = new MNNAudioCaptureBuffer(128, 512);
++            private long _sequence;
++            public MNNPcmFormat CaptureFormat => new MNNPcmFormat(16000, 1);
++            public int MaximumCaptureSamples => 512;
++            public long DroppedCaptureBlocks => _queue.DroppedBlocks;
++            public bool HasPendingCaptureFrames => _queue.HasPendingFrames;
++            internal void Push(float[] source, int offset)
++            {
++                var block = new float[512]; Array.Copy(source, offset, block, 0, Math.Min(512, source.Length - offset));
++                var info = new MNNAudioFrameInfo(1, 1, _sequence, _sequence * 512,
++                    System.Diagnostics.Stopwatch.GetTimestamp(), CaptureFormat); ++_sequence;
++                Assert.True(_queue.TryWrite(block, 0, block.Length, info));
++            }
++            public bool TryReadCapture(float[] target, int offset, out MNNAudioFrameInfo info, out int count) =>
++                _queue.TryRead(target, offset, out info, out count);
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIOmniEndpointingNativeTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 53cafe7aff324764b8cc6fd84d9ac7b7
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIOmniTurnSettingsTests.cs
+@@ -0,0 +1,63 @@
++using System;
++using System.IO;
++using System.Linq;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIOmniTurnSettingsTests
++    {
++        [Test]
++        public void LoadingLegacyLocalOmniSettingsRestoresAndPersistsBothDetectors()
++        {
++            var root = new GameObject("Legacy Omni settings");
++            var backend = SiriAITestAccess.CreateBackend(root);
++            string file = Path.Combine(backend.StorageDirectory, "settings.json");
++            try
++            {
++                var legacy = SiriAIConfigurableBackend.CreateMiniMindOVoiceConfiguration();
++                legacy.useVoiceActivityModel = legacy.useTurnDetectionModel = false;
++                legacy.vadMode = SiriAIVadMode.Energy;
++                legacy.turnMode = SiriAITurnMode.Silence;
++                Directory.CreateDirectory(Path.GetDirectoryName(file));
++                File.WriteAllText(file, JsonUtility.ToJson(legacy));
++                Assert.True(backend.LoadSettings());
++                var loaded = backend.GetConfiguration();
++                Assert.True(loaded.useVoiceActivityModel, "Saved false flags must not disable local Omni endpointing.");
++                Assert.True(loaded.useTurnDetectionModel);
++                Assert.AreEqual(SiriAIVadMode.Provider, loaded.EffectiveVadMode);
++                Assert.AreEqual(SiriAITurnMode.Provider, loaded.EffectiveTurnMode);
++                Assert.AreEqual(legacy.model.model, loaded.model.model);
++                var saved = JsonUtility.FromJson<SiriAIBackendConfiguration>(File.ReadAllText(file));
++                Assert.True(saved.useVoiceActivityModel && saved.useTurnDetectionModel);
++                string normalized = File.ReadAllText(file);
++                Assert.True(backend.LoadSettings());
++                Assert.AreEqual(normalized, File.ReadAllText(file), "Reload is idempotent.");
++                CollectionAssert.AreEqual(new[] { "model", "vad", "turn" },
++                    SiriAIStagePlan.ForRoute(loaded, MNNRealtimeRoute.EndToEndSpeech).Endpoints(loaded).Select(pair => pair.Key));
++            }
++            finally
++            {
++                if (File.Exists(file)) File.Delete(file);
++                UnityEngine.Object.DestroyImmediate(root);
++            }
++        }
++
++        [Test]
++        public void SwitchingToLocalOmniEnablesProviderDetectionAndPreservesCascadedPreferences()
++        {
++            var config = new SiriAIBackendConfiguration { mode = SiriAIConversationMode.Cascaded,
++                useVoiceActivityModel = false, useTurnDetectionModel = false };
++            var catalog = new SiriAIModelCatalog();
++            SiriAISettingsConstraints.Normalize(config, catalog);
++            Assert.False(config.useVoiceActivityModel || config.useTurnDetectionModel);
++            config.mode = SiriAIConversationMode.RealtimeSpeech;
++            SiriAISettingsConstraints.Normalize(config, catalog);
++            Assert.True(config.useVoiceActivityModel && config.useTurnDetectionModel);
++            Assert.AreEqual(SiriAIVadMode.Provider, config.EffectiveVadMode);
++            Assert.AreEqual(SiriAITurnMode.Provider, config.EffectiveTurnMode);
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIOmniTurnSettingsTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 2c980abaabcc4f9b82286e443b3c264f
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISettingsConstraintsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISettingsConstraintsTests.cs
+@@ -47,6 +47,41 @@
+         {
+             typeof(SiriAIChatView).GetField("_settingsProvider", Flags).SetValue(_view, stage);
+             Call("ShowSettingsTab", 1, true);
++        }
++
++        [Test]
++        public void LocalOmniModeIsNamedEndToEndAndShowsRequiredDetectorsInSimpleSettings()
++        {
++            var labels = Options("Conversation mode").Select(button => button.GetComponentInChildren<Text>().text).ToArray();
++            Assert.That(labels, Does.Contain("Omni End-to-End"));
++            Call("CloseSettingsOptions");
++            Draft.useVoiceActivityModel = Draft.useTurnDetectionModel = false;
++            Mode(SiriAIConversationMode.RealtimeSpeech);
++            Assert.True(Draft.useVoiceActivityModel && Draft.useTurnDetectionModel);
++            SiriAITestAccess.Set(_view, "_settingsConversationAdvanced", false);
++            Call("ShowSettingsTab", 0, false);
++            foreach (string name in new[] { "Voice activity model", "Turn detection model" })
++            {
++                var row = Content.Find(name);
++                Assert.NotNull(row, name + " must remain visible for pure Omni.");
++                Assert.False(row.GetComponentInChildren<Button>().interactable, "Required detectors cannot be disabled in local Omni.");
++            }
++        }
++
++        [Test]
++        public void SimpleOmniProviderMenuCanSelectBothRequiredDetectors()
++        {
++            Mode(SiriAIConversationMode.RealtimeSpeech);
++            SiriAITestAccess.Set(_view, "_settingsConversationAdvanced", false);
++            Provider(3);
++            var choices = Options("Stage");
++            Assert.AreEqual(5, choices.Length);
++            choices[4].onClick.Invoke();
++            Assert.AreEqual(4, Field<int>(_view, "_settingsProvider"));
++            Assert.IsNotNull(Content.Find("MNN model"));
++            Options("Stage")[3].onClick.Invoke();
++            Assert.AreEqual(3, Field<int>(_view, "_settingsProvider"));
++            Assert.IsNotNull(Content.Find("MNN model"));
+         }
+ 
+         [Test]
