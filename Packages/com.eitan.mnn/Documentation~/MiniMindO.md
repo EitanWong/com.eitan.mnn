@@ -117,3 +117,41 @@ release revision is pinned after publication. Download through
 discovery/native runtime test evidence before uploading. It uses the existing
 ModelScope SDK login and excludes Unity `.meta` files. Model onboarding acceptance
 is recorded in the project's `AGENTS.md`.
+
+## SiriAI example
+
+Apply the checked `minimind-o` stage with `Tools~/Migration/migrate_siriai_conversation.py`
+when updating an existing SiriAI import. The updated sample scene uses MiniMind-o
+voice directly; the Configurable Backend component also provides **Use MiniMind-o
+voice**. This selects buffered model speech, Silero VAD, SmartTurn turn detection and the pinned
+ModelScope export without separate ASR/TTS. The separate `minimind-o` settings profile
+preserves existing default preferences. The runtime provider retains completed text
+turns within the context bound; previous untranscribed audio is explicitly marked.
+
+
+### Current Mac acceleration result
+
+The SiriAI preset keeps four CPU threads, Low precision/Low memory, and the existing
+Thinker W8 + Talker FP16 weights. Silero and SmartTurn remain enabled for Omni voice;
+there is no separate ASR/TTS requirement on this route. SiriAI returns completed model
+waveforms; low-level `MNNMiniMindO` callbacks expose PCM chunks earlier. This remains
+turn-based speech, without native model-level full duplex.
+
+On the current Apple M5, the deployed graphs actually ran on Metal. For the measured
+small inputs, Metal prefill/Mimi were slower than CPU; the quantized decoder differed
+by about 4.47% relative L2 from CPU, including the FP32 retry. It therefore failed this
+acceleration qualification. A two-thread complete voice trial was slower and changed
+sampled speech codes, so the preset retains four threads. These are observations on
+specific inputs, not a claim that every GPU or future export has the same behavior.
+
+The managed sampler now selects the top 50 candidates before sorting them, preserving
+score ties, repetition penalties, nucleus ordering and random draws. One recorded
+comparison reduced 4096 eight-codebook sampling calls from 1025 ms to 90 ms, and the
+reference reply from 1.47 s to 1.22 s, with identical text and speech-code SHA256.
+This checks conversion/sampling consistency, not human-rated voice or answer quality.
+Run explicit `MiniMindOAccelerationTests` to reproduce performance and qualification
+observations; rejected GPU/thread configurations are reported, never auto-selected.
+
+SiriAI acceptance feeds generated speech PCM through the same capture interface,
+loads the real Silero/SmartTurn models, renders the model's 24 kHz PCM and completes
+a second audio turn. It does not test a physical microphone, speaker or acoustic echo.

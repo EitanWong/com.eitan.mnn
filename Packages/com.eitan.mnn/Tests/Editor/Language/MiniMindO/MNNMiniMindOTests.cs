@@ -8,6 +8,28 @@ namespace MNN.Unity.Tests
     public sealed class MNNMiniMindOTests
     {
         [Test]
+        public void SamplingPreservesSeededReleasedVoiceCodesAndTieOrder()
+        {
+            var source = new Random(321);
+            var logits = Enumerable.Range(0, 8 * 2112).Select(_ => (float)(source.NextDouble() * 20 - 10)).ToArray();
+            var random = new Random(42);
+            var selected = new int[4096];
+            for (int i = 0; i < selected.Length; ++i)
+                selected[i] = MNNMiniMindOSampling.Sample(logits, i % 8 * 2112, 2112, .2f, 1, 50, random, new[] { 7, 7, 12 });
+            var bytes = new byte[selected.Length * 4];
+            Buffer.BlockCopy(selected, 0, bytes, 0, bytes.Length);
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+                Assert.AreEqual("f0daf87c4131121d56bb65a70263eb13a1803b0106bd453cafbdf7817fac3030",
+                    BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant());
+            for (int i = 0; i < 100; ++i)
+            {
+                Assert.AreEqual(0, MNNMiniMindOSampling.Sample(new float[2112], 0, 2112, .2f, 1, 1, random));
+                Assert.AreEqual(0, MNNMiniMindOSampling.Sample(new[] { 1f, 1f, 0f }, 0, 3, 0, 1, 0, random));
+                Assert.That(MNNMiniMindOSampling.Sample(new float[2112], 0, 2112, .2f, 1, 3, random), Is.InRange(0, 2));
+            }
+        }
+
+        [Test]
         public void SamplingPreservesSoftmaxProbabilitiesAndNucleusBoundary()
         {
             var random = new Random(42);
