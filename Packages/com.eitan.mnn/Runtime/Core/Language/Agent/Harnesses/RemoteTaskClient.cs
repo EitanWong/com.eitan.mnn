@@ -44,6 +44,9 @@ namespace MNN.Samples.SiriAI.Harnesses
                 (cursor == null ? "" : "?cursor=" + Uri.EscapeDataString(HarnessText.Required(cursor, 16384))), null, cancellation);
         public Task<HarnessNativeHistory> LoadNativeHistoryAsync(string taskId, CancellationToken cancellation) =>
             SendAsync<HarnessNativeHistory>(HttpMethod.Post, TaskPath(taskId) + "/native-history/load", null, cancellation);
+        public Task<HarnessTask> PauseAsync(string taskId, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/pause", null, cancellation);
+        public Task<HarnessTask> ResumeAsync(string taskId, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/resume", null, cancellation);
+        public Task<HarnessTask> RequestCancelAsync(string taskId, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/cancel-request", null, cancellation);
         public Task<HarnessTask> CancelAsync(string taskId, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/cancel", null, cancellation);
         public Task<HarnessTask> RespondAsync(string taskId, TaskControlRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/respond", request, cancellation);
         public Task<HarnessTask> UpdateAsync(string taskId, TaskControlRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/update", request, cancellation);

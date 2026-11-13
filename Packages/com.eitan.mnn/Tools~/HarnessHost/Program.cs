@@ -150,6 +150,12 @@ app.MapPost("/v1/tasks/{id}/native-history/load", async context =>
     if (adapter == null) throw new NotSupportedException("This harness does not expose native ACP history loading.");
     await WriteAsync(context, await adapter.LoadOwnedHistoryAsync(task, context.RequestAborted));
 });
+app.MapPost("/v1/tasks/{id}/pause", async context =>
+    await WriteAsync(context, runtime.Pause(Id(context), Owner(context))));
+app.MapPost("/v1/tasks/{id}/resume", async context =>
+    await WriteAsync(context, runtime.Resume(Id(context), Owner(context))));
+app.MapPost("/v1/tasks/{id}/cancel-request", async context =>
+    await WriteAsync(context, runtime.RequestCancel(Id(context), Owner(context))));
 app.MapPost("/v1/tasks/{id}/cancel", async context =>
 {
     await runtime.CancelAsync(Id(context), Owner(context), context.RequestAborted);

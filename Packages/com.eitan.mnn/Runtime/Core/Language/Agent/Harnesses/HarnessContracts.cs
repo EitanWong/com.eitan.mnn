@@ -6,7 +6,7 @@ namespace MNN.Samples.SiriAI.Harnesses
 {
     [Flags]
     public enum HarnessCapabilities { None = 0, Cancel = 1, Input = 2, Permission = 4, Update = 8, Attachments = 16, UpdateAttachments = 32 }
-    public enum HarnessTaskState { Queued, Running, Cancelling, Completed, Failed, Cancelled, Interrupted }
+    public enum HarnessTaskState { Queued, Running, Cancelling, Completed, Failed, Cancelled, Interrupted, Paused }
     public enum HarnessWaitingFor { None, Input, Permission }
     public enum HarnessInputAction { Answer, Clarify, Cancel, Decline }
     public enum ResultReceipt { ContextInjected, PlaybackStarted, PlaybackCompleted, Interrupted, TextDisplayed }

@@ -50,9 +50,9 @@ namespace MNN.Samples.SiriAI.Harnesses
                 if (RecoverInstructions(task)) changed = true;
                 // Never blindly replay a side effect after losing its execution handle.
                 // Queued can start once if its harness still exists; Running is committed before any adapter call.
-                if (!task.IsTerminal && (task.State != HarnessTaskState.Queued || !_adapters.ContainsKey(task.HarnessId)) && !CanRecover(task))
+                if (!task.IsTerminal && (task.State != HarnessTaskState.Queued && task.State != HarnessTaskState.Paused || !_adapters.ContainsKey(task.HarnessId)) && !CanRecover(task))
                 {
-                    bool unstarted = task.State == HarnessTaskState.Queued;
+                    bool unstarted = task.State == HarnessTaskState.Queued || task.State == HarnessTaskState.Paused;
                     task.State = HarnessTaskState.Interrupted;
                     task.Result = unstarted ? "The task harness is no longer configured. Queued work was not started." :
                         "The host restarted before execution could be confirmed. Work was not replayed; inspect the backend before retrying.";
@@ -143,7 +143,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                 bool coordinator = _adapters.TryGetValue(item.HarnessId, out var candidate) && candidate is IIsolatedCoordinatorHarness;
                 int running = _workers.Keys.Count(id => (_adapters[_tasks[id].HarnessId] is IIsolatedCoordinatorHarness) == coordinator);
                 if (running >= _maximumConcurrent) continue;
-                if (_workers.ContainsKey(item.Id) || item.IsTerminal || _lanes.Contains(ExecutionLane(item))) continue;
+                if (_workers.ContainsKey(item.Id) || item.IsTerminal || item.State == HarnessTaskState.Paused || _lanes.Contains(ExecutionLane(item))) continue;
                 if (item.State != HarnessTaskState.Queued && !CanRecover(item)) continue;
                 var task = Changed(item);
                 if (task.State != HarnessTaskState.Cancelling) task.State = HarnessTaskState.Running;

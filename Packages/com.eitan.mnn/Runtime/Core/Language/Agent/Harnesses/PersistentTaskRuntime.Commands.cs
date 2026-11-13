@@ -6,6 +6,64 @@ namespace MNN.Samples.SiriAI.Harnesses
 {
     public sealed partial class PersistentTaskRuntime
     {
+        /// <summary>Hold only work that has not started. Never cancel and replay an executing side effect.</summary>
+        public HarnessTask Pause(string taskId, string ownerId)
+        {
+            lock (_sync)
+            {
+                RequireOpen();
+                var task = Owned(taskId, ownerId);
+                if (task.State == HarnessTaskState.Paused) return task.Copy();
+                if (task.State != HarnessTaskState.Queued)
+                    throw new NotSupportedException("Only queued tasks can be paused. This backend does not provide confirmed execution suspension.");
+                var next = Changed(task);
+                next.State = HarnessTaskState.Paused;
+                Commit(next);
+                return next.Copy();
+            }
+        }
+        public HarnessTask Resume(string taskId, string ownerId)
+        {
+            lock (_sync)
+            {
+                RequireOpen();
+                var task = Owned(taskId, ownerId);
+                if (task.State == HarnessTaskState.Queued || task.State == HarnessTaskState.Running) return task.Copy();
+                if (task.State != HarnessTaskState.Paused)
+                    throw new InvalidOperationException("Only a paused task can be resumed. Finished work cannot be replayed.");
+                var next = Changed(task);
+                next.State = HarnessTaskState.Queued;
+                Commit(next);
+                Schedule();
+                return _tasks[taskId].Copy();
+            }
+        }
+        /// <summary>Admit cancellation without occupying a foreground turn until the backend exits.</summary>
+        public HarnessTask RequestCancel(string taskId, string ownerId)
+        {
+            lock (_sync)
+            {
+                var pending = CancelAsync(taskId, ownerId, CancellationToken.None);
+                _ = ObserveCancellationAsync(taskId, pending);
+                return Owned(taskId, ownerId).Copy();
+            }
+        }
+        private async Task ObserveCancellationAsync(string taskId, Task pending)
+        {
+            try { await pending.ConfigureAwait(false); }
+            catch (Exception error)
+            {
+                lock (_sync)
+                {
+                    if (_disposed || _tasks[taskId].IsTerminal) return;
+                    var next = Changed(_tasks[taskId]);
+                    next.Activity = "Cancellation unconfirmed: " + HarnessExecutionStep.Clip(error.Message, 4000);
+                    HarnessExecutionStep.Append(next, HarnessExecutionKind.Error, "Cancellation unconfirmed", next.Activity, "Failed");
+                    try { Commit(next); }
+                    catch (Exception persistenceError) { _fault = persistenceError; }
+                }
+            }
+        }
         public Task CancelAsync(string taskId, string ownerId, CancellationToken cancellation)
         {
             lock (_sync)
@@ -16,7 +74,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                 if (task.IsTerminal) return Task.CompletedTask;
                 if (_cancellations.TryGetValue(task.Id, out var current)) return current;
                 var next = Changed(task);
-                if (task.State == HarnessTaskState.Queued)
+                if (task.State == HarnessTaskState.Queued || task.State == HarnessTaskState.Paused)
                 { next.State = HarnessTaskState.Cancelled; Commit(next); return Task.CompletedTask; }
                 if ((_adapters[task.HarnessId].Capabilities & HarnessCapabilities.Cancel) == 0)
                     throw new NotSupportedException("This harness does not support confirmed cancellation.");

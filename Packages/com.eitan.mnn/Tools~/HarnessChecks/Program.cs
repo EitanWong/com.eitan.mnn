@@ -37,6 +37,10 @@ internal static class Program
     }
     private static async Task RunAsync()
     {
+        await new SiriAIHarnessPauseTests().VerifyAsync();
+        Console.WriteLine("PASS durable queued pause, restart, ownership, single resume and cancellation");
+        await new SiriAIHarnessPauseTests().CancellationAdmissionAsync();
+        Console.WriteLine("PASS nonblocking cancellation admission waits for backend confirmation and rejects late results");
         var skills = new SiriAIHarnessSkillsTests();
         skills.SkillRequestsRequireExplicitNamesAndClosedOperations();
         Console.WriteLine("PASS explicit closed skill management requests preserve literal source arguments");
