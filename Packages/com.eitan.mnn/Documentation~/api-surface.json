@@ -21296,6 +21296,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNMiniMindO.ConfigFileName",
+    "Signature": "public const string MNN.Unity.MNNMiniMindO.ConfigFileName = \u0022mnn_minimind_o.json\u0022",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
     "Id": "F:MNN.Unity.MNNModelCapabilities.AudioInput",
     "Signature": "MNN.Unity.MNNModelCapabilities.AudioInput = 2",
     "Summary": ""
@@ -26056,6 +26063,69 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindO.Dispose",
+    "Signature": "public void MNN.Unity.MNNMiniMindO.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindO.Generate(MNN.Unity.MNNMiniMindORequest,MNN.Unity.MNNMiniMindOOptions,System.Action{MNN.Unity.MNNMiniMindOUpdate},System.Threading.CancellationToken)",
+    "Signature": "public MNN.Unity.MNNMiniMindOResult MNN.Unity.MNNMiniMindO.Generate(MNN.Unity.MNNMiniMindORequest request, MNN.Unity.MNNMiniMindOOptions options = null, System.Action\u003CMNN.Unity.MNNMiniMindOUpdate\u003E onUpdate = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": "Run one completed turn. At most 512 prompt plus generation tokens are allowed by this bounded-memory adapter."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindO.Generate(System.String,System.Int32,System.Int32,System.Action{MNN.Unity.MNNMiniMindOUpdate},System.Threading.CancellationToken)",
+    "Signature": "public MNN.Unity.MNNMiniMindOResult MNN.Unity.MNNMiniMindO.Generate(string prompt, int maxNewTokens = 128, int seed = 42, System.Action\u003CMNN.Unity.MNNMiniMindOUpdate\u003E onUpdate = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": "Generate a text turn with the released temperature 0.7/top-p 0.85 and default voice."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindO.GenerateAsync(MNN.Unity.MNNMiniMindORequest,MNN.Unity.MNNMiniMindOOptions,System.Action{MNN.Unity.MNNMiniMindOUpdate},System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Unity.MNNMiniMindOResult\u003E MNN.Unity.MNNMiniMindO.GenerateAsync(MNN.Unity.MNNMiniMindORequest request, MNN.Unity.MNNMiniMindOOptions options = null, System.Action\u003CMNN.Unity.MNNMiniMindOUpdate\u003E onUpdate = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": "Run synchronous native calls on a worker; callbacks also run on that worker."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindO.IsComplete(System.String)",
+    "Signature": "public static bool MNN.Unity.MNNMiniMindO.IsComplete(string directory)",
+    "Summary": "Check all graphs required for text, image/audio input and speech output without loading native libraries."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindO.Load(System.String,System.Int32)",
+    "Signature": "public static MNN.Unity.MNNMiniMindO MNN.Unity.MNNMiniMindO.Load(string directory, int threads = 4)",
+    "Summary": "Load an installed MiniMind-o package. CPU/Low precision/Low memory preserves the measured quantization recipe."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindO.PrepareImage(MNN.Unity.MNNRgbImage,System.Threading.CancellationToken)",
+    "Signature": "public static float[] MNN.Unity.MNNMiniMindO.PrepareImage(MNN.Unity.MNNRgbImage image, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": "Apply the released SigLIP2 processor: Pillow-compatible bilinear resize and RGB normalization."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindOOptions.#ctor",
+    "Signature": "public MNN.Unity.MNNMiniMindOOptions.MNNMiniMindOOptions()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNMiniMindORequest.#ctor",
+    "Signature": "public MNN.Unity.MNNMiniMindORequest.MNNMiniMindORequest()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
     "Id": "M:MNN.Unity.MNNModelCapabilities.#ctor",
     "Signature": "public MNN.Unity.MNNModelCapabilities.MNNModelCapabilities()",
     "Summary": ""
@@ -29955,6 +30025,160 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindO.SupportsAudioInput",
+    "Signature": "public bool MNN.Unity.MNNMiniMindO.SupportsAudioInput { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindO.SupportsImageInput",
+    "Signature": "public bool MNN.Unity.MNNMiniMindO.SupportsImageInput { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindO.SupportsSpeechOutput",
+    "Signature": "public bool MNN.Unity.MNNMiniMindO.SupportsSpeechOutput { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOOptions.GenerateSpeech",
+    "Signature": "public bool MNN.Unity.MNNMiniMindOOptions.GenerateSpeech { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOOptions.MaxNewTokens",
+    "Signature": "public int MNN.Unity.MNNMiniMindOOptions.MaxNewTokens { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOOptions.Seed",
+    "Signature": "public int MNN.Unity.MNNMiniMindOOptions.Seed { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOOptions.Temperature",
+    "Signature": "public float MNN.Unity.MNNMiniMindOOptions.Temperature { get; set; }",
+    "Summary": "Zero selects greedy text. Speech uses the released temperature 0.2/top-k 50."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOOptions.TopP",
+    "Signature": "public float MNN.Unity.MNNMiniMindOOptions.TopP { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindORequest.Audio16Khz",
+    "Signature": "public float[] MNN.Unity.MNNMiniMindORequest.Audio16Khz { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindORequest.History",
+    "Signature": "public MNN.Unity.MNNChatMessage[] MNN.Unity.MNNMiniMindORequest.History { get; set; }",
+    "Summary": "Previous text turns, excluding the current user turn. Historical media must be supplied again to be understood."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindORequest.ImagePixels",
+    "Signature": "public float[] MNN.Unity.MNNMiniMindORequest.ImagePixels { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindORequest.Text",
+    "Signature": "public string MNN.Unity.MNNMiniMindORequest.Text { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOResult.AudioCodes",
+    "Signature": "public int[][] MNN.Unity.MNNMiniMindOResult.AudioCodes { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOResult.GeneratedTokens",
+    "Signature": "public int MNN.Unity.MNNMiniMindOResult.GeneratedTokens { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOResult.SampleRate",
+    "Signature": "public int MNN.Unity.MNNMiniMindOResult.SampleRate { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOResult.Text",
+    "Signature": "public string MNN.Unity.MNNMiniMindOResult.Text { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOResult.TokenLimitReached",
+    "Signature": "public bool MNN.Unity.MNNMiniMindOResult.TokenLimitReached { get; }",
+    "Summary": "True when the generation budget ended before text and all speech streams stopped."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOResult.Waveform",
+    "Signature": "public float[] MNN.Unity.MNNMiniMindOResult.Waveform { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOUpdate.AudioFrame",
+    "Signature": "public int[] MNN.Unity.MNNMiniMindOUpdate.AudioFrame { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOUpdate.GeneratedTokens",
+    "Signature": "public int MNN.Unity.MNNMiniMindOUpdate.GeneratedTokens { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOUpdate.Text",
+    "Signature": "public string MNN.Unity.MNNMiniMindOUpdate.Text { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNMiniMindOUpdate.Waveform",
+    "Signature": "public float[] MNN.Unity.MNNMiniMindOUpdate.Waveform { get; }",
+    "Summary": "New mono 24 kHz PCM samples, without samples emitted by earlier callbacks."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
     "Id": "P:MNN.Unity.MNNMultimodalResult.AudioMicroseconds",
     "Signature": "public long MNN.Unity.MNNMultimodalResult.AudioMicroseconds { get; }",
     "Summary": ""
@@ -32072,6 +32296,41 @@
     "Id": "T:MNN.Unity.MNNMarkdownTheme",
     "Signature": "enum MNN.Unity.MNNMarkdownTheme",
     "Summary": "The surface theme used for generated rich-text colors. Body text inherits its control\u0027s color."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "T:MNN.Unity.MNNMiniMindO",
+    "Signature": "class MNN.Unity.MNNMiniMindO",
+    "Summary": "MiniMind-o Thinker/Talker through the package\u0027s official MNN C\u002B\u002B Interpreter/Tensor bindings. Accepts completed turns, streams text and speech, and supports cancellation. The released model is not native full duplex."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "T:MNN.Unity.MNNMiniMindOOptions",
+    "Signature": "class MNN.Unity.MNNMiniMindOOptions",
+    "Summary": "Bounded MiniMind-o generation using the released closed-thinking sampling schedule."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "T:MNN.Unity.MNNMiniMindORequest",
+    "Signature": "class MNN.Unity.MNNMiniMindORequest",
+    "Summary": "One completed input turn. Audio is mono 16 kHz PCM; pixels are planar RGB 256x256 in [-1,1]."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "T:MNN.Unity.MNNMiniMindOResult",
+    "Signature": "class MNN.Unity.MNNMiniMindOResult",
+    "Summary": "Generated text, aligned eight-codebook Mimi frames and decoded mono speech."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "T:MNN.Unity.MNNMiniMindOUpdate",
+    "Signature": "class MNN.Unity.MNNMiniMindOUpdate",
+    "Summary": "A text snapshot and newly available aligned audio codes. Callbacks run on the inference caller\u0027s thread."
   },
   {
     "Assembly": "MNN.Unity",

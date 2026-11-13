@@ -13327,6 +13327,10 @@ MNN.Unity.MNNMarkdownTheme.Light = 1
 ```
 
 ```csharp
+public const string MNN.Unity.MNNMiniMindO.ConfigFileName = "mnn_minimind_o.json"
+```
+
+```csharp
 MNN.Unity.MNNModelCapabilities.AudioInput = 2
 ```
 
@@ -16153,6 +16157,54 @@ public MNN.Unity.MNNMarkdownTheme.MNNMarkdownTheme()
 ```
 
 ```csharp
+public void MNN.Unity.MNNMiniMindO.Dispose()
+```
+
+```csharp
+public MNN.Unity.MNNMiniMindOResult MNN.Unity.MNNMiniMindO.Generate(MNN.Unity.MNNMiniMindORequest request, MNN.Unity.MNNMiniMindOOptions options = null, System.Action<MNN.Unity.MNNMiniMindOUpdate> onUpdate = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+Run one completed turn. At most 512 prompt plus generation tokens are allowed by this bounded-memory adapter.
+
+```csharp
+public MNN.Unity.MNNMiniMindOResult MNN.Unity.MNNMiniMindO.Generate(string prompt, int maxNewTokens = 128, int seed = 42, System.Action<MNN.Unity.MNNMiniMindOUpdate> onUpdate = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+Generate a text turn with the released temperature 0.7/top-p 0.85 and default voice.
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Unity.MNNMiniMindOResult> MNN.Unity.MNNMiniMindO.GenerateAsync(MNN.Unity.MNNMiniMindORequest request, MNN.Unity.MNNMiniMindOOptions options = null, System.Action<MNN.Unity.MNNMiniMindOUpdate> onUpdate = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+Run synchronous native calls on a worker; callbacks also run on that worker.
+
+```csharp
+public static bool MNN.Unity.MNNMiniMindO.IsComplete(string directory)
+```
+
+Check all graphs required for text, image/audio input and speech output without loading native libraries.
+
+```csharp
+public static MNN.Unity.MNNMiniMindO MNN.Unity.MNNMiniMindO.Load(string directory, int threads = 4)
+```
+
+Load an installed MiniMind-o package. CPU/Low precision/Low memory preserves the measured quantization recipe.
+
+```csharp
+public static float[] MNN.Unity.MNNMiniMindO.PrepareImage(MNN.Unity.MNNRgbImage image, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+Apply the released SigLIP2 processor: Pillow-compatible bilinear resize and RGB normalization.
+
+```csharp
+public MNN.Unity.MNNMiniMindOOptions.MNNMiniMindOOptions()
+```
+
+```csharp
+public MNN.Unity.MNNMiniMindORequest.MNNMiniMindORequest()
+```
+
+```csharp
 public MNN.Unity.MNNModelCapabilities.MNNModelCapabilities()
 ```
 
@@ -18463,6 +18515,102 @@ public string MNN.Unity.MNNMarkdownRenderResult.RichText { get; }
 ```
 
 ```csharp
+public bool MNN.Unity.MNNMiniMindO.SupportsAudioInput { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNMiniMindO.SupportsImageInput { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNMiniMindO.SupportsSpeechOutput { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNMiniMindOOptions.GenerateSpeech { get; set; }
+```
+
+```csharp
+public int MNN.Unity.MNNMiniMindOOptions.MaxNewTokens { get; set; }
+```
+
+```csharp
+public int MNN.Unity.MNNMiniMindOOptions.Seed { get; set; }
+```
+
+```csharp
+public float MNN.Unity.MNNMiniMindOOptions.Temperature { get; set; }
+```
+
+Zero selects greedy text. Speech uses the released temperature 0.2/top-k 50.
+
+```csharp
+public float MNN.Unity.MNNMiniMindOOptions.TopP { get; set; }
+```
+
+```csharp
+public float[] MNN.Unity.MNNMiniMindORequest.Audio16Khz { get; set; }
+```
+
+```csharp
+public MNN.Unity.MNNChatMessage[] MNN.Unity.MNNMiniMindORequest.History { get; set; }
+```
+
+Previous text turns, excluding the current user turn. Historical media must be supplied again to be understood.
+
+```csharp
+public float[] MNN.Unity.MNNMiniMindORequest.ImagePixels { get; set; }
+```
+
+```csharp
+public string MNN.Unity.MNNMiniMindORequest.Text { get; set; }
+```
+
+```csharp
+public int[][] MNN.Unity.MNNMiniMindOResult.AudioCodes { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNMiniMindOResult.GeneratedTokens { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNMiniMindOResult.SampleRate { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNMiniMindOResult.Text { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNMiniMindOResult.TokenLimitReached { get; }
+```
+
+True when the generation budget ended before text and all speech streams stopped.
+
+```csharp
+public float[] MNN.Unity.MNNMiniMindOResult.Waveform { get; }
+```
+
+```csharp
+public int[] MNN.Unity.MNNMiniMindOUpdate.AudioFrame { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNMiniMindOUpdate.GeneratedTokens { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNMiniMindOUpdate.Text { get; }
+```
+
+```csharp
+public float[] MNN.Unity.MNNMiniMindOUpdate.Waveform { get; }
+```
+
+New mono 24 kHz PCM samples, without samples emitted by earlier callbacks.
+
+```csharp
 public long MNN.Unity.MNNMultimodalResult.AudioMicroseconds { get; }
 ```
 
@@ -19911,6 +20059,36 @@ enum MNN.Unity.MNNMarkdownTheme
 ```
 
 The surface theme used for generated rich-text colors. Body text inherits its control's color.
+
+```csharp
+class MNN.Unity.MNNMiniMindO
+```
+
+MiniMind-o Thinker/Talker through the package's official MNN C++ Interpreter/Tensor bindings. Accepts completed turns, streams text and speech, and supports cancellation. The released model is not native full duplex.
+
+```csharp
+class MNN.Unity.MNNMiniMindOOptions
+```
+
+Bounded MiniMind-o generation using the released closed-thinking sampling schedule.
+
+```csharp
+class MNN.Unity.MNNMiniMindORequest
+```
+
+One completed input turn. Audio is mono 16 kHz PCM; pixels are planar RGB 256x256 in [-1,1].
+
+```csharp
+class MNN.Unity.MNNMiniMindOResult
+```
+
+Generated text, aligned eight-codebook Mimi frames and decoded mono speech.
+
+```csharp
+class MNN.Unity.MNNMiniMindOUpdate
+```
+
+A text snapshot and newly available aligned audio codes. Callbacks run on the inference caller's thread.
 
 ```csharp
 enum MNN.Unity.MNNModelCapabilities

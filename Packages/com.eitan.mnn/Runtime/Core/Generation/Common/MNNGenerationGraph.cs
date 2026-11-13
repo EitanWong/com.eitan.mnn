@@ -15,6 +15,7 @@ namespace MNN.Unity
         private readonly string _path;
         private readonly int _threads;
         private readonly MNNPrecisionMode _precisionMode;
+        private readonly MNNMemoryMode _memoryMode;
         private readonly MNNGpuTuningMode _gpuTuningMode;
         private readonly bool _recreateGpuSessionOnShapeChange;
         private bool _sessionHasRun;
@@ -25,11 +26,14 @@ namespace MNN.Unity
         private readonly int _cpuSessionCacheCapacity;
         private readonly Dictionary<string, MNNSession> _cpuSessions = new Dictionary<string, MNNSession>(StringComparer.Ordinal);
         internal MNNBackendType Backend => _express != null ? _express.Backend : _session.ActualBackend;
-        internal MNNGenerationGraph(string path, int threads, byte[] preparedGraph = null, bool express = false, MNNBackendType backendType = MNNBackendType.Auto, int cpuSessionCacheCapacity = 1, MNNPrecisionMode precisionMode = MNNPrecisionMode.Normal, string externalWeightsPath = null, MNNGpuTuningMode gpuTuningMode = MNNGpuTuningMode.Wide, bool recreateGpuSessionOnShapeChange = false, int? cpuWinogradMemoryLevel = null)
+        internal MNNGenerationGraph(string path, int threads, byte[] preparedGraph = null, bool express = false, MNNBackendType backendType = MNNBackendType.Auto, int cpuSessionCacheCapacity = 1, MNNPrecisionMode precisionMode = MNNPrecisionMode.Normal, string externalWeightsPath = null, MNNGpuTuningMode gpuTuningMode = MNNGpuTuningMode.Wide, bool recreateGpuSessionOnShapeChange = false, int? cpuWinogradMemoryLevel = null, MNNMemoryMode memoryMode = MNNMemoryMode.Normal)
         {
             backendType = MNNAcceleration.ForDynamicGraph(backendType);
             if (!Enum.IsDefined(typeof(MNNPrecisionMode), precisionMode) || express && precisionMode != MNNPrecisionMode.Normal)
                 throw new ArgumentOutOfRangeException(nameof(precisionMode), "Explicit graph precision requires an Interpreter session.");
+            if (!Enum.IsDefined(typeof(MNNMemoryMode), memoryMode) || express && memoryMode != MNNMemoryMode.Normal)
+                throw new ArgumentOutOfRangeException(nameof(memoryMode));
+            _memoryMode = memoryMode;
             _precisionMode = precisionMode;
             _gpuTuningMode = gpuTuningMode;
             _recreateGpuSessionOnShapeChange = recreateGpuSessionOnShapeChange;
@@ -70,7 +74,7 @@ namespace MNN.Unity
                     if (cpuWinogradMemoryLevel.HasValue)
                         _interpreter.SetWinogradMemoryLevel(cpuWinogradMemoryLevel.Value);
                     ConfigureCache(MNNAcceleration.Resolve(backendType), precisionMode);
-                    _session = _interpreter.CreateSession(new MNNSessionConfig{BackendType = backendType, ThreadCount = threads, PrecisionMode = precisionMode, GpuTuningMode = _gpuTuningMode});
+                    _session = _interpreter.CreateSession(new MNNSessionConfig{MemoryMode = _memoryMode, BackendType = backendType, ThreadCount = threads, PrecisionMode = precisionMode, GpuTuningMode = _gpuTuningMode});
                 }
                 catch
                 {
@@ -113,7 +117,7 @@ namespace MNN.Unity
                     {
                         _session.Dispose();
                         ConfigureCache(gpu, MNNPrecisionMode.High);
-                        _session = _interpreter.CreateSession(new MNNSessionConfig{BackendType = gpu, ThreadCount = _threads, PrecisionMode = MNNPrecisionMode.High, GpuTuningMode = _gpuTuningMode});
+                        _session = _interpreter.CreateSession(new MNNSessionConfig{MemoryMode = _memoryMode, BackendType = gpu, ThreadCount = _threads, PrecisionMode = MNNPrecisionMode.High, GpuTuningMode = _gpuTuningMode});
                         return RunOutputsCore(names, inputs);
                     }
                     catch (Exception retryError)when (MNNAcceleration.CanRetryOnCpu(retryError))
@@ -131,7 +135,7 @@ namespace MNN.Unity
                 else
                 {
                     _session.Dispose();
-                    _session = _interpreter.CreateSession(new MNNSessionConfig{BackendType = MNNBackendType.CPU, ThreadCount = _threads, PrecisionMode = _precisionMode});
+                    _session = _interpreter.CreateSession(new MNNSessionConfig{MemoryMode = _memoryMode, BackendType = MNNBackendType.CPU, ThreadCount = _threads, PrecisionMode = _precisionMode});
                 }
 
                 return RunOutputsCore(names, inputs);
@@ -212,7 +216,7 @@ namespace MNN.Unity
                             string oldest = _cpuSessions.Keys.First();
                             _cpuSessions[oldest].Dispose(); _cpuSessions.Remove(oldest);
                         }
-                        _session = _interpreter.CreateSession(new MNNSessionConfig{BackendType = MNNBackendType.CPU, ThreadCount = _threads, PrecisionMode = _precisionMode});
+                        _session = _interpreter.CreateSession(new MNNSessionConfig{MemoryMode = _memoryMode, BackendType = MNNBackendType.CPU, ThreadCount = _threads, PrecisionMode = _precisionMode});
                     }
                     _cpuSessions.Add(key, _session);
                 }
@@ -227,7 +231,7 @@ namespace MNN.Unity
                 {
                     var backend = Backend;
                     _session.Dispose();
-                    _session = _interpreter.CreateSession(new MNNSessionConfig { BackendType = backend, ThreadCount = _threads,
+                    _session = _interpreter.CreateSession(new MNNSessionConfig { MemoryMode = _memoryMode, BackendType = backend, ThreadCount = _threads,
                         PrecisionMode = _precisionMode, GpuTuningMode = _gpuTuningMode });
                     _sessionHasRun = false;
                     // The new session starts with model defaults for every input.
