@@ -84,5 +84,37 @@ CPU 2/4/8/16 线程、Low/Normal 与权重重排的额外矩阵没有证明增�
 该质量门槛失败的批次保留，不计为优化验收。集成回归通过不意味着小模型具备可靠算术能力。
 Qwen3.5-0.8B 的同一门槛通过，性能结论仅限明确记录的模型、硬件与工作负载。
 
+## NVIDIA 后续调优
+
+`MNNLlmPerformanceOptions.OpenClTuningMode` 独立选择 `None`、`Heavy`、`Wide`、
+`Normal` 或 `Fast`，默认仍为 `Wide`。不要再用 `ThreadCount` 传 GPU 标志；
+该属性始终保留 CPU 线程数，CPU 回退也使用该数值。官方 MNN LLM 会自行加入
+OpenCL buffer 模式。组合调优标志、内存模式位和零值会被拒绝。
+持久缓存将 GPU 调优级别纳入身份，避免不同调优级别混用同一缓存槽。
+
+```csharp
+var performance = new MNNLlmPerformanceOptions
+{
+    BackendType = MNNBackendType.OpenCL,
+    ThreadCount = 4,
+    OpenClTuningMode = MNNGpuTuningMode.Wide,
+    PrecisionMode = MNNPrecisionMode.Normal
+};
+```
+
+2026-11-14 在同一 RTX 3060/610.88 上直接查询 OpenCL 3.0 能力：
+扩展列表没有 `cl_khr_fp16`，`CL_DEVICE_HALF_FP_CONFIG` 查询不支持。
+官方 MNN 后端因此将计算精度选为 FP32；请求 `Low` 不会解锁 FP16 或 Tensor Core。
+上述 OpenCL 加速数据也不能视为 CUDA 或 Tensor Core 验证。
+官方 Windows CUDA 构建使用另一套工具链；当前 GNU C++ ABI 的托管调用不能直接
+替换为 NVCC/MSVC DLL。CUDA 路径需要另行落实 ABI 契约和独立实机验收。
+
+新增配置检查在真实 Mono、IL2CPP Player 上分别验证五档 GPU 标志、CPU 回退、
+非法位拒绝和缓存隔离；它们不加载模型，不属于新增推理性能验收。
+本轮性能测试因其他服务占用约 11 GB 显存而被工具拒绝，未停止该服务，
+没有据此更改默认调优级别，也没有新增加速比结论。
+下一步应在空闲 GPU 上比较短/长提示词、五档调优、FlashAttention 与 prefill 分块，
+同时保留正确性、token ID、加载耗时和显存/功耗轨迹。
+
 本地证据、命令、stdout/stderr、退出码、DLL/source hashes 与操作记录位于
 `TestArtifacts~/WindowsAcceptance20261113/`，不随 UPM 包发布。

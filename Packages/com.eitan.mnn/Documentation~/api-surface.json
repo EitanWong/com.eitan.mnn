@@ -29633,6 +29633,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNLlmPerformanceOptions.OpenClTuningMode",
+    "Signature": "public MNN.Unity.MNNGpuTuningMode MNN.Unity.MNNLlmPerformanceOptions.OpenClTuningMode { get; set; }",
+    "Summary": "One official OpenCL kernel tuning level. Independent of CPU ThreadCount, including CPU fallback. MNN LLM supplies buffer mode internally. Heavy tuning can increase first-load cost; benchmark on the target device."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
     "Id": "P:MNN.Unity.MNNLlmPerformanceOptions.PowerMode",
     "Signature": "public MNN.Unity.MNNPowerMode MNN.Unity.MNNLlmPerformanceOptions.PowerMode { get; set; }",
     "Summary": ""

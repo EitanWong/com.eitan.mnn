@@ -50,6 +50,8 @@ namespace MNN.Unity
             Append(identity, System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString());
             Append(identity, performance.ThreadCount.ToString(CultureInfo.InvariantCulture));
             Append(identity, performance.BackendType.ToString());
+            if (performance.BackendType == MNNBackendType.OpenCL || performance.BackendType == MNNBackendType.Auto)
+                Append(identity, performance.OpenClTuningMode.ToString());
             Append(identity, performance.PrecisionMode.ToString());
             Append(identity, performance.ToJson(model));
             Append(identity, File.ReadAllText(Path.Combine(model, "config.json")));

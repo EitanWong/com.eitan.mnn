@@ -18279,6 +18279,12 @@ public bool? MNN.Unity.MNNLlmPerformanceOptions.FlashAttention { get; set; }
 Null preserves attention_mode (or legacy quant_qkv). Changes only the FlashAttention bit, retaining the model's KV quantization mode. Support depends on the native backend and model.
 
 ```csharp
+public MNN.Unity.MNNGpuTuningMode MNN.Unity.MNNLlmPerformanceOptions.OpenClTuningMode { get; set; }
+```
+
+One official OpenCL kernel tuning level. Independent of CPU ThreadCount, including CPU fallback. MNN LLM supplies buffer mode internally. Heavy tuning can increase first-load cost; benchmark on the target device.
+
+```csharp
 public MNN.Unity.MNNPowerMode MNN.Unity.MNNLlmPerformanceOptions.PowerMode { get; set; }
 ```
 

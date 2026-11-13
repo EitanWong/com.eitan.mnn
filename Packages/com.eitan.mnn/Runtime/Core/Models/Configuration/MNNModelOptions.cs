@@ -98,12 +98,12 @@ namespace MNN.Unity
         {
             string extra = tuning.ToJson(directory);
             var options = Prepare(directory, tuning.ThreadCount, thinking, cacheDirectory, tuning.PrecisionMode,
-                conversation, tuning.BackendType, conversationTemperature: temperature);
+                conversation, tuning.BackendType, conversationTemperature: temperature, openClTuningMode: tuning.OpenClTuningMode);
             options.Json = options.Json.Substring(0, options.Json.Length - 1) + "," + extra.Substring(1);
             return options;
         }
 
-        internal static MNNModelOptions Prepare(string directory, int threads, bool thinking, string cacheDirectory, MNNPrecisionMode precision, bool chatSampling = false, MNNBackendType backendType = MNNBackendType.Auto, bool speechRecognition = false, float? conversationTemperature = null)
+        internal static MNNModelOptions Prepare(string directory, int threads, bool thinking, string cacheDirectory, MNNPrecisionMode precision, bool chatSampling = false, MNNBackendType backendType = MNNBackendType.Auto, bool speechRecognition = false, float? conversationTemperature = null, MNNGpuTuningMode? openClTuningMode = null)
         {
             MNNPlatformSupport.RequireSupported();
             if (string.IsNullOrWhiteSpace(directory))
@@ -138,8 +138,11 @@ namespace MNN.Unity
             backendRequest = ForAndroidDevice(backendType, directory, MNNInferenceCache.GraphicsDevice);
 #endif
             var backend = MNNAcceleration.Resolve(MNNAcceleration.ForDynamicGraph(backendRequest));
+            // Official OpenCL LLM interprets thread_num as GPU mode bits, not CPU
+            // workers. Map only after availability resolution; CPU keeps its count.
+            int nativeThreads = backend == MNNBackendType.OpenCL && openClTuningMode.HasValue ? (int)openClTuningMode.Value : threads;
             string backendName = MNNAcceleration.ConfigName(backend);
-            var media = new MediaOptions{backend_type = backendName, thread_num = threads, precision = precisionName};
+            var media = new MediaOptions{backend_type = backendName, thread_num = nativeThreads, precision = precisionName};
             string cache = Path.GetFullPath(cacheDirectory ?? Path.Combine(MNNInferenceCache.DirectoryFor("Cache"), "Tasks", Guid.NewGuid().ToString("N")));
             Directory.CreateDirectory(cache);
             string json;
@@ -191,7 +194,7 @@ namespace MNN.Unity
                     studio.penalty_window = MNNModelData.Integer(window);
                 studio.backend_type = backendName;
                 studio.mllm = media;
-                studio.thread_num = threads;
+                studio.thread_num = nativeThreads;
                 studio.precision = precisionName;
                 studio.tmp_path = cache + Path.DirectorySeparatorChar;
                 studio.jinja.context.enable_thinking = thinking;
@@ -199,7 +202,7 @@ namespace MNN.Unity
             }
             else
             {
-                var options = new Options{backend_type = backendName, mllm = media, thread_num = threads, precision = precisionName, tmp_path = cache + Path.DirectorySeparatorChar};
+                var options = new Options{backend_type = backendName, mllm = media, thread_num = nativeThreads, precision = precisionName, tmp_path = cache + Path.DirectorySeparatorChar};
                 if (speechRecognition) options.repetition_penalty = 1.0f;
                 options.jinja.context.enable_thinking = thinking;
                 json = JsonUtility.ToJson(options);

@@ -6,6 +6,28 @@ namespace MNN.Unity.Tests
 {
     public sealed class LlmPerformanceOptionsTests
     {
+        [TestCase(1)]
+        [TestCase(3)]
+        [TestCase(8)]
+        [TestCase(16)]
+        public void OpenClCpuThreadCountDoesNotSelectGpuTuning(int threads)
+        {
+            if (!MNNAcceleration.IsBackendAvailable(MNNBackendType.OpenCL))
+                Assert.Ignore("Requires the OpenCL runtime.");
+            WithQwenConfiguration(directory =>
+            {
+                var performance = new MNNLlmPerformanceOptions { BackendType = MNNBackendType.OpenCL, ThreadCount = threads };
+                var options = MNNModelOptions.PrepareLlm(directory, performance, false, Path.Combine(directory, "cache"), true, 0f);
+                Assert.AreEqual(MNNBackendType.OpenCL, options.Backend);
+                var configuration = MNNModelData.Object(MNNModelData.Parse(options.Json));
+                Assert.AreEqual((int)MNNGpuTuningMode.Wide, MNNModelData.Integer(configuration["thread_num"]));
+                options.UseCpuForCompatibility("test transition");
+                configuration = MNNModelData.Object(MNNModelData.Parse(options.Json));
+                Assert.AreEqual(threads, MNNModelData.Integer(configuration["thread_num"]));
+                Assert.AreEqual(threads, performance.ThreadCount);
+            });
+        }
+
         [TestCase("qwen3_5", 1024, 24, MNNPrecisionMode.Normal)]
         [TestCase("qwen3_5", 2048, 24, MNNPrecisionMode.Low)]
         [TestCase("qwen3", 1024, 24, MNNPrecisionMode.Low)]
