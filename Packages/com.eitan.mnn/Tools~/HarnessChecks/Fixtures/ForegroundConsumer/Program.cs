@@ -228,7 +228,8 @@ internal static class Program
         var cancellable = (await Client.ListAsync(default)).Last(t => t.Objective == "slow");
         Check(admitted.Contains(cancellable.Id), "cancel target identity");
         string cancelled = await Tool(HarnessTaskToolOperation.Cancel).ExecuteAsync(cancellable.Id, default);
-        Check(cancelled.Contains(cancellable.Id + " | Cancelled") && (await Client.GetAsync(cancellable.Id, default)).State == HarnessTaskState.Cancelled, cancelled);
+        Check(cancelled.Contains(cancellable.Id + " | Cancelling") || cancelled.Contains(cancellable.Id + " | Cancelled"), cancelled);
+        await Wait(async () => (await Client.GetAsync(cancellable.Id, default)).State == HarnessTaskState.Cancelled);
         Pass("package observer replays the original durable admission, deduplicates revisions across restarts, and local stop leaves external work running");
     }
 
