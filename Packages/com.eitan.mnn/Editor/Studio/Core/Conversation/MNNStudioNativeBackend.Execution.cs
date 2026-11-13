@@ -549,6 +549,8 @@ namespace MNN.Unity.Editor
                 return new MNNStudioResult{Text = image.Prompt, GeneratedImage = image};
             }
 
+            if (_miniMindO != null) return ExecuteMiniMindO(request);
+
             if (_llm != null)
             {
                 if (request.Conversation != null || request.History != null)

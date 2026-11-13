@@ -34,7 +34,7 @@ namespace MNN.Unity.Editor
             var backend = new MNNStudioNativeBackend(Path.GetFullPath(Path.Combine("Library", "MNN", "Studio", Guid.NewGuid().ToString("N"))));
             try
             {
-                if (model.Task == MNNStudioTask.Chat)
+                if (model.Task == MNNStudioTask.Chat && !model.IsMiniMindO)
                 {
                     backend._cacheLease = MNNStudioLlmCache.Acquire(Path.GetFullPath(Path.Combine("Library", "MNN", "Studio", "ShaderCache")),
                         model.Directory, Path.Combine(package, "Runtime", "Plugins", "macOS", "libMNN.dylib"),
@@ -177,7 +177,10 @@ namespace MNN.Unity.Editor
                         backend._detector = MNNYoloV8.Load(model.Directory, threadCount: threads);
                         break;
                     case MNNStudioTask.Chat:
-                        backend._llm = MNNLlm.LoadForChat(model.Directory, threads, thinking, backend._cache);
+                        if (model.IsMiniMindO)
+                            backend._miniMindO = MNNMiniMindO.Load(model.Directory, threads);
+                        else
+                            backend._llm = MNNLlm.LoadForChat(model.Directory, threads, thinking, backend._cache);
                         break;
                     case MNNStudioTask.Embedding:
                         backend._embedding = MNNEmbedding.Load(model.Directory, threads, backend._cache);

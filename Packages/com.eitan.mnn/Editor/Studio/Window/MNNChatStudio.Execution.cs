@@ -27,7 +27,7 @@ namespace MNN.Unity.Editor
                 _streamText = "";
                 _streamMarkdown = null;
                 _followOutput = true;
-                _session.Send(new MNNStudioRequest{Prompt = text, History = _messages.ToArray(), ContextSummary = _contextSummary, SummarizedMessages = _summarizedMessages, Image = _imagePath, Audio = _audioPath, TokenLimit = _tokenLimit, ContextTokens = _contextTokens, Speech = _speech && Selected.Supports(MNNModelCapabilities.SpeechOutput)});
+                _session.Send(new MNNStudioRequest{VisionImage = Selected.IsMiniMindO && !string.IsNullOrEmpty(_imagePath) ? MNNStudioImage.ReadRgb(_imagePath) : null, Prompt = text, History = _messages.ToArray(), ContextSummary = _contextSummary, SummarizedMessages = _summarizedMessages, Image = _imagePath, Audio = _audioPath, TokenLimit = _tokenLimit, ContextTokens = _contextTokens, Speech = _speech && Selected.Supports(MNNModelCapabilities.SpeechOutput)});
                 _contextCompressionPending = false;
                 _messages.Add(new MNNStudioMessage(true, text, _imagePath, _audioPath));
                 foreach (var cached in _markdown.Keys.Where(message => !_messages.Contains(message)).ToArray())

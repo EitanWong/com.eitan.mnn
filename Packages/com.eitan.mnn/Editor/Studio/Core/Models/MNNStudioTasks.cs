@@ -106,7 +106,7 @@ namespace MNN.Unity.Editor
             return model.Task == Task;
         }
 
-        internal bool CanRun(MNNStudioModel model) => Runnable && Accepts(model) && (model.Task == MNNStudioTask.Chat || model.Task == MNNStudioTask.Embedding || model.Task == MNNStudioTask.Reranker || model.HasGenerationPipeline || model.HasVisionPipeline || model.HasSpeechRecognitionPipeline || model.HasAudioProcessingPipeline || model.HasKeywordSpottingPipeline || model.HasSpeakerRecognitionPipeline || model.HasImageEmbeddingPipeline || model.HasDocumentLayoutPipeline || model.HasTextDecisionPipeline || model.HasEchoCancellationPipeline);
+        internal bool CanRun(MNNStudioModel model) => Runnable && Accepts(model) && (!model.IsMiniMindO || model.HasMiniMindOPipeline) && (model.Task == MNNStudioTask.Chat || model.Task == MNNStudioTask.Embedding || model.Task == MNNStudioTask.Reranker || model.HasGenerationPipeline || model.HasVisionPipeline || model.HasSpeechRecognitionPipeline || model.HasAudioProcessingPipeline || model.HasKeywordSpottingPipeline || model.HasSpeakerRecognitionPipeline || model.HasImageEmbeddingPipeline || model.HasDocumentLayoutPipeline || model.HasTextDecisionPipeline || model.HasEchoCancellationPipeline);
         internal bool MatchesCatalog(MNNModelInfo model)
         {
             if (model == null)

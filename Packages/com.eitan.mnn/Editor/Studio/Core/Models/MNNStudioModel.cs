@@ -10,6 +10,8 @@ namespace MNN.Unity.Editor
     {
         internal readonly string Name, Directory, Category;
         internal readonly MNNStudioTask Task;
+        internal bool IsMiniMindO { get; }
+        internal bool HasMiniMindOPipeline { get; }
         internal readonly MNNStudioTask AudioSubtask;
         internal readonly MNNModelCapabilities Capabilities;
         internal readonly bool SupportsWhisperChinese;
@@ -31,6 +33,8 @@ namespace MNN.Unity.Editor
         internal string OcrPageRoot, OcrRecognizerProfile = ".";
         internal MNNStudioModel(string name, string directory, MNNStudioTask task, MNNModelCapabilities capabilities, string category = null)
         {
+            IsMiniMindO = File.Exists(Path.Combine(directory, MNNMiniMindO.ConfigFileName));
+            HasMiniMindOPipeline = IsMiniMindO && MNNMiniMindO.IsComplete(directory);
             Name = name;
             Directory = directory;
             Task = task;

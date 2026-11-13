@@ -10,6 +10,7 @@ namespace MNN.Unity.Editor
 {
     internal sealed partial class MNNStudioNativeBackend : IMNNStudioBackend
     {
+        private MNNMiniMindO _miniMindO;
         private MNNLlm _llm;
         private MNNEmbedding _embedding;
         private MNNReranker _reranker;
@@ -172,6 +173,8 @@ namespace MNN.Unity.Editor
             _whisper = null;
             _speechRecognizer?.Dispose();
             _speechRecognizer = null;
+            _miniMindO?.Dispose();
+            _miniMindO = null;
             _llm?.Dispose();
             _llm = null;
             _embedding?.Dispose();

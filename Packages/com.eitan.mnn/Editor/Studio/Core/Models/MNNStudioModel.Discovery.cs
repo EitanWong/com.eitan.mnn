@@ -14,6 +14,9 @@ namespace MNN.Unity.Editor
             if (!System.IO.Directory.Exists(directory) || !IsModelDirectory(directory))
                 throw new ArgumentException("Choose a complete MNN model folder containing config.json, MNN weights or an installed repository marker.", nameof(directory));
             string name = Path.GetFileName(directory);
+            if (File.Exists(Path.Combine(directory, MNNMiniMindO.ConfigFileName)))
+                return new MNNStudioModel(name, Path.GetFullPath(directory), MNNStudioTask.Chat,
+                    MNNMiniMindO.IsComplete(directory) ? MNNModelCapabilities.Vision | MNNModelCapabilities.AudioInput | MNNModelCapabilities.SpeechOutput : MNNModelCapabilities.Text, MNNModelCategory.OmniModel.ToString());
             if ((MNNSpeechSynthesizer.DetectModelKind(directory) == MNNSpeechModelKind.CosyVoice300M))
                 return new MNNStudioModel(name, Path.GetFullPath(directory), MNNStudioTask.SpeechSynthesis, (MNNModelCapabilities)0, MNNModelCategory.SpeechSynthesis.ToString());
             if (File.Exists(Path.Combine(directory, MNNDtlnAec.ConfigFileName)))
