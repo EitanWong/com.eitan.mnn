@@ -17,6 +17,18 @@ import uuid
 import xml.etree.ElementTree as ET
 
 
+def read_player_result(path, build_id):
+    """Read only complete NUnit evidence produced by this exact Player build."""
+    try:
+        data = path.read_bytes()
+        result = ET.fromstring(data)
+    except (FileNotFoundError, ET.ParseError):
+        return None
+    if result.tag not in ("test-suite", "test-run") or result.get("mnn-build-id") != build_id:
+        return None
+    return data
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--unity", required=True, type=Path)
@@ -99,7 +111,7 @@ def main():
         (output / name).unlink(missing_ok=True)
     settings = output / "settings.json"
     settings.write_text(json.dumps({"scriptingBackend": args.backend}), encoding="utf-8")
-    if args.platform in ("Android", "iOS"):
+    if args.platform in ("Android", "iOS", "StandaloneWindows64"):
         resources = project / "Assets/MNNValidation/Resources"
         resources.mkdir(parents=True, exist_ok=True)
         (resources / "MNNValidationBuildId.txt").write_text(build_id + "\n")
@@ -153,6 +165,8 @@ def main():
     if args.test_filter:
         command += ["-testFilter", args.test_filter]
     env = dict(os.environ, MNN_INFERENCE_CACHE_DIRECTORY=str(output / "Cache"))
+    if args.platform == "StandaloneWindows64":
+        env["MNN_PLAYER_RESULTS_DIRECTORY"] = str(output)
     if args.model_root:
         env.update(MNN_PLAYER_MODEL_ROOT=str(args.model_root.resolve()),
                    MNN_PLAYER_FIXTURES=str(args.fixtures.resolve()), MNN_PLAYER_ARTIFACTS=str(output))
@@ -198,6 +212,7 @@ def main():
     player_process = None
     exported = None
     device_result_retrieved = False
+    local_player_result_retrieved = False
     adb = shutil.which("adb") if args.platform == "Android" else None
     device_result_path = "/sdcard/Android/data/com.UnityTestRunner.UnityTestRunner/files/mnn-player-results.xml"
     if adb:
@@ -209,6 +224,12 @@ def main():
     try:
         deadline = time.monotonic() + args.run_timeout_seconds
         while process.poll() is None:
+            if args.platform == "StandaloneWindows64":
+                local_result = read_player_result(output / "mnn-player-results.xml", build_id)
+                if local_result is not None:
+                    result_path.write_bytes(local_result)
+                    local_player_result_retrieved = True
+                    break
             if adb and time.monotonic() >= next_device_poll and not result_path.exists():
                 next_device_poll = time.monotonic() + 5
                 pulled = subprocess.run([adb, "exec-out", "cat", device_result_path],
@@ -335,7 +356,7 @@ def main():
 
     # Unity 2021 reports the suite as Skipped:Ignored when even one optional
     # test is ignored. Accept only the specific optional cases above.
-    success = ((process.returncode == 0 or device_result_retrieved) and len(tests) > 0 and
+    success = ((process.returncode == 0 or device_result_retrieved or local_player_result_retrieved) and len(tests) > 0 and
                int(result.get("failed", "0")) == 0 and all(acceptable(test) for test in tests))
     if actual_backend is not None:
         success = success and actual_backend.group(1) == args.backend
@@ -426,6 +447,7 @@ def main():
         "runtime": runtime,
         "result": result.attrib, "process_exit_code": process.returncode,
         "device_result_retrieved": device_result_retrieved,
+        "local_player_result_retrieved": local_player_result_retrieved,
         "build_id": build_id,
         "mobile_llm_four_models_verified": bool(success and mobile_llm_verified),
         "native_inference_tests": len(native),
