@@ -4,11 +4,21 @@
 Studio 高层任务的真实推理验证范围为 macOS 64 位 Mono，官方 MNN 3.6.2 与 Apple libc++ 的特定 ABI。
 这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API。Windows/Linux x64 Mono
 已接入核心 Interpreter/Session/Tensor、LLM、Express、原生检索及媒体输入。Windows/Linux 的新任务
-验证使用 Wine/容器 Mono 与真实原生库；尚无这两个平台的 Unity Player 结果。
-WebGL 与桌面 IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
+历史验证使用 Wine/容器 Mono 与真实原生库。Windows x64 Mono/IL2CPP 真机 Player
+现各通过 157 项选定回归；Linux Unity Player 尚待验证。
+WebGL 与 macOS/Linux IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
 LLM 文本/媒体输入的历史设备验证见下节；Express/原生检索已接入共享 partial，
 当前修改尚无新的移动真机推理结果。Omni/Qwen3 原生波形回调在所有平台明确拒绝。
 没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
+
+## Windows x64 真机 Player（2026-11-14）
+
+Windows 11、i7-10700F、Unity 2021.3.45f2；Mono 与 IL2CPP 各通过 157 项，0 失败/跳过。
+包括 SmolLM2-135M 与 Qwen3.5-0.8B 的文本/流式/取消/缓存/分词、仿射数值、Express、路径和平台策略。
+IL2CPP 使用 VS2022 Build Tools 17.14 与 SDK 22621。
+修复 Mono Player 缺失 CP1252 编码程序集导致的文件加载失败，并启用限定 GNU ABI 的 Windows IL2CPP 声明。
+逐次失败、重跑、性能边界及复现命令见 [Windows Player](WindowsPlayer.md)。这些计数包含策略检查，
+不代表所有模型的回答质量、媒体管线或 GPU 均已验收。
 
 ## Windows/Linux 桌面 Mono 高级任务（2026-11-07）
 

@@ -11,6 +11,17 @@ The package version is 3.6.2.
 
 ## [Unreleased]
 
+- Enabled Windows x64 IL2CPP under the pinned bundled GNU ABI; real Windows 11
+  Unity Mono and IL2CPP Players each pass 157 selected two-model LLM, core, Express
+  and platform tests without failures or skips.
+- Enabled the official OpenCL backend in the bundled Windows DLL after both
+  Player backends passed the same 157-test regressions; Qwen RTX 3060 measurements
+  and model-quality limits are recorded in the Windows guide.
+- Fixed Windows model loading when managed CP1252 assemblies are stripped; paths
+  use strict Windows ACP conversion. Added Player path inference regressions.
+- Retain Windows Player-side NUnit results with build identity when the Editor
+  result connection stalls. See [Windows validation](Documentation~/WindowsPlayer.md).
+
 ### Added
 
 - Unified managed API contracts for offline model inspection, pinned revisions, curated sources and runtime initialization. Studio now uses public APIs without Runtime friendship; semantic checks enforce component/Core/Interop boundaries and generate the public API reference. See [API layers](Documentation~/PublicApiLayer.md).
@@ -78,7 +89,7 @@ The package version is 3.6.2.
   hardware and Windows/Linux GPU inference have not been verified.
 - Recorded arm64 Metal/CPU compatibility regressions cover 97 distinct Editor tests across two runs
   and 116 Player tests. Counts include API/platform checks, not only model tests.
-- Desktop IL2CPP, Windows/Linux ARM64 and WebGL reject inference; mobile ARM64
+- macOS/Linux IL2CPP, Windows/Linux ARM64 and WebGL reject inference; mobile ARM64
   IL2CPP retains its separate task/device evidence. Conditional compilation does
   not establish native inference or every model's compatibility. See [test evidence](Documentation~/Testing.md).
 

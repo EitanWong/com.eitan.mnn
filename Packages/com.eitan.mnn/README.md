@@ -12,17 +12,18 @@ C# P/Invoke calls official C++ symbols in the bundled libraries, without additio
 C++ sources, custom C exports or a companion bridge. **Core inference, Express, LLM and native retrieval
 support desktop Mono on macOS ARM64/x64, Windows x64 and Linux x64.** Each target
 uses its own pinned compiler ABI; see [desktop Mono](Documentation~/DesktopMono.md)
-for the binaries, system requirements and evidence.
+for the binaries, system requirements and evidence. Windows x64 also supports
+[IL2CPP Players](Documentation~/WindowsPlayer.md) under the same pinned GNU ABI.
 
-| Desktop Mono target | Implemented native binding | Current execution evidence |
+| Desktop target | Implemented native binding | Current execution evidence |
 | --- | --- | --- |
 | macOS 11+ ARM64/x64 | Core, Express, LLM, retrieval and media input; Apple clang / libc++ ABI v1 | Unity Mono Players: 120/120 selected core/platform/Express tests per architecture; x64 uses Rosetta |
-| Windows 10+ x64 / UCRT | Same task bindings; MinGW-w64 GCC 16.2 | Wine 9 / Wine Mono 9.4.0: 79 task and 22 core assertions |
+| Windows 10+ x64 / UCRT | Same task bindings; MinGW-w64 GCC 16.2; Mono and IL2CPP | Windows 11 Unity Players: 157/157 selected LLM/core/Express/platform tests per backend, no failures or skips |
 | Linux x64 | Same task bindings; GCC 13.3 | Host Mono in an amd64 Linux container: 79 task and 22 core assertions |
 
 Windows/Linux checks include real CPU Express, text/chat/streaming LLM, embedding,
-reranking and Omni image input. Windows/Linux native builds are CPU-only; their
-Unity Players and individual model pipelines still need validation. Waveform
+reranking and Omni image input. Windows enables CPU/OpenCL and Linux remains CPU-only; the
+Linux Unity Player and other individual model pipelines still need validation. Waveform
 callbacks remain unavailable. Linux requires GLIBC 2.38+ and a
 libstdc++.so.6 providing GLIBCXX_3.4.32. Windows path handling follows the bundled
 MNN FileLoader's ANSI code page and available DOS short paths; see the desktop guide.
@@ -41,7 +42,7 @@ verified; the current macOS x64 Rosetta Player checks include CPU and Auto/Metal
 affine inference. Waveform callbacks are unavailable on all platforms; native
 Omni speech-output requests fail before execution. Independent graph-based TTS
 pipelines retain their model-specific validation scope. Windows/Linux ARM64,
-WebGL and desktop IL2CPP reject inference
+WebGL and macOS/Linux IL2CPP reject inference
 before native calls. Current validation limits are recorded in the
 [test evidence](Documentation~/Testing.md). CoreML/NPU support is not claimed.
 

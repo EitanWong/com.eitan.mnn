@@ -7,7 +7,7 @@ its sources. Linux Docker setup can acquire compiler dependencies; it downloads
 neither MNN sources nor models.
 
 Core Interpreter/Session/Tensor bindings support macOS ARM64/x64 Mono, Windows x64
-Mono and Linux x64 Mono. Their exact compiler contracts, binary hashes and observed
+Mono/IL2CPP Players and Linux x64 Mono. Their exact compiler contracts, binary hashes and observed
 execution scope are in [desktop Mono](../Documentation~/DesktopMono.md). Windows
 uses MinGW-w64 GCC 16.2.0 with static libstdc++/winpthreads; Linux uses the audited
 GCC 13.3 build of the clean official source. These bindings are maintained by this
@@ -23,10 +23,12 @@ Interpreter/Session/Tensor and task contracts; see
 
 Actual macOS CPU inference is tested in Unity 2021.3.45f2, including ARM64 Players
 and x64 Players under Rosetta: the current core/platform/Express selection passes
-120/120 tests on each architecture. Windows C# execution currently uses
-Wine Mono; Linux C# execution uses host Mono's interpreter in an amd64 Docker
-container. They do not replace Windows/Linux Unity Player validation. Desktop
-IL2CPP and WebGL are rejected before inference. Metal and model-specific evidence
+120/120 tests on each architecture. Windows 11 x64 Mono and IL2CPP Players each
+pass 157 selected two-model LLM/core/Express/platform tests with both the original
+CPU library and the CPU/OpenCL variant; see [Windows evidence](../Documentation~/WindowsPlayer.md).
+Linux C# execution uses host Mono's interpreter in an amd64 Docker container;
+Linux Unity Player validation remains pending. macOS/Linux IL2CPP and WebGL are
+rejected before inference. Metal and model-specific evidence
 is recorded in [acceleration](../Documentation~/Acceleration.md) and
 [test evidence](../Documentation~/Testing.md). CoreML/NPU support is not claimed.
 
@@ -76,7 +78,7 @@ and installs the matching plugins; see the mobile document for platform argument
 `--basic-only` retains the historical 26-import audit and cannot install over the
 current plugins. Artifacts stay under `TestArtifacts~/MobileLlmDirectCpp/`.
 
-### Windows x64 Mono
+### Windows x64 Mono and IL2CPP
 
 Use `build-windows.py` with the pinned MinGW-w64 GCC 16.2.0 POSIX toolchain,
 CMake, Ninja, Git and Python 3. See [Windows build](README.Windows.md) for the

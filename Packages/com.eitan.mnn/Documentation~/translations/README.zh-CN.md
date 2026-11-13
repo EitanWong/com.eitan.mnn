@@ -11,20 +11,22 @@ Model Manager 用于管理模型下载，Chat Studio 用于在编辑器中运行
 - Unity 2021.3 或更高版本；验证环境为 Unity 2021.3.45f2。
 - 桌面 Mono：macOS 11+ ARM64/x64、Windows 10+ x64（UCRT）或 Linux x64
   （GLIBC 2.38+、GLIBCXX_3.4.32），见[桌面 Mono 契约](../DesktopMono.md)。
+- Windows x64 还支持 [IL2CPP Player](../WindowsPlayer.md)。
 - Android/iOS ARM64 IL2CPP 使用独立的[移动端契约](../MobileInterop.md)。
 - 单独获取的兼容模型，并遵守模型自身的许可。
 
 绑定通过指定的编译器与 ABI 契约调用官方 MNN C++ 符号，由本项目维护。
 MNN 不提供可移植的 C# SDK，随包原生库须与匹配的托管声明一起使用。
-桌面 IL2CPP、Windows/Linux ARM64 和 WebGL 不受支持。
+macOS/Linux IL2CPP、Windows/Linux ARM64 和 WebGL 不受支持。
 部署前请查阅[ABI 契约](../../Native~/README.md)和[验证范围](../Testing.md)。
 
 ## 开发状态
 
 桌面 Mono 已实现核心推理、Express、LLM 文本/聊天/流式生成、原生向量与重排、Omni 媒体输入。
 Windows Wine Mono 与 Linux 容器中的 host Mono 各通过 79 项任务断言和 22 项核心断言，
-包含真实 CPU 模型推理；尚未验证 Windows/Linux Unity Player，也不代表所有模型均已通过。
-这两个平台的随包原生库仅启用 CPU。所有平台均未实现原生波形回调；独立 TTS 管线按各自模型说明使用。
+包含真实 CPU 模型推理。Windows 11 x64 Unity Mono/IL2CPP Player 各通过 157 项
+LLM/核心/Express/平台回归，0 失败/跳过；Linux Unity Player 尚待验证，也不代表所有模型均已通过。
+Windows 随包库启用 CPU/OpenCL，Linux 保持 CPU 构建。所有平台均未实现原生波形回调；独立 TTS 管线按各自模型说明使用。
 
 macOS ARM64 与 Rosetta x64 Unity Mono Player 各通过 120/120 项核心/平台/Express 检查，
 聚焦 Editor 检查 14/14、条件编译 13 组及基础包程序集编译 9 组通过；可选 Burst 未安装。

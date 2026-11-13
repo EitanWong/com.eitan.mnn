@@ -492,12 +492,12 @@
     },
     {
       "path": "Runtime/Plugins/Windows/x86_64/MNN.dll",
-      "sha256": "32fe998751b3044bebc25a6a9e7229b9e9b3a0dc9f0338b01fca72aa5995b268",
+      "sha256": "a9353855d6bef2b59a405c7e0c9aa808bda57ec0d2de81cc4b6894dbabee3a25",
       "format": "PE32+ DLL",
       "architectures": [
         "x86_64"
       ],
-      "abi": "GNU Itanium mangling / Win64 LLP64 / libstdc++ C++11 / Mono",
+      "abi": "GNU Itanium mangling / Win64 LLP64 / libstdc++ C++11 / Mono and Windows Player IL2CPP",
       "compiler": "MinGW-w64 GCC 16.2.0 POSIX, MinGW-w64 14.0.0, C++17",
       "source_revision": "7e3c6fb5225d3ccf22807ee641332669df34650d",
       "provenance": "Rebuilt from pristine pinned official MNN source; static libstdc++, libgcc and winpthread; no bridge or source changes.",
@@ -505,9 +505,10 @@
       "official_symbol_audit": {
         "required_imports_from_MNN": 74,
         "missing": [],
-        "custom_exports": []
+        "custom_exports": [],
+        "export_count": 28021
       },
-      "built_on": "2026-11-07",
+      "built_on": "2026-11-14",
       "build_script": "build-windows.py",
       "minimum_os": "Windows 10 with UCRT",
       "build_options": {
@@ -516,10 +517,14 @@
         "MNN_BUILD_AUDIO": "ON",
         "MNN_BUILD_OPENCV": "ON",
         "MNN_LOW_MEMORY": "ON",
-        "MNN_OPENCL": "OFF",
+        "MNN_OPENCL": "ON",
         "MNN_VULKAN": "OFF",
         "MNN_AVX512": "OFF"
-      }
+      },
+      "build_arguments": [
+        "--opencl"
+      ],
+      "validation_evidence": "Documentation~/WindowsPlayer.md"
     },
     {
       "path": "Runtime/Plugins/Linux/x86_64/libMNN.so",
@@ -555,9 +560,9 @@
     "iOS ARM64 simulator is built and symbol-audited only.",
     "Explicit Qwen3.5-0.8B Apple CPU Low precision at 4 threads fails arithmetic quality; the default CPU profile uses Normal.",
     "Backend compilation does not certify every graph/operator on GPU/NPU.",
-    "Windows/Linux advanced task execution verified with Wine Mono / container Mono, not Windows/Linux Unity Players.",
-    "Windows/Linux current builds enable CPU; no desktop GPU inference result is claimed.",
-    "Waveform callbacks remain unavailable; x64 conversation cache uses independent full prefill."
+    "Waveform callbacks remain unavailable; x64 conversation cache uses independent full prefill.",
+    "Windows x64 Mono/IL2CPP Players each pass157 selected CPU/OpenCL library regressions on Windows11 / i7-10700F / RTX3060. Other Windows GPUs and model pipelines remain unverified.",
+    "Linux task checks use container Mono; its bundled build remains CPU-only."
   ],
   "packaging_only_libraries": [
     {
