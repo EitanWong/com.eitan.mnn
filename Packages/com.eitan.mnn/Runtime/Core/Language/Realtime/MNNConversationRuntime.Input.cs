@@ -74,7 +74,7 @@ namespace MNN.Unity
                         revision, _context.Input.Realtime, IsResponding || _context.SpeakerAudible || _utterance.HasSpeechStarted,
                         _config.realtimeInactivitySeconds))
                         _context.RequestRealtimeExit(revision);
-                    if (_recognitionPreview?.TryRead(out string partial) == true)
+                    if (_recognitionPreview != null && _recognitionPreview.TryRead(out string partial))
                         _context.PublishRecognitionPreview(_inputRevision, partial);
                     ObservePresentedResponse();
                     if (_input.TryRead(frame, 0, out var info))
