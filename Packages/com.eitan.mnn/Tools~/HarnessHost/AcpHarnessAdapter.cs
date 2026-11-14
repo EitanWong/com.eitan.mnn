@@ -267,4 +267,3 @@ internal sealed class AcpExecution
     internal async Task RespondInputAsync(string id, string reply, HarnessInputAction action, CancellationToken cancellation) =>
         await (await _session.Task.WaitAsync(cancellation)).RespondInputAsync(id, reply, action, cancellation);
 }
-
