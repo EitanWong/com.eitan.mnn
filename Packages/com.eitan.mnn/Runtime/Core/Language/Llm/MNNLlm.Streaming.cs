@@ -22,10 +22,16 @@ namespace MNN.Unity
         {
             if (messages == null)
                 throw new ArgumentNullException(nameof(messages));
+            if (onProgress == null) throw new ArgumentNullException(nameof(onProgress));
             var copy = new MNNChatMessage[messages.Count];
             for (int i = 0; i < copy.Length; ++i)
                 copy[i] = messages[i];
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (maxAudioTokens < 1 || maxAudioTokens > 2048) throw new ArgumentOutOfRangeException(nameof(maxAudioTokens));
+            return GenerateConversationCooperatively(copy, maxNewTokens, imagePath, audioPath, generateSpeech, onProgress, null, cancellationToken);
+#else
             return Task.Run(() => GenerateConversationStreaming(copy, onProgress, maxNewTokens, imagePath, audioPath, generateSpeech, maxAudioTokens, cancellationToken));
+#endif
         }
 
         /// <summary>Streams only newly decoded text without allocating cumulative snapshots.
@@ -50,7 +56,12 @@ namespace MNN.Unity
             var copy = new MNNChatMessage[messages.Count];
             for (int i = 0; i < copy.Length; ++i)
                 copy[i] = messages[i];
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (maxAudioTokens < 1 || maxAudioTokens > 2048) throw new ArgumentOutOfRangeException(nameof(maxAudioTokens));
+            return GenerateConversationCooperatively(copy, maxNewTokens, imagePath, audioPath, generateSpeech, null, onDelta, cancellationToken);
+#else
             return Task.Run(() => GenerateConversationStreamingDeltas(copy, onDelta, maxNewTokens, imagePath, audioPath, generateSpeech, maxAudioTokens, cancellationToken));
+#endif
         }
     }
 }

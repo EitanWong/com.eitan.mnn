@@ -17,6 +17,23 @@ namespace MNN.Unity.Tests
         };
 
         [Test]
+        public void MetadataPlainStringsRetainExactJsonSemantics()
+        {
+            string word = new string('中', 128);
+            string json = "[" + string.Join(",", System.Linq.Enumerable.Repeat("\"" + word + "\"", 10000)) + "]";
+            MNNModelData.Parse("[\"warmup\"]");
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var result = MNNModelData.Array(MNNModelData.Parse(json));
+            double elapsed = timer.Elapsed.TotalMilliseconds;
+            Assert.AreEqual(10000, result.Count);
+            foreach (object value in result) Assert.AreEqual(word, value);
+            TestContext.WriteLine("metadata_parse_ms=" + elapsed + ";input_chars=" + json.Length);
+            Assert.AreEqual("quote\" slash\\ line\n中", MNNModelData.Parse("\"quote\\\" slash\\\\ line\\n\\u4e2d\""));
+            Assert.Throws<System.IO.InvalidDataException>(() => MNNModelData.Parse("\"raw\ncontrol\""));
+            Assert.Throws<System.IO.InvalidDataException>(() => MNNModelData.Parse("\"unterminated"));
+        }
+
+        [Test]
         public void GraphValidationRetainsFiniteBoundaryBitsAndRejectsEmptyOutput()
         {
             var bits = new[]{0, int.MinValue, 1, unchecked((int)0x80000001),

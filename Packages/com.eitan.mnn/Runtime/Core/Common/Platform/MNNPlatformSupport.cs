@@ -15,7 +15,9 @@ namespace MNN.Unity
         {
             get
             {
-#if UNITY_ANDROID && !UNITY_EDITOR
+#if UNITY_WEBGL && !UNITY_EDITOR
+                return $"MNN {MNNVersion.RequiredNativeVersion} / Unity 2021.3.45f2 Emscripten 2.0.19 libc++ ABI v2 / wasm32 IL2CPP CPU core/text LLM experimental";
+#elif UNITY_ANDROID && !UNITY_EDITOR
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Android NDK r25c libc++ (__ndk1) / ARM64 IL2CPP";
 #elif UNITY_IOS && !UNITY_EDITOR
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Apple libc++ ABI v1 / ARM64 IL2CPP";
@@ -47,6 +49,8 @@ namespace MNN.Unity
 
         internal static string GetUnsupportedReason(RuntimePlatform platform, bool il2cpp, int pointerSize, bool littleEndian, Architecture architecture = Architecture.Arm64)
         {
+            if (platform == RuntimePlatform.WebGLPlayer)
+                return il2cpp && pointerSize == 4 && littleEndian ? null : "Direct WebGL MNN C++ binding requires wasm32 little-endian IL2CPP.";
             if (pointerSize != 8 || !littleEndian)
                 return "Direct MNN C++ binding requires a 64-bit little-endian process.";
             if (platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer)

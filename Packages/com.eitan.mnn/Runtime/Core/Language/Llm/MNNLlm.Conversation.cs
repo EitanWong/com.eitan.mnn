@@ -81,7 +81,12 @@ namespace MNN.Unity
             var copy = new MNNChatMessage[messages.Count];
             for (int i = 0; i < copy.Length; ++i)
                 copy[i] = messages[i];
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (maxAudioTokens < 1 || maxAudioTokens > 2048) throw new ArgumentOutOfRangeException(nameof(maxAudioTokens));
+            return GenerateConversationCooperatively(copy, maxNewTokens, imagePath, audioPath, generateSpeech, null, null, default);
+#else
             return Task.Run(() => GenerateConversation(copy, maxNewTokens, imagePath, audioPath, generateSpeech, maxAudioTokens));
+#endif
         }
     }
 }

@@ -106,7 +106,11 @@ namespace MNN.Unity
         {
             var input = SnapshotRequest(request);
             var settings = (options ?? new MNNMiniMindOOptions()).Snapshot();
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return GenerateCooperatively(input, settings, onUpdate, cancellationToken);
+#else
             return Task.Run(() => Generate(input, settings, onUpdate, cancellationToken), cancellationToken);
+#endif
         }
 
         public void Dispose()

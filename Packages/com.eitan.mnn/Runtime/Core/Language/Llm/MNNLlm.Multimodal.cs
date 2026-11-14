@@ -43,7 +43,19 @@ namespace MNN.Unity
             }
         }
 
-        public Task<MNNMultimodalResult> GenerateMultimodalAsync(string prompt, string imagePath = null, string audioPath = null, int maxNewTokens = 128, bool generateSpeech = false, int maxAudioTokens = 256) => Task.Run(() => GenerateMultimodal(prompt, imagePath, audioPath, maxNewTokens, generateSpeech, maxAudioTokens));
+        public Task<MNNMultimodalResult> GenerateMultimodalAsync(string prompt, string imagePath = null, string audioPath = null, int maxNewTokens = 128, bool generateSpeech = false, int maxAudioTokens = 256)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (string.IsNullOrWhiteSpace(prompt)) throw new ArgumentNullException(nameof(prompt));
+            if (maxNewTokens < 1 || maxNewTokens > 8192) throw new ArgumentOutOfRangeException(nameof(maxNewTokens));
+            if (maxAudioTokens < 1 || maxAudioTokens > 2048) throw new ArgumentOutOfRangeException(nameof(maxAudioTokens));
+            if (imagePath != null || audioPath != null || generateSpeech)
+                throw new PlatformNotSupportedException("WebGL asynchronous LLM inference currently supports text only.");
+            return GenerateCooperatively(prompt, null, null, maxNewTokens, default);
+#else
+            return Task.Run(() => GenerateMultimodal(prompt, imagePath, audioPath, maxNewTokens, generateSpeech, maxAudioTokens));
+#endif
+        }
         private static string ValidateMediaPath(string path)
         {
             if (path == null)

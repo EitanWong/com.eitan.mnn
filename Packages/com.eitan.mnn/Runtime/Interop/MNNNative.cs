@@ -11,7 +11,7 @@ namespace MNN.Unity.Interop
         /// 获取平台特定的DLL名称
         /// </summary>
 
-#if UNITY_IOS && !UNITY_EDITOR
+#if (UNITY_IOS || UNITY_WEBGL) && !UNITY_EDITOR
         public const string LibraryName = "__Internal";
 #else
         public const string LibraryName = "MNN";

@@ -14,6 +14,7 @@ namespace MNN.Unity
     public sealed partial class MNNLlm : IDisposable
     {
         private readonly object _gate = new object ();
+        private bool _cooperativeGeneration;
         private LlmHandle _handle;
         private readonly string _ownedCacheDirectory;
         private readonly MNNModelOptions _options;
@@ -222,7 +223,14 @@ namespace MNN.Unity
             }
         }
 
-        public Task<MNNLlmResult> GenerateAsync(string prompt, int maxNewTokens = 128) => Task.Run(() => Generate(prompt, maxNewTokens));
+        public Task<MNNLlmResult> GenerateAsync(string prompt, int maxNewTokens = 128)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return GenerateStreamingAsync(prompt, null, maxNewTokens);
+#else
+            return Task.Run(() => Generate(prompt, maxNewTokens));
+#endif
+        }
 
         internal string DumpConfiguration()
         {
@@ -238,12 +246,16 @@ namespace MNN.Unity
         {
             if (_handle == null)
                 throw new ObjectDisposedException(nameof(MNNLlm));
+            if (_cooperativeGeneration)
+                throw new InvalidOperationException("The model already owns an active asynchronous generation. Cancel or await it before using the model.");
         }
 
         public void Dispose()
         {
             lock (_gate)
             {
+                if (_cooperativeGeneration)
+                    throw new InvalidOperationException("Await or cancel asynchronous generation before disposing the model.");
                 using (MNNInterop.BeginNativeCall())
                     _handle?.Dispose();
                 _handle = null;

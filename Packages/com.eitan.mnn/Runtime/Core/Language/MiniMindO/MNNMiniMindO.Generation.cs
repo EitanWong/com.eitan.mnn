@@ -13,11 +13,45 @@ namespace MNN.Unity
         private MNNMiniMindOResult GenerateCore(MNNMiniMindORequest request, MNNMiniMindOOptions options,
             Action<MNNMiniMindOUpdate> callback, CancellationToken cancellation)
         {
+            MNNMiniMindOResult result = null;
+            foreach (var update in GenerateSteps(request, options, cancellation, value => result = value))
+                if (update != null) callback?.Invoke(update);
+            return result;
+        }
+
+        private IEnumerable<MNNMiniMindOUpdate> GenerateSteps(MNNMiniMindORequest request, MNNMiniMindOOptions options,
+            CancellationToken cancellation, Action<MNNMiniMindOResult> completeResult, bool cooperative = false)
+        {
             var inputs = PrepareInputs(request, options.MaxNewTokens, cancellation);
             MNNGenerationGraph.Output[] output;
-            // Retire the prefill session before allocating the recurrent decoder.
-            using (var graph = Graph(inputs.Length == 2 ? "prefill" : "multimodal_prefill"))
-                output = graph.RunOutputs(Outputs, inputs);
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (cooperative && inputs.Length == 2 && !options.GenerateSpeech && inputs[0].Shape[1] > 1)
+            {
+                // Consume the complete prompt with the existing causal KV-cache graphs.
+                // Release the temporary prefill session before the first decode allocation.
+                var prompt = (int[])inputs[0].Values;
+                var silence = Enumerable.Repeat(2049, 8).ToArray();
+                using (var graph = Graph("prefill"))
+                    output = graph.RunOutputs(Outputs, new Input("tokens", new[] { prompt[0] }, 1, 1),
+                        new Input("audio_codes", silence, 1, 8, 1));
+                yield return null;
+                for (int index = 1; index < prompt.Length; ++index)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    _decode = _decode ?? Graph("decode");
+                    output = _decode.RunOutputs(Outputs, new Input("tokens", new[] { prompt[index] }, 1, 1),
+                        new Input("audio_codes", silence, 1, 8, 1), output[2].AsInput("past"));
+                    yield return null;
+                }
+            }
+            else
+#endif
+            {
+                // Retire the prefill session before allocating the recurrent decoder.
+                using (var graph = Graph(inputs.Length == 2 ? "prefill" : "multimodal_prefill"))
+                    output = graph.RunOutputs(Outputs, inputs);
+            }
+            yield return null;
             var random = new Random(options.Seed);
             var text = new List<int>();
             var frames = new List<int[]>();
@@ -56,7 +90,7 @@ namespace MNN.Unity
                 ++steps;
                 float[] pcm = frame == null ? Array.Empty<float>() : DecodeChunk(frames, options.GenerateSpeech, false, cancellation);
                 waveform.AddRange(pcm);
-                callback?.Invoke(new MNNMiniMindOUpdate(_tokenizer.Decode(text), frame, pcm, steps));
+                yield return new MNNMiniMindOUpdate(_tokenizer.Decode(text), frame, pcm, steps);
                 if (!options.GenerateSpeech && textFinished) { complete = true; break; }
                 if (step + 1 == options.MaxNewTokens) break;
                 cancellation.ThrowIfCancellationRequested();
@@ -69,8 +103,8 @@ namespace MNN.Unity
             float[] tail = DecodeChunk(frames, options.GenerateSpeech, true, cancellation);
             waveform.AddRange(tail);
             string answer = _tokenizer.Decode(text);
-            if (tail.Length > 0) callback?.Invoke(new MNNMiniMindOUpdate(answer, null, tail, steps));
-            return new MNNMiniMindOResult(answer, frames.ToArray(), waveform.ToArray(), steps, !complete);
+            if (tail.Length > 0) yield return new MNNMiniMindOUpdate(answer, null, tail, steps);
+            completeResult(new MNNMiniMindOResult(answer, frames.ToArray(), waveform.ToArray(), steps, !complete));
         }
 
         internal static int[] AlignedFrame(List<int>[] codes, int[] stop, int step)

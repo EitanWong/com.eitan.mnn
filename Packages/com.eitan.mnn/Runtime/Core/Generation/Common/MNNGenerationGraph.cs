@@ -313,17 +313,18 @@ namespace MNN.Unity
             throw new NotSupportedException("Unsupported graph output data type.");
         }
 
-        internal static float[] Validate(float[] values, string output)
+        internal static unsafe float[] Validate(float[] values, string output)
         {
             if (values.Length == 0)
                 throw new InvalidDataException("Generation stage returned an empty or non-finite tensor: " + output);
-            // Scan every element without LINQ's per-element delegate dispatch.
-            // Ordered bounds reject both NaN and infinities, retaining finite extrema.
-            for (int i = 0; i < values.Length; ++i)
+            // IEEE-754 exponent 255 identifies every NaN and infinity. Scan all
+            // elements in pinned managed storage without per-element array helpers.
+            fixed (float* first = values)
             {
-                float value = values[i];
-                if (!(value >= -float.MaxValue && value <= float.MaxValue))
-                    throw new InvalidDataException("Generation stage returned an empty or non-finite tensor: " + output);
+                uint* end = (uint*)first + values.Length;
+                for (uint* bits = (uint*)first; bits < end; ++bits)
+                    if ((*bits & 0x7f800000u) == 0x7f800000u)
+                        throw new InvalidDataException("Generation stage returned an empty or non-finite tensor: " + output);
             }
             return values;
         }

@@ -7,14 +7,14 @@ using UnityEngine;
 
 namespace MNN.Unity.Tests
 {
-    [Explicit("Downloads the published MiniMind-o deployment and runs real native inference.")]
     public sealed class MiniMindOModelScopeTests
     {
-        [Test]
+        [Test, Category("RequiresNetwork"), Explicit("Downloads the published MiniMind-o deployment and runs real native inference.")]
         public void PublishedModelDownloadsThroughRuntimeInstallerAndGeneratesSpeech()
         {
             var model = MNNModelCatalog.CreateDefault().SearchModels("MiniMind-o").Single();
-            string directory = Path.GetFullPath(Path.Combine(Application.streamingAssetsPath, "MNN/Models/MiniMindO-113M-ModelScope-Verified"));
+            string directory = Path.GetFullPath(System.Environment.GetEnvironmentVariable("MNN_TEST_MINIMIND_INSTALL_ROOT") ??
+                Path.Combine(Application.streamingAssetsPath, "MNN/Models/MiniMindO-113M-ModelScope-Verified"));
             using (var downloader = new MNNModelDownloader())
                 MNNModelInstallation.EnsureAsync(directory, model, downloader: downloader).GetAwaiter().GetResult();
             Assert.True(MNNMiniMindO.IsComplete(directory));
