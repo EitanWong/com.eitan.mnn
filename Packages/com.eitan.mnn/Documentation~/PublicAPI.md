@@ -11554,7 +11554,7 @@ MNN模型解释器 - 模型加载和会话管理
 class MNN.Unity.MNNModelLoading
 ```
 
-Loads managed MNN models away from Unity's render thread.
+Loads managed MNN models on a worker, or after yielding one Unity frame on single-thread WebGL. WebGL native loading still blocks that frame.
 
 ```csharp
 class MNN.Unity.MNNNeuralDevice
@@ -12139,6 +12139,10 @@ MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Interrupted = 6
 ```
 
 ```csharp
+MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Paused = 7
+```
+
+```csharp
 MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Queued = 0
 ```
 
@@ -12148,6 +12152,14 @@ MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Running = 1
 
 ```csharp
 MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Cancel = 2
+```
+
+```csharp
+MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Pause = 4
+```
+
+```csharp
+MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Resume = 5
 ```
 
 ```csharp
@@ -14171,6 +14183,12 @@ public MNN.Samples.SiriAI.Harnesses.HarnessTask[] MNN.Samples.SiriAI.Harnesses.P
 ```
 
 ```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Pause(string taskId, string ownerId)
+```
+
+Hold only work that has not started. Never cancel and replay an executing side effect.
+
+```csharp
 public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.ReleaseResult(string taskId, string ownerId, string leaseId)
 ```
 
@@ -14179,7 +14197,17 @@ public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RenewResult(strin
 ```
 
 ```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RequestCancel(string taskId, string ownerId)
+```
+
+Admit cancellation without occupying a foreground turn until the backend exits.
+
+```csharp
 public System.Threading.Tasks.Task MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RespondAsync(string taskId, string ownerId, string requestId, string reply, bool allow, System.Threading.CancellationToken cancellation, MNN.Samples.SiriAI.Harnesses.HarnessInputAction inputAction = MNN.Samples.SiriAI.Harnesses.HarnessInputAction.Answer)
+```
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Resume(string taskId, string ownerId)
 ```
 
 ```csharp
@@ -14263,6 +14291,10 @@ public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessNativeHis
 ```
 
 ```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.PauseAsync(string taskId, System.Threading.CancellationToken cancellation)
+```
+
+```csharp
 public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessReadiness> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ProbeReadinessAsync(string harnessId, string workspaceKey, System.Threading.CancellationToken cancellation)
 ```
 
@@ -14275,7 +14307,15 @@ public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN
 ```
 
 ```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RequestCancelAsync(string taskId, System.Threading.CancellationToken cancellation)
+```
+
+```csharp
 public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RespondAsync(string taskId, MNN.Samples.SiriAI.Harnesses.TaskControlRequest request, System.Threading.CancellationToken cancellation)
+```
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ResumeAsync(string taskId, System.Threading.CancellationToken cancellation)
 ```
 
 ```csharp
@@ -15905,6 +15945,12 @@ One image and/or audio file plus text. Native speech output is currently unavail
 ```csharp
 public System.Threading.Tasks.Task<MNN.Unity.MNNMultimodalResult> MNN.Unity.MNNLlm.GenerateMultimodalAsync(string prompt, string imagePath = null, string audioPath = null, int maxNewTokens = 128, bool generateSpeech = false, int maxAudioTokens = 256)
 ```
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Unity.MNNLlmResult> MNN.Unity.MNNLlm.GenerateStreamingAsync(string prompt, System.Action<MNN.Unity.MNNGenerationDelta> onDelta, int maxNewTokens = 128, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+Generates independent text with complete UTF-8 deltas. WebGL uses Unity frame continuations between native calls; other platforms use a worker. Cancellation cannot interrupt one native call. WebGL model loading remains synchronous.
 
 ```csharp
 public static MNN.Unity.MNNLlm MNN.Unity.MNNLlm.Load(string modelDirectory, MNN.Unity.MNNLlmPerformanceOptions performance, bool enableThinking = false, string cacheDirectory = null)

@@ -3,6 +3,13 @@
 Notable package changes are recorded here using [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 The package version is 3.6.2.
 
+## WebGL text integration — 2026-11-15
+
+- Integrate the verified single-thread wasm32 core/text ABI and generic SIMD archive without new C++/custom exports.
+- Yield between complete-prompt text inference calls; preserve cancellation recovery and request ownership.
+- Retain full MiniMind KV finite validation with a pinned managed scan and cached endpoint; reduce the measured long-input first callback14.24→3.07s and wall16.44→3.38s.
+- Refresh English/Chinese READMEs and platform evidence, retaining Windows x64 Mono/IL2CPP CPU/OpenCL support. WebGL loading stalls, latency tradeoffs and unverified capabilities remain explicit.
+
 ## [3.6.2] - 2026-11-01
 
 - Updated the bundled official MNN native libraries and compiler ABI contract to upstream tag 3.6.2.

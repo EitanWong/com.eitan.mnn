@@ -3,7 +3,7 @@
 独立 Host 实现在 `Tools~/HarnessHost`；Unity 与移动应用通过包的 `RemoteTaskClient`、
 `SubmitTaskRequest`、`SubmissionJournal` 和持久任务 API 使用它，无需 A2A SDK 或原生扩展。
 
-### A2A 用户上下文复用
+## A2A 用户上下文复用
 
 A2A Harness 配置可选 `ReuseContext: true`，默认 `false`。同一配置中的同一认证 `OwnerId`
 复用远端返回的 opaque Context ID，每次新工作仍创建新 Task，不发送旧 Task ID。其他用户和其他

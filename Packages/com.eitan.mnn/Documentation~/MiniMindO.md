@@ -128,7 +128,6 @@ ModelScope export without separate ASR/TTS. The separate `minimind-o` settings p
 preserves existing default preferences. The runtime provider retains completed text
 turns within the context bound; previous untranscribed audio is explicitly marked.
 
-
 ### Current Mac acceleration result
 
 The SiriAI preset keeps four CPU threads, Low precision/Low memory, and the existing
@@ -156,7 +155,6 @@ SiriAI acceptance feeds generated speech PCM through the same capture interface,
 loads the real Silero/SmartTurn models, renders the model's 24 kHz PCM and completes
 a second audio turn. It does not test a physical microphone, speaker or acoustic echo.
 
-
 ### Omni End-to-End endpointing and latency
 
 After `minimind-o`, apply the checked `omni-turns` migration to its exact baseline.
@@ -182,3 +180,13 @@ half-duplex echo suppression. A physical speakerphone additionally needs verifie
 AEC, double-talk handling and interruption/recovery. Genuine model-native Full-duplex
 requires a model and provider with a continuous input/output session contract;
 conversion, naming and shorter silence thresholds cannot supply that capability.
+
+## WebGL text scope (2026-11-15)
+
+The experimental single-thread wasm32 text path and complete-prompt MiniMind replay
+are documented in [WebGLInterop](WebGLInterop.md). The retained managed finite scan
+preserves every-element NaN/infinity rejection; the measured119-token MiniMind input
+improves from14.24s to3.07s first callback and16.44s to3.38s wall. The pre-split
+first callback was2.20s, so this remains a measured latency/responsiveness tradeoff.
+Loading and each native call remain synchronous. This does not extend media/speech,
+GPU, Worker, other-browser or50ms claims. The512-token prompt-plus-budget limit remains.

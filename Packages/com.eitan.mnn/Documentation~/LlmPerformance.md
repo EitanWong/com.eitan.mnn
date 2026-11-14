@@ -498,3 +498,13 @@ Android 使用 `--adb-serial` 和设备上现有 `config.json` 路径，仅临�
 此前 180 秒会在长测试期间断开 Editor，使 Unity Test Framework 1.1.33 的结果发送队列忙等。
 Android 采样已将这一问题定位到 `SendDataRoutine`，完整最终回归使用延长超时后的新构建，
 中断运行不计作完整测试通过。
+
+## WebGL text scope (2026-11-15)
+
+The experimental single-thread wasm32 text path and complete-prompt MiniMind replay
+are documented in [WebGLInterop](WebGLInterop.md). The retained managed finite scan
+preserves every-element NaN/infinity rejection; the measured119-token MiniMind input
+improves from14.24s to3.07s first callback and16.44s to3.38s wall. The pre-split
+first callback was2.20s, so this remains a measured latency/responsiveness tradeoff.
+Loading and each native call remain synchronous. This does not extend media/speech,
+GPU, Worker, other-browser or50ms claims. The512-token prompt-plus-budget limit remains.

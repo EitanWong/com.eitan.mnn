@@ -18218,7 +18218,7 @@
     "Domain": "Inference",
     "Id": "T:MNN.Unity.MNNModelLoading",
     "Signature": "class MNN.Unity.MNNModelLoading",
-    "Summary": "Loads managed MNN models away from Unity\u0027s render thread."
+    "Summary": "Loads managed MNN models on a worker, or after yielding one Unity frame on single-thread WebGL. WebGL native loading still blocks that frame."
   },
   {
     "Assembly": "MNN.Unity",
@@ -19217,6 +19217,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Paused",
+    "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Paused = 7",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Queued",
     "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Queued = 0",
     "Summary": ""
@@ -19233,6 +19240,20 @@
     "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Cancel",
     "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Cancel = 2",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Pause",
+    "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Pause = 4",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Resume",
+    "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Resume = 5",
     "Summary": ""
   },
   {
@@ -22752,6 +22773,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Pause(System.String,System.String)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Pause(string taskId, string ownerId)",
+    "Summary": "Hold only work that has not started. Never cancel and replay an executing side effect."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.ReleaseResult(System.String,System.String,System.String)",
     "Signature": "public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.ReleaseResult(string taskId, string ownerId, string leaseId)",
     "Summary": ""
@@ -22766,8 +22794,22 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RequestCancel(System.String,System.String)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RequestCancel(string taskId, string ownerId)",
+    "Summary": "Admit cancellation without occupying a foreground turn until the backend exits."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RespondAsync(System.String,System.String,System.String,System.String,System.Boolean,System.Threading.CancellationToken,MNN.Samples.SiriAI.Harnesses.HarnessInputAction)",
     "Signature": "public System.Threading.Tasks.Task MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RespondAsync(string taskId, string ownerId, string requestId, string reply, bool allow, System.Threading.CancellationToken cancellation, MNN.Samples.SiriAI.Harnesses.HarnessInputAction inputAction = MNN.Samples.SiriAI.Harnesses.HarnessInputAction.Answer)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Resume(System.String,System.String)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Resume(string taskId, string ownerId)",
     "Summary": ""
   },
   {
@@ -22913,6 +22955,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.PauseAsync(System.String,System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.PauseAsync(string taskId, System.Threading.CancellationToken cancellation)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ProbeReadinessAsync(System.String,System.String,System.Threading.CancellationToken)",
     "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessReadiness\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ProbeReadinessAsync(string harnessId, string workspaceKey, System.Threading.CancellationToken cancellation)",
     "Summary": ""
@@ -22934,8 +22983,22 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RequestCancelAsync(System.String,System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RequestCancelAsync(string taskId, System.Threading.CancellationToken cancellation)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RespondAsync(System.String,MNN.Samples.SiriAI.Harnesses.TaskControlRequest,System.Threading.CancellationToken)",
     "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RespondAsync(string taskId, MNN.Samples.SiriAI.Harnesses.TaskControlRequest request, System.Threading.CancellationToken cancellation)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ResumeAsync(System.String,System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ResumeAsync(string taskId, System.Threading.CancellationToken cancellation)",
     "Summary": ""
   },
   {
@@ -25667,6 +25730,13 @@
     "Id": "M:MNN.Unity.MNNLlm.GenerateMultimodalAsync(System.String,System.String,System.String,System.Int32,System.Boolean,System.Int32)",
     "Signature": "public System.Threading.Tasks.Task\u003CMNN.Unity.MNNMultimodalResult\u003E MNN.Unity.MNNLlm.GenerateMultimodalAsync(string prompt, string imagePath = null, string audioPath = null, int maxNewTokens = 128, bool generateSpeech = false, int maxAudioTokens = 256)",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNLlm.GenerateStreamingAsync(System.String,System.Action{MNN.Unity.MNNGenerationDelta},System.Int32,System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Unity.MNNLlmResult\u003E MNN.Unity.MNNLlm.GenerateStreamingAsync(string prompt, System.Action\u003CMNN.Unity.MNNGenerationDelta\u003E onDelta, int maxNewTokens = 128, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": "Generates independent text with complete UTF-8 deltas. WebGL uses Unity frame continuations between native calls; other platforms use a worker. Cancellation cannot interrupt one native call. WebGL model loading remains synchronous."
   },
   {
     "Assembly": "MNN.Unity",

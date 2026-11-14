@@ -17,7 +17,7 @@ Android ARM64 IL2CPP 的官方库启用 OpenCL、Vulkan、NNAPI 与 ARMv8.2 FP16
 [移动端说明](MobileInterop.md)。Windows/Linux x64 Mono 的核心、Express、LLM、检索和媒体输入
 使用独立 GNU ABI。Windows x64 Mono/IL2CPP Player 各通过 157 项 CPU 回归，
 Linux Unity Player 尚待验证；见[Windows Player](WindowsPlayer.md)与[桌面 Mono](DesktopMono.md)。
-WebGL、macOS/Linux IL2CPP 和 Windows/Linux ARM64 在原生调用前拒绝。
+macOS/Linux IL2CPP 和 Windows/Linux ARM64 在原生调用前拒绝。WebGL 仅有[固定 wasm32 CPU 文本范围](WebGLInterop.md)，不继承桌面 GPU/任务验收。
 后端枚举不是平台支持承诺，NN runtime 可用也不等同于 NPU 硬件放置证明。
 
 ## 使用与诊断

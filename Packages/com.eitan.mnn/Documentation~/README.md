@@ -1,7 +1,7 @@
 # Documentation
 
 Start with the [package README](../README.md) for installation and the supported
-desktop Mono core, Express, LLM and retrieval ABIs and the separate mobile ABI.
+desktop Mono/Windows IL2CPP contracts, separate mobile ABI, and experimental WebGL text scope.
 This is a project-maintained compiler-specific C# binding, not an
 official portable MNN C# SDK. Existing plugin files and task entries do not imply
 that every platform or model pipeline is implemented.
@@ -24,6 +24,7 @@ that every platform or model pipeline is implemented.
 - [LLM 性能配置与验证](LlmPerformance.md): 编译优化、逐设备调优、流式开销、缓存与实测限制。
 - [Unity components and menus](Components.md): responsibilities, Add Component and Hierarchy commands.
 - [Desktop Mono](DesktopMono.md): macOS/Windows/Linux core, Express, LLM and retrieval contracts, setup and observed evidence.
+- [Experimental WebGL text inference](WebGLInterop.md): pinned wasm32 ABI, async text APIs, build flags, measurements and limits.
 - [Android/iOS direct C++ inference](MobileInterop.md): ARM64 IL2CPP contracts, builds and limitations.
 - [API reference](API.md): public C# API and inference workflow.
 - [Project structure and conventions](ProjectStructure.md): directory ownership, assemblies and maintenance checks.

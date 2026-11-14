@@ -2,6 +2,11 @@
 
 统一分层、权限和调用约定见[统一 API 层](PublicApiLayer.md)；类型、重载和参数的源码清单见[公共 API 参考](PublicAPI.md)。
 
+WebGL wasm32 IL2CPP 的固定 Unity2021.3.45f2/Emscripten2.0.19 契约已实测核心张量与四模型文本推理，
+不代表完整包支持。异步加载仍同步执行工厂；文本异步 API 在原生调用之间让出 Unity 帧，
+取消不能中断当前原生调用，且请求完成前拒绝重用/释放模型。构建、媒体/语音限制、测量和
+所有权规则见 [WebGLInterop](WebGLInterop.md)。
+
 ## Overview
 
 本文档介绍 MNN Unity Package 的 C# API。当前接口直接调用官方 C++ API，

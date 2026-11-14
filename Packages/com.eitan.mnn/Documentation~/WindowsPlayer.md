@@ -4,7 +4,7 @@ Windows Player 使用随包 MNN 3.6.2 GNU DLL，直接调用官方 C++ 符号。
 限定 MinGW-w64 GCC 16.2.0、libstdc++ C++11、Microsoft x64 调用约定，
 并非官方可移植 C# SDK；不能替换为同版本 MSVC DLL。没有新增 C++、桥接库、
 自定义 C 导出或修改 MNN 官方源码。详细契约见[原生构建](../Native~/README.Windows.md)。
-Windows ARM64、macOS/Linux IL2CPP 与 WebGL 仍不受支持。
+Windows ARM64 与 macOS/Linux IL2CPP 仍不受支持；WebGL 使用独立的[实验性文本契约](WebGLInterop.md)。
 
 ## 实机回归
 

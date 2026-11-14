@@ -1,144 +1,111 @@
 # MNN for Unity
 
-开发者从[统一 API 层](Documentation~/PublicApiLayer.md)选择任务入口；完整签名见[生成的公共 API 参考](Documentation~/PublicAPI.md)。
+Unity APIs and editor tools for [MNN](https://github.com/alibaba/MNN) 3.6.2:
+tensor inference, language and multimodal models, retrieval, speech and image
+generation, Model Manager, and Chat Studio. Requires Unity 2021.3 or later;
+the tested Unity version is **2021.3.45f2**.
 
-Unity APIs and editor tools for MNN 3.6.2 inference, language and multimodal models,
-retrieval, speech synthesis and image generation. Requires Unity 2021.3 or later;
-the verified Unity version is 2021.3.45f2.
+[简体中文](Documentation~/translations/README.zh-CN.md) · [Documentation](Documentation~/README.md) · [Changelog](CHANGELOG.md)
 
-## Support and ABI
+## Platform support
 
-C# P/Invoke calls official C++ symbols in the bundled libraries, without additional
-C++ sources, custom C exports or a companion bridge. **Core inference, Express, LLM and native retrieval
-support desktop Mono on macOS ARM64/x64, Windows x64 and Linux x64.** Each target
-uses its own pinned compiler ABI; see [desktop Mono](Documentation~/DesktopMono.md)
-for the binaries, system requirements and evidence. Windows x64 also supports
-[IL2CPP Players](Documentation~/WindowsPlayer.md) under the same pinned GNU ABI.
+The table distinguishes implemented bindings from recorded runtime evidence.
+`MNNPlatformSupport.IsSupported` checks the implemented ABI; it does not certify
+a model, GPU, device, browser, or deployment configuration.
 
-| Desktop target | Implemented native binding | Current execution evidence |
+| Platform / runtime | Backend and task scope | Recorded validation and limits |
 | --- | --- | --- |
-| macOS 11+ ARM64/x64 | Core, Express, LLM, retrieval and media input; Apple clang / libc++ ABI v1 | Unity Mono Players: 120/120 selected core/platform/Express tests per architecture; x64 uses Rosetta |
-| Windows 10+ x64 / UCRT | Same task bindings; MinGW-w64 GCC 16.2; Mono and IL2CPP | Windows 11 Unity Players: 157/157 selected LLM/core/Express/platform tests per backend, no failures or skips |
-| Linux x64 | Same task bindings; GCC 13.3 | Host Mono in an amd64 Linux container: 79 task and 22 core assertions |
+| macOS 11+ ARM64, Mono Editor/Player | Core, Express, text/chat/streaming LLM, retrieval and media input; CPU/Metal by task | Selected Unity Player core/platform/Express tests: 120/120. Model pipelines have separate evidence. |
+| macOS 11+ x64, Mono | Same compiler-specific task bindings | 120/120 selected Player tests under Rosetta; physical Intel hardware unverified. |
+| Windows 10+ x64/UCRT, Mono and IL2CPP | Core, Express, LLM, retrieval and media input; bundled CPU/OpenCL library | Windows 11 / i7-10700F / RTX 3060: 157/157 selected tests per Player backend, including CPU and Auto. Other GPUs and pipelines need validation. |
+| Linux x64, Mono | Core, Express, LLM, retrieval and media input; CPU | Container host Mono: 79 task and 22 core assertions. Linux Unity Player remains unverified. Requires GLIBC 2.38+ and GLIBCXX_3.4.32. |
+| Android ARM64, IL2CPP | Core and LLM/media input; CPU, task-specific optional acceleration | Device/model results are scoped in the mobile guide. Updated Express/retrieval bindings have compilation/symbol checks, with device inference pending. |
+| iOS 15+ ARM64, IL2CPP | Core and LLM/media input; CPU/Metal | Recorded iPhone 17 model checks; updated Express/retrieval device inference remains pending. Simulator symbol checks are not device validation. |
+| WebGL wasm32, IL2CPP — experimental | CPU, one thread, Wasm SIMD; core tensor inference and four text-model adapters | Unity 2021.3.45f2 / Emscripten 2.0.19 / Chrome 157 only. Pocket 0.3B, Qwen2.5-0.5B, Qwen3-0.6B and MiniMind-O text generation verified. No Worker/thread, WebGPU, media, speech or Express certification. |
+| macOS/Linux IL2CPP; Windows/Linux ARM64; Android ARMv7; other ABIs | No implemented inference contract | Rejected before inference. Bundled plugin files alone do not establish support. |
 
-Windows/Linux checks include real CPU Express, text/chat/streaming LLM, embedding,
-reranking and Omni image input. Windows enables CPU/OpenCL and Linux remains CPU-only; the
-Linux Unity Player and other individual model pipelines still need validation. Waveform
-callbacks remain unavailable. Linux requires GLIBC 2.38+ and a
-libstdc++.so.6 providing GLIBCXX_3.4.32. Windows path handling follows the bundled
-MNN FileLoader's ANSI code page and available DOS short paths; see the desktop guide.
-This is a project-maintained compiler-specific binding, not an official portable
-MNN C# SDK. An arbitrary same-version MNN library is not interchangeable with the
-bundled build.
+See [desktop Mono](Documentation~/DesktopMono.md), [Windows Players](Documentation~/WindowsPlayer.md),
+[mobile ABI](Documentation~/MobileInterop.md), [WebGL contract](Documentation~/WebGLInterop.md),
+and [test evidence](Documentation~/Testing.md) for the exact compiler, model and hardware scope.
+Android uses NDK r25c; iOS uses the pinned Apple libc++ contract; Windows uses
+MinGW-w64 GCC 16.2/libstdc++ and the bundled DLL, including for IL2CPP.
 
-Interpreter/Session/Tensor and LLM text/chat/streaming/media input also have
-**Android ARM64 IL2CPP (NDK r25c)** and **iOS 15+ ARM64 IL2CPP (Xcode 27.2)** bindings;
-see [mobile ABI](Documentation~/MobileInterop.md). Metal model checks cover macOS
-ARM64 Mono and iPhone 17 IL2CPP. Four actual mobile LLM/VLM/audio models pass CPU
-checks on Android/iPhone and Metal checks on iPhone in the 2026-10-24 snapshot.
-Updated mobile Express/retrieval paths have passed compilation and symbol audits,
-with device inference still pending. Physical Intel Mac hardware has not been
-verified; the current macOS x64 Rosetta Player checks include CPU and Auto/Metal
-affine inference. Waveform callbacks are unavailable on all platforms; native
-Omni speech-output requests fail before execution. Independent graph-based TTS
-pipelines retain their model-specific validation scope. Windows/Linux ARM64,
-WebGL and macOS/Linux IL2CPP reject inference
-before native calls. Current validation limits are recorded in the
-[test evidence](Documentation~/Testing.md). CoreML/NPU support is not claimed.
+C# calls official C++ symbols directly under project-maintained compiler/STL ABI
+contracts. There is no added C++ bridge or custom C export. This is **not an
+official portable MNN C# SDK**: an arbitrary same-version native library is not
+interchangeable with the bundled build. Native Omni waveform callbacks remain
+unavailable; independent graph-based TTS pipelines retain their own model/platform
+validation. CoreML/NPU and every-model GPU support are not claimed.
 
 ## Install
 
 In Unity Package Manager, select **Add package from git URL**:
 
 ```text
-https://github.com/EitanWong/com.eitan.mnn.git?path=/Packages/com.eitan.mnn#dev
+https://github.com/EitanWong/com.eitan.mnn.git?path=/Packages/com.eitan.mnn#main
 ```
 
-The repository contains a development project, so the package subdirectory is
-required. Use `#main` for merged code or an existing commit SHA for a reproducible
-installation. The old `upm` branch does not contain this development snapshot.
+Use `#dev` for the development branch or a commit SHA for a reproducible install.
+The package subdirectory is required; the old `upm` branch is not this snapshot.
+Model weights are obtained separately under their own licenses.
 
-## Check the native library
+Import **Basic Inference** from the package Samples tab. Check
+`MNNPlatformSupport.UnsupportedReason` and `MNNVersion.IsLoaded()` before loading a
+compatible model; library availability is not a model correctness check.
 
-```csharp
-using MNN.Unity;
-using UnityEngine;
+## Text generation and WebGL
 
-public class MNNExample : MonoBehaviour
-{
-    private void Start()
-    {
-        if (!MNNPlatformSupport.IsSupported)
-        {
-            Debug.LogError(MNNPlatformSupport.UnsupportedReason);
-            return;
-        }
+Use the [unified API guide](Documentation~/PublicApiLayer.md) to choose a task and the
+[generated API reference](Documentation~/PublicAPI.md) for signatures. Text applications can
+load through `MNNModelLoading.LoadAsync` and await `GenerateAsync` or
+`GenerateStreamingAsync`; conversation async APIs share the text path.
 
-        if (MNNVersion.IsLoaded())
-            Debug.Log($"MNN Version: {MNNVersion.GetVersion()}");
-        else
-            Debug.LogError("MNN failed to load");
-    }
-}
-```
+WebGL calls must originate on Unity's main-thread synchronization context.
+Async generation yields **between synchronous native calls**; it does not create
+a worker or interrupt an in-progress native call. Await or cancel a request before
+reusing or disposing its model. Loading still blocks after its initial yield.
+Stage complete model exports into the browser memory filesystem and apply the
+[required WebGL linker flags](Documentation~/WebGLInterop.md#unity-build-settings).
 
-This checks availability, not model correctness. Import **Basic Inference** from
-Package Manager for graph/tensor examples, then supply a compatible local model.
+For MiniMind-O text-only async generation (`GenerateSpeech=false`), the existing
+prefill/decode graphs consume the complete prompt before sampling. The existing
+512-token prompt-plus-budget limit remains. The full KV output is still checked
+for NaN/infinity; a pinned managed scan removes the measured validation bottleneck.
+
+On the recorded 119-prompt-token input, unchanged models/quantization and 16-token
+budget, MiniMind's first text callback improved from 14.24 s to **3.07 s** and
+wall from 16.44 s to **3.38 s**; the maximum generation frame gap was **162.5 ms**.
+The pre-split reference was 2.20 s first callback / 4.40 s wall / 2175.1 ms frame gap:
+first response still trades off against responsiveness. Loading remained about
+679 ms. These observations do **not** establish a 50 ms frame bound, stable RSS
+reduction, hardware-presented TTFT, other-browser support, or universal acceleration.
+Synchronous `Generate` still uses full prefill and can block the main thread.
+A fresh integrated-package Chrome check recorded 2.92 s first callback / 3.22 s
+wall, with the same text and token count; the detailed guide retains both runs.
 
 ## Models and editor tools
 
-Open **Window > MNN > Model Manager** to browse the public ModelScope MNN catalog
-and download complete repositories with configuration, tokenizer and external
-weights. Downloads support background work, pause/resume and parallel transfers.
-Use `Assets/StreamingAssets/MNN/Models` for models included in an application build
-and `Application.persistentDataPath/MNN/Models` for runtime downloads.
+- **Window > MNN > Model Manager** browses the shared model catalog and installs
+  complete ModelScope exports with configuration, tokenizers and external weights.
+  Runtime applications use `MNNModelCatalog` and `MNNModelDownloader`.
+- **Window > MNN > Chat Studio** provides conversations, model tasks, image/WAV
+  input, embeddings and reranking. Individual tasks have their own validation scope.
+- Store build-time models under `Assets/StreamingAssets/MNN/Models`; runtime
+  downloads use `Application.persistentDataPath/MNN/Models`. Browser staging and
+  memory limits are separate concerns.
+- Model weights, conversations, caches, generated media and test logs are excluded
+  from Git. Tests reuse local fixtures and do not automatically download models.
 
-Upper layers can query and acquire models through the runtime `MNNModelCatalog`
-and `MNNModelDownloader` APIs, including progress, cancellation and resumable transfers.
-See [model acquisition API](Documentation~/ModelAcquisition.md) for examples.
-Use the offline `MNNModelRecommendation` API to rank runnable exports and plan shared
-LLM/ASR/TTS memory budgets from hardware and workload metadata. See
-[model recommendations](Documentation~/ModelRecommendations.md) for formulas, calibration and estimation limits.
+See [model acquisition](Documentation~/ModelAcquisition.md), [model recommendations](Documentation~/ModelRecommendations.md),
+[Chat Studio](Documentation~/ChatStudio.md), [acceleration](Documentation~/Acceleration.md), and
+[project structure](Documentation~/ProjectStructure.md).
 
-Open **Window > MNN > Chat Studio** for streaming conversations, image/WAV inputs,
-search, folders, embeddings and reranking. Its task entries
-include SD 1.5 image generation and Supertonic, Bert-VITS2 Chinese and Piper English
-speech synthesis. Piper requires upstream eSpeak-NG. Sana editing runs, but semantic
-color editing has not met the quality check. Tasks without a dedicated runtime show
-model preparation guidance; full-duplex live audio and Sherpa streaming ASR are not
-implemented. The local CosyVoice-300M pipeline is available through
-`MNNCosyVoice300M` and Studio; see [CosyVoice-300M](Documentation~/CosyVoice300M.md)
-for asset preparation and validation scope. See [Chat Studio](Documentation~/ChatStudio.md)
-for task limits.
+## Development and license
 
-**DTLN AEC 128 / 256 / 512:** search `DTLN`, `AEC` or `回声消除` in Model Manager,
-then open the installed model in Studio's **Echo cancellation (AEC)** task. Supply
-synchronized 16 kHz microphone and playback-reference WAVs. The package includes
-a C# FFT with an optional Burst adapter; no extra DSP library is required. All three
-profiles use CPU/High. See [DTLN AEC](Documentation~/DtlnAec.md) for streaming APIs,
-performance measurements and the verified platform scope.
+Read the [contribution guide](Documentation~/development/Contributing.md) and
+[native ABI/build contracts](Native~/README.md). Tests and source-only checks have
+separate evidence; historical results do not certify every later build.
 
-Auto acceleration prefers available Metal with task-specific CPU compatibility.
-Embedding, Piper, Sana and the Bert-VITS2 generator use CPU. Backend reports are
-not evidence that every operator runs on the GPU.
-
-Model weights, local conversation history, caches, generated media and test logs
-are excluded from source control. Tests do not automatically download large models.
-
-## Documentation
-
-- [Harness background tasks and application integration](Documentation~/Harness.md)
-- [Documentation index](Documentation~/README.md)
-- [Desktop Mono contracts and evidence](Documentation~/DesktopMono.md)
-- [API reference](Documentation~/API.md)
-- [Reusable AI application architecture](Documentation~/ConversationApplicationArchitecture.md)
-- [DTLN AEC and optional Burst FFT](Documentation~/DtlnAec.md)
-- [Acceleration and fallback](Documentation~/Acceleration.md)
-- [Inference evidence and reproduction](Documentation~/Testing.md)
-- [Native build and ABI assumptions](Native~/README.md)
-- [Project structure and conventions](Documentation~/ProjectStructure.md)
-- [Repository maintenance and ignored files](Documentation~/RepositoryManagement.md)
-- [Basic example](Samples~/BasicExample/README.md)
-- [Changelog](CHANGELOG.md)
-
-Licensed under [Apache License 2.0](LICENSE.md).
+Report reproducible issues on [GitHub Issues](https://github.com/EitanWong/com.eitan.mnn/issues).
+Use the [security policy](Documentation~/community/Security.md) for vulnerabilities.
+Licensed under [Apache License 2.0](LICENSE.md); model and optional-tool licenses remain separate.

@@ -550,6 +550,19 @@
         "missing": [],
         "custom_exports": []
       }
+    },
+    {
+      "path": "Runtime/Plugins/WebGL/libMNN.a",
+      "sha256": "163e6f4fd1e1c8c9732baf31bb3fd1db39b6657dcea1b9de9d37065bce7dfa12",
+      "format": "static archive of wasm32 objects",
+      "architectures": [
+        "wasm32"
+      ],
+      "abi": "Unity2021.3.45f2 / Emscripten2.0.19 / IL2CPP wasm32 little endian / libc++ std::__2",
+      "backend": "CPU single-thread generic Wasm SIMD; MNN_USE_SSE=OFF",
+      "validation_evidence": "Documentation~/WebGLInterop.md",
+      "official_sources_modified": false,
+      "custom_cpp_added": false
     }
   ],
   "validation_evidence": "Documentation~/MNN362Upgrade.md",
@@ -562,7 +575,8 @@
     "Backend compilation does not certify every graph/operator on GPU/NPU.",
     "Waveform callbacks remain unavailable; x64 conversation cache uses independent full prefill.",
     "Windows x64 Mono/IL2CPP Players each pass157 selected CPU/OpenCL library regressions on Windows11 / i7-10700F / RTX3060. Other Windows GPUs and model pipelines remain unverified.",
-    "Linux task checks use container Mono; its bundled build remains CPU-only."
+    "Linux task checks use container Mono; its bundled build remains CPU-only.",
+    "WebGL is experimental core/text only on pinned Unity2021.3.45f2/Emscripten2.0.19/Chrome157; native calls/loading block, no50ms guarantee, Worker/thread/media/speech/Express unverified."
   ],
   "packaging_only_libraries": [
     {

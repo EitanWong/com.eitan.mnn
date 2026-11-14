@@ -27,8 +27,8 @@ and x64 Players under Rosetta: the current core/platform/Express selection passe
 pass 157 selected two-model LLM/core/Express/platform tests with both the original
 CPU library and the CPU/OpenCL variant; see [Windows evidence](../Documentation~/WindowsPlayer.md).
 Linux C# execution uses host Mono's interpreter in an amd64 Docker container;
-Linux Unity Player validation remains pending. macOS/Linux IL2CPP and WebGL are
-rejected before inference. Metal and model-specific evidence
+Linux Unity Player validation remains pending. macOS/Linux IL2CPP remain rejected before inference. Experimental WebGL wasm32
+CPU tensor/text support has a separate [pinned compiler contract](../Documentation~/WebGLInterop.md). Metal and model-specific evidence
 is recorded in [acceleration](../Documentation~/Acceleration.md) and
 [test evidence](../Documentation~/Testing.md). CoreML/NPU support is not claimed.
 
@@ -175,3 +175,12 @@ Unity metadata. This does not certify graph compatibility or NPU placement.
 iOS ARM82 and SME2 are now enabled by default after CPU/Metal device validation.
 `--no-ios-arm82` and `--no-ios-sme2` build diagnostic alternatives; these are not
 claims that every Apple CPU executes SME2. Android keeps SME2 off with NDK r25c.
+
+
+### Experimental WebGL wasm32
+
+Use the bundled CPU/single-thread Wasm SIMD archive and exact linker settings in
+[WebGLInterop](../Documentation~/WebGLInterop.md). Its official C++ calls are limited
+to Unity2021.3.45f2/Emscripten2.0.19/libc++ std::__2/IL2CPP wasm32. No bridge, custom
+C ABI exports, new C++ source or official source changes were added. Do not infer
+pthread, Worker, WebGPU, media/speech or portable C# support from this archive.
