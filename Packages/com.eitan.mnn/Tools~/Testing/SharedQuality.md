@@ -2,7 +2,7 @@
 
 `run_shared_managed_tests.py` creates a private package-only Unity project and runs
 the complete offline scope of `MNN.Unity.Tests`: every local Editor test,
-including its native inference tests, and all local explicit tests. Its seven
+including its native inference tests, and all local explicit tests. Its eight
 external network tests have a separate scope. There is no user case/category
 filter option. SiriAI, EasyMic and APM are absent. The separate native/model integration
 assembly and Player inference assembly remain the responsibility of
@@ -36,9 +36,9 @@ they do not perform native inference. Missing assets remain visible failures.
 The result gate rejects nonzero exits, missing XML, inconsistent counters, empty
 runs, unexpected assemblies, incomplete scope discovery counts, failed cases,
 unexpected skips and inconclusive cases. It requires the migration's main
-fixtures to execute. Unity retains the seven unselected network methods as XML
+fixtures to execute. Unity retains the eight unselected network methods as XML
 leaves. The complete assembly discovery count must equal all reported leaves;
-each of those seven names must be present with result `Skipped`, label `Explicit`
+each of those eight names must be present with result `Skipped`, label `Explicit`
 and runstate `Explicit`. The report lists them as `not_selected_network_cases`.
 An executed network case, a different skip state or a missing declared name
 blocks the offline gate. Their full names and source category declarations are pinned. New network classifications
@@ -58,14 +58,16 @@ Unity Test Framework 1.1.33 constructs its assembly selection using NUnit
 `AssemblyNameFilter`, which matches each leaf and explicitly selects all local
 `[Explicit]` methods. An ordinary negative category filter stops explicit
 selection for local methods too. The offline runner therefore uses one fixed
-positive full-name expression that matches every name except the seven exact
-network names. It keeps all 15 existing local explicit methods, including the
+positive full-name expression that matches every name except the eight exact
+network names. It keeps the MiniMind-o local catalog fixture and all 15 existing
+local explicit methods, including the
 five native speech methods, six Studio LLM methods, two Studio timing methods,
 catalog-cache benchmark and local catalog classification audit. This contract
 was checked against the installed NUnit runner. No local explicit method may
 remain unselected or ignored.
 
-The seven `[Category("RequiresNetwork")]` methods are two live model-hub catalog
+The eight `[Category("RequiresNetwork")]` methods include the published MiniMind-o
+download/native-inference check, two live model-hub catalog
 audits, one real CDN file transfer and four complete ModelScope LLM transfers.
 Their original assertions remain intact. Run their independent scope only when
 live external discovery and downloads are intended:
@@ -77,7 +79,7 @@ python3 -B Packages/com.eitan.mnn/Tools~/Testing/run_shared_managed_tests.py \
 ```
 
 This scope positively selects the declared network category and requires exactly
-those seven cases in its result. Its four model-download destinations are
+those eight cases in its result. Its five model-download destinations are
 private paths under the isolated project's `TestArtifacts~/NetworkDownloads`.
 It never changes the existing local-inference model inputs into download targets.
 The offline scope reuses existing deployed assets and does not run these transfers.
