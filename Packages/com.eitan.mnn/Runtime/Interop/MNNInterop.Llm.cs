@@ -1,7 +1,7 @@
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN && !UNITY_EDITOR) || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR && !ENABLE_IL2CPP))
 #define MNN_DESKTOP_TASK_ABI
 #endif
-#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP)
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN && !UNITY_EDITOR) || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR && !ENABLE_IL2CPP)) || (UNITY_STANDALONE_OSX && !UNITY_EDITOR && !ENABLE_IL2CPP) || ((UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP) || (UNITY_WEBGL && !UNITY_EDITOR && ENABLE_IL2CPP)
 #define MNN_LLM_CPP_ABI
 #endif
 using System;
@@ -21,9 +21,13 @@ namespace MNN.Unity.Interop
         [return: MarshalAs(UnmanagedType.I1)]
         private static extern bool LoadTextModel(IntPtr model);
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        private static bool LoadOmniModel(IntPtr model) => throw new PlatformNotSupportedException("WebGL media models have no verified ABI.");
+#else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer4Omni4loadEv")]
         [return: MarshalAs(UnmanagedType.I1)]
         private static extern bool LoadOmniModel(IntPtr model);
+#endif
 
 #else
         private static bool LoadTextModel(IntPtr model) => throw UnsupportedAbi();
@@ -51,6 +55,8 @@ namespace MNN.Unity.Interop
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKNSt6__ndk16vectorIiNS2_9allocatorIiEEEEb")]
 #elif MNN_DESKTOP_TASK_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKSt6vectorIiSaIiEEb")]
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKNSt3__26vectorIiNS2_9allocatorIiEEEEb")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm7forwardERKNSt3__16vectorIiNS2_9allocatorIiEEEEb")]
 #endif
@@ -63,6 +69,8 @@ namespace MNN.Unity.Interop
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm9createLLMERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #elif MNN_DESKTOP_TASK_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm9createLLMERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")]
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm9createLLMERKNSt3__212basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm9createLLMERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #endif
@@ -75,6 +83,8 @@ namespace MNN.Unity.Interop
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm10set_configERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #elif MNN_DESKTOP_TASK_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm10set_configERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")]
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm10set_configERKNSt3__212basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm10set_configERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #endif
@@ -100,6 +110,8 @@ namespace MNN.Unity.Interop
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS5_EEPKci")]
 #elif MNN_DESKTOP_TASK_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPSoPKci")]
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt3__212basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS5_EEPKci")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm8responseERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS5_EEPKci")]
 #endif
@@ -112,6 +124,8 @@ namespace MNN.Unity.Interop
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm16tokenizer_encodeERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #elif MNN_DESKTOP_TASK_ABI
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm16tokenizer_encodeERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")]
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm16tokenizer_encodeERKNSt3__212basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #else
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZN3MNN11Transformer3Llm16tokenizer_encodeERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE")]
 #endif

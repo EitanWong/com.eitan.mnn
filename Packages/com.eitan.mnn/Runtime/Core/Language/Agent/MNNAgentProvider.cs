@@ -8,7 +8,7 @@ using MNN.Unity;
 namespace MNN.Unity
 {
     /// <summary>One serialized language stage. Owns local/cloud providers and optional transport; tools and policy delegates are borrowed. The caller serializes requests and waits for completion before disposal.</summary>
-    public sealed partial class MNNAgentProvider : IMNNConversationVoiceIntentProvider, IMNNConversationProviderDiagnostics, IMNNConversationResponseProvider
+    public sealed partial class MNNAgentProvider : IMNNConversationVoiceIntentProvider, IMNNConversationProviderDiagnostics, IMNNConversationResponseProvider, IMNNConversationEventProvider, IMNNConversationTextAssistanceProvider
     {
         private readonly IMNNConversationTextProvider _local;
         private readonly MNNAgentOptions _config;
@@ -52,6 +52,28 @@ namespace MNN.Unity
         public Task GenerateResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, string instructions,
             Func<string, Task> delta, CancellationToken token) => GenerateCoreAsync(history, 16000, instructions, delta, token);
 
+        public Task GenerateAssistanceAsync(MNNConversationTextTask task, IReadOnlyList<MNNOpenAIMessage> prompt,
+            Func<string, Task> delta, CancellationToken token)
+        {
+            RequireActive(); token.ThrowIfCancellationRequested();
+            // Auxiliary typing stays on the prepared local model; never plan tools or acquire cloud.
+            return _local is IMNNConversationTextAssistanceProvider assistance
+                ? assistance.GenerateAssistanceAsync(task, prompt, delta, token)
+                : _local.GenerateAsync(prompt, null, 16000, delta, token);
+        }
+
+        public Task GenerateEventResponseAsync(IReadOnlyList<MNNOpenAIMessage> history, MNNConversationEvent input,
+            Func<string, Task> delta, CancellationToken token)
+        {
+            RequireActive();
+            if (input == null) throw new ArgumentNullException(nameof(input));
+            if (delta == null) throw new ArgumentNullException(nameof(delta));
+            token.ThrowIfCancellationRequested();
+            var prompt = input.CreateHistory(history, _config.LocalContextCharacters);
+            SetRoute("Local event response");
+            return _local.GenerateAsync(prompt, null, 16000, value => { token.ThrowIfCancellationRequested(); return delta(value); }, token);
+        }
+
         public Task GenerateAsync(IReadOnlyList<MNNOpenAIMessage> history, float[] audio, int sampleRate,
             Func<string, Task> delta, CancellationToken token)
         {
@@ -60,6 +82,28 @@ namespace MNN.Unity
         }
 
         private async Task GenerateCoreAsync(IReadOnlyList<MNNOpenAIMessage> history, int sampleRate, string instructions,
+            Func<string, Task> delta, CancellationToken token)
+        {
+            _executionId = Guid.NewGuid().ToString("N");
+            RecordExecution(MNNConversationEntryKind.Plan, "Agent started", "Processing the current request.", MNNConversationEntryState.Running);
+            try
+            {
+                await GenerateTracedCoreAsync(history, sampleRate, instructions, delta, token).ConfigureAwait(false);
+                RecordExecution(MNNConversationEntryKind.Plan, "Agent completed", "Response generation completed.");
+            }
+            catch (OperationCanceledException)
+            {
+                RecordExecution(MNNConversationEntryKind.Plan, "Agent cancelled", "Execution was cancelled.", MNNConversationEntryState.Cancelled);
+                throw;
+            }
+            catch (Exception error)
+            {
+                RecordExecution(MNNConversationEntryKind.Error, "Agent failed", error.Message, MNNConversationEntryState.Failed);
+                throw;
+            }
+        }
+
+        private async Task GenerateTracedCoreAsync(IReadOnlyList<MNNOpenAIMessage> history, int sampleRate, string instructions,
             Func<string, Task> delta, CancellationToken token)
         {
             RequireActive();
@@ -75,6 +119,7 @@ namespace MNN.Unity
             }
             var plan = await PlanAsync(history, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
+            RecordExecution(MNNConversationEntryKind.Plan, "Selected action", plan.Route + (plan.Tool == null ? "" : " · " + plan.Tool));
             if (plan.Route == "clarify")
             {
                 SetRoute("Clarify");
@@ -106,14 +151,17 @@ namespace MNN.Unity
         {
             if (!_tools.TryGetValue(plan.Tool ?? "", out var tool))
             { SetRoute("Unavailable tool"); await publish("That operation is not configured. Please choose an available task.").ConfigureAwait(false); return; }
-            if (tool.RequiresNetwork && !_config.AllowCloud) { await DeniedAsync(publish).ConfigureAwait(false); return; }
+            if (tool.RequiresNetwork && !_config.AllowCloud && !(tool is IMNNAgentNetworkPermission permission && permission.CanUseNetwork))
+            { await DeniedAsync(publish).ConfigureAwait(false); return; }
             SetRoute(tool.RequiresNetwork ? "Network tool · " + tool.Name : "Local tool · " + tool.Name);
+            string invocation = RecordExecution(MNNConversationEntryKind.ToolCall, tool.Name, plan.Input, MNNConversationEntryState.Running);
             if (tool is MNNLocalKnowledgeTool knowledge && _config.KnowledgeAnswers)
             {
-                await GenerateKnowledgeAsync(knowledge, plan.Input, instructions, publish, token).ConfigureAwait(false);
+                await GenerateKnowledgeAsync(knowledge, plan.Input, instructions, value =>
+                { RecordExecution(MNNConversationEntryKind.ToolResult, tool.Name, value, parent: invocation); return publish(value); }, token).ConfigureAwait(false);
                 return;
             }
-            string result;
+            string result; bool succeeded = true;
             try
             {
                 result = await tool.ExecuteAsync(plan.Input ?? "", token).ConfigureAwait(false);
@@ -121,7 +169,9 @@ namespace MNN.Unity
                     throw new InvalidOperationException("Tool returned an invalid result.");
             }
             catch (Exception) when (!token.IsCancellationRequested)
-            { result = "The tool could not complete that request. Please check the details or try again."; }
+            { succeeded = false; result = "The tool could not complete that request. Please check the details or try again."; }
+            RecordExecution(MNNConversationEntryKind.ToolResult, tool.Name, result,
+                succeeded ? MNNConversationEntryState.Completed : MNNConversationEntryState.Failed, invocation);
             await publish(result).ConfigureAwait(false);
         }
 

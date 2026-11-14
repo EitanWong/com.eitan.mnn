@@ -80,6 +80,19 @@ class RepositoryValidationTests(unittest.TestCase):
                 self.assertIn(path, result.stdout + result.stderr)
                 self.git("rm", "--cached", "--force", path)
 
+    def test_allows_authored_tool_projects_but_rejects_generated_projects(self):
+        authored = "Packages/com.eitan.mnn/Tools~/HarnessCore/MNN.HarnessCore.csproj"
+        self.write(authored, '<Project Sdk="Microsoft.NET.Sdk"/>\n')
+        self.git("add", authored)
+        result = self.validate()
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        generated = "Packages/com.eitan.mnn/MNN.Unity.csproj"
+        self.write(generated, '<Project/>\n')
+        self.git("add", generated)
+        result = self.validate()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(generated, result.stdout + result.stderr)
+
     def test_rejects_easymic_manifest_dependencies(self):
         for name in ("com.eitan.easymic", "com.eitan.easymic.apm"):
             with self.subTest(name=name):

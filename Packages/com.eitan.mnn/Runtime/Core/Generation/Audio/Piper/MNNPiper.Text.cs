@@ -22,7 +22,7 @@ namespace MNN.Unity
         }
 
         internal static string[] SplitClauses(string text) => Regex.Split(text, @"(?<=[.,;:!?。，；：！？])(?![0-9])");
-        internal static string[] InstalledVoices(string directory)
+        public static string[] InstalledVoices(string directory)
         {
             var config = MNNModelData.Read(Path.Combine(directory, "config.json"));
             string path = (string)MNNModelData.Get(config, "model_path");

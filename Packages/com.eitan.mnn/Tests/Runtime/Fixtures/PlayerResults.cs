@@ -1,4 +1,5 @@
-#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+#if (UNITY_ANDROID || UNITY_IOS || UNITY_STANDALONE_WIN) && !UNITY_EDITOR
+using System;
 using System.IO;
 using NUnit.Framework.Interfaces;
 using UnityEngine;
@@ -14,10 +15,12 @@ namespace MNN.Unity.Tests
     [Preserve]
     public sealed class PlayerResults : ITestRunCallback
     {
-        private static string ResultPath => Path.Combine(Application.persistentDataPath, "mnn-player-results.xml");
+        private static string ResultDirectory => Environment.GetEnvironmentVariable("MNN_PLAYER_RESULTS_DIRECTORY") ?? Application.persistentDataPath;
+        private static string ResultPath => Path.Combine(ResultDirectory, "mnn-player-results.xml");
 
         public void RunStarted(ITest testsToRun)
         {
+            Directory.CreateDirectory(ResultDirectory);
             if (File.Exists(ResultPath))
                 File.Delete(ResultPath);
         }
@@ -32,11 +35,29 @@ namespace MNN.Unity.Tests
             if (File.Exists(ResultPath))
                 File.Delete(ResultPath);
             File.Move(temporary, ResultPath);
-            Debug.Log($"MNN mobile results: passed={testResults.PassCount}, failed={testResults.FailCount}, skipped={testResults.SkipCount}; {ResultPath}");
+            Debug.Log($"MNN Player results: passed={testResults.PassCount}, failed={testResults.FailCount}, skipped={testResults.SkipCount}; {ResultPath}");
+#if UNITY_STANDALONE_WIN
+            if (Environment.GetEnvironmentVariable("MNN_PLAYER_RESULTS_DIRECTORY") != null)
+                Application.Quit(testResults.FailCount == 0 ? 0 : 2);
+#endif
         }
 
-        public void TestStarted(ITest test) { }
-        public void TestFinished(ITestResult result) { }
+        public void TestStarted(ITest test)
+        {
+#if UNITY_STANDALONE_WIN
+            if (!test.IsSuite)
+                File.WriteAllText(Path.Combine(ResultDirectory, "current-test.txt"), test.FullName);
+#endif
+        }
+        public void TestFinished(ITestResult result)
+        {
+#if UNITY_STANDALONE_WIN
+            if (result.Test.IsSuite) return;
+            string directory = Path.Combine(ResultDirectory, "TestCases");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, result.Test.Id + ".xml"), result.ToXml(true).OuterXml);
+#endif
+        }
     }
 }
 #endif

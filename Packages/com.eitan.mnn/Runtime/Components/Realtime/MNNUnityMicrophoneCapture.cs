@@ -16,6 +16,15 @@ namespace MNN.Unity
     {
         internal class MicrophoneApi
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            private static PlatformNotSupportedException Unsupported() => new PlatformNotSupportedException("Unity Microphone capture is unavailable on WebGL.");
+            internal virtual string[] Devices => Array.Empty<string>();
+            internal virtual void GetDeviceCaps(string name, out int minimum, out int maximum) => throw Unsupported();
+            internal virtual AudioClip Start(string name, int seconds, int rate) => throw Unsupported();
+            internal virtual void End(string name) => throw Unsupported();
+            internal virtual int GetPosition(string name) => throw Unsupported();
+            internal virtual bool IsRecording(string name) => false;
+#else
             internal virtual string[] Devices => Microphone.devices;
             internal virtual void GetDeviceCaps(string name, out int minimum, out int maximum) =>
                 Microphone.GetDeviceCaps(name, out minimum, out maximum);
@@ -24,6 +33,7 @@ namespace MNN.Unity
             internal virtual void End(string name) => Microphone.End(name);
             internal virtual int GetPosition(string name) => Microphone.GetPosition(name);
             internal virtual bool IsRecording(string name) => Microphone.IsRecording(name);
+#endif
         }
 
         internal MicrophoneApi Input { get; set; } = new MicrophoneApi();
@@ -212,7 +222,8 @@ namespace MNN.Unity
 
         private void Update() => PollCapture(Time.realtimeSinceStartup, Stopwatch.GetTimestamp());
 
-        internal void PollCapture(float now, long nowTicks)
+        /// <summary>Poll capture on the Unity main thread when driven by an Editor host. Player Update polls automatically.</summary>
+        public void PollCapture(float now, long nowTicks)
         {
             if (!IsWaitingForBuffer && !IsCapturing) return;
             try

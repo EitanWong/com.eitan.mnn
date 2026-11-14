@@ -129,7 +129,7 @@ def write_cmake_inputs(output, tools):
     return toolchain, retention, exports
 
 
-def configure_command(source, output, inputs):
+def configure_command(source, output, inputs, opencl=False):
     toolchain, retention, exports = inputs
     export_path = str(exports).replace("\\", "/")
     options = {
@@ -147,6 +147,8 @@ def configure_command(source, output, inputs):
                 "LLM_SUPPORT_HTTP_RESOURCE", "MNN_OPENCL", "MNN_VULKAN", "MNN_AVX512", "MNN_OPENMP", "MNN_HIDDEN")
     options.update({name: "ON" for name in enabled})
     options.update({name: "OFF" for name in disabled})
+    if opencl:
+        options["MNN_OPENCL"] = "ON"
     return ["cmake", "-G", "Ninja", "-S", str(source), "-B", str(output / "build")] + [
         f"-D{name}={value}" for name, value in options.items()
     ]
@@ -173,6 +175,7 @@ def main():
     parser.add_argument("--output", type=Path, default=Path.cwd() / "TestArtifacts~/WindowsMNN")
     parser.add_argument("--toolchain-prefix", default="x86_64-w64-mingw32-")
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
+    parser.add_argument("--opencl", action="store_true", help="Enable the official OpenCL backend; validate actual device inference before deployment.")
     parser.add_argument("--install", action="store_true", help="Install the audited DLL into this package")
     args = parser.parse_args()
     source, output = args.source.resolve(), args.output.resolve()
@@ -184,7 +187,7 @@ def main():
     tools = compiler_tools(args.toolchain_prefix)
     output.mkdir(parents=True, exist_ok=True)
     write_json(output / "source-baseline.json", before)
-    command = configure_command(source, output, write_cmake_inputs(output, tools))
+    command = configure_command(source, output, write_cmake_inputs(output, tools), args.opencl)
     run_logged(output, "configure-reproducible", command)
     run_logged(output, "build-reproducible", ["cmake", "--build", str(output / "build"), "--target", "MNN", "-j", str(args.jobs)])
     dll = output / "build/libMNN.dll"
@@ -194,7 +197,7 @@ def main():
         raise RuntimeError("Official source identity changed during the build")
     manifest = {"source": before, "compiler": capture([tools["g++"], "--version"]),
                 "target": "Windows x86_64 GNU Itanium names / Microsoft x64 calling convention / libstdc++ C++11 ABI",
-                "binary": {"path": str(dll), **audit}, "installed_path": None}
+                "binary": {"path": str(dll), **audit}, "installed_path": None, "opencl_enabled": args.opencl}
     if args.install:
         target = Path(__file__).resolve().parents[1] / "Runtime/Plugins/Windows/x86_64/MNN.dll"
         shutil.copy2(dll, target)

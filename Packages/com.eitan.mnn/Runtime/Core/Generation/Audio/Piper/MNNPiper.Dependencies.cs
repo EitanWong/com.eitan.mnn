@@ -23,7 +23,7 @@ namespace MNN.Unity
         }
 
         internal static readonly string[] RequiredDataFiles = {"phontab", "phondata", "phonindex", "intonations", "en_dict", "lang/gmw/en"};
-        internal static string ResolveDataDirectory(string directory, string configured = null, string selected = null, bool requireEnglish = true)
+        public static string ResolveDataDirectory(string directory, string configured = null, string selected = null, bool requireEnglish = true)
         {
             var required = requireEnglish ? RequiredDataFiles : RequiredDataFiles.Take(4).ToArray();
             if (!string.IsNullOrWhiteSpace(selected))
@@ -56,7 +56,7 @@ namespace MNN.Unity
             return null;
         }
 
-        internal static string FindEspeak(string directory = null)
+        public static string FindEspeak(string directory = null)
         {
             if (!string.IsNullOrWhiteSpace(directory))
             {
@@ -171,7 +171,7 @@ namespace MNN.Unity
         }
 #endif
 
-        internal static bool IsEspeakExecutable(string path)
+        public static bool IsEspeakExecutable(string path)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return false;
@@ -214,7 +214,7 @@ namespace MNN.Unity
             return magic == 0xfeedface || magic == 0xcefaedfe || magic == 0xfeedfacf || magic == 0xcffaedfe || magic == 0xcafebabe || magic == 0xbebafeca || magic == 0xcafebabf || magic == 0xbfbafeca;
         }
 
-        internal static string ResolveEspeak(string requested, string directory = null)
+        public static string ResolveEspeak(string requested, string directory = null)
         {
             if (!string.IsNullOrWhiteSpace(requested))
             {

@@ -53,28 +53,7 @@ namespace MNN.Unity.Editor
             if (_jobs.Any(job => (job.IsRunning || job.CanResume) && (job.InstalledPath == installed || job.StagingPath == staging)))
                 throw new IOException("Another download already uses this destination.");
             var job = new MNNModelDownloadJob{Id = Guid.NewGuid().ToString("N"), Provider = model.provider, RepositoryId = repositoryId, Revision = string.IsNullOrWhiteSpace(model.revision) ? (model.provider == MNNModelProvider.ModelScope ? "master" : "main") : model.revision, ModelScopeId = model.modelScopeId ?? (model.provider == MNNModelProvider.ModelScope ? repositoryId : null), DisplayName = model.displayName ?? model.name ?? repositoryId, StagingPath = staging, InstalledPath = installed, State = MNNDownloadState.Downloading};
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNCosyVoiceModel.IsRepository(repositoryId) && job.Revision == "main")
-                job.Revision = MNNCosyVoiceModel.Revision;
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNVerifiedTtsModel.IsHuggingFaceRepository(repositoryId))
-                job.Revision = MNNVerifiedTtsModel.ResolveHuggingFaceRevision(repositoryId, job.Revision);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNBertEmbeddingModel.IsRepository(repositoryId))
-                job.Revision = MNNBertEmbeddingModel.ResolveRevision(repositoryId, job.Revision);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNPaddleTextModel.IsRepository(repositoryId))
-                job.Revision = MNNPaddleTextModel.ResolveRevision(job.Revision);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNReferenceSpeechModel.IsRepository(repositoryId))
-                job.Revision = MNNReferenceSpeechModel.ResolveRevision(repositoryId, job.Revision);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNWhisperModel.IsRepository(repositoryId) || job.Provider == MNNModelProvider.ModelScope && MNNWhisperModel.IsModelScopeRepository(repositoryId))
-                job.Revision = MNNWhisperModel.ResolveRevision(job.Revision, job.RepositoryId);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNQwen3AsrModel.IsRepository(repositoryId) || job.Provider == MNNModelProvider.ModelScope && MNNQwen3AsrModel.IsModelScopeRepository(repositoryId))
-                job.Revision = MNNQwen3AsrModel.ResolveRevision(job.Revision, job.RepositoryId);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNParaformerModel.IsHuggingFaceRepository(repositoryId) || job.Provider == MNNModelProvider.ModelScope && MNNParaformerModel.IsModelScopeRepository(repositoryId))
-                job.Revision = MNNParaformerModel.ResolveRevision(job.Revision, repositoryId, job.Provider == MNNModelProvider.ModelScope);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNKwsModel.IsRepository(repositoryId))
-                job.Revision = MNNKwsModel.ResolveRevision(job.Revision);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNSileroModel.IsRepository(repositoryId))
-                job.Revision = MNNSileroModel.ResolveRevision(job.Revision);
-            if (job.Provider == MNNModelProvider.HuggingFace && MNNSmartTurnModel.IsRepository(repositoryId))
-                job.Revision = MNNSmartTurnModel.ResolveRevision(job.Revision);
+            job.Revision = MNNModelRevisions.Resolve((MNNModelSource)job.Provider, repositoryId, job.Revision);
             _jobs.Add(job);
             Begin(job);
             return job;

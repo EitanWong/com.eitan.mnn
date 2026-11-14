@@ -28,9 +28,51 @@ namespace MNN.Unity.Tests
             internal int Calls;
             public Task<string> ExecuteAsync(string input, CancellationToken token) { ++Calls; return Task.FromResult(input); }
         }
+        private sealed class ConsentedTool : IMNNAgentTool, IMNNAgentNetworkPermission
+        {
+            public string Name => "consented";
+            public string Description => "An explicitly connected task host";
+            public bool RequiresNetwork => true;
+            public bool CanUseNetwork => true;
+            internal int Calls;
+            public Task<string> ExecuteAsync(string input, CancellationToken token) { ++Calls; return Task.FromResult("Task accepted"); }
+        }
+        [Test]
+        public void ExplicitTaskHostPermissionDoesNotEnableCloudAnswers()
+        {
+            var tool = new ConsentedTool();
+            int cloud = 0;
+            using (var agent = new MNNAgentProvider(new Model(), new MNNAgentOptions { Strategy = MNNAgentRoutingStrategy.Policy },
+                () => { ++cloud; return new Model(); }, new[] { tool }, policy: input => input == "question" ? MNNAgentPlan.InvokeTool("consented", "work") : MNNAgentPlan.Cloud()))
+            {
+                Assert.AreEqual("Task accepted", Ask(agent));
+                Assert.AreEqual(1, tool.Calls);
+                StringAssert.Contains("disabled", Ask(agent, History("cloud answer")));
+                Assert.AreEqual(0, cloud);
+            }
+        }
         private static MNNOpenAIMessage[] History(string current = "question") => new[] { new MNNOpenAIMessage(MNNChatRole.User, current) };
         private static string Ask(MNNAgentProvider agent, IReadOnlyList<MNNOpenAIMessage> history = null)
         { var text = new StringBuilder(); agent.GenerateAsync(history ?? History(), null, 16000, v => { text.Append(v); return Task.CompletedTask; }, CancellationToken.None).GetAwaiter().GetResult(); return text.ToString(); }
+        [Test]
+        public void ToolExecutionPublishesOrderedPublicEvidenceWithInvocationIdentity()
+        {
+            using (var agent = new MNNAgentProvider(new Model(), new MNNAgentOptions { Strategy = MNNAgentRoutingStrategy.Policy },
+                null, new[] { new Tool() }, policy: request => MNNAgentPlan.InvokeTool("fixture", "tool input")))
+            {
+                Assert.AreEqual("tool input", Ask(agent));
+                var entries = new List<MNNConversationTranscriptEntry>();
+                while (agent.TryReadTrace(out var entry)) entries.Add(entry);
+                var call = entries.Find(item => item.Kind == MNNConversationEntryKind.ToolCall);
+                var result = entries.Find(item => item.Kind == MNNConversationEntryKind.ToolResult);
+                Assert.AreEqual("tool input", call.Text); Assert.AreEqual("fixture", call.Title);
+                Assert.AreEqual(call.Id, result.ParentId); Assert.AreEqual("tool input", result.Text);
+                Assert.AreEqual(MNNConversationEntryState.Completed, result.State);
+                Assert.Less(entries.IndexOf(call), entries.IndexOf(result));
+                Assert.AreEqual("Agent completed", entries[entries.Count - 1].Title);
+            }
+        }
+
         [Test]
         public void ToolAndClarificationRoutesSkipModelsAndCloudCreation()
         {

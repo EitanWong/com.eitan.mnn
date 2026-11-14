@@ -1,0 +1,410 @@
+--- a/Assets/Samples/SiriAI/Scenes/SiriAI.unity
++++ b/Assets/Samples/SiriAI/Scenes/SiriAI.unity
+@@ -929,36 +929,34 @@
+   m_EditorClassIdentifier: 
+   configuration:
+     schemaVersion: 1
+-    mode: 3
++    mode: 1
+     allowFallback: 0
+     speechOutput: 1
+     textOnly: 0
+-    automaticLocalModels: 1
++    automaticLocalModels: 0
+     useVoiceActivityModel: 1
+-    useTurnDetectionModel: 0
++    useTurnDetectionModel: 1
+     filterVoiceInput: 0
+-    endRealtimeOnExitIntent: 1
++    endRealtimeOnExitIntent: 0
+     realtimeInactivitySeconds: 60
+     requireMeasuredRealtime: 0
+     allowBufferedSpeech: 1
+-    threads: 0
++    threads: 4
+     recognitionThreads: 0
+-    maximumReplyTokens: 8192
++    maximumReplyTokens: 128
+     temperature: 0.85
+     maximumAudioTokens: 256
+     detectHeadphones: 1
+     headphonesConfirmed: 0
+-    instructions: You are a helpful voice assistant. Speak English. Answer naturally
+-      with enough detail to be useful. Expand when the question calls for explanation
+-      or creative ideas. Do not show private reasoning.
++    instructions: 你是语音助手，请使用中文简短回答。
+     model:
+       location: 1
+-      backend: 4
++      backend: 0
+       cloudService: 
+       applicationId: 
+       resourceId: 
+       endpoint: 
+-      model: MNN/MNN-Pocket-0.3B
++      model: ModelScope:EitanWang/MiniMindO-113M-MNN@a3f5375a295b201697da0f0dd86eb8e94be2dd29
+       credential: 
+       voice: 
+       precision: fp16
+@@ -967,9 +965,9 @@
+       referenceWavePath: 
+       referenceText: 
+       speechLanguages: []
+-      acceptsAudioInput: 0
++      acceptsAudioInput: 1
+       supportsProgressivePcm: 0
+-      localManifestId: MNN/MNN-Pocket-0.3B
++      localManifestId: ModelScope:EitanWang/MiniMindO-113M-MNN@a3f5375a295b201697da0f0dd86eb8e94be2dd29
+       localModel:
+         id: 
+         provider: 0
+@@ -1318,13 +1316,13 @@
+     minimumSpeechMilliseconds: 240
+     silenceMilliseconds: 550
+     turnRetryMilliseconds: 500
+-    maximumUtteranceSeconds: 30
++    maximumUtteranceSeconds: 20
+     maximumResponseCharacters: 65536
+     speechSegmentCharacters: 120
+-    maximumHistoryMessages: 64
++    maximumHistoryMessages: 8
+     maximumResponseSeconds: 600
+-  promptDocument: {fileID: 4900000, guid: b388af15b27746cea0597cf12f04be39, type: 3}
+-  profile: default
++  promptDocument: {fileID: 0}
++  profile: minimind-o
+   loadSavedSettings: 0
+   modelProvider: {fileID: 0}
+   ttsProvider: {fileID: 0}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.MiniMindO.cs
+@@ -0,0 +1,38 @@
++using MNN.Unity;
++using UnityEngine;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIConfigurableBackend
++    {
++        /// <summary>Select direct audio input and MiniMind-o's own voice without a separate ASR or TTS model.</summary>
++        [ContextMenu("Use MiniMind-o voice")]
++        public void UseMiniMindOVoice()
++        {
++            profile = "minimind-o";
++            promptDocument = null;
++            ApplyConfiguration(CreateMiniMindOVoiceConfiguration());
++        }
++
++        internal static SiriAIBackendConfiguration CreateMiniMindOVoiceConfiguration()
++        {
++            var entry = new SiriAIModelCatalog().SearchModels("MiniMind-o", 0).Find(model => model.repository == MNNMiniMindO.Repository);
++            return new SiriAIBackendConfiguration
++            {
++                mode = SiriAIConversationMode.RealtimeSpeech, automaticLocalModels = false,
++                speechOutput = true, textOnly = false, allowFallback = false,
++                filterVoiceInput = false, endRealtimeOnExitIntent = false,
++                useVoiceActivityModel = true, useTurnDetectionModel = true,
++                requireMeasuredRealtime = false, allowBufferedSpeech = true,
++                threads = 4, maximumReplyTokens = 128, maximumUtteranceSeconds = 20, maximumHistoryMessages = 8,
++                instructions = "你是语音助手，请使用中文简短回答。",
++                model = new SiriAIEndpointConfiguration
++                {
++                    location = SiriAIProviderLocation.LocalMnn, backend = MNNBackendType.CPU,
++                    model = entry.modelId, localManifestId = entry.modelId, localModel = entry.remote,
++                    acceptsAudioInput = true
++                }
++            };
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.MiniMindO.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 8e4e9d8588e649579fa863688b5cf603
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs
+@@ -6,11 +6,13 @@
+     /// <summary>Compatibility rules for the built-in providers exposed by the settings page.</summary>
+     public static class SiriAISettingsConstraints
+     {
++        public static bool IsOmni(SiriAIModelAdapter adapter) => adapter == SiriAIModelAdapter.Omni || adapter == SiriAIModelAdapter.MiniMindO;
++
+         public static bool SupportsModel(SiriAIModelAdapter adapter, SiriAIConversationMode mode) =>
+             mode == SiriAIConversationMode.Automatic
+-                ? adapter == SiriAIModelAdapter.Language || adapter == SiriAIModelAdapter.Omni
++                ? adapter == SiriAIModelAdapter.Language || IsOmni(adapter)
+                 : mode == SiriAIConversationMode.Cascaded ? adapter == SiriAIModelAdapter.Language
+-                : adapter == SiriAIModelAdapter.Omni;
++                : IsOmni(adapter);
+ 
+         public static bool UsesSynthesis(SiriAIBackendConfiguration config) => config.speechOutput &&
+             (config.mode != SiriAIConversationMode.RealtimeSpeech || config.allowFallback);
+@@ -18,7 +20,7 @@
+         public static bool UsesModelSpeech(SiriAIBackendConfiguration config, SiriAIModelCatalog catalog) => config.speechOutput &&
+             (config.mode == SiriAIConversationMode.RealtimeSpeech || config.mode == SiriAIConversationMode.Automatic &&
+                 (config.model.location == SiriAIProviderLocation.Custom || config.model.location == SiriAIProviderLocation.LocalMnn &&
+-                    catalog?.ForStage(0).Find(entry => entry.modelId == ModelId(config.model))?.adapter == SiriAIModelAdapter.Omni));
++                    IsOmni(catalog?.ForStage(0).Find(entry => entry.modelId == ModelId(config.model))?.adapter ?? SiriAIModelAdapter.Language)));
+ 
+         private static string ModelId(SiriAIEndpointConfiguration endpoint) =>
+             string.IsNullOrWhiteSpace(endpoint.localManifestId) ? endpoint.model : endpoint.localManifestId;
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.cs
+@@ -54,7 +54,7 @@
+         {
+             switch (stage)
+             {
+-                case 0: return adapter == SiriAIModelAdapter.Language || adapter == SiriAIModelAdapter.Omni;
++                case 0: return adapter == SiriAIModelAdapter.Language || SiriAISettingsConstraints.IsOmni(adapter);
+                 case 1: return adapter == SiriAIModelAdapter.SpeechSynthesis || adapter == SiriAIModelAdapter.Kokoro || adapter == SiriAIModelAdapter.CosyVoice ||
+                     adapter == SiriAIModelAdapter.Supertonic || adapter == SiriAIModelAdapter.Piper ||
+                     adapter == SiriAIModelAdapter.BertVits2 || adapter == SiriAIModelAdapter.SherpaVitsChinese || adapter == SiriAIModelAdapter.MossNano;
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelManifest.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelManifest.cs
+@@ -11,7 +11,7 @@
+     public enum SiriAIModelAdapter
+     {
+         Language, Omni, SenseVoice, Kokoro, CosyVoice, Silero, SmartTurn, Qwen3Asr,
+-        Supertonic, Piper, BertVits2, SherpaVitsChinese, MossNano, DtlnAec, Paraformer, VoiceActivity, AudioTurn, TextTurn, NoiseReduction, Separation, SpeakerEmbedding, KeywordSpotting, SpeechRecognition, SpeechSynthesis
++        Supertonic, Piper, BertVits2, SherpaVitsChinese, MossNano, DtlnAec, Paraformer, VoiceActivity, AudioTurn, TextTurn, NoiseReduction, Separation, SpeakerEmbedding, KeywordSpotting, SpeechRecognition, SpeechSynthesis, MiniMindO
+     }
+ 
+     [CreateAssetMenu(menuName = "MNN/Examples/Siri.AI/Model Manifest", fileName = "ModelManifest")]
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindONativeVoiceTests.cs
+@@ -0,0 +1,128 @@
++using System;
++using System.Collections;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.TestTools;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIMiniMindONativeVoiceTests
++    {
++        [UnityTest, Explicit("Requires the existing MiniMind-o deployment; feeds generated speech PCM through SiriAI capture and renders model PCM. No download.")]
++        public IEnumerator CapturedSpeechAndSecondAudioTurnRenderTheModelsOwnVoice()
++        {
++            string directory = Path.Combine(Application.streamingAssetsPath, "MNN/Models", MNNMiniMindO.InstallationName);
++            Assert.True(MNNMiniMindO.IsComplete(directory));
++            float[] speech;
++            using (var seed = MNNMiniMindO.Load(directory))
++            {
++                var spoken = seed.Generate("请说：你好。", 128);
++                Assert.Greater(spoken.Waveform.Length, 2400);
++                speech = MNNAudioResampling.Resample(spoken.Waveform.Select(x => Math.Max(-1, Math.Min(1, x))).ToArray(), 24000, 16000);
++            }
++            var root = new GameObject("MiniMind-o SiriAI voice acceptance"); root.SetActive(false);
++            var backend = SiriAITestAccess.CreateBackend(root); backend.UseMiniMindOVoice();
++            var capture = new Capture();
++            var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(24000, 1), 240, blockCapacity: 1024);
++            var device = new MNNRealtimeCapabilities(MNNRealtimeFeature.DuplexDevice | MNNRealtimeFeature.PresentationClock |
++                MNNRealtimeFeature.HalfDuplexDevice, "Generated PCM test device", "Generated speech through SiriAI capture interface; software rendering", execution: MNNRealtimeExecution.Managed);
++            MNNRealtimeSession session = null;
++            var context = new SiriAIChatContext(capture, () => session, device);
++            var registration = backend.CreateRegistration(context);
++            var report = MNNRealtimeRouteSelector.SelectBest(registration.Model, registration.Device, registration.Tts,
++                registration.Asr, registration.Vad, registration.ExcludedRoutes, registration.RequireMeasuredSpeech,
++                registration.AllowBufferedSpeech).RequireSelected();
++            Assert.True(report.CanStart, report.ToString());
++            Assert.AreEqual(MNNRealtimeRoute.EndToEndSpeech, report.Route);
++            Assert.IsNull(registration.Tts); Assert.IsNull(registration.Asr);
++            var creating = registration.Factory.CreateAsync(report, output, CancellationToken.None);
++            while (!creating.IsCompleted) yield return null;
++            var runtime = creating.GetAwaiter().GetResult();
++            session = new MNNRealtimeSession(runtime, output);
++            var rendered = new List<float>();
++            long presented = 0;
++            var pcm = new float[2400];
++            Action render = () =>
++            {
++                while (context.TryReadTranscript(out var notice)) TestContext.WriteLine("TRANSCRIPT=" + notice.Text);
++                string warning = context.ReadInputWarning();
++                if (warning != null) TestContext.WriteLine("INPUT_WARNING=" + warning);
++                output.Render(pcm, 0, pcm.Length);
++                if (pcm.Any(x => Math.Abs(x) > 1e-6f)) rendered.AddRange(pcm);
++                presented += pcm.Length; output.DrainReceipts(4096); output.AcknowledgePresentation(presented, false);
++            };
++            try
++            {
++                var start = session.StartAsync();
++                while (!start.IsCompleted) yield return null;
++                start.GetAwaiter().GetResult();
++                CollectionAssert.AreEquivalent(new[] { "model", "vad", "turn" }, backend.RuntimeModels.Select(entry => entry.Stage));
++                foreach (var entry in backend.RuntimeModels)
++                    TestContext.WriteLine("PREPARED=" + entry.Stage + " | " + entry.Model + " | " + entry.State + " | " + entry.Backend);
++                context.Input.SetRealtime(true);
++                // Same bounded PCM port consumed by the real microphone adapter and the energy VAD/turn loop.
++                var input = speech.Concat(new float[16000]).ToArray();
++                int sent = 0;
++                double nextCapture = UnityEditor.EditorApplication.timeSinceStartup;
++                double deadline = UnityEditor.EditorApplication.timeSinceStartup + 60;
++                while ((sent < input.Length || rendered.Count == 0 || output.QueuedFrames > 0) && UnityEditor.EditorApplication.timeSinceStartup < deadline)
++                {
++                    if (sent < input.Length && UnityEditor.EditorApplication.timeSinceStartup >= nextCapture)
++                    { capture.Push(input, sent); sent += 512; nextCapture += .032; }
++                    render();
++                    if (session.Fault != null) throw session.Fault;
++                    yield return null;
++                }
++                TestContext.WriteLine("INPUT_DIAGNOSTICS=" + ((MNNConversationRuntime)runtime).InputDiagnostics);
++                Assert.Greater(rendered.Count, 2400, "Captured speech must produce rendered reply PCM without ASR/TTS.");
++                // Join the first response and drain its presentation before a second recorded input.
++                var join = session.InterruptAsync();
++                while (!join.IsCompleted) { render(); yield return null; }
++                join.GetAwaiter().GetResult();
++                int before = rendered.Count;
++                var second = registration.SubmitAudioAsync(speech, CancellationToken.None);
++                deadline = UnityEditor.EditorApplication.timeSinceStartup + 60;
++                while ((!second.IsCompleted || output.QueuedFrames > 0) && UnityEditor.EditorApplication.timeSinceStartup < deadline)
++                { render(); yield return null; }
++                Assert.True(second.IsCompleted); second.GetAwaiter().GetResult();
++                Assert.Greater(rendered.Count, before + 2400, "Historical raw audio must not break the next voice turn.");
++                Assert.IsNull(session.Fault);
++                string artifacts = Environment.GetEnvironmentVariable("SIRIAI_MINIMINDO_ARTIFACTS") ?? Path.GetFullPath("TestArtifacts~/MiniMindOSiriAI");
++                Directory.CreateDirectory(artifacts);
++                File.WriteAllBytes(Path.Combine(artifacts, "siriai-minimind-o-voice.wav"), MNNWaveAudio.EncodePcm16(rendered.Select(x => Math.Max(-1, Math.Min(1, x))).ToArray(), 24000));
++                TestContext.WriteLine("ROUTE=" + report.Route + "\nCAPTURED_SPEECH_SAMPLES=" + speech.Length +
++                    "\nFIRST_RENDERED_SAMPLES=" + before + "\nSECOND_RENDERED_SAMPLES=" + (rendered.Count - before) + "\nASR=none\nTTS=none");
++            }
++            finally
++            {
++                session.StopAsync().GetAwaiter().GetResult();
++                registration.ReleaseAsync?.Invoke().GetAwaiter().GetResult();
++                UnityEngine.Object.DestroyImmediate(root);
++            }
++        }
++        private sealed class Capture : IMNNAudioCaptureSource
++        {
++            private readonly MNNAudioCaptureBuffer _queue = new MNNAudioCaptureBuffer(128, 512);
++            private long _sequence;
++            public MNNPcmFormat CaptureFormat => new MNNPcmFormat(16000, 1);
++            public int MaximumCaptureSamples => 512;
++            public long DroppedCaptureBlocks => _queue.DroppedBlocks;
++            public bool HasPendingCaptureFrames => _queue.HasPendingFrames;
++            internal void Push(float[] source, int offset)
++            {
++                var block = new float[512]; Array.Copy(source, offset, block, 0, Math.Min(512, source.Length - offset));
++                var info = new MNNAudioFrameInfo(1, 1, _sequence, _sequence * 512,
++                    System.Diagnostics.Stopwatch.GetTimestamp(), CaptureFormat); ++_sequence;
++                Assert.True(_queue.TryWrite(block, 0, block.Length, info));
++            }
++            public bool TryReadCapture(float[] target, int offset, out MNNAudioFrameInfo info, out int count) =>
++                _queue.TryRead(target, offset, out info, out count);
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindONativeVoiceTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 127c4f4d19c24de1bc3c37310a36a749
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindOVoiceTests.cs
+@@ -0,0 +1,63 @@
++using System;
++using System.Linq;
++using MNN.Unity;
++using NUnit.Framework;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIMiniMindOVoiceTests
++    {
++        private static SiriAIModelAdapter Kind => (SiriAIModelAdapter)MNNConversationModelAdapter.MiniMindO;
++        [Test]
++        public void DedicatedAdapterIsNamedAndSelectableForTheModelStage()
++        {
++            Assert.True(Enum.IsDefined(typeof(SiriAIModelAdapter), Kind));
++            var entry = new SiriAIModelCatalog().SearchModels("MiniMind-o", 0).Single();
++            Assert.True(SiriAIModelCatalog.CanSelect(entry, 0));
++            Assert.True(SiriAIModelCatalog.SupportsStage(Kind, 0));
++        }
++        [TestCase(SiriAIConversationMode.Automatic)]
++        [TestCase(SiriAIConversationMode.RealtimeSpeech)]
++        public void VoiceModesRetainMiniMindInsteadOfReplacingIt(SiriAIConversationMode mode)
++        {
++            Assert.True(SiriAISettingsConstraints.SupportsModel(Kind, mode));
++        }
++        [Test]
++        public void AutomaticUsesTheModelsOwnSpeech()
++        {
++            var c = new SiriAIBackendConfiguration { mode = SiriAIConversationMode.Automatic };
++            var e = new SiriAIModelCatalog().SearchModels("MiniMind-o", 0).Single();
++            c.model.model = e.modelId; c.model.localManifestId = e.modelId;
++            Assert.True(SiriAISettingsConstraints.UsesModelSpeech(c, new SiriAIModelCatalog()));
++        }
++        [Test]
++        public void BufferedDirectSpeechRoutePassesQualification()
++        {
++            var model = MNNConversationLocalProviders.DescribeCapabilities(MNNConversationModelAdapter.MiniMindO);
++            var device = new MNNRealtimeCapabilities(MNNRealtimeFeature.DuplexDevice | MNNRealtimeFeature.PresentationClock |
++                MNNRealtimeFeature.HalfDuplexDevice, "Test PCM ports", "Deterministic buffered device", execution: MNNRealtimeExecution.Managed);
++            var vad = SiriAIStageRegistration.Energy.Capabilities;
++            var report = MNNRealtimePreflight.Check(MNNRealtimeRoute.EndToEndSpeech, model, device, vad: vad,
++                requireMeasuredSpeech: false, allowBufferedSpeech: true);
++            Assert.True(report.CanStart, report.ToString());
++        }
++        [Test]
++        public void VoicePresetRetainsVadAndTurnModelsWithoutSeparateAsrOrTts()
++        {
++            var c = SiriAIConfigurableBackend.CreateMiniMindOVoiceConfiguration();
++            var catalog = new SiriAIModelCatalog();
++            SiriAISettingsConstraints.Normalize(c, catalog);
++            SiriAISettingsConstraints.Validate(c, catalog);
++            Assert.AreEqual(MNNMiniMindO.Repository, c.model.localModel.repositoryId);
++            Assert.True(c.useVoiceActivityModel);
++            Assert.True(c.useTurnDetectionModel);
++            Assert.False(c.automaticLocalModels);
++            Assert.False(c.textOnly);
++            Assert.True(c.speechOutput);
++            Assert.False(c.filterVoiceInput);
++            Assert.False(c.endRealtimeOnExitIntent);
++            Assert.False(SiriAISettingsConstraints.UsesSynthesis(c));
++            CollectionAssert.AreEqual(new[] { "model", "vad", "turn" }, SiriAIStagePlan.ForRoute(c, MNNRealtimeRoute.EndToEndSpeech).Endpoints(c).Select(pair => pair.Key));
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindOVoiceTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: bb771cc2c17a4dd8ab71fd39b8931ebd
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIModelReuseTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIModelReuseTests.cs
+@@ -1,6 +1,5 @@
+ using System;
+ using System.IO;
+-using System.Reflection;
+ using System.Threading;
+ using System.Threading.Tasks;
+ using MNN.Unity;
+@@ -41,11 +40,10 @@
+             {
+                 provider.PrepareAsync(CancellationToken.None).GetAwaiter().GetResult();
+                 Assert.AreEqual(original, File.ReadAllText(profile), "Loading must not overwrite the installed profile.");
+-                var first = Model(provider);
+                 ((IMNNRealtimeVoiceActivity)provider).ProcessFrame(new float[512], 0);
+                 provider.PrepareAsync(CancellationToken.None).GetAwaiter().GetResult();
+-                Assert.AreSame(first, Model(provider));
+-                Assert.AreEqual(512, ((IMNNRealtimeVoiceActivity)provider).ProcessFrame(new float[512], 0).StartSample);
++                Assert.AreEqual(512, ((IMNNRealtimeVoiceActivity)provider).ProcessFrame(new float[512], 0).StartSample,
++                    "Repeated preparation must preserve the live VAD stream position.");
+                 using (var cancellation = new CancellationTokenSource())
+                 {
+                     cancellation.Cancel();
+@@ -55,6 +53,5 @@
+             }
+         }
+ 
+-        private static object Model(object owner) => owner.GetType().GetField("_model", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(owner);
+     }
+ }

@@ -5,6 +5,9 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -22,18 +25,18 @@ namespace MNN.Unity
         private readonly MNNModelFileTransfer _transfers;
         private readonly MNNHuggingFaceSourcePool _huggingFaceMirrorPool;
         private readonly bool _discoverHuggingFaceMirrors;
-        [Serializable]
+        [DataContract, UnityEngine.Scripting.Preserve]
         private class FileListResponse
         {
-            public int Code;
-            public FileListData Data;
-            public string Message;
+            [DataMember, UnityEngine.Scripting.Preserve] public int Code;
+            [DataMember, UnityEngine.Scripting.Preserve] public FileListData Data;
+            [DataMember, UnityEngine.Scripting.Preserve] public string Message;
         }
 
-        [Serializable]
+        [DataContract, UnityEngine.Scripting.Preserve]
         private class FileListData
         {
-            public MNNModelRepositoryFile[] Files;
+            [DataMember, UnityEngine.Scripting.Preserve] public MNNModelRepositoryFile[] Files;
         }
 
         internal sealed class RepositoryUnavailableException : HttpRequestException
@@ -65,6 +68,8 @@ namespace MNN.Unity
         {
             ValidateRepositoryId(modelScopeId);
             cancellationToken.ThrowIfCancellationRequested();
+            if (MNNEnglishKwsModel.IsModelScopeRepository(modelScopeId)) revision = MNNEnglishKwsModel.ResolveRevision(revision);
+            if (MNNPocketModel.IsRepository(modelScopeId)) revision = MNNPocketModel.ResolveRevision(revision);
             revision = MNNVerifiedTtsModel.IsCosyVoice300MRepository(modelScopeId) ? MNNVerifiedTtsModel.ResolveCosyVoice300MRevision(revision)
                 : string.IsNullOrWhiteSpace(revision) ? "master" : revision;
             string identity = revision == "master" ? modelScopeId : modelScopeId + "@" + revision;
@@ -74,7 +79,11 @@ namespace MNN.Unity
                 var identityPath = Path.Combine(stagingDirectory, ".mnn-download-repository");
                 MNNModelRepositoryFile[] files;
                 // Verified profiles use their immutable plan even when resuming an older mutable manifest.
-                if (MNNDtlnAecModel.IsRepository(modelScopeId))
+                if (MNNPocketModel.IsRepository(modelScopeId))
+                    files = MNNPocketModel.Files();
+                else if (MNNEnglishKwsModel.IsModelScopeRepository(modelScopeId))
+                    files = MNNEnglishKwsModel.Files();
+                else if (MNNDtlnAecModel.IsRepository(modelScopeId))
                     files = DtlnAecDownloadPlan(modelScopeId);
                 else if (MNNVerifiedTtsModel.IsRepository(modelScopeId))
                     files = MNNVerifiedTtsModel.Files(modelScopeId).Select(file => new MNNModelRepositoryFile { Path = file.Path, Type = "blob", Size = file.Bytes, Sha256 = file.Hash, Revision = file.Revision }).ToArray();
@@ -88,7 +97,7 @@ namespace MNN.Unity
                     files = profile.Paths.Select((path, i) => new MNNModelRepositoryFile { Path = path, Type = "blob", Size = profile.Sizes[i], Sha256 = profile.Hashes[i], Revision = profile.Revision }).ToArray();
                 }
                 else if (_options.PreservePartialDownloads && File.Exists(manifestPath) && File.Exists(identityPath) && File.ReadAllText(identityPath) == identity)
-                    files = JsonUtility.FromJson<FileListData>(File.ReadAllText(manifestPath)).Files;
+                    files = ReadResumeFiles(manifestPath) ?? await GetRepositoryFilesAsync(modelScopeId, cancellationToken, revision).ConfigureAwait(false);
                 else
                     files = await GetRepositoryFilesAsync(modelScopeId, cancellationToken, revision).ConfigureAwait(false);
                 var blobs = SelectInferenceFiles(modelScopeId, files);
@@ -106,11 +115,12 @@ namespace MNN.Unity
                 }).ToArray();
                 if (destinations.Distinct(StringComparer.OrdinalIgnoreCase).Count() != destinations.Length)
                     throw new InvalidDataException("ModelScope returned duplicate file paths.");
+                await EnsureRepositorySpaceAsync(modelScopeId, blobs, destinations, cancellationToken).ConfigureAwait(false);
                 Directory.CreateDirectory(stagingDirectory);
                 if (_options.PreservePartialDownloads)
                 {
-                    File.WriteAllText(manifestPath, JsonUtility.ToJson(new FileListData { Files = blobs }));
-                    File.WriteAllText(identityPath, identity);
+                    _transfers.WriteDownloadMetadata(manifestPath, WriteMetadata(new FileListData { Files = blobs }), modelScopeId);
+                    _transfers.WriteDownloadMetadata(identityPath, identity, modelScopeId);
                 }
 
                 var total = blobs.Sum(file => Math.Max(0L, file.Size));
@@ -151,6 +161,25 @@ namespace MNN.Unity
             }
         }
 
+        private static MNNModelRepositoryFile[] ReadResumeFiles(string path)
+        {
+            try { return ReadMetadata<FileListData>(File.ReadAllText(path))?.Files; }
+            catch (InvalidDataException) { return null; } // A full disk can leave an older truncated checkpoint.
+        }
+
+        private async Task EnsureRepositorySpaceAsync(string repository, MNNModelRepositoryFile[] files, string[] destinations, CancellationToken token, int retryLimit = -1)
+        {
+            long required = 0;
+            for (int index = 0; index < files.Length; ++index)
+            {
+                var file = files[index];
+                var transfer = new MNNModelTransferFile { Path = file.Path, Revision = file.Revision, Size = file.Size, Sha256 = file.Sha256 };
+                long bytes = await _transfers.RequiredSpaceAsync(file.SourceRepository ?? repository, transfer, destinations[index], token, retryLimit).ConfigureAwait(false);
+                required = MNNModelFileTransfer.AddBytes(required, bytes);
+            }
+            _transfers.EnsureSpace(Path.GetDirectoryName(destinations[0]), repository, required);
+        }
+
         public async Task<MNNModelRepositoryFile[]> GetRepositoryFilesAsync(string modelScopeId, CancellationToken cancellationToken = default, string revision = "master")
         {
             ValidateRepositoryId(modelScopeId);
@@ -161,10 +190,32 @@ namespace MNN.Unity
                 var body = response.Content == null ? string.Empty : await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                     throw new HttpRequestException($"ModelScope file listing failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}. {body}");
-                var result = JsonUtility.FromJson<FileListResponse>(body);
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = ReadMetadata<FileListResponse>(body);
                 if (result == null || result.Code != 200 || result.Data?.Files == null)
                     throw new InvalidDataException("ModelScope returned an invalid file listing: " + (result?.Message ?? body));
                 return result.Data.Files;
+            }
+        }
+
+        // Metadata and resume manifests are processed by HTTP workers, including during editor shutdown.
+        // Keep their codec independent of Unity's native type manager.
+        private static T ReadMetadata<T>(string json)
+        {
+            try
+            {
+                using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
+                    return (T)new DataContractJsonSerializer(typeof(T)).ReadObject(stream);
+            }
+            catch (SerializationException error) { throw new InvalidDataException("Invalid model repository metadata.", error); }
+        }
+
+        private static string WriteMetadata<T>(T value)
+        {
+            using (var stream = new MemoryStream())
+            {
+                new DataContractJsonSerializer(typeof(T)).WriteObject(stream, value);
+                return Encoding.UTF8.GetString(stream.ToArray());
             }
         }
 

@@ -111,54 +111,13 @@ namespace MNN.Unity.Editor
         {
             if (Task == MNNStudioTask.SpeechSynthesis)
             {
-                // Classification is intentionally broader than runtime support.
-                // Keep unadapted TTS families visible in Model Manager, but do
-                // not allow Studio to route them through Supertonic by default.
-                if (!MNNTtsModelProfiles.IsImplemented(TtsProfile))
-                    return false;
-                if (IsIndicF5)
-                    return MNNIndicF5Tts.IsComplete(Directory);
-                if (IsPocket)
-                    return MNNPocketTts.IsComplete(Directory);
-                if (IsQwen3Explicit)
-                    return MNNQwen3ExplicitTts.IsComplete(Directory);
-                if (TtsProfile == MNNTtsModelProfile.DhVaani)
-                    return MNNDhVaani.IsComplete(Directory);
-                if (TtsProfile == MNNTtsModelProfile.MossNano)
-                    return MNNMossNano.IsComplete(Directory);
-                if (TtsProfile == MNNTtsModelProfile.Kokoro)
-                    return MNNKokoroModel.IsComplete(Directory);
-                if (TtsProfile == MNNTtsModelProfile.SherpaVitsChinese)
-                    return MNNSherpaVitsChinese.IsComplete(Directory);
-                if (TtsProfile == MNNTtsModelProfile.MmsTamil)
-                    return MNNMmsTamil.IsComplete(Directory);
-                if (TtsProfile == MNNTtsModelProfile.IndicVits)
-                    return MNNIndicVits.IsComplete(Directory);
-                if (RequiresReferenceAudio)
-                    return MNNReferenceSpeechModel.IsComplete(Directory, IsIndexTts);
-                if (IsCosyVoice300M)
-                    return MNNCosyVoice300MModel.IsComplete(Directory);
-                if (IsCosyVoice)
-                    return MNNCosyVoiceModel.IsComplete(Directory);
-                var metadata = ReadTaskConfig();
+                string dependencies = null;
                 if (IsPiper)
                 {
-                    if (metadata == null || metadata.sample_rate != 16000 && metadata.sample_rate != 22050 || string.IsNullOrWhiteSpace(metadata.model_path) || !File.Exists(Path.Combine(Directory, metadata.model_path)))
-                        return false;
-                    try
-                    {
-                        MNNStudioPiperSettings.ResolveDataDirectory(this);
-                        return true;
-                    }
-                    catch (Exception error)when (error is IOException || error is ArgumentException)
-                    {
-                        return false;
-                    }
+                    try { dependencies = MNNStudioPiperSettings.ResolveDataDirectory(this); }
+                    catch (Exception error) when (error is IOException || error is ArgumentException) { return false; }
                 }
-
-                if (IsBertVits2)
-                    return metadata != null && metadata.sample_rate == 44100 && !string.IsNullOrWhiteSpace(metadata.model_path) && File.Exists(Path.Combine(Directory, metadata.model_path)) && new[]{"common/mnn_models/chinese_bert.mnn", "common/mnn_models/chinese_bert.mnn.weight", "common/text_processing_jsons/cn_bert_token.bin", "common/text_processing_jsons/pinyin_dict.bin", "common/text_processing_jsons/phrases_dict.bin", "common/text_processing_jsons/pinyin_to_symbol_map.bin", "common/text_processing_jsons/hotwords_cn.json", "common/text_processing_jsons/default_tone_words.json"}.All(file => File.Exists(Path.Combine(Directory, metadata.asset_folder ?? ".", file)));
-                return TtsProfile == MNNTtsModelProfile.Supertonic && MNNSupertonic.IsComplete(Directory);
+                return MNNSpeechSynthesizer.IsComplete(Directory, TtsProfile, dependencies);
             }
 
             if (Task != MNNStudioTask.ImageGeneration)

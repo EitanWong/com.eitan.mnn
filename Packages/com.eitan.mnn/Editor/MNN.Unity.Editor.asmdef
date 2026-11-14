@@ -2,7 +2,8 @@
   "name": "MNN.Unity.Editor",
   "rootNamespace": "MNN.Unity.Editor",
   "references": [
-    "MNN.Unity"
+    "MNN.Unity",
+    "MNN.Unity.Harnesses.Components"
   ],
   "includePlatforms": [
     "Editor"

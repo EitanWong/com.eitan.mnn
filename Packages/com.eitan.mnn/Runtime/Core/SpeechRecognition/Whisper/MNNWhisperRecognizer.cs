@@ -11,6 +11,9 @@ namespace MNN.Unity
     /// <summary>Whisper greedy ASR using the verified encoder/decoder profiles.</summary>
     public sealed class MNNWhisperRecognizer : IDisposable
     {
+        /// <summary>Whether the registered Whisper frontend implements Chinese token decoding.</summary>
+        public static bool SupportsChinese(MNNWhisperConfig config) => MNNWhisperModel.ForConfig(config).ChineseAvailable;
+
         private readonly object _gate = new object();
         private readonly MNNGenerationGraph _encoder, _decoder;
         private readonly byte[][] _tokens;

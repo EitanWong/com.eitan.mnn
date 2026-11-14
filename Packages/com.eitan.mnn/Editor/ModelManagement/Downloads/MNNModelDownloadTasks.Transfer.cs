@@ -69,11 +69,11 @@ namespace MNN.Unity.Editor
 
                 if (hadInstall)
                     Directory.Delete(backup, true);
-                if (job.Provider == MNNModelProvider.HuggingFace && MNNCosyVoiceModel.IsRepository(job.RepositoryId))
+                if (job.Provider == MNNModelProvider.HuggingFace && MNNModelSources.IsCosyVoice(job.RepositoryId))
                 {
                     try
                     {
-                        File.Delete(Path.Combine(job.InstalledPath, MNNCosyVoiceModel.Archive));
+                        File.Delete(Path.Combine(job.InstalledPath, MNNCosyVoice.ArchiveName));
                     }
                     catch (IOException)
                     { /* Optional cleanup: the published model remains valid. */

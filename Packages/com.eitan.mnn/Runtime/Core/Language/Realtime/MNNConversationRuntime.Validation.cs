@@ -131,8 +131,21 @@ namespace MNN.Unity
                 {
                     await delta(value).ConfigureAwait(false);
                     text.Append(value);
+                    _eventReply?.TextGenerated(text.Length);
                 };
-                if (_providers.Model is IMNNConversationResponseProvider hybrid)
+                if (_eventReply != null)
+                {
+                    if (_providers.Model is IMNNConversationEventProvider events)
+                    {
+                        await events.GenerateEventResponseAsync(history, _eventReply.Input, publish, token).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var eventHistory = _eventReply.Input.CreateHistory(history);
+                        await ((IMNNConversationTextProvider)_providers.Model).GenerateAsync(eventHistory, null, 16000, publish, token).ConfigureAwait(false);
+                    }
+                }
+                else if (_providers.Model is IMNNConversationResponseProvider hybrid)
                     // This system message is built for this response by BuildResponseHistory;
                     // it is not historical conversation data or a planner instruction.
                     await hybrid.GenerateResponseAsync(history, history[0].Text, publish, token).ConfigureAwait(false);

@@ -1,7 +1,7 @@
 # Documentation
 
 Start with the [package README](../README.md) for installation and the supported
-desktop Mono core, Express, LLM and retrieval ABIs and the separate mobile ABI.
+desktop Mono/Windows IL2CPP contracts, separate mobile ABI, and experimental WebGL text scope.
 This is a project-maintained compiler-specific C# binding, not an
 official portable MNN C# SDK. Existing plugin files and task entries do not imply
 that every platform or model pipeline is implemented.
@@ -12,6 +12,7 @@ that every platform or model pipeline is implemented.
 - [Managed Markdown](Markdown.md): shared C# Markdown parsing and Editor/Player rendering boundary.
 - [共享声学处理](AcousticPipeline.md): 可独立组合的输入增强、回声、说话人、fade与波形API。
 - [AI应用架构](ConversationApplicationArchitecture.md): 最小装配、共享能力入口、线程与资源所有权。
+- [Harness background tasks](Harness.md): package-owned execution, persistence, frontend feedback and standalone Host entry points.
 - [SiriAI复用审查](SiriAIReuseReview.md): 完整下沉单元、兼容迁移、回归与性能证据。
 - [DTLN AEC 回声消除](DtlnAec.md): 三个规格、双音频输入、流式 API 与可选 Burst FFT。
 - [Candy 风格迁移](StyleTransfer.md): 固定风格、模型转换和平台验证范围。
@@ -23,6 +24,7 @@ that every platform or model pipeline is implemented.
 - [LLM 性能配置与验证](LlmPerformance.md): 编译优化、逐设备调优、流式开销、缓存与实测限制。
 - [Unity components and menus](Components.md): responsibilities, Add Component and Hierarchy commands.
 - [Desktop Mono](DesktopMono.md): macOS/Windows/Linux core, Express, LLM and retrieval contracts, setup and observed evidence.
+- [Experimental WebGL text inference](WebGLInterop.md): pinned wasm32 ABI, async text APIs, build flags, measurements and limits.
 - [Android/iOS direct C++ inference](MobileInterop.md): ARM64 IL2CPP contracts, builds and limitations.
 - [API reference](API.md): public C# API and inference workflow.
 - [Project structure and conventions](ProjectStructure.md): directory ownership, assemblies and maintenance checks.
@@ -47,7 +49,11 @@ results retain their original scope and do not replace validation of a new build
 
 ## API and models
 
+- [统一 API 层](PublicApiLayer.md)：领域入口、权限、线程、所有权和文档生成。
+- [生成的公共 API 参考](PublicAPI.md)：实际公共符号、重载和 XML 说明。
+
 - [API reference](API.md): public C# types and inference workflows.
+- [Model recommendations](ModelRecommendations.md): hardware/workload budgets, KV caches and joint LLM/ASR/TTS selection.
 - [Acceleration](Acceleration.md): backend selection, precision, fallback and caching.
 - [OmniVoice](OmniVoice.md): conversion, synthesis, model licensing and measured limits.
 - [Native build and ABI contract](../Native~/README.md): required compiler and library assumptions.
@@ -60,6 +66,7 @@ results retain their original scope and do not replace validation of a new build
 - [Branches and installation references](development/Branches.md)
 - [CI and validation](development/ContinuousIntegration.md): automatic checks and optional Unity runs.
 - [Release procedure](development/Releases.md): versioning, tags, package archives and draft releases.
+- [Windows Mono/IL2CPP Players](WindowsPlayer.md): hardware tests, compiler ABI and performance boundaries.
 - [Test evidence and reproduction](Testing.md): actual model results and platform limits.
 - [Tool reference](../Tools~/README.md)
 

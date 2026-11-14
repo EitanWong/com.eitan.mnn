@@ -4,11 +4,52 @@
 Studio 高层任务的真实推理验证范围为 macOS 64 位 Mono，官方 MNN 3.6.2 与 Apple libc++ 的特定 ABI。
 这是本项目限定版本的 C# 编组契约，不是官方提供的跨平台 C# API。Windows/Linux x64 Mono
 已接入核心 Interpreter/Session/Tensor、LLM、Express、原生检索及媒体输入。Windows/Linux 的新任务
-验证使用 Wine/容器 Mono 与真实原生库；尚无这两个平台的 Unity Player 结果。
-WebGL 与桌面 IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
+历史验证使用 Wine/容器 Mono 与真实原生库。Windows x64 Mono/IL2CPP 真机 Player
+现各通过 157 项选定回归；Linux Unity Player 尚待验证。
+WebGL 与 macOS/Linux IL2CPP 不具备相同推理支持。Android/iOS ARM64 IL2CPP 的基础推理及
 LLM 文本/媒体输入的历史设备验证见下节；Express/原生检索已接入共享 partial，
 当前修改尚无新的移动真机推理结果。Omni/Qwen3 原生波形回调在所有平台明确拒绝。
 没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
+
+## WebGL 文本与 MiniMind 扫描优化（2026-11-15）
+
+固定 Unity2021.3.45f2 / Emscripten2.0.19 / IL2CPP wasm32 / libc++ std::__2 / Chrome157。
+四个现有模型 Pocket0.3B、Qwen2.5-0.5B、Qwen3-0.6B、MiniMind-O 的真实文本生成、重复、
+输入截图、按钮取消与恢复、回调异常恢复、并发所有权和释放已通过。没有改模型、量化、输入或预算。
+MiniMind 119-token 长输入首回调3071.6ms、rAF3081.0ms、wall3378.3ms、最大生成帧162.5ms，
+相较旧响应优先版显著改善，但比切分前2200ms首回调仍慢。完整三态数据和内存限制见 WebGL 文档。
+共享有限扫描、MiniMind 预处理/采样的最新 Editor 回归50/50；此前 Editor69/69、PlayMode122/122
+保留原执行范围，不冒充本次集成后的目标平台全量通过。真实共享边界512接受、513拒绝并恢复。
+本地证据位于 `TestArtifacts~/WebGLInference20261114/PrefillCost20261115/`；集成核验另记 Publish20261115。
+加载约679ms、首次resize约130ms、同步调用不可中断、50ms帧预算、稳定RSS收益和Worker均未解决。
+回滚后续重复阶段调度异常保留，未当作原生单次耗时或优化收益。
+
+## 真实包集成复核（2026-11-15）
+
+集成时保留最新 dev 的 Windows x64 IL2CPP/OpenCL 变更及原 DLL 哈希，未用旧候选覆盖它们。
+隔离工程同步真实包后，Unity2021.3.45f2 WebGL 实际构建成功，四模型浏览器文本生命周期、
+MiniMind/Pocket 原长输入及 MiniMind 同步入口均通过。MiniMind 同一119-token输入仍输出
+“你好！你好！你问到什么问题？”，11token：加载672.3ms、首回调2922.7ms、rAF2932.0ms、
+wall3224.1ms、最大生成帧160.5ms、全流程676.4ms。Wasm容量1313.3MiB，
+进程树采样RSS3505.0MiB，两者不等同于live memory。预填充按钮取消392.8ms；
+重复、生成中取消与恢复、回调异常、所有权、超长拒绝及释放通过。同步入口2309.2ms，仍阻塞。
+
+本次Editor选定范围69通过、4项OpenCL检查因本机无运行时跳过；PlayMode首次121通过、
+1项合并后的WebGL策略预期错误，修正后只重跑失败项并通过，保留原失败XML。
+不是一次全量122/122通过，也没有重跑Windows真机。共享512接受、513拒绝并恢复。
+Python验证68/68、13种C#条件编译、API639类型/5785条目、包结构和Markdown检查通过。
+条件编译不是各目标Player的原生链接/设备验收。crapper、dryer、mutator、Unity覆盖率工具
+均未配置；没有CRAP、重复率、变异或覆盖率通过结论。发布操作、检查及事务回滚证据记录在
+`TestArtifacts~/WebGLInference20261114/Publish20261115/`。
+
+## Windows x64 真机 Player（2026-11-14）
+
+Windows 11、i7-10700F、Unity 2021.3.45f2；Mono 与 IL2CPP 各通过 157 项，0 失败/跳过。
+包括 SmolLM2-135M 与 Qwen3.5-0.8B 的文本/流式/取消/缓存/分词、仿射数值、Express、路径和平台策略。
+IL2CPP 使用 VS2022 Build Tools 17.14 与 SDK 22621。
+修复 Mono Player 缺失 CP1252 编码程序集导致的文件加载失败，并启用限定 GNU ABI 的 Windows IL2CPP 声明。
+逐次失败、重跑、性能边界及复现命令见 [Windows Player](WindowsPlayer.md)。这些计数包含策略检查，
+不代表所有模型的回答质量、媒体管线或 GPU 均已验收。
 
 ## Windows/Linux 桌面 Mono 高级任务（2026-11-07）
 

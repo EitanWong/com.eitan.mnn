@@ -43,6 +43,11 @@ namespace MNN.Unity
         protected long _acceptedRevision;
         protected MNNResponseId _response;
         protected MNNConversationTelemetry.Trace _activeTrace;
+        public bool TryReadAgentTrace(out MNNConversationTranscriptEntry entry)
+        {
+            if (_providers.Model is IMNNAgentTraceSource source) return source.TryReadTrace(out entry);
+            entry = default; return false;
+        }
         public MNNConversationTelemetry TurnTelemetry { get; } = new MNNConversationTelemetry();
         protected bool _stopped;
         private readonly HashSet<IMNNConversationProvider> _releasedProviders = new HashSet<IMNNConversationProvider>(MNNConversationProviders.Identity);
@@ -80,6 +85,7 @@ namespace MNN.Unity
             await _providers.PrepareAsync(_providers.Vad, token).ConfigureAwait(false);
             await _providers.PrepareAsync(_providers.Turn, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
+            if (_route == MNNRealtimeRoute.TextChat) return;
             IMNNRealtimeVoiceActivity activity;
             if (_providers.Vad is IMNNConversationVadProvider vad)
             {
@@ -146,6 +152,7 @@ namespace MNN.Unity
         public Task StartListeningAsync(CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
+            if (_route == MNNRealtimeRoute.TextChat) return Task.CompletedTask;
             _capture.Start();
             _inputTask = Task.Factory.StartNew(InputLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             _ = ObserveCaptureAsync();
@@ -182,13 +189,21 @@ namespace MNN.Unity
                 throw new ArgumentException("Submit nonempty bounded user text.");
             return StartResponse(text, null, token);
         }
-        protected Task StartResponse(string text, float[] audio, CancellationToken token, int realtimeRevision = -1, bool voiceValidated = false, bool audioPrepared = false)
+        protected Task StartResponse(string text, float[] audio, CancellationToken token, int realtimeRevision = -1, bool voiceValidated = false, bool audioPrepared = false) =>
+            StartResponseCore(text, audio, token, realtimeRevision, voiceValidated, audioPrepared, null);
+
+        private Task StartResponseCore(string text, float[] audio, CancellationToken token, int realtimeRevision,
+            bool voiceValidated, bool audioPrepared, MNNConversationEventReply eventReply)
         {
+            Task responseTask; CancellationTokenSource assistanceCancellation;
             lock (_sync)
             {
                 if (_stopped) return Task.FromCanceled(new CancellationToken(true));
                 // A caller cannot queue turns behind slow inference. VAD/session cancellation joins first.
                 if (!_responseTask.IsCompleted) throw new InvalidOperationException("Wait for the previous response to quiesce before submitting another turn.");
+                InvalidateTextAssistance(); assistanceCancellation = _textAssistanceCancellation;
+                _eventReply?.ObservePresentation(_output);
+                _eventReply = eventReply;
                 _responseCancellation?.Dispose();
                 _responseCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, _lifetime.Token);
                 var responseToken = _responseCancellation.Token;
@@ -196,8 +211,10 @@ namespace MNN.Unity
                 _activeTrace = trace;
                 int exitRevision = realtimeRevision >= 0 ? realtimeRevision : _context.Input.RealtimeRevision;
                 _responseTask = Task.Run(() => RespondAsync(text, audio, responseToken, trace, realtimeRevision, voiceValidated, audioPrepared, exitRevision), CancellationToken.None);
-                return _responseTask;
+                responseTask = _responseTask;
             }
+            CancelAssistanceSource(assistanceCancellation);
+            return responseTask;
         }
         protected static Exception CombineFailures(string message, Exception first, Exception second)
         {
@@ -258,7 +275,8 @@ namespace MNN.Unity
         {
             Task task;
             lock (_sync) task = _responseTask;
-            await task.ConfigureAwait(false);
+            try { await task.ConfigureAwait(false); }
+            finally { await JoinTextAssistanceAsync().ConfigureAwait(false); }
         }
         public Task RestoreContextAsync(MNNResponseId response)
         {
@@ -269,8 +287,9 @@ namespace MNN.Unity
             if (failure != null) throw failure;
             return Task.CompletedTask;
         }
-        public Task ResetConversationAsync()
+        public async Task ResetConversationAsync()
         {
+            await JoinTextAssistanceAsync().ConfigureAwait(false);
             lock (_sync)
             {
                 if (!_responseTask.IsCompleted || _context.Input.Realtime || _context.Input.Recording)
@@ -282,7 +301,6 @@ namespace MNN.Unity
                 // Built-in local and HTTP providers receive the complete prompt each turn.
                 // The next generation resets KV state using the empty managed history.
             }
-            return Task.CompletedTask;
         }
         public Task StopListeningAsync()
         {
@@ -342,6 +360,8 @@ namespace MNN.Unity
             try { _turnCancellation?.Dispose(); _turnCancellation = null; }
             catch (Exception error) { (failures ?? (failures = new List<Exception>())).Add(error); }
             try { _responseCancellation?.Dispose(); _responseCancellation = null; }
+            catch (Exception error) { (failures ?? (failures = new List<Exception>())).Add(error); }
+            try { _textAssistanceCancellation?.Dispose(); _textAssistanceCancellation = null; }
             catch (Exception error) { (failures ?? (failures = new List<Exception>())).Add(error); }
             try { _lifetime.Dispose(); }
             catch (Exception error) { (failures ?? (failures = new List<Exception>())).Add(error); }

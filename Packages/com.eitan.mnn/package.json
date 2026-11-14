@@ -1,7 +1,7 @@
 {
   "name": "com.eitan.mnn",
   "displayName": "MNN for Unity",
-  "description": "MNN 3.6.2 的 Unity C# 编译器专用 C++ API 绑定；基础推理支持 macOS 64 位、Windows/Linux x86_64 Mono 与 Android/iOS ARM64 IL2CPP，LLM/Express 等任务及后端验证范围见文档。",
+  "description": "MNN 3.6.2 Unity API，指定编译器 ABI 直接调用官方 C++；桌面 Mono、Windows x64 IL2CPP、Android/iOS ARM64 IL2CPP，以及固定 Unity2021 wasm32 实验性 WebGL 文本推理；任务和后端实测范围见文档。",
   "keywords": [
     "MNN",
     "Machine Learning",

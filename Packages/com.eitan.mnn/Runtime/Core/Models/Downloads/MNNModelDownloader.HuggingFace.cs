@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -63,9 +64,10 @@ namespace MNN.Unity
                 }).ToArray();
                 if (destinations.Distinct(StringComparer.OrdinalIgnoreCase).Count() != destinations.Length)
                     throw new InvalidDataException("Hugging Face returned duplicate file paths.");
+                await EnsureRepositorySpaceAsync(repositoryId, blobs, destinations, cancellationToken, mirrorRetryCount).ConfigureAwait(false);
                 Directory.CreateDirectory(stagingDirectory);
                 if (_options.PreservePartialDownloads)
-                    File.WriteAllText(manifestPath, JsonUtility.ToJson(new FileListData { Files = blobs }));
+                    _transfers.WriteDownloadMetadata(manifestPath, WriteMetadata(new FileListData { Files = blobs }), repositoryId);
                 var candidates = mirrorPool.GetFileCandidates().ToArray();
                 if (candidates.Length == 0)
                     throw new HttpRequestException("No Hugging Face file source is available.");
@@ -122,7 +124,7 @@ namespace MNN.Unity
                         var body = await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false);
                         if (!response.IsSuccessStatusCode)
                             throw new HttpRequestException($"Hugging Face file listing failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
-                        var model = JsonUtility.FromJson<HuggingFaceModelResponse>(body);
+                        var model = ReadMetadata<HuggingFaceModelResponse>(body);
                         if (model?.siblings == null)
                             throw new InvalidDataException("Hugging Face returned an invalid file listing.");
                         mirrorPool.ReportSuccess(mirror);
@@ -142,25 +144,25 @@ namespace MNN.Unity
             throw new HttpRequestException("No Hugging Face metadata source was available for " + repositoryId + ".");
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceModelResponse
         {
-            public HuggingFaceSibling[] siblings;
+            [DataMember, UnityEngine.Scripting.Preserve] public HuggingFaceSibling[] siblings;
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceSibling
         {
-            public string rfilename;
-            public long size;
-            public HuggingFaceLfs lfs;
+            [DataMember, UnityEngine.Scripting.Preserve] public string rfilename;
+            [DataMember, UnityEngine.Scripting.Preserve] public long size;
+            [DataMember, UnityEngine.Scripting.Preserve] public HuggingFaceLfs lfs;
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceLfs
         {
-            public string sha256;
-            public long size;
+            [DataMember, UnityEngine.Scripting.Preserve] public string sha256;
+            [DataMember, UnityEngine.Scripting.Preserve] public long size;
         }
     }
 }

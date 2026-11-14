@@ -39,6 +39,8 @@ namespace MNN.Unity.Interop
         internal const string TensorWait = "_ZN3MNN6Tensor4waitENS0_7MapTypeEb";
 #if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
         internal const string ResizeTensor = "_ZN3MNN11Interpreter12resizeTensorEPNS_6TensorERKSt6vectorIiSaIiEE";
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        internal const string ResizeTensor = "_ZN3MNN11Interpreter12resizeTensorEPNS_6TensorERKNSt3__26vectorIiNS3_9allocatorIiEEEE";
 #elif UNITY_ANDROID && !UNITY_EDITOR
         internal const string ResizeTensor = "_ZN3MNN11Interpreter12resizeTensorEPNS_6TensorERKNSt6__ndk16vectorIiNS3_9allocatorIiEEEE";
 #else

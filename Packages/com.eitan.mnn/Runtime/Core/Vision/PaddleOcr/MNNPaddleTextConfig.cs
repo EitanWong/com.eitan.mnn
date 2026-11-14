@@ -25,7 +25,7 @@ namespace MNN.Unity
 
         internal MNNPaddleTextConfig Clone() => JsonUtility.FromJson<MNNPaddleTextConfig>(JsonUtility.ToJson(this));
 
-        internal void Validate(string directory)
+        public void Validate(string directory)
         {
             if ((height != 32 && height != 48) || minimumWidth < 8 || maximumWidth < minimumWidth || maximumWidth > 4096 ||
                 minimumWidth % 8 != 0 || maximumWidth % 8 != 0 || string.IsNullOrWhiteSpace(input) || string.IsNullOrWhiteSpace(output) ||

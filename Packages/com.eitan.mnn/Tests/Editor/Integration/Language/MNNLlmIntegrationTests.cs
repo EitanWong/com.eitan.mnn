@@ -99,6 +99,31 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void UnavailableProviderBackendRetainsQualifiedCpuProfile()
+        {
+            if (MNNAcceleration.IsBackendAvailable(MNNBackendType.Vulkan))
+                Assert.Ignore("This gate requires an unavailable Vulkan backend.");
+            string directory = Environment.GetEnvironmentVariable("MNN_TEST_MODEL_DIRECTORY") ?? Path.Combine(Application.streamingAssetsPath, "MNN", "Models", "Qwen3.5-0.8B-MNN");
+            using (var model = MNNLlm.Load(directory, backendType: MNNBackendType.Vulkan,
+                cacheDirectory: Path.Combine(_cache, "unavailable-direct")))
+            {
+                Assert.AreEqual(MNNBackendType.CPU, model.Backend);
+                var config = MNNModelData.Object(MNNModelData.Parse(model.DumpConfiguration()));
+                Assert.AreEqual("normal", config["precision"]);
+            }
+            using (var provider = MNNConversationLocalProviders.Create(MNNConversationModelAdapter.Language, directory,
+                new MNNConversationLocalModelOptions { Backend = MNNBackendType.Vulkan, Threads = 4,
+                    DeterministicDecisions = true, CacheDirectory = Path.Combine(_cache, "unavailable-provider") }))
+            {
+                provider.PrepareAsync(default).GetAwaiter().GetResult();
+                string backend = ((IMNNConversationProviderDiagnostics)provider).RuntimeBackend;
+                TestContext.WriteLine(backend);
+                StringAssert.Contains("CPU", backend);
+                StringAssert.Contains("Normal", backend);
+            }
+        }
+
+        [Test]
         public void Generate_ProcessesLongerChineseContext()
         {
             var prompt = new System.Text.StringBuilder();

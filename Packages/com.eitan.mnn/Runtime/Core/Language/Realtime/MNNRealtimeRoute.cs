@@ -7,6 +7,7 @@ namespace MNN.Unity
         NativeDuplexTextToSpeech,
         EndToEndSpeech,
         AudioTextToSpeech,
-        CascadedSpeech
+        CascadedSpeech,
+        TextChat
     }
 }

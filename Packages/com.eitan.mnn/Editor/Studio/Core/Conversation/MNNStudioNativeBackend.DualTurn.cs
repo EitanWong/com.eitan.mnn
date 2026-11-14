@@ -19,7 +19,7 @@ namespace MNN.Unity.Editor
             if (channels[0].Length < 1 || channels[0].Length > rate * 120L)
                 throw new InvalidDataException("Choose a nonempty WAV lasting at most 120 seconds.");
             for (int channel = 0; channel < channels.Length; ++channel)
-                channels[channel] = MNNSpeechDsp.Resample(channels[channel], rate, MNNDualTurnEndpointing.SampleRate, request.Cancellation);
+                channels[channel] = MNNAudioResampling.Resample(channels[channel], rate, MNNDualTurnEndpointing.SampleRate, request.Cancellation);
             int validSamples = channels[0].Length;
             var frames = new List<MNNDualTurnEndpointingResult>();
             var user = new float[MNNDualTurnEndpointing.TickSamples];

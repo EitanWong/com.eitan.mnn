@@ -1,5 +1,12 @@
 # MNN for Unity - C# API Documentation
 
+统一分层、权限和调用约定见[统一 API 层](PublicApiLayer.md)；类型、重载和参数的源码清单见[公共 API 参考](PublicAPI.md)。
+
+WebGL wasm32 IL2CPP 的固定 Unity2021.3.45f2/Emscripten2.0.19 契约已实测核心张量与四模型文本推理，
+不代表完整包支持。异步加载仍同步执行工厂；文本异步 API 在原生调用之间让出 Unity 帧，
+取消不能中断当前原生调用，且请求完成前拒绝重用/释放模型。构建、媒体/语音限制、测量和
+所有权规则见 [WebGLInterop](WebGLInterop.md)。
+
 ## Overview
 
 本文档介绍 MNN Unity Package 的 C# API。当前接口直接调用官方 C++ API，
@@ -7,7 +14,8 @@
 （Apple libc++）、Windows x64（MinGW-w64 GCC 16.2）与 Linux x64（GCC 13.3），
 核心、Express、LLM、原生检索和媒体输入的系统要求见[桌面 Mono](DesktopMono.md)。
 Windows Wine Mono 与 Linux host Mono 各通过 79 项任务断言和 22 项核心断言，
-尚无 Windows/Linux Unity Player 结果，其随包原生库为 CPU 构建。
+Windows x64 Mono/IL2CPP 真机 Player 各通过 157 项选定回归，0 失败/跳过；
+见[Windows Player](WindowsPlayer.md)。Linux Unity Player 尚待验证；Windows 随包库启用 CPU/OpenCL，Linux 保持 CPU 构建。
 macOS 当前核心/平台/Express Player 回归两种架构各通过 120/120，Metal 与模型验证范围见[测试说明](Testing.md)。
 六类代表模型的独立 Player 推理已在 arm64 和 Rosetta 下的 x86_64 验证；
 未在 Intel 真机验证。Android/iOS ARM64 IL2CPP 复用同一套 Interpreter/Session/Tensor、LLM、
@@ -67,7 +75,8 @@ Studio 使用同一查询入口。分词器实现 BERT WordPiece、BertNormalize
 当前支持 int32/int64 的 `[1,L]` 输入和 `[1,L,D]` / `[L,D]` 的 `last_hidden_state` 输出；
 可通过空 `attentionMask` 或 `tokenTypes` 禁用不存在的可选输入。未验证的自定义 profile 不自动成为精选模型。
 
-macOS 上默认 Auto 尝试 Metal，Windows/Linux 随包构建使用 CPU。
+macOS 上默认 Auto 尝试 Metal，Windows 随包构建可探测 OpenCL，Linux 使用 CPU。
+Windows 本次 GPU 验收覆盖上述 LLM/核心/Express 选定回归，不代表所有 BERT 模型的 GPU 质量。
 非有限输出或零向量会触发 Metal High (FP32) 重试，仍无效时切换 CPU；
 后续请求使用成功的会话。`Backend` 可查看实际主后端，个别算子可能由 MNN 回退 CPU。
 已发现 `developerabu` BGE 在默认和 High Metal 下均产生非有限值，实测最终使用 CPU。

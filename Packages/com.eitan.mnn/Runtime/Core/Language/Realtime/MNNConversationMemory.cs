@@ -30,6 +30,12 @@ namespace MNN.Unity
 
         public void RememberAssistant(string text) => Volatile.Write(ref _lastAssistantText, Tail(text));
 
+        public void AddEvent(MNNConversationEvent input)
+        {
+            Messages.Add(input.CreateMemoryRecord());
+            Trim();
+        }
+
         public void AddAssistant(string text)
         {
             if (!string.IsNullOrEmpty(text)) Messages.Add(new MNNOpenAIMessage(MNNChatRole.Assistant, text));
@@ -56,6 +62,30 @@ namespace MNN.Unity
             Trim();
         }
 
+        /// <summary>Prepare a bounded text-only context before replacing live memory. Display-only execution
+        /// evidence never becomes model instructions or consumes the message-count window.</summary>
+        public void Restore(IMNNConversationTranscriptSource source, int maximumCharacters = 65536)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (maximumCharacters < 1) throw new ArgumentOutOfRangeException(nameof(maximumCharacters));
+            var selected = new List<MNNConversationTranscriptEntry>();
+            int characters = 0;
+            for (int i = source.Count - 1; i >= 0 && selected.Count < _maximumMessages; --i)
+            {
+                var entry = source[i];
+                if (entry.Kind != MNNConversationEntryKind.Message || entry.Role == MNNChatRole.System) continue;
+                if (entry.Text.Length > maximumCharacters - characters) break;
+                selected.Add(entry); characters += entry.Text.Length;
+            }
+            selected.Reverse();
+            Reset();
+            foreach (var entry in selected)
+            {
+                if (entry.Role == MNNChatRole.User) AddUser(new MNNOpenAIMessage(entry.Role, entry.Text), entry.Text);
+                else { AddAssistant(entry.Text); RememberAssistant(entry.Text); }
+            }
+        }
+
         public void Reset()
         {
             Messages.Clear();
@@ -72,7 +102,7 @@ namespace MNN.Unity
                 if (Messages.Count - i > _maximumMessages || frames > 16000 * 120L)
                 { Messages.RemoveRange(0, i + 1); break; }
             }
-            while (Messages.Count > 0 && Messages[0].Role != MNNChatRole.User) Messages.RemoveAt(0);
+            while (Messages.Count > 0 && Messages[0].Role == MNNChatRole.Assistant) Messages.RemoveAt(0);
         }
 
         public static string Tail(string text)

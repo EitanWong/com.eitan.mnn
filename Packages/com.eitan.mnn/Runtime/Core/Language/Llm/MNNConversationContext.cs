@@ -54,7 +54,7 @@ namespace MNN.Unity
             }
         }
 
-        internal static bool ContainsMedia(string text) => text.IndexOf("<img>", StringComparison.Ordinal) >= 0 ||
+        public static bool ContainsMedia(string text) => text.IndexOf("<img>", StringComparison.Ordinal) >= 0 ||
             text.IndexOf("<audio>", StringComparison.Ordinal) >= 0 || text.IndexOf("<video>", StringComparison.Ordinal) >= 0;
     }
 }

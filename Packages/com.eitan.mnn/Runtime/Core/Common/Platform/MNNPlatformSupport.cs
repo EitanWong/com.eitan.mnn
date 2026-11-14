@@ -15,12 +15,14 @@ namespace MNN.Unity
         {
             get
             {
-#if UNITY_ANDROID && !UNITY_EDITOR
+#if UNITY_WEBGL && !UNITY_EDITOR
+                return $"MNN {MNNVersion.RequiredNativeVersion} / Unity 2021.3.45f2 Emscripten 2.0.19 libc++ ABI v2 / wasm32 IL2CPP CPU core/text LLM experimental";
+#elif UNITY_ANDROID && !UNITY_EDITOR
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Android NDK r25c libc++ (__ndk1) / ARM64 IL2CPP";
 #elif UNITY_IOS && !UNITY_EDITOR
                 return $"MNN {MNNVersion.RequiredNativeVersion} / Apple libc++ ABI v1 / ARM64 IL2CPP";
 #elif UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
-                return $"MNN {MNNVersion.RequiredNativeVersion} / MinGW-w64 GCC 16.2 libstdc++ C++11 x64 ABI / Windows x86_64 Mono (bundled binary only)";
+                return $"MNN {MNNVersion.RequiredNativeVersion} / MinGW-w64 GCC 16.2 libstdc++ C++11 x64 ABI / Windows x86_64 {(UsesIl2Cpp ? "IL2CPP" : "Mono")} (bundled binary only)";
 #elif UNITY_EDITOR_LINUX || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR)
                 return $"MNN {MNNVersion.RequiredNativeVersion} / GCC 13 libstdc++ C++11 ABI / Linux x86_64 Mono (bundled binary only)";
 #elif UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR)
@@ -47,6 +49,8 @@ namespace MNN.Unity
 
         internal static string GetUnsupportedReason(RuntimePlatform platform, bool il2cpp, int pointerSize, bool littleEndian, Architecture architecture = Architecture.Arm64)
         {
+            if (platform == RuntimePlatform.WebGLPlayer)
+                return il2cpp && pointerSize == 4 && littleEndian ? null : "Direct WebGL MNN C++ binding requires wasm32 little-endian IL2CPP.";
             if (pointerSize != 8 || !littleEndian)
                 return "Direct MNN C++ binding requires a 64-bit little-endian process.";
             if (platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer)
@@ -60,8 +64,8 @@ namespace MNN.Unity
             if (platform == RuntimePlatform.WindowsEditor || platform == RuntimePlatform.WindowsPlayer ||
                 platform == RuntimePlatform.LinuxEditor || platform == RuntimePlatform.LinuxPlayer)
             {
-                if (il2cpp)
-                    return "Direct Windows/Linux MNN C++ binding requires Mono.";
+                if (il2cpp && platform != RuntimePlatform.WindowsPlayer)
+                    return "Direct Windows Editor/Linux MNN C++ binding requires Mono.";
                 if (architecture != Architecture.X64)
                     return "Direct Windows/Linux MNN C++ binding requires x86_64.";
                 return null;

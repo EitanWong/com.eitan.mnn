@@ -1,0 +1,7 @@
+{
+  "name": "MNN.Samples.SiriAI.Harnesses",
+  "rootNamespace": "MNN.Samples.SiriAI.Harnesses",
+  "references": [],
+  "autoReferenced": true,
+  "noEngineReferences": true
+}

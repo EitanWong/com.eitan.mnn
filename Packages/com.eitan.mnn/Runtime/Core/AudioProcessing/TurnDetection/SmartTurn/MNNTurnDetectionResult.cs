@@ -6,7 +6,7 @@ namespace MNN.Unity
         public float CompletionProbability { get; }
         public bool IsComplete { get; }
         public double DurationSeconds { get; }
-        internal MNNTurnDetectionResult(float probability, float threshold, double duration)
+        public MNNTurnDetectionResult(float probability, float threshold, double duration)
         {
             CompletionProbability = probability;
             IsComplete = probability > threshold;

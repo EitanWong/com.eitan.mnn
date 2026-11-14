@@ -50,10 +50,12 @@ namespace MNN.Unity
             Append(identity, System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString());
             Append(identity, performance.ThreadCount.ToString(CultureInfo.InvariantCulture));
             Append(identity, performance.BackendType.ToString());
+            if (performance.BackendType == MNNBackendType.OpenCL || performance.BackendType == MNNBackendType.Auto)
+                Append(identity, performance.OpenClTuningMode.ToString());
             Append(identity, performance.PrecisionMode.ToString());
             Append(identity, performance.ToJson(model));
             Append(identity, File.ReadAllText(Path.Combine(model, "config.json")));
-            string llmConfig = Path.Combine(model, "llm_config.json");
+            MNNModelOptions.ReadLlmConfiguration(model, out string llmConfig);
             Append(identity, File.Exists(llmConfig) ? File.ReadAllText(llmConfig) : "");
             if (!string.IsNullOrWhiteSpace(modelIdentity)) Append(identity, modelIdentity);
             else

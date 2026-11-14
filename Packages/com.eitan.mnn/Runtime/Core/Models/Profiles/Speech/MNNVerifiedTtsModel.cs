@@ -258,7 +258,7 @@ namespace MNN.Unity
             }
             else if (IsBertVits2Repository(repository))
             {
-                if (MNNTtsModelProfiles.Detect(directory) != MNNTtsModelProfile.BertVits2) throw new InvalidDataException("Missing Bert-VITS2 configuration.");
+                if (MNNTtsModelProfiles.Detect(directory) != MNNSpeechModelKind.BertVits2) throw new InvalidDataException("Missing Bert-VITS2 configuration.");
             }
             else if (IsPiperLessacRepository(repository))
             {

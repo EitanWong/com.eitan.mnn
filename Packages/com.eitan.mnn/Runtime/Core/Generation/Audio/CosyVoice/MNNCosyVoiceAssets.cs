@@ -8,7 +8,7 @@ namespace MNN.Unity
 {
     public static class MNNCosyVoiceAssets
     {
-        internal static void Install(string stagingPath, CancellationToken token)
+        public static void Install(string stagingPath, CancellationToken token)
         {
             InstallArchive(stagingPath, MNNCosyVoiceModel.ArchiveSha256,
                 MNNCosyVoiceModel.RequiredFiles.Select((name, i) => new KeyValuePair<string, long>(name, MNNCosyVoiceModel.RequiredSizes[i]))
@@ -27,6 +27,6 @@ namespace MNN.Unity
         }
 
         public static string FileHash(string path, CancellationToken token = default) => Hash(path, token);
-        internal static string Hash(string path, CancellationToken token = default) => MNNModelDeliveryManifest.ComputeSha256(path, token);
+        public static string Hash(string path, CancellationToken token = default) => MNNModelDeliveryManifest.ComputeSha256(path, token);
     }
 }

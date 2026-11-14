@@ -3,14 +3,15 @@
 MNN 3.6.2 supports desktop Mono on macOS ARM64/x64, Windows x64 and Linux x64.
 Select **Mono** in Unity Player Settings for Standalone and choose the matching
 64-bit architecture. Editor support follows the host OS even when the selected
-Player backend is IL2CPP. Desktop IL2CPP and Windows/Linux ARM64 are unsupported.
+Player backend is IL2CPP. Windows x64 also supports [IL2CPP Players](WindowsPlayer.md).
+macOS/Linux IL2CPP and Windows/Linux ARM64 are unsupported.
 
 ## Compiler and feature contracts
 
 | Target | Bundled compiler ABI | Managed native scope |
 | --- | --- | --- |
 | macOS 11+ ARM64/x64 | Apple clang / libc++ ABI v1 | Core inference, Express, LLM, retrieval and media input |
-| Windows x64 | MinGW-w64 GCC 16.2.0 POSIX / libstdc++ C++11 / Win64 LLP64 | Same task bindings; CPU native build |
+| Windows x64 | MinGW-w64 GCC 16.2.0 POSIX / libstdc++ C++11 / Win64 LLP64 | Same task bindings; CPU/OpenCL native build |
 | Linux x64 | GCC 13.3.0 / libstdc++ C++11 / x86_64 SysV LP64 | Same task bindings; CPU native build |
 
 These are project-maintained calls to official C++ symbols. MNN does not provide
@@ -27,7 +28,7 @@ Linux needs GLIBC 2.38+ and `libstdc++.so.6` providing GLIBCXX_3.4.32.
 
 | Library | SHA-256 |
 | --- | --- |
-| `Runtime/Plugins/Windows/x86_64/MNN.dll` | `32fe998751b3044bebc25a6a9e7229b9e9b3a0dc9f0338b01fca72aa5995b268` |
+| `Runtime/Plugins/Windows/x86_64/MNN.dll` | `a9353855d6bef2b59a405c7e0c9aa808bda57ec0d2de81cc4b6894dbabee3a25` |
 | `Runtime/Plugins/Linux/x86_64/libMNN.so` | `4be060faab8603fd4f5c29498dec1033b7eef5afff9e6fe2ad6a6afd1fc16a40` |
 
 Core includes file/buffer loading, session/backend configuration, tensor copies,
@@ -78,9 +79,10 @@ The LLM returns Paris for the France question, embedding separates the matching
 sentence, reranking scores the relevant passage higher, and Omni identifies red.
 
 Windows execution uses Wine compatibility, and Linux uses Mono `--interpreter`
-because JIT failed in the emulated container. Neither is a Windows/Linux Unity
-Player result. Native desktop Unity Player builds still need validation on their
-own hosts. macOS ARM64 and x64 (Rosetta) Unity Mono Player regressions each pass 120/120
+because JIT failed in the emulated container. These historical checks are not Unity
+Player results. Windows 11 x64 hardware now passes 157/157 selected tests on each
+of Mono and IL2CPP, including two LLMs; see [Windows Players](WindowsPlayer.md).
+Linux Unity Player validation remains pending. macOS ARM64 and x64 (Rosetta) Unity Mono Player regressions each pass 120/120
 selected core/platform/Express tests, with no failed or skipped tests; see
 [test evidence](Testing.md) for exact current and historical results. CPU model
 checks do not certify Windows/Linux GPU/NPU execution or every speech/image model.

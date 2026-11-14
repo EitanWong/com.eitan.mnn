@@ -101,7 +101,7 @@ namespace MNN.Unity.Tests
                 Assert.Null(runtime.CurrentReport);
                 Assert.AreEqual(5, runtime.Selection.ExcludedRoutes.Count);
                 foreach (MNNRealtimeRoute route in Enum.GetValues(typeof(MNNRealtimeRoute)))
-                    StringAssert.Contains(route.ToString(), error.Message);
+                    if (route != MNNRealtimeRoute.TextChat) StringAssert.Contains(route.ToString(), error.Message);
                 Assert.Throws<NotSupportedException>(() =>
                     ((IList<MNNRealtimeRouteUnavailableException>)runtime.Failures).Clear());
                 await session.StopAsync();

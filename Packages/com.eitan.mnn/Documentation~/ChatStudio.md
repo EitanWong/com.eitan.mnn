@@ -3,8 +3,9 @@
 入口：`Window > MNN > Chat Studio`（Cmd/Ctrl + Shift + M）。需要 Unity 2021.3 或更新版本。
 Studio 界面的端到端验证覆盖 macOS 64 位 Mono。底层使用官方 MNN 3.6.2，
 核心、Express、LLM 和原生检索已实现 macOS/Windows/Linux 的[桌面 Mono 绑定](DesktopMono.md)。
-Windows Wine Mono、Linux host Mono 的任务 API 推理检查不代替对应平台 Studio 界面或 Unity Player 验证。
-Android/iOS ARM64 IL2CPP 使用独立[移动端契约](MobileInterop.md)；桌面 IL2CPP、
+Windows x64 Mono/IL2CPP 的真实 Player 推理结果见[Windows Player](WindowsPlayer.md)。
+这些结果与 Linux host Mono 检查均不代替对应平台 Studio 界面验证。
+Android/iOS ARM64 IL2CPP 使用独立[移动端契约](MobileInterop.md)；macOS/Linux IL2CPP、
 Windows/Linux ARM64 和 WebGL 不受支持。各模型仍遵循[独立验证范围](Testing.md)。
 这是本项目限定编译器与版本的 C# 编组契约，不是官方可移植 C# API；
 没有新增 C++、桥接库、自定义 C 导出或官方源码修改。
@@ -185,18 +186,78 @@ VoiceOver、Dynamic Type、系统 Increase Contrast 尚未全面验证，不能�
 静默跳过开头；只有整条消息成功压缩后才推进覆盖位置。每次成功的摘要检查点立即写入会话，回复取消
 或失败时仍可继续使用。历史媒体只保留附件路径与附件标记，不会假称摘要记住了图片/音频内容。
 
-上下文使用当前模型的官方 tokenizer 计数，并预留聊天模板、输出 token 和当前媒体预算。Studio 默认
+文字上下文按当前模型的完整官方聊天模板及 tokenizer 精确计数，包含角色标记与生成前缀；
+摘要请求和最终回复使用同一计数方法，并预留输出 token、安全余量和当前媒体预算。Studio 默认
 上下文预算为 8,192 token，可在 Model settings 调整到 2,048–32,768；不同模型的可用上下文窗口不同，
 用户应设在模型实际支持范围内。多模态预留是保守估值，视觉裁剪等预填充开销无法仅从文本 tokenizer
-精确推导；超预算时会明确报错，不会默默截断。上下文超过约 12,000 字符或 token 预算不足时自动压缩，
+精确推导；超预算时会明确报错，不会默默截断。只有 token 预算不足时才自动压缩，
+不会仅因历史超过 12,000 字符而丢弃仍在窗口内的原始信息；
 同时保留最近约 8 条消息。摘要最多 2,400 字符，模型仍可能遗漏事实，重要决策建议由用户确认摘要。
 对“我的名字/偏好/必须/记住”等明确陈述以及常见中文对应表述，压缩还会保留有界的用户原句片段，
-降低小模型摘要时漏掉关键身份与偏好的概率；这不能代替用户检查摘要。单条输入仍受 16,000 字符上限约束。
+降低小模型摘要时漏掉关键身份与偏好的概率；这不能代替用户检查摘要。空摘要或未完成的思考文本
+不能推进记忆覆盖位置，即使上一次记忆中还保留了用户原句。单条输入仍受 16,000 字符上限约束。
 
-Studio 使用模型加载时的轻度重复惩罚采样，普通 Runtime API 的默认 greedy 行为不变。流式解码还会
+会话加载保留模型导出的 `repetition_penalty`（优先于旧字段 `penalty`）与显式 `penalty_window`，
+包括禁用惩罚的 `1.0` 和全历史窗口 `0`。未配置时使用 `1.1` 与最近 128 token 的窗口，
+避免默认惩罚随整个历史扩张。普通 Runtime API 的默认 greedy 行为不变。流式解码还会
 检测连续三次以上、较长且完全相同的文本段，在 token 边界停止并保留第一份内容。该保护针对明显的
 机械循环，不判断语义质量，也不能保证模型永不重复。
 发送失败或取消后遗留的连续用户轮次会在构造官方角色历史时合并，避免把非法/歧义的相邻角色消息传给模型。
+
+### 长对话质量与导出产物
+
+2026-11-10 在 macOS ARM64 CPU 上，以相同的 64 条背景记录和四轮首都问题，
+对比独立实例的流式续写与冷启动。SmolLM2-135M、Qwen2.5-0.5B 均通过；原有
+Qwen3.5-0.8B 导出在第二轮回答 Naples，Pocket-0.3B 重复 Paris。失败断言保留。
+
+独立 Transformers CPU FP32 推理使用经过 SHA-256 校验的原始权重、相同模板和逐个一致的
+token ID：Qwen 回答 Rome，Pocket 仍回答 Paris。已有官方 llm_demo 在完全相同的
+渲染输入下复现 MNN 输出。因此，这两种失败需要分别处理；调整上下文压缩不能修复原模型自身的错误。
+
+使用未修改的官方 MNN 3.6.2 导出工具重新生成完整 Qwen 模型后，INT4、INT8 和 FP16
+版本均通过原来的四轮断言。仅替换原模型的图、权重、配置或输入 embedding 的单项对照仍失败，
+目前不能把原因归结为某个单独算子或量化位数。INT4 候选位于开发工程
+`Assets/StreamingAssets/MNN/Models/Qwen3.5-0.8B-W4-MNN`，保留 block 64/HQQ，
+外置权重为 470,382,614 字节；另通过现有 11 项中文、算术、预算和生命周期集成检查。
+Studio 中刷新后选择此本地目录；原下载目录保持原样，不会自动替换已选择的模型。
+模型目录改名不再丢失此 CPU 精度配置：`llm_config.json` 声明 `qwen3_5`、
+hidden size 1024、24 层时复用现有 Qwen 配置。显式设置的精度仍优先于自动值。
+
+重导出使用官方源码 commit `7e3c6fb5225d3ccf22807ee641332669df34650d` 及配套
+MNNConvert 3.6.2。准备官方 Python 导出依赖后，将以下变量设为该源码、已校验的原始权重、
+全新的候选目录和转换器路径；不要把候选目录指向原模型：
+
+```bash
+python3 "$MNN_SOURCE/transformers/llm/export/llmexport.py" \
+  --path "$QWEN_REFERENCE" --dst_path "$QWEN_CANDIDATE" \
+  --export mnn --quant_bit 4 --lm_quant_bit 4 \
+  --quant_block 64 --lm_quant_block 64 --scale_bit 32 --hqq \
+  --disable_transformer_c4 --mnnconvert "$MNN_CONVERTER"
+```
+
+复测设置 `MNN_TEST_MODEL_ROOT` 为已有模型的父目录，然后执行：
+
+```bash
+python3 Packages/com.eitan.mnn/Tools~/Testing/run_conversation_tests.py \
+  --package-only --include-package-tests --filter MNN.Unity.Tests.LlmLongContextTests
+```
+
+替代目录的四模型矩阵为 3/4 通过，Pocket 的原始权重失败仍待解决。这些结果仅覆盖所测输入与
+macOS ARM64 CPU，不能作为全部模型、任意长上下文或其他设备的质量保证。
+完整输入、原始权重来源、导出命令、哈希和对照记录保存在开发工程
+`TestArtifacts~/LlmConversationQuality-20261110/DeepRootCause/`。
+
+包的配置读取遵循官方 MNN 的顺序：先读取 `config.json` 指定的 `base_dir` 和
+`llm_config`，再合并模型元数据，最后应用调用者覆盖。自定义元数据中的重复惩罚、窗口、
+量化位和导出形状限制会保留；其内容也参与持久缓存标识。GPU 不可用或推理回退 CPU 时，
+按实际 CPU 重新选择默认精度，显式指定的精度仍优先。会话 provider 保留原始覆盖设置，
+避免将临时 GPU 默认值固化成 CPU 参数。
+
+`LlmPackageCorrectnessTests` 独立检查五个本地导出的完整四轮执行：缓存与独立冷启动的
+文字、token ID、计数一致，快照和增量流式输出完整，历史修改、中断及回调异常后可恢复，
+旧结果不会被下一次推理改写。该检查允许模型知识错误；原有 `LlmLongContextTests`
+继续检查回答质量，失败断言没有删除。证据位于开发工程
+`TestArtifacts~/LlmConversationQuality-20261110/PackageCorrectness/`。
 
 历史、录音、模型缓存均位于当前工程 `Library/MNN/Studio`。`history.json` 原子保存标题、
 文件夹、顺序、角色、草稿、附件路径和结果指标；没有自动淘汰旧会话，文件大小限制为 32 MiB。

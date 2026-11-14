@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -14,6 +15,7 @@ namespace MNN.Unity
         internal MNNBackendType Backend;
         internal MNNBackendType MediaBackend;
         internal MNNBackendType RequestedBackend;
+        private string _cpuFallbackJson;
         [Serializable]
         private sealed class MediaOptions
         {
@@ -32,13 +34,6 @@ namespace MNN.Unity
         private sealed class Jinja
         {
             public Context context = new Context();
-        }
-
-        [Serializable]
-        private sealed class ModelSampler
-        {
-            public string sampler_type;
-            public string[] mixed_samplers;
         }
 
         [Serializable]
@@ -62,6 +57,7 @@ namespace MNN.Unity
             public string sampler_type;
             public string[] mixed_samplers;
             public float repetition_penalty = 1.1f;
+            public int penalty_window = 128;
             public string precision;
             public string tmp_path;
             public Jinja jinja = new Jinja();
@@ -76,7 +72,38 @@ namespace MNN.Unity
             public float topP = .95f;
         }
 
-        internal static MNNModelOptions Prepare(string directory, int threads, bool thinking, string cacheDirectory, MNNPrecisionMode precision, bool chatSampling = false, MNNBackendType backendType = MNNBackendType.Auto, bool speechRecognition = false, float? conversationTemperature = null)
+        internal static MNNModelOptions PrepareLlm(string directory, MNNLlmPerformanceOptions performance,
+            bool thinking, string cacheDirectory, bool conversation, float? temperature)
+        {
+            var tuning = performance.Resolve(directory);
+            var options = PrepareResolvedLlm(directory, tuning, thinking, cacheDirectory, conversation, temperature);
+            // Availability and dynamic-graph policy can select CPU even before load.
+            // Resolve from the original overrides, so GPU defaults never become CPU overrides.
+            if (options.Backend != tuning.BackendType)
+            {
+                tuning = performance.ResolveForBackend(directory, options.Backend);
+                var actual = PrepareResolvedLlm(directory, tuning, thinking, options.CacheDirectory, conversation, temperature);
+                options.Json = actual.Json;
+            }
+            if (options.Backend != MNNBackendType.CPU)
+                options._cpuFallbackJson = PrepareResolvedLlm(directory,
+                    performance.ResolveForBackend(directory, MNNBackendType.CPU), thinking,
+                    options.CacheDirectory, conversation, temperature).Json;
+            options.RequestedBackend = performance.BackendType;
+            return options;
+        }
+
+        private static MNNModelOptions PrepareResolvedLlm(string directory, MNNLlmPerformanceOptions tuning,
+            bool thinking, string cacheDirectory, bool conversation, float? temperature)
+        {
+            string extra = tuning.ToJson(directory);
+            var options = Prepare(directory, tuning.ThreadCount, thinking, cacheDirectory, tuning.PrecisionMode,
+                conversation, tuning.BackendType, conversationTemperature: temperature, openClTuningMode: tuning.OpenClTuningMode);
+            options.Json = options.Json.Substring(0, options.Json.Length - 1) + "," + extra.Substring(1);
+            return options;
+        }
+
+        internal static MNNModelOptions Prepare(string directory, int threads, bool thinking, string cacheDirectory, MNNPrecisionMode precision, bool chatSampling = false, MNNBackendType backendType = MNNBackendType.Auto, bool speechRecognition = false, float? conversationTemperature = null, MNNGpuTuningMode? openClTuningMode = null)
         {
             MNNPlatformSupport.RequireSupported();
             if (string.IsNullOrWhiteSpace(directory))
@@ -111,16 +138,21 @@ namespace MNN.Unity
             backendRequest = ForAndroidDevice(backendType, directory, MNNInferenceCache.GraphicsDevice);
 #endif
             var backend = MNNAcceleration.Resolve(MNNAcceleration.ForDynamicGraph(backendRequest));
+            // Official OpenCL LLM interprets thread_num as GPU mode bits, not CPU
+            // workers. Map only after availability resolution; CPU keeps its count.
+            int nativeThreads = backend == MNNBackendType.OpenCL && openClTuningMode.HasValue ? (int)openClTuningMode.Value : threads;
             string backendName = MNNAcceleration.ConfigName(backend);
-            var media = new MediaOptions{backend_type = backendName, thread_num = threads, precision = precisionName};
+            var media = new MediaOptions{backend_type = backendName, thread_num = nativeThreads, precision = precisionName};
             string cache = Path.GetFullPath(cacheDirectory ?? Path.Combine(MNNInferenceCache.DirectoryFor("Cache"), "Tasks", Guid.NewGuid().ToString("N")));
             Directory.CreateDirectory(cache);
             string json;
             if (chatSampling)
             {
-                var source = JsonUtility.FromJson<ModelSampler>(File.ReadAllText(config)) ?? new ModelSampler();
-                string sampler = string.IsNullOrEmpty(source.sampler_type) ? "greedy" : source.sampler_type;
-                string[] mixed = source.mixed_samplers;
+                var source = ReadLlmConfiguration(directory);
+                string sampler = source.TryGetValue("sampler_type", out var samplerValue) ? samplerValue as string : null;
+                if (string.IsNullOrEmpty(sampler)) sampler = "greedy";
+                string[] mixed = source.TryGetValue("mixed_samplers", out var mixedValue) && mixedValue != null ?
+                    MNNModelData.Array(mixedValue).ConvertAll(value => (string)value).ToArray() : null;
                 if (sampler == "mixed")
                 {
                     mixed = mixed ?? new[]{"topK", "topP", "temperature"};
@@ -150,9 +182,19 @@ namespace MNN.Unity
                     };
                 }
                 else studio = new StudioOptions { sampler_type = sampler, mixed_samplers = sampler == "mixed" ? mixed : null };
+                // Keep the export's calibrated penalty (including the official legacy
+                // alias). Only our unconfigured fallback uses a recent-token window:
+                // penalizing every token in a growing prompt suppresses valid vocabulary.
+                var sampling = source;
+                if (sampling.TryGetValue("repetition_penalty", out var penalty) && MNNModelData.Number(penalty) >= 0)
+                    studio.repetition_penalty = (float)MNNModelData.Number(penalty);
+                else if (sampling.TryGetValue("penalty", out penalty))
+                    studio.repetition_penalty = (float)MNNModelData.Number(penalty);
+                if (sampling.TryGetValue("penalty_window", out var window))
+                    studio.penalty_window = MNNModelData.Integer(window);
                 studio.backend_type = backendName;
                 studio.mllm = media;
-                studio.thread_num = threads;
+                studio.thread_num = nativeThreads;
                 studio.precision = precisionName;
                 studio.tmp_path = cache + Path.DirectorySeparatorChar;
                 studio.jinja.context.enable_thinking = thinking;
@@ -160,13 +202,41 @@ namespace MNN.Unity
             }
             else
             {
-                var options = new Options{backend_type = backendName, mllm = media, thread_num = threads, precision = precisionName, tmp_path = cache + Path.DirectorySeparatorChar};
+                var options = new Options{backend_type = backendName, mllm = media, thread_num = nativeThreads, precision = precisionName, tmp_path = cache + Path.DirectorySeparatorChar};
                 if (speechRecognition) options.repetition_penalty = 1.0f;
                 options.jinja.context.enable_thinking = thinking;
                 json = JsonUtility.ToJson(options);
             }
 
             return new MNNModelOptions{ConfigPath = config, Json = json, CacheDirectory = cache, OwnedCache = cacheDirectory == null ? cache : null, Backend = backend, MediaBackend = backend, RequestedBackend = backendType};
+        }
+
+        // Match official LlmConfig: config.json selects base_dir/llm_config,
+        // then model metadata recursively overrides it. Native paths concatenate
+        // base_dir and the metadata name; a custom base_dir includes its separator.
+        internal static Dictionary<string, object> ReadLlmConfiguration(string directory)
+            => ReadLlmConfiguration(directory, out _);
+
+        internal static Dictionary<string, object> ReadLlmConfiguration(string directory, out string metadata)
+        {
+            string root = Path.GetFullPath(directory);
+            string config = Path.Combine(root, "config.json");
+            var result = File.Exists(config) ? MNNModelData.Object(MNNModelData.Read(config)) : new Dictionary<string, object>();
+            string baseDirectory = result.TryGetValue("base_dir", out var value) ? (string)value : root + Path.DirectorySeparatorChar;
+            metadata = baseDirectory + (result.TryGetValue("llm_config", out value) ? (string)value : "llm_config.json");
+            if (File.Exists(metadata)) MergeConfiguration(result, MNNModelData.Object(MNNModelData.Read(metadata)));
+            return result;
+        }
+
+        private static void MergeConfiguration(Dictionary<string, object> target, Dictionary<string, object> source)
+        {
+            foreach (var entry in source)
+            {
+                if (target.TryGetValue(entry.Key, out var value) && value is Dictionary<string, object> nested &&
+                    entry.Value is Dictionary<string, object> replacement)
+                    MergeConfiguration(nested, replacement);
+                else target[entry.Key] = entry.Value;
+            }
         }
 
         internal static MNNBackendType ForAndroidDevice(MNNBackendType requested, string directory, string graphicsDevice)
@@ -218,9 +288,7 @@ namespace MNN.Unity
         internal void FallBackToCpu(Exception reason)
         {
             Debug.Log($"[MNN] {ConfigPath}: {Backend} failed; retrying on CPU. {reason.Message}");
-            Json = Json.Replace("\"backend_type\":\"" + MNNAcceleration.ConfigName(Backend) + "\"", "\"backend_type\":\"cpu\"");
-            Backend = MNNBackendType.CPU;
-            MediaBackend = MNNBackendType.CPU;
+            SelectCpuConfiguration();
         }
 
         internal void UseCpuForCompatibility(string reason)
@@ -228,7 +296,12 @@ namespace MNN.Unity
             if (Backend == MNNBackendType.CPU)
                 return;
             Debug.Log("[MNN] " + ConfigPath + ": using CPU for compatibility. " + reason);
-            Json = Json.Replace("\"backend_type\":\"" + MNNAcceleration.ConfigName(Backend) + "\"", "\"backend_type\":\"cpu\"");
+            SelectCpuConfiguration();
+        }
+
+        private void SelectCpuConfiguration()
+        {
+            Json = _cpuFallbackJson ?? Json.Replace("\"backend_type\":\"" + MNNAcceleration.ConfigName(Backend) + "\"", "\"backend_type\":\"cpu\"");
             Backend = MNNBackendType.CPU;
             MediaBackend = MNNBackendType.CPU;
         }

@@ -21,9 +21,11 @@ namespace MNN.Unity.Interop
         public int numThread;
         internal MNNInterop.CppVector inputs, outputs;
         internal int pathMode;
-        // ScheduleConfig::Path is a nested 56-byte object (including 4 bytes
-        // of tail padding). backupType follows the whole object at offset 88.
+        // The pinned 64-bit Path is 56 bytes with 4-byte tail padding.
+        // wasm32 Path is 28 bytes with no tail padding; backupType is at 48.
+#if !UNITY_WEBGL || UNITY_EDITOR
         private int pathPadding;
+#endif
         public MNNBackendType backupType;
         public IntPtr backendConfig;
     }
@@ -40,6 +42,9 @@ namespace MNN.Unity.Interop
             internal SavedTensorNames(string[] names)
             {
                 if (names == null || names.Length == 0) return;
+#if UNITY_WEBGL && !UNITY_EDITOR
+                throw new PlatformNotSupportedException("WebGL saved tensor names do not have an implemented string ABI.");
+#endif
                 if (names.Length > 1024) throw new ArgumentException("Too many saved tensor names.", nameof(names));
                 _strings = new NativeString[names.Length];
                 try

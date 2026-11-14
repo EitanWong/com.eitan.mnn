@@ -33,6 +33,23 @@ namespace MNN.Unity.Tests
             return matches;
         }
 
+        [TestCase(3, true)]
+        [TestCase(4, false)]
+        public void UnfinishedPrefixExpiresBeforeItCanClaimLaterSpeech(int silentFrames, bool shouldMatch)
+        {
+            float[] logits = null;
+            var decoder = new MNNKeywordDecoder("a b @wake", Tokens(), .25f, 1, 1, 6,
+                _ => new float[320], (_, __) => logits, maximumTokenGap: 4);
+            var matches = new List<MNNKeywordDetection>();
+            foreach (int id in new[] { 3 }.Concat(Enumerable.Repeat(0, silentFrames)).Concat(new[] { 4, 0, 0 }))
+            {
+                logits = Enumerable.Repeat(-20f, 197).ToArray(); logits[id] = 20;
+                var match = decoder.Advance(new float[320]);
+                if (match != null) matches.Add(match);
+            }
+            Assert.AreEqual(shouldMatch ? 1 : 0, matches.Count, "A completed phrase keeps its confirmation blanks; an expired prefix must start over.");
+        }
+
         [Test]
         public void SearchNeedsFullKeywordAndTrailingBlanksAndCanTriggerRepeatedly()
         {

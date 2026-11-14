@@ -9,7 +9,6 @@ namespace MNN.Unity.Editor
     internal static class MNNStudioPrompt
     {
         internal const int MaximumCharacters = 16000;
-        internal const int CompressionThresholdCharacters = 12000;
         internal const int RecentMessagesAfterCompression = 8;
         internal const int MaximumSummaryCharacters = 2400;
         // Keep complete recent turns, within a bounded text budget. Media is supplied

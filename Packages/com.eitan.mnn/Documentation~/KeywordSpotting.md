@@ -93,7 +93,14 @@ Studio 的 live 推理在后台运行，关闭窗口后会等待正在执行的�
 `Tools~/Models/generate_kws_pronunciations.py --tokens <已安装模型的 tokens.txt>`；
 只在维护时需要 pypinyin 0.55.0，运行时全部由 C# 执行。
 
-英文模型准备（本工程已安装到 `Assets/StreamingAssets/MNN/Models/English-KWS-GigaSpeech`）：
+英文模型现已发布在 [ModelScope](https://modelscope.cn/models/EitanWang/English-KWS-GigaSpeech-MNN)。
+在 Model Manager 或 SiriAI 英文唤醒词模型选择器搜索 `English-KWS-GigaSpeech` 即可下载。
+共享运行时目录内置此条目，不依赖本地权重或远端搜索索引；下载固定到已验证提交，逐文件
+校验 SHA-256，安装后生成英文 `mnn_kws.json`。默认安装目录仍为 `English-KWS-GigaSpeech`，
+与现有 SiriAI 设置一致。打包选择该目录会包含三个图、tokens、bpe 和 profile；未捆绑时可运行时下载。
+发布仓库只包含部署文件，不下载 ONNX 转换输入或测试录音。
+
+手工准备方式（本工程已安装到 `Assets/StreamingAssets/MNN/Models/English-KWS-GigaSpeech`）：
 
 ```sh
 python3 Packages/com.eitan.mnn/Tools~/Models/prepare_english_kws.py --converter /path/to/MNNConvert
@@ -154,3 +161,12 @@ python3 Packages/com.eitan.mnn/Tools~/Testing/prepare_english_wake_fixtures.py \
 质量门槛为英语至少90%、中文至少95%命中，相近词误触发最多英语1条、中文0条；全部漏检会导出，
 并非要求忽略困难音色。“seriously”仍可能与短词“Siri”混淆，长短语通常更易区分。
 这是合成回归与当前测试主机实时计算预算，不能当作真人、远场、不同口音或真实房间的准确率保证。
+
+### 英文短词召回
+
+默认英文解码保留 6 条不同历史路径，中文继续保留 4 条；显式 `maxActivePaths` 仍覆盖默认值。
+`maxActivePaths=0` 自动按语言选择。置信阈值保持 0.15，英文尾部确认保持 4 帧，避免只降低
+阈值或缩短确认引入误唤醒。2026-11-10 的 4 个系统合成英语声音、64 个正例比较中，
+保留 6 路并在 720ms 的 token 间停顿后释放未完成前缀，避免静音前缀占用候选路径或造成过早时间戳；
+相对原实现从 59/64 提升到 61/64。原有 56 个近音/无关语音负例和噪声检查的
+误触发仍为 1 次。该合成语音结果不能替代真实用户、远场或移动设备的评估。

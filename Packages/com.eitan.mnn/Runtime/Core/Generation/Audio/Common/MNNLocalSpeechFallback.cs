@@ -26,7 +26,7 @@ namespace MNN.Unity
         private Func<string, CancellationToken, MNNGeneratedAudio> _synthesize;
         private string[] _languages;
         private string _fallbackDirectory;
-        private MNNTtsModelProfile _profile;
+        private MNNSpeechModelKind _profile;
         public string LastModelDirectory { get; private set; }
         private bool _disposed;
 
@@ -66,12 +66,12 @@ namespace MNN.Unity
 
             }
             bool mixed = MNNSpeechLanguages.Scripts(text).Contains("han") && MNNSpeechLanguages.Scripts(text).Contains("latin");
-            if (_synthesize != null && (!mixed || _profile != MNNTtsModelProfile.Kokoro) && MNNSpeechLanguages.SupportsText(text, _languages))
+            if (_synthesize != null && (!mixed || _profile != MNNSpeechModelKind.Kokoro) && MNNSpeechLanguages.SupportsText(text, _languages))
             {
                 try { var audio = Convert(_synthesize(text, cancellationToken), cancellationToken); LastModelDirectory = _fallbackDirectory; return audio; }
                 catch (NotSupportedException) { Release(); }
             }
-            var candidates = new List<(string Directory, MNNTtsModelProfile Profile, string[] Languages)>();
+            var candidates = new List<(string Directory, MNNSpeechModelKind Profile, string[] Languages)>();
             foreach (string directory in InstalledDirectories())
             {
                 if (directory == _preferred) continue;
@@ -126,34 +126,34 @@ namespace MNN.Unity
             }
         }
 
-        internal static string[] Languages(string directory, MNNTtsModelProfile profile)
+        internal static string[] Languages(string directory, MNNSpeechModelKind profile)
         {
             switch (profile)
             {
-                case MNNTtsModelProfile.BertVits2: return new[]{"zh", "en"};
-                case MNNTtsModelProfile.Kokoro:
+                case MNNSpeechModelKind.BertVits2: return new[]{"zh", "en"};
+                case MNNSpeechModelKind.Kokoro:
                     return new[]{File.Exists(Path.Combine(directory, "lexicon-zh.txt")) ? "zh" : null,
                         File.Exists(Path.Combine(directory, "lexicon-us-en.txt")) ? "en" : null}.Where(value => value != null).ToArray();
-                case MNNTtsModelProfile.Supertonic:
+                case MNNSpeechModelKind.Supertonic:
                     return MNNSupertonic.LanguagesForVersion((string)MNNModelData.Get(MNNModelData.Read(Path.Combine(directory, "mnn_models", "tts.json")), "tts_version"));
-                case MNNTtsModelProfile.Piper: return MNNPiper.ReadLanguages(directory);
-                case MNNTtsModelProfile.SherpaVitsChinese: return new[]{"zh"};
-                case MNNTtsModelProfile.CosyVoice: return new[]{"zh", "en"};
-                case MNNTtsModelProfile.Qwen3Explicit: return new[]{"zh", "en"};
+                case MNNSpeechModelKind.Piper: return MNNPiper.ReadLanguages(directory);
+                case MNNSpeechModelKind.SherpaVitsChinese: return new[]{"zh"};
+                case MNNSpeechModelKind.CosyVoice: return new[]{"zh", "en"};
+                case MNNSpeechModelKind.Qwen3Explicit: return new[]{"zh", "en"};
                 default: return Array.Empty<string>();
             }
         }
 
-        private static int Priority(MNNTtsModelProfile profile) => profile == MNNTtsModelProfile.BertVits2 ? 0 :
-            profile == MNNTtsModelProfile.Kokoro ? 1 : profile == MNNTtsModelProfile.Piper ? 2 :
-            profile == MNNTtsModelProfile.Supertonic ? 3 : profile == MNNTtsModelProfile.SherpaVitsChinese ? 4 : 5;
+        private static int Priority(MNNSpeechModelKind profile) => profile == MNNSpeechModelKind.BertVits2 ? 0 :
+            profile == MNNSpeechModelKind.Kokoro ? 1 : profile == MNNSpeechModelKind.Piper ? 2 :
+            profile == MNNSpeechModelKind.Supertonic ? 3 : profile == MNNSpeechModelKind.SherpaVitsChinese ? 4 : 5;
 
-        private void Load(string directory, MNNTtsModelProfile profile)
+        private void Load(string directory, MNNSpeechModelKind profile)
         {
             _profile = profile;
             switch (profile)
             {
-                case MNNTtsModelProfile.Kokoro:
+                case MNNSpeechModelKind.Kokoro:
                     var kokoro = MNNKokoro.Load(directory, _threads); _model = kokoro;
                     _synthesize = (text, token) =>
                     {
@@ -162,24 +162,24 @@ namespace MNN.Unity
                             kokoro.Voices.FirstOrDefault(value => value.StartsWith(chinese ? "z" : "a", StringComparison.Ordinal)) ?? kokoro.Voices[0];
                         return kokoro.Synthesize(text, voice, cancellationToken: token);
                     }; break;
-                case MNNTtsModelProfile.BertVits2:
+                case MNNSpeechModelKind.BertVits2:
                     var bert = MNNBertVits2.Load(directory, _threads); _model = bert;
                     _synthesize = (text, token) => bert.Synthesize(text, token); break;
-                case MNNTtsModelProfile.Supertonic:
+                case MNNSpeechModelKind.Supertonic:
                     string precision = new[]{"fp16", "fp32", "int8"}.First(value => Directory.Exists(Path.Combine(directory, "mnn_models", value)));
                     var supertonic = MNNSupertonic.Load(directory, _threads, precision); _model = supertonic;
                     _synthesize = (text, token) => supertonic.Synthesize(text, supertonic.Voices[0], cancellationToken: token,
                         language: MNNSpeechLanguages.Select(text, supertonic.Languages)); break;
-                case MNNTtsModelProfile.Piper:
+                case MNNSpeechModelKind.Piper:
                     var piper = MNNPiper.Load(directory, _threads); _model = piper;
                     _synthesize = (text, token) => piper.Synthesize(text, cancellationToken: token); break;
-                case MNNTtsModelProfile.SherpaVitsChinese:
+                case MNNSpeechModelKind.SherpaVitsChinese:
                     var sherpa = MNNSherpaVitsChinese.Load(directory, _threads); _model = sherpa;
                     _synthesize = (text, token) => sherpa.Synthesize(text, cancellationToken: token); break;
-                case MNNTtsModelProfile.CosyVoice:
+                case MNNSpeechModelKind.CosyVoice:
                     var cosy = MNNCosyVoice.Load(directory, _threads); _model = cosy;
                     _synthesize = (text, token) => cosy.Synthesize(text, cancellationToken: token); break;
-                case MNNTtsModelProfile.Qwen3Explicit:
+                case MNNSpeechModelKind.Qwen3Explicit:
                     var qwen = MNNQwen3ExplicitTts.Load(directory, _threads); _model = qwen;
                     _synthesize = (text, token) => qwen.Synthesize(text, language: MNNSpeechLanguages.Scripts(text).Contains("han") ? "zh" : "en", cancellationToken: token); break;
                 default: throw new NotSupportedException("No local fallback frontend for " + profile);

@@ -22,7 +22,7 @@ namespace MNN.Unity
         private bool _disposed;
         public int SampleRate => 16000;
         internal static readonly string[] Precisions = {"int8", "fp16_int8", "fp32"};
-        internal static string[] InstalledPrecisions(string directory) => Precisions.Where(precision => File.Exists(Path.Combine(directory, "model_" + precision + ".mnn"))).ToArray();
+        public static string[] InstalledPrecisions(string directory) => Precisions.Where(precision => File.Exists(Path.Combine(directory, "model_" + precision + ".mnn"))).ToArray();
 
         internal static bool IsComplete(string directory) => File.Exists(Path.Combine(directory, "mnn_mms_tamil.json"))
             && File.Exists(Path.Combine(directory, "model_int8.mnn")) && File.Exists(Path.Combine(directory, "tokens.txt"));

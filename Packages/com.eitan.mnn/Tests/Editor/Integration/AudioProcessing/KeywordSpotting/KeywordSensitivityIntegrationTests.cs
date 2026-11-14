@@ -14,7 +14,7 @@ namespace MNN.Unity.Tests
     {
         // Corpus quality gates, not an assertion of perfect recognition for every voice.
         // All misses/confusions are exported, including the model's difficult Siri examples.
-        [TestCase(false, .90)]
+        [TestCase(false, .95)]
         [TestCase(true, .95)]
         public void StreamingCorpusMeetsRecallConfusionAndRealtimeBudgets(bool chinese, double minimumRecall)
         {

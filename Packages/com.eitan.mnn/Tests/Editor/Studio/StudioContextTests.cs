@@ -24,6 +24,60 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void CompleteTemplateCountControlsBothCompactionAndSummaryChunkBudgets()
+        {
+            var history = History(3, 600);
+            int Count(IReadOnlyList<MNNChatMessage> prompt) => prompt.Sum(message => message.Content.Length + 120);
+            int summaries = 0;
+            var result = MNNStudioContext.Prepare(history, "latest", "", 0, 4096, 256, 0,
+                text => throw new InvalidOperationException("The complete template counter must be used."), prompt =>
+                {
+                    ++summaries;
+                    Assert.LessOrEqual(Count(prompt), 4096 - MNNStudioContext.SummaryOutputTokens - 512);
+                    return "Earlier facts";
+                }, null, default, countConversationTokens: Count);
+            Assert.Greater(summaries, 0);
+            Assert.AreEqual(2, result.Covered);
+            Assert.LessOrEqual(Count(result.Conversation), 4096 - 256 - 512);
+            Assert.AreEqual(history[2].Text, result.Conversation[1].Content);
+            Assert.AreEqual("latest", result.Conversation.Last().Content);
+        }
+
+        [Test]
+        public void CompleteTemplateOverheadCanRejectAnOversizedCurrentMessageBeforeSummarizing()
+        {
+            int summaries = 0;
+            Assert.Throws<ArgumentException>(() => MNNStudioContext.Prepare(History(2), "latest", "", 0,
+                2048, 256, 0, text => 0, prompt => { ++summaries; return "facts"; }, null, default,
+                countConversationTokens: prompt => 2048));
+            Assert.AreEqual(0, summaries);
+        }
+
+        [Test]
+        public void CompressionPreservesLongHistoryWhileItStillFitsTheTokenBudget()
+        {
+            var history = History(12, 800);
+            int calls = 0;
+            var result = MNNStudioContext.Prepare(history, "latest", "", 0, 8192, 256, 0,
+                text => text.Length / 4, prompt => { ++calls; return "lossy summary"; }, null, default);
+            Assert.AreEqual(0, calls, "Character length alone must not discard useful in-window context.");
+            Assert.AreEqual(0, result.Covered);
+            Assert.AreEqual(history.Count + 1, result.Conversation.Length);
+            Assert.AreEqual(history[0].Text, result.Conversation[0].Content);
+        }
+
+        [Test]
+        public void EmptySummaryCannotCommitCoverageUsingRetainedFactsAlone()
+        {
+            var history = History(12, 800);
+            const string memory = "Earlier facts.\n\nUser facts retained verbatim:\nMy name is Ada.";
+            int commits = 0;
+            Assert.Throws<InvalidOperationException>(() => MNNStudioContext.Prepare(history, "latest", memory, 0,
+                4096, 256, 0, text => text.Length / 4, prompt => "", (summary, count) => ++commits, default));
+            Assert.AreEqual(0, commits, "Failed compression must leave the previous memory checkpoint intact.");
+        }
+
+        [Test]
         public void Compression_CoversEveryOldMessageInOrderAndDoesNotRecompressCoveredHistory()
         {
             var history = History(20);
@@ -53,7 +107,7 @@ namespace MNN.Unity.Tests
             }, null, default);
             Assert.AreEqual(0, calls);
             Assert.AreEqual(first.Covered, second.Covered);
-            history.AddRange(History(8));
+            history.AddRange(History(12));
             var third = MNNStudioContext.Prepare(history, "new", first.Summary, first.Covered, 8192, 256, 0, text => text.Length / 4, prompt =>
             {
                 StringAssert.Contains("Ada", prompt[1].Content);

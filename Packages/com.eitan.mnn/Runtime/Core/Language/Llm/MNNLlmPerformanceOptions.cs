@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.IO;
 using System.Text;
 
 namespace MNN.Unity
@@ -16,6 +15,10 @@ namespace MNN.Unity
         private MNNPowerMode? _powerMode;
         /// <summary>Unassigned: select at load. The unresolved getter returns the fallback value.</summary>
         public int ThreadCount { get => _threadCount ?? 4; set => _threadCount = value; }
+        /// <summary>One official OpenCL kernel tuning level. Independent of CPU
+        /// ThreadCount, including CPU fallback. MNN LLM supplies buffer mode internally.
+        /// Heavy tuning can increase first-load cost; benchmark on the target device.</summary>
+        public MNNGpuTuningMode OpenClTuningMode { get; set; } = MNNGpuTuningMode.Wide;
         public MNNBackendType BackendType { get; set; } = MNNBackendType.Auto;
         public MNNPrecisionMode PrecisionMode { get => _precisionMode ?? MNNPrecisionMode.Low; set => _precisionMode = value; }
         public MNNPowerMode PowerMode { get => _powerMode ?? MNNPowerMode.High; set => _powerMode = value; }
@@ -28,6 +31,13 @@ namespace MNN.Unity
             if (string.IsNullOrWhiteSpace(modelDirectory))
                 throw new ArgumentNullException(nameof(modelDirectory));
             return Resolve(MNNLlmDeviceDefaults.Select(modelDirectory, BackendType));
+        }
+
+        internal MNNLlmPerformanceOptions ResolveForBackend(string directory, MNNBackendType backend)
+        {
+            var request = (MNNLlmPerformanceOptions)MemberwiseClone();
+            request.BackendType = backend;
+            return request.Resolve(directory);
         }
 
         internal MNNLlmPerformanceOptions Resolve(MNNLlmPerformanceOptions defaults)
@@ -61,12 +71,14 @@ namespace MNN.Unity
         public int? PrefillChunkSize { get; set; }
 
         internal string ToJson(string modelDirectory = null)
-            => ToJsonFromConfiguration(modelDirectory == null ? "{}" : File.ReadAllText(Path.Combine(modelDirectory, "config.json")));
+            => ToJsonFromSource(modelDirectory == null ? MNNModelData.Object(MNNModelData.Parse("{}")) : MNNModelOptions.ReadLlmConfiguration(modelDirectory));
 
         internal string ToJsonFromConfiguration(string configuration)
+            => ToJsonFromSource(MNNModelData.Object(MNNModelData.Parse(configuration)));
+
+        private string ToJsonFromSource(System.Collections.Generic.Dictionary<string, object> source)
         {
             Validate();
-            var source = MNNModelData.Object(MNNModelData.Parse(configuration));
             var json = new StringBuilder("{\"power\":\"").Append(PowerMode.ToString().ToLowerInvariant()).Append('"');
             AppendOverrides(source, json);
             return json.Append('}').ToString();
@@ -76,6 +88,8 @@ namespace MNN.Unity
         {
             if (ThreadCount < 1 || ThreadCount > 64)
                 throw new ArgumentOutOfRangeException(nameof(ThreadCount));
+            if (!Enum.IsDefined(typeof(MNNGpuTuningMode), OpenClTuningMode))
+                throw new ArgumentOutOfRangeException(nameof(OpenClTuningMode), "Select exactly one OpenCL tuning level.");
             MNNAcceleration.Validate(BackendType);
             if (PrecisionMode != MNNPrecisionMode.Normal && PrecisionMode != MNNPrecisionMode.High && PrecisionMode != MNNPrecisionMode.Low)
                 throw new ArgumentOutOfRangeException(nameof(PrecisionMode));

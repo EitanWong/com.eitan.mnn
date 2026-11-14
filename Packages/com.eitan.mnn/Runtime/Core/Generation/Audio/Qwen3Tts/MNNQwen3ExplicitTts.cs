@@ -13,6 +13,8 @@ namespace MNN.Unity
     /// Requires the package's bounded macOS Mono MNN ABI contract.</summary>
     public sealed class MNNQwen3ExplicitTts : IDisposable
     {
+        public static string RecommendedRepository => MNNVerifiedTtsModel.Qwen3ExplicitRepository;
+
         private readonly object _gate = new object();
         private readonly string _root;
         private readonly int _threads;

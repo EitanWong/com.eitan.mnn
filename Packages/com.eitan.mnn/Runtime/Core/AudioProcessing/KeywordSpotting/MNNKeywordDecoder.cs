@@ -31,13 +31,13 @@ namespace MNN.Unity
 
         private readonly Node _root = new Node();
         private List<Hypothesis> _hypotheses;
-        private readonly int _trailingBlanks, _maxPaths, _maxLength, _vocabularySize;
+        private readonly int _trailingBlanks, _maxPaths, _maxLength, _vocabularySize, _maximumTokenGap;
         private readonly Func<int[], float[]> _decode;
         private readonly Func<float[], float[], float[]> _join;
         private int _frame;
 
         internal MNNKeywordDecoder(string keywords, string[] tokens, float threshold, float score,
-            int trailingBlanks, int maxPaths, Func<int[], float[]> decode, Func<float[], float[], float[]> join, int minimumTokens = 2)
+            int trailingBlanks, int maxPaths, Func<int[], float[]> decode, Func<float[], float[], float[]> join, int minimumTokens = 2, int maximumTokenGap = 38)
         {
             if (string.IsNullOrWhiteSpace(keywords) || keywords.Length > 32768)
                 throw new ArgumentException("Enter one tokenized keyword per line (up to 32,768 characters).", nameof(keywords));
@@ -45,6 +45,8 @@ namespace MNN.Unity
             if (!Finite(score) || score < 0 || score > 10) throw new ArgumentOutOfRangeException(nameof(score));
             if (trailingBlanks < 1 || trailingBlanks > 25) throw new ArgumentOutOfRangeException(nameof(trailingBlanks));
             if (maxPaths < 1 || maxPaths > 16) throw new ArgumentOutOfRangeException(nameof(maxPaths));
+            if (maximumTokenGap < 1 || maximumTokenGap > 250) throw new ArgumentOutOfRangeException(nameof(maximumTokenGap));
+            _maximumTokenGap = maximumTokenGap;
             _decode = decode; _join = join; _trailingBlanks = trailingBlanks; _maxPaths = maxPaths;
             _vocabularySize = tokens.Length;
             var table = tokens.Select((text, id) => new {text, id}).ToDictionary(item => item.text, item => item.id, StringComparer.Ordinal);
@@ -134,6 +136,17 @@ namespace MNN.Unity
             var cache = new Dictionary<string, float[]>();
             foreach (var hypothesis in _hypotheses)
             {
+                // An unfinished prefix must not retain its context boost through a long pause.
+                // Expire each history before scoring, so a stale prefix cannot occupy a beam slot
+                // or turn later speech into a match whose start time lies in preceding silence.
+                if (hypothesis.State != _root && hypothesis.State.Phrase == null && hypothesis.State.Output == null &&
+                    hypothesis.Blanks >= _maximumTokenGap)
+                {
+                    hypothesis.Score -= hypothesis.State.Score;
+                    hypothesis.State = _root;
+                    hypothesis.Ids.Clear(); hypothesis.Ids.Add(-1); hypothesis.Ids.Add(0);
+                    hypothesis.Probabilities.Clear(); hypothesis.Times.Clear(); hypothesis.Blanks = 0;
+                }
                 int count = hypothesis.Ids.Count;
                 var context = new[] {hypothesis.Ids[count - 2], hypothesis.Ids[count - 1]};
                 string key = context[0] + "," + context[1];

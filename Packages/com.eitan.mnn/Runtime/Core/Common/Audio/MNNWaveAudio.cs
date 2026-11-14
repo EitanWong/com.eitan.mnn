@@ -30,7 +30,7 @@ namespace MNN.Unity
         }
 
         // Shared RIFF decoding; task-specific duration/silence constraints belong to callers.
-        internal static float[] Read(string path, out int sampleRate)
+        public static float[] Read(string path, out int sampleRate)
         {
             float[][] channels = ReadChannels(path, out sampleRate, true);
             var mono = new float[channels[0].Length];
@@ -41,7 +41,7 @@ namespace MNN.Unity
         }
 
         // Preserve speaker channels; the caller chooses whether finite gain above one is valid.
-        internal static float[][] ReadChannels(string path, out int sampleRate, bool requireNormalized)
+        public static float[][] ReadChannels(string path, out int sampleRate, bool requireNormalized)
         {
             using (var stream = File.OpenRead(path))
             using (var reader = new BinaryReader(stream, Encoding.ASCII))

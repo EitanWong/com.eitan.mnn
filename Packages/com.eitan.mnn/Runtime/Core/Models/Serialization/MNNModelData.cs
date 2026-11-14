@@ -181,7 +181,24 @@ namespace MNN.Unity
             {
                 if (_index >= _text.Length || _text[_index++] != '"')
                     throw Error();
+                // Most model/tokenizer keys and pieces contain no escapes. Scan
+                // once and allocate only the final string in that common case.
+                int start = _index;
+                while (_index < _text.Length)
+                {
+                    char plain = _text[_index++];
+                    if (plain == '"')
+                        return _text.Substring(start, _index - start - 1);
+                    if (plain < 32)
+                        throw Error();
+                    if (plain == '\\')
+                    {
+                        --_index;
+                        break;
+                    }
+                }
                 var result = new StringBuilder();
+                result.Append(_text, start, _index - start);
                 while (_index < _text.Length)
                 {
                     char c = _text[_index++];

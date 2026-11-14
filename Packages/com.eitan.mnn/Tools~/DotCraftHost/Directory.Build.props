@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <HarnessArtifactsRoot Condition="'$(HarnessArtifactsRoot)' == ''">$(MSBuildThisFileDirectory)../../../../TestArtifacts~/SiriAIHarness/DotCraftHost/</HarnessArtifactsRoot>
+  </PropertyGroup>
+  <Import Project="../HarnessHost/Directory.Build.props" />
+</Project>

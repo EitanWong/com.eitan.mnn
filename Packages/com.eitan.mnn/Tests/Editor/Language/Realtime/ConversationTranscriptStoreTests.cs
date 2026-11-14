@@ -51,6 +51,24 @@ namespace MNN.Unity.Tests
             { Assert.AreEqual(131, reopened.Count); Assert.AreEqual("next", reopened[130].Text); }
         }
         [Test]
+        public void ReopeningLargeHistoryDoesNotDecodeEveryHistoricalMessage()
+        {
+            string path = Path.Combine(_directory, "indexed.bin");
+            string text = new string('中', 256);
+            using (var store = MNNConversationTranscriptStore.OpenPersistent(path))
+            { for (int i = 0; i < 20000; ++i) store.Add(MNNChatRole.User, text); store.Flush(); }
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            using (var store = MNNConversationTranscriptStore.OpenPersistent(path))
+            {
+                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                Assert.AreEqual(20000, store.Count);
+                Assert.AreEqual(text, store[0].Text);
+                Assert.AreEqual(text, store[19999].Text);
+                Assert.Less(allocated, 512 * 1024, "Opening must decode only the bounded tail, not all historical strings.");
+            }
+        }
+
+        [Test]
         public void QuotaAndInvalidUnicodeDoNotCommitPartialEntries()
         {
             string path = Path.Combine(_directory, "bounded.bin");

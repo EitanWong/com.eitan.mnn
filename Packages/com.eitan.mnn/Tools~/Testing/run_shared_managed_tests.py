@@ -31,8 +31,10 @@ NETWORK_CASES = tuple("MNN.Unity.Tests." + name for name in (
     "ModelDownloadServiceTests.ModelScopeSmolLlmDownloadsOnlyItsRuntimeProfile",
     "ModelDownloadServiceTests.ModelScopeQwen25SmallDownloadsOnlyItsRuntimeProfile",
     "ModelDownloadServiceTests.ModelScopeQwen3SmallDownloadsOnlyItsRuntimeProfile",
+    "MiniMindOModelScopeTests.PublishedModelDownloadsThroughRuntimeInstallerAndGeneratesSpeech",
 ))
 LOCAL_EXPLICIT_CASES = tuple("MNN.Unity.Tests." + name for name in (
+    "MiniMindOCatalogTests",
     "ModelCatalogCacheTests.MeasureExistingCatalogCacheReadsWithoutNetwork", "ModelClassificationTests.AuditCachedCatalog",
     "SpeechModelPackagingTests.AvMossFormer2TargetSpeakerExtractionExecutesWithFiniteOutput",
     "SpeechModelPackagingTests.AvMossFormer2TargetSpeakerExtractionExecutesWithMetal",
@@ -189,7 +191,7 @@ def audit_suite_sources(package):
     explicit = sorted(item["name"] for item in shared if item["explicit"])
     errors = []
     if network != sorted(NETWORK_CASES):
-        errors.append("RequiresNetwork source declarations differ from the exact reviewed seven-case scope.")
+        errors.append("RequiresNetwork source declarations differ from the exact reviewed eight-case scope.")
     if explicit != sorted(NETWORK_CASES + LOCAL_EXPLICIT_CASES):
         errors.append("Shared Explicit source declarations differ from the reviewed complete scope inventory.")
     return {"passed": not errors, "errors": errors, "network_cases": network, "shared_explicit_cases": explicit,
@@ -238,8 +240,10 @@ def read_reference_environment(path):
 
 def network_download_environment(project):
     directory = Path(project).resolve() / "TestArtifacts~/NetworkDownloads"
-    return {"MNN_TEST_" + key + "_LLM_ROOT": str(directory / name) for key, name in (
+    environment = {"MNN_TEST_" + key + "_LLM_ROOT": str(directory / name) for key, name in (
         ("MOBILE", "MobileLLM"), ("SMOL", "SmolLM2"), ("QWEN25", "Qwen2.5"), ("QWEN3", "Qwen3"))}
+    environment["MNN_TEST_MINIMIND_INSTALL_ROOT"] = str(directory / "MiniMindO")
+    return environment
 
 
 def main():
@@ -249,7 +253,7 @@ def main():
     parser.add_argument("--graphics", action="store_true", help="Keep graphics enabled for the complete suite")
     parser.add_argument("--timeout-seconds", type=int, default=2700)
     parser.add_argument("--scope", choices=("offline", "network"), default="offline",
-                        help="offline runs every local case, including native Explicit; network explicitly runs all seven external download/discovery tests")
+                        help="offline runs every local case, including native Explicit; network explicitly runs all eight external download/discovery tests")
     parser.add_argument("--prepare-only", action="store_true", help="Prepare the project without claiming a test pass")
     parser.add_argument("--models-root", type=Path, help="Link the runner's existing deployed Models directory; never copy or download weights")
     parser.add_argument("--reference-environment", type=Path, help="Nonsecret JSON object of MNN_TEST_* model/reference settings")

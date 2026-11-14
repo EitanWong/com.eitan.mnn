@@ -9,9 +9,22 @@ Outputs must stay in this repository's TestArtifacts~/ directory.
 import argparse
 from graphlib import TopologicalSorter
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
+
+
+def managed_files(source):
+    """Follow Unity's source boundaries, retaining the intentionally compiled Samples~."""
+    ignored = {"Library", "Temp", "obj", "bin", "Plugins"}
+    for directory, folders, filenames in os.walk(source):
+        folders[:] = [name for name in folders if name not in ignored and not name.startswith(".")
+                      and (not name.endswith("~") or name == "Samples~")]
+        for filename in filenames:
+            path = Path(directory) / filename
+            if path.suffix in {".cs", ".asmdef", ".asmref"}:
+                yield path
 
 
 def main():
@@ -41,7 +54,8 @@ def main():
     sample_assemblies = set()
     folders = {}
     guids = {}
-    for path in sorted({path for source in source_roots for path in source.rglob("*.asmdef")}):
+    inventory = sorted({path for source in source_roots for path in managed_files(source)})
+    for path in (path for path in inventory if path.suffix == ".asmdef"):
         definition = json.loads(path.read_text())
         name = definition["name"]
         definitions[name] = definition
@@ -54,7 +68,7 @@ def main():
     def resolve(reference):
         return guids[reference[5:]] if reference.startswith("GUID:") else reference
 
-    for path in sorted({path for source in source_roots for path in source.rglob("*.asmref")}):
+    for path in (path for path in inventory if path.suffix == ".asmref"):
         folders[path.parent] = resolve(json.loads(path.read_text())["reference"])
 
     dependencies = {
@@ -63,7 +77,7 @@ def main():
         for name, definition in definitions.items()
     }
     sources = {name: [] for name in definitions}
-    for source in sorted({path for source in source_roots for path in source.rglob("*.cs")}):
+    for source in (path for path in inventory if path.suffix == ".cs"):
         owner = next((folders[parent] for parent in source.parents if parent in folders), None)
         if owner:
             sources[owner].append(source)

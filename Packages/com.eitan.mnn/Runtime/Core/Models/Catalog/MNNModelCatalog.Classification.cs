@@ -18,7 +18,7 @@ namespace MNN.Unity
 
         // Classify tasks, not descriptions, owners or internal pipeline stage names.
         // Metadata describes a candidate's purpose; it never establishes runtime support.
-        internal static string Classify(string id, string name = null, string description = null,
+        public static string Classify(string id, string name = null, string description = null,
             string[] tasks = null, string[] tags = null, string[] paths = null)
         {
             string repositoryName = (id ?? string.Empty).Split('/').Last();

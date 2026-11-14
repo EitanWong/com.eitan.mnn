@@ -60,6 +60,23 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void TextChatWorksWithoutAudioAndKeepsModelExecutionRequirements()
+        {
+            var model = Caps(Binding | MNNRealtimeFeature.TextInput | MNNRealtimeFeature.ContextRecovery);
+            var selection = MNNRealtimeRouteSelector.SelectBest(model, Caps(MNNRealtimeFeature.None), speechOutput: false);
+            Assert.AreEqual(MNNRealtimeRoute.TextChat, selection.RequireSelected().Route);
+            Assert.IsFalse(selection.Selected.ProducesSpeech);
+            Assert.IsFalse(selection.Selected.UsesSpeechRecognition);
+            Assert.IsFalse(MNNRealtimeRouteSelector.SelectBest(model, Caps(MNNRealtimeFeature.None)).CanStart,
+                "A text route must never silently replace requested speech.");
+            var missing = MNNRealtimePreflight.Check(MNNRealtimeRoute.TextChat, Caps(MNNRealtimeFeature.TextInput |
+                MNNRealtimeFeature.ContextRecovery), Caps(MNNRealtimeFeature.None), speechOutput: false);
+            Assert.AreEqual(Binding, missing.MissingModel);
+            Assert.Throws<ArgumentException>(() => MNNRealtimePreflight.Check(MNNRealtimeRoute.TextChat,
+                model, Caps(MNNRealtimeFeature.None), speechOutput: true));
+        }
+
+        [Test]
         public void PrefersContinuousModelSpeechAndStopsEvaluatingLowerRoutes()
         {
             var selection = Select(Caps(FullModel, .6));
@@ -277,6 +294,7 @@ namespace MNN.Unity.Tests
             var excluded = new List<MNNRealtimeRoute>();
             foreach (MNNRealtimeRoute expected in Enum.GetValues(typeof(MNNRealtimeRoute)))
             {
+                if (expected == MNNRealtimeRoute.TextChat) continue;
                 var selection = Select(Caps(FullModel, .6), excluded);
                 Assert.AreEqual(expected, selection.RequireSelected().Route);
                 Assert.AreEqual(1, selection.Attempts.Count);
@@ -315,7 +333,7 @@ namespace MNN.Unity.Tests
             Assert.AreEqual(5, selection.Attempts.Count);
             var error = Assert.Throws<NotSupportedException>(() => selection.RequireSelected());
             foreach (MNNRealtimeRoute route in Enum.GetValues(typeof(MNNRealtimeRoute)))
-                StringAssert.Contains(route.ToString(), error.Message);
+                if (route != MNNRealtimeRoute.TextChat) StringAssert.Contains(route.ToString(), error.Message);
             StringAssert.Contains("ABI not established", error.Message);
         }
 
@@ -344,7 +362,7 @@ namespace MNN.Unity.Tests
             Assert.Throws<ArgumentNullException>(() => MNNRealtimeRouteSelector.SelectBest(model, null));
             Assert.Throws<ArgumentOutOfRangeException>(() => Select(model, new[] { (MNNRealtimeRoute)(-1) }));
             Assert.Throws<ArgumentOutOfRangeException>(() => Select(model, new[] { (MNNRealtimeRoute)32 }));
-            Assert.Throws<ArgumentOutOfRangeException>(() => MNNRealtimePreflight.Check((MNNRealtimeRoute)5, model, device));
+            Assert.Throws<ArgumentOutOfRangeException>(() => MNNRealtimePreflight.Check((MNNRealtimeRoute)int.MaxValue, model, device));
             Assert.Throws<ArgumentOutOfRangeException>(() => MNNRealtimePreflight.Check((MNNRealtimeMode)2,
                 MNNSpeechRoute.OmniSpeech, model, device));
             Assert.Throws<ArgumentOutOfRangeException>(() => MNNRealtimePreflight.Check(MNNRealtimeMode.NativeDuplex,

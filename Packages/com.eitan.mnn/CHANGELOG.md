@@ -3,6 +3,13 @@
 Notable package changes are recorded here using [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 The package version is 3.6.2.
 
+## WebGL text integration — 2026-11-15
+
+- Integrate the verified single-thread wasm32 core/text ABI and generic SIMD archive without new C++/custom exports.
+- Yield between complete-prompt text inference calls; preserve cancellation recovery and request ownership.
+- Retain full MiniMind KV finite validation with a pinned managed scan and cached endpoint; reduce the measured long-input first callback14.24→3.07s and wall16.44→3.38s.
+- Refresh English/Chinese READMEs and platform evidence, retaining Windows x64 Mono/IL2CPP CPU/OpenCL support. WebGL loading stalls, latency tradeoffs and unverified capabilities remain explicit.
+
 ## [3.6.2] - 2026-11-01
 
 - Updated the bundled official MNN native libraries and compiler ABI contract to upstream tag 3.6.2.
@@ -11,7 +18,25 @@ The package version is 3.6.2.
 
 ## [Unreleased]
 
+- Enabled Windows x64 IL2CPP under the pinned bundled GNU ABI; real Windows 11
+  Unity Mono and IL2CPP Players each pass 157 selected two-model LLM, core, Express
+  and platform tests without failures or skips.
+- Enabled the official OpenCL backend in the bundled Windows DLL after both
+  Player backends passed the same 157-test regressions; Qwen RTX 3060 measurements
+  and model-quality limits are recorded in the Windows guide.
+- Fixed Windows model loading when managed CP1252 assemblies are stripped; paths
+  use strict Windows ACP conversion. Added Player path inference regressions.
+- Retain Windows Player-side NUnit results with build identity when the Editor
+  result connection stalls. See [Windows validation](Documentation~/WindowsPlayer.md).
+
 ### Added
+
+- Unified managed API contracts for offline model inspection, pinned revisions, curated sources and runtime initialization. Studio now uses public APIs without Runtime friendship; semantic checks enforce component/Core/Interop boundaries and generate the public API reference. See [API layers](Documentation~/PublicApiLayer.md).
+
+- Added the official MNN-Pocket 0.3B family catalog, pinned W4A16 deployment plan,
+  `.mtok` tokenizer and shared conversation alias. SiriAI now defaults to Pocket;
+  source-only/GGUF/Dec entries retain their format requirements. See
+  [Pocket integration](Documentation~/MNNPocket.md).
 
 - Added Windows x86_64 and Linux x86_64 Mono Interpreter/Session/Tensor, Express,
   LLM text/chat/streaming, native embedding/reranking and Omni media-input bindings.
@@ -71,7 +96,7 @@ The package version is 3.6.2.
   hardware and Windows/Linux GPU inference have not been verified.
 - Recorded arm64 Metal/CPU compatibility regressions cover 97 distinct Editor tests across two runs
   and 116 Player tests. Counts include API/platform checks, not only model tests.
-- Desktop IL2CPP, Windows/Linux ARM64 and WebGL reject inference; mobile ARM64
+- macOS/Linux IL2CPP, Windows/Linux ARM64 and WebGL reject inference; mobile ARM64
   IL2CPP retains its separate task/device evidence. Conditional compilation does
   not establish native inference or every model's compatibility. See [test evidence](Documentation~/Testing.md).
 

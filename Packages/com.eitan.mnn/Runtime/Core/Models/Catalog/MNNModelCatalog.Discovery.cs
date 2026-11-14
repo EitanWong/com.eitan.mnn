@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Serialization;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -102,7 +103,7 @@ namespace MNN.Unity
                             var body = (await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false)).Trim();
                             if (!body.StartsWith("[", StringComparison.Ordinal) || !body.EndsWith("]", StringComparison.Ordinal))
                                 throw new InvalidDataException("Hugging Face returned an invalid search result.");
-                            var items = JsonUtility.FromJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
+                            var items = MNNModelMetadata.ReadJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
                             if (items == null) throw new InvalidDataException("Hugging Face search omitted its model list.");
                             var models = new List<MNNRemoteModel>();
                             foreach (var item in items)
@@ -374,7 +375,7 @@ namespace MNN.Unity
             using (var response = await MNNModelCatalogRequests.Shared.GetAsync(client, $"{root}/openapi/v1/models?{query}&page_size={pageSize}&sort={sort}&page_number={page}", cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                var result = JsonUtility.FromJson<ModelSearchResponse>(await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false));
+                var result = MNNModelMetadata.ReadJson<ModelSearchResponse>(await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false));
                 if (result == null || !result.success || result.data?.models == null)
                     throw new InvalidDataException("ModelScope returned an invalid search result.");
                 return result.data;
@@ -441,7 +442,7 @@ namespace MNN.Unity
                             var body = (await MNNModelMetadata.ReadTextAsync(response.Content, cancellationToken).ConfigureAwait(false)).Trim();
                             if (!body.StartsWith("[", StringComparison.Ordinal) || !body.EndsWith("]", StringComparison.Ordinal))
                                 throw new InvalidDataException("Hugging Face returned an invalid search result.");
-                            var items = JsonUtility.FromJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
+                            var items = MNNModelMetadata.ReadJson<HuggingFaceSearchResponse>("{\"items\":" + body + "}")?.items;
                             if (items == null)
                                 throw new InvalidDataException("Hugging Face search omitted its model list.");
                             foreach (var item in items)
@@ -512,14 +513,14 @@ namespace MNN.Unity
             return null;
         }
 
-        internal static bool HasMnnArtifacts(IEnumerable<string> paths) => paths.Any(path => path != null &&
+        public static bool HasMnnArtifacts(IEnumerable<string> paths) => paths.Any(path => path != null &&
             (path.EndsWith(".mnn", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".mnn.weight", StringComparison.OrdinalIgnoreCase) ||
             HasMnnLabel(path, null) && IsArchive(path)));
 
-        internal static bool HasMnnRepositoryArtifacts(string id, string[] tags, IEnumerable<string> paths) => HasMnnArtifacts(paths) ||
+        public static bool HasMnnRepositoryArtifacts(string id, string[] tags, IEnumerable<string> paths) => HasMnnArtifacts(paths) ||
             !IsKnownArchiveSearchFalsePositive(id, paths) && HasMnnLabel(id, tags) && paths.Any(IsArchive);
 
-        internal static bool IsKnownArchiveSearchFalsePositive(string id, IEnumerable<string> paths)
+        public static bool IsKnownArchiveSearchFalsePositive(string id, IEnumerable<string> paths)
         {
             // Its public card defines MNN as Multi-Head Attention Network; Flickr8k_text.zip
             // is dataset text, not an Alibaba MNN model. Re-admit it if actual MNN artifacts appear.
@@ -548,6 +549,21 @@ namespace MNN.Unity
                 : model.runtimeAvailable ? "Files for an existing package pipeline found. Architecture and operator compatibility are checked when loading; this repository has not been inference-validated by this catalog."
                 : !hasGraph && paths.Any(IsArchive) ? "MNN-labeled archive candidate. Archive contents have not been inspected; extract and verify the model files before use."
                 : "MNN artifacts found. Use the matching task pipeline or graph API; nested variants may require preparation. Repository discovery does not verify inference compatibility.";
+            if (model.provider == MNNModelSource.ModelScope && model.repositoryId == MNNMiniMindO.Repository)
+            {
+                var profile = CreateMiniMindOProfile();
+                model.category = profile.category;
+                model.family = profile.family;
+                model.displayName = profile.displayName;
+                model.tags = profile.tags;
+                model.tasks = profile.tasks;
+                model.revision = model.version = profile.revision;
+                model.parameterCount = profile.parameterCount;
+                model.runtimeAvailable = profile.mnnFiles.Concat(new[] { MNNMiniMindO.ConfigFileName, "tokenizer.json" }).All(files.Contains);
+                model.supportSummary = profile.supportSummary;
+            }
+            if (model.provider == MNNModelSource.ModelScope && MNNPocketModel.IsRepository(model.repositoryId))
+                ApplyPocketDeploymentProfile(model);
             if (model.provider == MNNModelSource.ModelScope && MNNDocumentLayoutModel.IsRepository(model.repositoryId))
             {
                 model.category = MNNModelCatalogCategory.DocumentLayout.ToString();
@@ -720,7 +736,7 @@ namespace MNN.Unity
                 .ToList();
         }
 
-        internal static string InstallFolderName(MNNRemoteModel model)
+        public static string InstallFolderName(MNNRemoteModel model)
         {
             string repository = model.repositoryId ?? model.modelScopeId ?? model.id;
             string name = string.IsNullOrWhiteSpace(model.name) ? "model" : model.name;
@@ -737,7 +753,7 @@ namespace MNN.Unity
             }
         }
 
-        internal static bool MatchesInstallMarker(MNNRemoteModel model, string marker)
+        public static bool MatchesInstallMarker(MNNRemoteModel model, string marker)
         {
             string repository = model.repositoryId ?? model.modelScopeId ?? model.id;
             string identity = model.provider == MNNModelSource.HuggingFace ? "hf:" + repository : repository;
@@ -745,10 +761,10 @@ namespace MNN.Unity
                 model.provider == MNNModelSource.HuggingFace && marker != null && marker.StartsWith(identity + "@", StringComparison.OrdinalIgnoreCase);
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceSearchResponse
         {
-            public HuggingFaceModel[] items;
+            [DataMember, UnityEngine.Scripting.Preserve] public HuggingFaceModel[] items;
         }
     }
 }

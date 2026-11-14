@@ -8,6 +8,10 @@ namespace MNN.Unity
     /// One instance owns one stream. Device/reference delay alignment belongs to the caller.</summary>
     public sealed partial class MNNDtlnAec : IDisposable
     {
+        public static int[] SupportedUnits => (int[])MNNDtlnAecModel.Variants.Clone();
+        public static string ConfigFileName => MNNDtlnAecModel.ConfigName;
+        public static bool SupportsRepository(string repository) => MNNDtlnAecModel.IsRepository(repository);
+
         public const int SampleRate = 16000, BlockLength = 512, HopLength = 128, OutputDelaySamples = 384;
         private readonly object _gate = new object();
         private readonly MNNFftPlan _fft = new MNNFftPlan(BlockLength);

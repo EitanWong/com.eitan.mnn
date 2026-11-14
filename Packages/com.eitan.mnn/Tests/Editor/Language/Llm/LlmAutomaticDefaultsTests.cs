@@ -118,6 +118,30 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void CacheIdentityIncludesCustomExternalMetadataWithVerifiedModelIdentity()
+        {
+            string directory = Path.GetFullPath("TestArtifacts~/LlmCacheMetadata/" + Guid.NewGuid().ToString("N"));
+            string model = Path.Combine(directory, "model"), metadata = Path.Combine(directory, "metadata");
+            Directory.CreateDirectory(model);
+            Directory.CreateDirectory(metadata);
+            File.WriteAllText(Path.Combine(model, "config.json"), "{\"base_dir\":\"" + metadata.Replace("\\", "/") + "/\",\"llm_config\":\"info.json\"}");
+            string info = Path.Combine(metadata, "info.json"), cache = Path.Combine(directory, "cache");
+            File.WriteAllText(info, "{\"temperature\":0.7}");
+            try
+            {
+                var performance = new MNNLlmPerformanceOptions();
+                string first, changed, unchanged;
+                using (var lease = MNNLlmCache.Acquire(cache, model, "native", "device", performance, "verified-model")) first = lease.DirectoryPath;
+                File.WriteAllText(info, "{\"temperature\":0.8}");
+                using (var lease = MNNLlmCache.Acquire(cache, model, "native", "device", performance, "verified-model")) changed = lease.DirectoryPath;
+                using (var lease = MNNLlmCache.Acquire(cache, model, "native", "device", performance, "verified-model")) unchanged = lease.DirectoryPath;
+                Assert.AreNotEqual(first, changed, "Effective configuration is always part of a persistent cache key.");
+                Assert.AreEqual(changed, unchanged);
+            }
+            finally { Directory.Delete(directory, true); }
+        }
+
+        [Test]
         public void OriginalCompleteClrLoadSignaturesRemainAvailable()
         {
             var original = new[] { typeof(string), typeof(int), typeof(bool), typeof(string), typeof(MNNPrecisionMode), typeof(MNNBackendType) };

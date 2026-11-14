@@ -10,6 +10,7 @@ namespace MNN.Unity
     {
         public const string FileName = "mnn_kws.json";
         public string repository = MNNKwsModel.Repository;
+        public const string EnglishModelScopeRepository = MNNEnglishKwsModel.ModelScopeRepository;
         public const string EnglishDirectoryName = "English-KWS-GigaSpeech";
         public const string EnglishDefaultWords = "Siri\nHey Siri";
         public MNNKeywordLanguage Language => MNNEnglishKwsModel.IsRepository(repository) ? MNNKeywordLanguage.English : MNNKeywordLanguage.Chinese;

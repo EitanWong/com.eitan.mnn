@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <HarnessCoreArtifactsRoot Condition="'$(HarnessCoreArtifactsRoot)' == '' and '$(HarnessArtifactsRoot)' != ''">$(HarnessArtifactsRoot)core/</HarnessCoreArtifactsRoot>
+    <HarnessCoreArtifactsRoot Condition="'$(HarnessCoreArtifactsRoot)' == ''">$(MSBuildThisFileDirectory)../../../../TestArtifacts~/SiriAIHarness/HarnessCore/</HarnessCoreArtifactsRoot>
+    <BaseIntermediateOutputPath>$(HarnessCoreArtifactsRoot)obj/</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(HarnessCoreArtifactsRoot)bin/</BaseOutputPath>
+    <RestorePackagesPath>$(HarnessCoreArtifactsRoot)packages/</RestorePackagesPath>
+  </PropertyGroup>
+</Project>

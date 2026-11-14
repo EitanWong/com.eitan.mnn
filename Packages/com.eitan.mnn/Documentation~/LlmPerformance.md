@@ -104,6 +104,10 @@ SiriAI Player 已使用 build GUID 与主线程捕获的设备信息获取 lease
 未赋值时继承模型；显式 true/false 只更改此 bit，保留原有动态量化模式。
 `DynamicQuantization`、`FlashAttention`、`PrefillChunkSize` 默认继承，按加载前配置生效。
 FlashAttention 保留 KV 位，chunk 不覆盖模型已有的 chunk_limits 形状契约。
+`OpenClTuningMode` 独立选择一个官方 OpenCL 调优级别，默认 `Wide`；
+`ThreadCount` 保留 CPU 线程数及 CPU 回退语义，不再兼作 OpenCL GPU 标志。
+GPU 调优级别进入持久缓存身份。Windows NVIDIA 的实际精度能力及验证边界见
+[Windows 验证](WindowsPlayer.md#nvidia-后续调优)。
 权重重排不是反量化权重缓存，也没有对所有模型都更快的保证；启用前测量速度与内存。
 本轮未将 KV 量化或推测解码设为默认，也未修改模型权重；实验候选收益单独记录。
 
@@ -494,3 +498,13 @@ Android 使用 `--adb-serial` 和设备上现有 `config.json` 路径，仅临�
 此前 180 秒会在长测试期间断开 Editor，使 Unity Test Framework 1.1.33 的结果发送队列忙等。
 Android 采样已将这一问题定位到 `SendDataRoutine`，完整最终回归使用延长超时后的新构建，
 中断运行不计作完整测试通过。
+
+## WebGL text scope (2026-11-15)
+
+The experimental single-thread wasm32 text path and complete-prompt MiniMind replay
+are documented in [WebGLInterop](WebGLInterop.md). The retained managed finite scan
+preserves every-element NaN/infinity rejection; the measured119-token MiniMind input
+improves from14.24s to3.07s first callback and16.44s to3.38s wall. The pre-split
+first callback was2.20s, so this remains a measured latency/responsiveness tradeoff.
+Loading and each native call remain synchronous. This does not extend media/speech,
+GPU, Worker, other-browser or50ms claims. The512-token prompt-plus-budget limit remains.

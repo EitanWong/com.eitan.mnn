@@ -1,0 +1,126 @@
+{
+  "model": "jingyaogong/minimind-3o",
+  "revision": "ee3febbd08cc5b2bd41c039c825a8934232fee33",
+  "files": [
+    {
+      "path": "chat_template.jinja",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/chat_template.jinja",
+      "bytes": 3895,
+      "sha256": "97c6a9ef3f8d35044f435bb7773f1af160a7328ab6e8d2e9d67702941320a711"
+    },
+    {
+      "path": "config.json",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/config.json",
+      "bytes": 1332,
+      "sha256": "13ed7f8f6759d292b1948fc29d03a1ebf5c1b131d26cefcb19e86dad975784b6"
+    },
+    {
+      "path": "generation_config.json",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/generation_config.json",
+      "bytes": 111,
+      "sha256": "cd22f08997eb2353c809a1d9b523c42c924247eb8619aa3e408bba3448f6e270"
+    },
+    {
+      "path": "model_minimind.py",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/model_minimind.py",
+      "bytes": 18553,
+      "sha256": "c97b24b4b900dbbf5fabc0cca81a9f580011f91e032501f41684e10c6ca6ee60"
+    },
+    {
+      "path": "model_omni.py",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/model_omni.py",
+      "bytes": 26391,
+      "sha256": "0fc7abb2ed621508f22682f81b18fb778ceea0bb5563c8b5ae1d389ed77c01ad"
+    },
+    {
+      "path": "pytorch_model.bin",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/pytorch_model.bin",
+      "bytes": 226324754,
+      "sha256": "21530f9bbc540f461e2c0e29292ad359781d4d984d1e0c994510945f9b0edaab"
+    },
+    {
+      "path": "special_tokens_map.json",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/special_tokens_map.json",
+      "bytes": 1059,
+      "sha256": "f85ecedc16cf0083242e21ac2ef23ac613153b71240c7d2ab61de24f085d2db9"
+    },
+    {
+      "path": "tokenizer.json",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/tokenizer.json",
+      "bytes": 451182,
+      "sha256": "71f32c68cf63a15355a8fc171b7594b3d41870fe0ddb54fc6aefa55f73a4a668"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "url": "https://huggingface.co/jingyaogong/minimind-3o/resolve/ee3febbd08cc5b2bd41c039c825a8934232fee33/tokenizer_config.json",
+      "bytes": 7545,
+      "sha256": "04ae7620b9cf93fd2d6fbf94936b0c3c4be65f30cd6ef6fa8741baac986525d1"
+    },
+    {
+      "path": "auxiliary/mimi/config.json",
+      "url": "https://modelscope.cn/models/gongjy/mimi/resolve/e7b61b336ca929d69a388b816dd67d7de9b9debe/config.json",
+      "bytes": 1117,
+      "sha256": "2480d9108dac6f36381a9ee9e3fab43320a4a9bf92def10e277ff3170f015bf4"
+    },
+    {
+      "path": "auxiliary/mimi/model.safetensors",
+      "url": "https://modelscope.cn/models/gongjy/mimi/resolve/e7b61b336ca929d69a388b816dd67d7de9b9debe/model.safetensors",
+      "bytes": 192346842,
+      "sha256": "7542ee039d3025d5089cf227d21df64b6b8eff08fcd376a11a1fbd178dd9d3f5"
+    },
+    {
+      "path": "auxiliary/mimi/preprocessor_config.json",
+      "url": "https://modelscope.cn/models/gongjy/mimi/resolve/e7b61b336ca929d69a388b816dd67d7de9b9debe/preprocessor_config.json",
+      "bytes": 234,
+      "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+    },
+    {
+      "path": "auxiliary/siglip2-base-p32-256-ve/config.json",
+      "url": "https://modelscope.cn/models/gongjy/siglip2-base-p32-256-ve/resolve/574309071a70ffa9911e336da46e8cf94dffb381/config.json",
+      "bytes": 410,
+      "sha256": "5ad8dda7d55541c7749f9b1cc43fe8eb8c70d8664588d89f710242ce06b3167e"
+    },
+    {
+      "path": "auxiliary/siglip2-base-p32-256-ve/model.safetensors",
+      "url": "https://modelscope.cn/models/gongjy/siglip2-base-p32-256-ve/resolve/574309071a70ffa9911e336da46e8cf94dffb381/model.safetensors",
+      "bytes": 189129296,
+      "sha256": "c1e9cc19ed6704b87353ee00b9ff5d6191886d741898339984364f789c62810d"
+    },
+    {
+      "path": "auxiliary/siglip2-base-p32-256-ve/preprocessor_config.json",
+      "url": "https://modelscope.cn/models/gongjy/siglip2-base-p32-256-ve/resolve/7d813cb0653a78df2cd93651fd8b7b000dbf06f5/preprocessor_config.json",
+      "bytes": 394,
+      "sha256": "d14ba2ee3fd816f3de8abaddc31953565128eaf37c73ad4bed32101a98465aff"
+    },
+    {
+      "path": "auxiliary/SenseVoiceSmall/am.mvn",
+      "url": "https://modelscope.cn/models/gongjy/SenseVoiceSmall/resolve/b2b0b6c2d018d37f4e96905ba2856d437b8c0831/am.mvn",
+      "bytes": 11203,
+      "sha256": "29b3c740a2c0cfc6b308126d31d7f265fa2be74f3bb095cd2f143ea970896ae5"
+    },
+    {
+      "path": "auxiliary/SenseVoiceSmall/config.yaml",
+      "url": "https://modelscope.cn/models/gongjy/SenseVoiceSmall/resolve/b2b0b6c2d018d37f4e96905ba2856d437b8c0831/config.yaml",
+      "bytes": 1855,
+      "sha256": "f71e239ba36705564b5bf2d2ffd07eece07b8e3f2bbf6d2c99d8df856339ac19"
+    },
+    {
+      "path": "auxiliary/SenseVoiceSmall/model.pt",
+      "url": "https://modelscope.cn/models/gongjy/SenseVoiceSmall/resolve/b2b0b6c2d018d37f4e96905ba2856d437b8c0831/model.pt",
+      "bytes": 468291478,
+      "sha256": "218811976815c1673e1b852dc383d78987b229268f78e7ebd0a1fe67229c83dd"
+    }
+  ],
+  "sensevoice_source": {
+    "url": "https://raw.githubusercontent.com/modelscope/FunASR/ac260be5fe748b558ba547cb2b66974e5245cbd4/funasr/models/sense_voice/model.py",
+    "sha256": "b885b209bfd3bfe24adea0fc6194afbf2394d8a2b765c0281a670fcff5e16134",
+    "commit": "ac260be5fe748b558ba547cb2b66974e5245cbd4"
+  },
+  "dependencies": {
+    "MNN": "3.6.1",
+    "transformers": "4.57.6",
+    "onnx": "1.23.0",
+    "onnxruntime": "1.30.0",
+    "torch": "2.14.0"
+  }
+}

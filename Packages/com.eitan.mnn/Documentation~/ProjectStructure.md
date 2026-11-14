@@ -13,7 +13,7 @@ Packages/com.eitan.mnn/
 │   ├── Core/
 │   │   ├── Common/                Types、Platform、Security、Settings、Audio、Numerics、Layout、Diagnostics
 │   │   ├── Inference/             Backend、Loading、Interpreter、Session、Tensor
-│   │   ├── Models/                Configuration、Catalog、Downloads、Delivery、Transfer、Serialization、Profiles
+│   │   ├── Models/                Configuration、Catalog、Downloads、Delivery、Transfer、Serialization、Profiles、Recommendations
 │   │   ├── Language/              Llm、Decisions、Tokenization、Realtime、Remote、Providers、Agent、Markdown
 │   │   ├── Retrieval/             Bert、Embedding、ImageEmbedding、Reranking、Tokenization
 │   │   ├── Vision/                Common、YoloV8、PaddleOcr、DocumentLayout、ImageTasks
@@ -90,6 +90,13 @@ Packages/com.eitan.mnn/
 `AudioProcessing/Realtime` 保存增强/VAD/ASR输入路由、设备延迟校准及播报fade；
 `AudioProcessing/Common` 保存源贡献和说话人选择，`Analysis` 保存渲染波形/特征快照。
 这些是可独立使用的托管API，不依赖SiriAI、EasyMic或具体场景。
+会话目录、草稿、选择、日志恢复与外部执行事件去重位于 `Language/Realtime` 的
+`MNNConversationCatalog` / `MNNConversationTranscriptStore`；模型上下文使用
+`MNNConversationMemory.Restore` 从文字消息恢复，不注入显示用工具数据。Agent 的公开执行
+记录由 `Language/Agent/MNNAgentTrace` 提供。可展开的执行时间线、行布局与 Markdown
+虚拟化归 `Language/Markdown`；上层只绑定 UI toolkit、字体/颜色与调用展开接口。
+详见 [会话与执行时间线](ConversationTimeline.md)。
+
 共享图片资源缓存位于 `Language/Markdown`，UI组件只持有显示lease，Editor和Player不复制LRU。
 行为测试随实现放在 `Tests/Editor/AudioProcessing`、`Tests/Editor/Language/Markdown`；
 纯托管算法测试与实际权重/设备测试保持明确的验证范围；图片Player生命周期在
@@ -163,6 +170,13 @@ Runtime 与 Editor 仅向实际使用内部 API 的测试程序集开放友元�
 按类型或 category 筛选仍使用原名称；按程序集筛选原生/模型测试时改用
 `MNN.Unity.Integration.Tests`，完整 Editor 回归选择两个测试程序集。
 
+## 公共 API 与内部权限
+
+开发者和上层使用 `Runtime/Core` 中的公共任务契约，分类、线程与所有权见[统一 API 层](PublicApiLayer.md)。
+Editor 没有 Runtime 友元权限；组件到 Core 的调用由 Roslyn 语义检查限制为公共符号，
+Core 不能反向依赖组件，Interop 与句柄保持 internal。保留原程序集及 Unity 序列化身份。
+`Tools~/Validation/validate_public_api.py` 同时检查边界和源码生成的公共 API 清单/参考文档。
+
 ## 文件与代码规则
 
 - 先按层级划分，再按职责归类；不要重新建立无明确职责的 `Utils`、`Misc` 或 `Temp` 目录。
@@ -228,3 +242,39 @@ Unity PCM 设备继续归 `Runtime/Components/Realtime`。组合示例及所有�
 `Language/Providers`拥有惰性阶段工厂，`Agent`拥有计划、工具和权限注入。
 `Common/Layout`仅放通用几何/运动，`Common/Diagnostics`放可复用系统采样，
 平台公开导出统一声明在对应`MNNInterop.*`文件。不得把Siri的产品视觉或业务默认值放进这些目录。
+
+## Harness 核心所有权
+
+`Runtime/Core/Language/Agent/Harnesses` 拥有纯托管任务领域、持久任务运行时、文件存储、
+结果租约/回执、远端客户端、提交日志、Host配置与任务呈现数据。它不引用Unity或SiriAI应用；
+`Tools~/HarnessCore/MNN.HarnessCore.csproj` 提供独立 .NET Standard 2.1 构建。
+对应行为测试与共享夹具位于 `Tests/Editor/Language/Agent/Harnesses` 及其 `Fixtures`。
+
+迁移保留 `MNN.Samples.SiriAI.Harnesses` 公开命名空间、同名程序集及现有Unity GUID，
+这些名称用于既有消费者兼容，源码所有权已经归包。不得在SiriAI再保留或编译一份相同核心。
+应用及独立Host引用此程序集；产品UI、视觉、设备装配和SiriAI默认值继续由应用层拥有。
+`HarnessTaskTool` 拥有 Submit/Status/Cancel/Update 工具契约、输入解析与受理语义；
+`HarnessTaskObserver` 拥有提交日志重放、单写入者轮询和 revision 去重；
+`HarnessResultFeedback` 拥有结果领取、续租和展示回执，使用 `IHarnessResultPresenter` /
+`IHarnessResultReply` 注入应用会话与真实展示证据，`HarnessResultConnection` 捕获客户端和会话范围。
+这些 API 不引用 Unity、MNN.Unity 或 SiriAIChat，也不创建前台模型或音频设备。
+调用方在所属上下文启动观察器与反馈；它们的 await 保留该上下文，Unity 事件仍在主线程执行。
+暂停只取消本地观察/投递，后台任务通过显式 Cancel 工具控制；模型生成完成、音频排队均不能伪造展示回执。
+SiriAI 四个适配器保留序列化字段、Unity 生命周期、凭据/设置和语音会话装配，调用上述包 API。
+不能让包反向引用 SiriAI 程序集。
+
+独立后台宿主位于 `Tools~/HarnessHost`（.NET8）及 `Tools~/DotCraftHost`（.NET10官方SDK），
+统一引用包内HarnessCore项目，保留既有可执行程序集名和配置协议。
+`Tools~/HarnessChecks`拥有独立协议对端、行为runner和包独立消费者；`harness_paths.py`
+集中声明包/工程根路径。所有Host/测试输出归工程`TestArtifacts~/`，Tools~不是Unity程序集。
+SiriAI仅引用包能力并提供应用配置、UI和设备装配，不再保存Host或协议检查实现的副本。
+
+## Harness 后端引导与复用组件
+
+`HarnessBackendCatalog` 是安装说明、显示名称和 CLI/适配器组合的单一来源；
+`DesktopHostServiceClient` 提供显式安装、配置准备与 OS 服务生命周期调用。
+`Runtime/Components/Harnesses` 的 `MNN.Unity.Harnesses.Components` 程序集仅依赖
+纯托管 Harness 契约，提供 `MNNHarnessBackendSetup` Unity 组件；Editor 菜单引用此组件。
+它不依赖 SiriAI、不加载前台模型、不自动安装或启动第三方工具。
+SiriAI 仅负责本地/远程选择、凭据输入、目录选择与连接后的应用装配。
+使用方法、部署与验证范围见 [Harness 后端接入](HarnessBackendSetup.md)。

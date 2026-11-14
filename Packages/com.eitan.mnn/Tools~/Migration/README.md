@@ -253,3 +253,126 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 
 SHA-256 清单检查本轮五个修改文件与原 meta GUID；完整应用字节一致，重复零写入，
 基线不同或部分应用时零写入拒绝。本地工作区已应用。
+
+## MNN-Pocket 默认模型
+
+对本轮 SiriAI 基线，运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage pocket
+```
+
+`SiriAIPocketModels.patch` 将新配置及场景的本地语言模型设为 `MNN/MNN-Pocket-0.3B`，
+由共享包目录解析到固定版本的官方 `MNN/MNN-Pocket-0.3B-MNN` 部署资源。
+首次启动保留该默认项，线程预算仍按设备计算，保存设置和显式模型选择继续有效。
+源权重、GGUF、Dec 保留在模型列表中并标明用途；设置归一化和验证拒绝尚不能运行的条目。
+
+补丁包含相关默认值、设置和回归测试修改，保留已有 `.meta` GUID；逐文件 SHA-256
+检查拒绝不匹配或部分迁移，重复应用零写入。权重、凭据及其他场景配置不加入包。
+模型格式和验收范围见 [MNN-Pocket 接入](../../Documentation~/MNNPocket.md)。
+
+## 产品交互、玻璃可读性与任务设置
+
+对本轮精确匹配的 SiriAI 导入基线，可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage product
+```
+
+`SiriAIProductPolish.patch` 保存透明桌面/常规布局共用的可读玻璃、窗口收纳后的
+全局录音/取消/转写、连续文字输入、设置分类、错误/加载详情及弹窗过渡。
+任务设置复用包中的自动环境检测和后端目录，默认选择完整的本机CLI＋适配器；
+远端发现后通过选择器指定后端和工作区。详情与接入边界见
+[Harness后端接入](../../Documentation~/HarnessBackendSetup.md)。
+
+本机导入已应用，不必重放。迁移器逐文件检查完整SHA-256，版本不符和部分迁移
+拒绝且不写入，重复应用零写入；原有meta GUID保持不变。补丁仅包含当前任务
+涉及的示例源码、Shader、测试及meta，不包含模型、凭据、用户配置或临时验收输出。
+验证覆盖Editor行为/GPU、真实macOS服务生命周期和独立协议替身；不代表全部
+第三方账号/模型、其他桌面系统或物理移动设备已经完成发布验收。
+
+## Tasks设置稳定性与自定义宿主配置
+
+在已经完成 `product`、且匹配本轮基线的本地导入上，运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage tasks
+```
+
+`SiriAITaskSettings.patch` 保留正在编辑的连接字段和打开的选择器，后台只局部更新
+任务内容；无变化的任务快照、本机检测和技能历史不再发出多余更新。
+真正切换宿主/账户时仍清除旧任务草稿和过期操作。
+远程列表排除当前及旧版自动本地配置，用户自行保存的localhost配置仍可选择。
+用户可命名、新增、编辑和删除宿主配置；删除有界面确认，清除连接与对应凭据，
+已接收的宿主任务继续运行。修改名称保留连接，修改后端或工作区保留凭据供重新连接。
+
+该stage使用独立的前后SHA-256，不改写历史 `product` 补丁；重复应用零写入，
+不匹配或部分应用拒绝且零写入，原meta GUID保持不变。本机源码已应用。
+
+远程连接一步自动发现配置，名称可留空采用主机名；保留有效的后端/工作区选择。
+本地优先恢复仍有效的已保存项目，再使用会话目录和应用项目目录。
+
+## Desktop comfort and independent background work
+
+After the `tasks` stage, apply this stage only to its exact imported SiriAI baseline:
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage comfort
+```
+
+`SiriAIDesktopComfort.patch` preserves larger move/resize targets, completed header
+double-clicks, shared window background depth, settings frosting, background action
+routing and nonblocking completion notifications. The matching package directly
+provides the five-second admission deadline and identity validation in `HarnessTaskTool`.
+The patch contains imported source, shaders, documentation and tests; model assets,
+credentials, user settings and diagnostic output remain local.
+
+Complete before/after SHA-256 checks preserve existing meta GUIDs, reject mismatched
+or partial imports without writing, and make repeat application a zero-write operation.
+This local import is already updated. All 211 selected Editor behavior/GPU checks and
+nine independent HTTP/ACP fixture checks pass. Pristine and rolled-back source both
+reproduce the same twelve failing behaviors; the seventeen new cases all pass after
+the change. This validates Editor behavior and rendering, without measuring desktop
+Player feel, production model decisions or performance on every operating system.
+
+
+## MiniMind-o 语音案例
+
+对于精确匹配当前基线的 SiriAI 导入：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage minimind-o
+```
+
+`SiriAIMiniMindOVoice.patch` 接通 MiniMind-o 的独立适配器筛选、自动语音路由、专用
+`minimind-o` 设置 profile 和默认场景。选择 **Use MiniMind-o voice** 后直接输入音频、
+使用模型自身的语音回答，同时保留 Silero VAD 和 SmartTurn，不依赖单独的 ASR/TTS。
+模型通过共享目录发现并从已固定 revision 的 ModelScope 安装；补丁不包含模型权重。
+修改前后文件哈希、原 GUID、新增文件和重复执行均使用现有迁移器检查。
+
+真实权重验证覆盖通过采集接口发送的生成语音 PCM、VAD/轮次模型准备、输出渲染和
+第二轮语音。物理麦克风/扬声器和声学环境需要另测；该模型仍是轮次式推理。
+加速对比和运行限制见 [MiniMind-o](../../Documentation~/MiniMindO.md)。
+
+
+## Omni End-to-End 轮次检测修复
+
+在已应用 `minimind-o`、精确匹配对应基线的 SiriAI 导入上执行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage omni-turns
+```
+
+`SiriAIOmniTurns.patch` 将本地对话模式显示为 **Omni End-to-End**，保留序列化枚举值。
+启动恢复、应用配置和运行时快照共用同一约束：本地 Omni 语音模式启用 VAD 和
+Turn Detection 的 Provider；旧 profile 中错误的 false 标志会修复并持久化。
+简单设置也显示这两个必需阶段及模型选择入口；级联模式仍保留用户的可选检测偏好。
+
+该 stage 不修改历史迁移补丁、权重或账户凭据。重复执行零写入；版本不匹配或
+部分应用在写入前拒绝；现有 Unity GUID 保持不变。本地导入已应用。
+测试包括旧设置恢复、持久化幂等性、模式切换、简易设置，以及真实权重下两轮
+带噪声尾部的生成语音采集与模型语音输出。测试为软件 PCM，未验证物理声学回声。
+
+Omni 表示模型直接接受音频并生成语音，不等于模型原生 Full-duplex。MiniMind-o
+发布权重仍按完整轮次推理；此补丁不会把它升级为持续输入输出的全双工模型。
+详见 [MiniMind-o](../../Documentation~/MiniMindO.md)。

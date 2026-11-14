@@ -17,11 +17,11 @@ namespace MNN.Unity.Editor
         private void DrawKeywordSettings()
         {
             var language = MNNKeywordSpotterConfig.Read(Selected.Directory).Language;
-            string defaults = language == MNNKeywordLanguage.English ? MNNKeywordSpotterConfig.EnglishDefaultWords : MNNKwsModel.DefaultKeywords;
+            string defaults = language == MNNKeywordLanguage.English ? MNNKeywordSpotterConfig.EnglishDefaultWords : MNNKeywordSpotter.DefaultKeywords;
             if (_keywordSettingsDirectory != Selected.Directory)
             {
                 _keywordSettingsDirectory = Selected.Directory;
-                if (_keywords == MNNKwsModel.DefaultKeywords || _keywords == MNNKeywordSpotterConfig.EnglishDefaultWords) _keywords = defaults;
+                if (_keywords == MNNKeywordSpotter.DefaultKeywords || _keywords == MNNKeywordSpotterConfig.EnglishDefaultWords) _keywords = defaults;
                 _keywordLanguage = MNNKeywordLanguage.Automatic;
             }
             GUILayout.Space(12);
@@ -42,7 +42,7 @@ namespace MNN.Unity.Editor
                 GUI.FocusControl(null);
                 _keywords = defaults;
             }
-            string assets = MNNKwsModel.AssetDirectory(Selected.Directory);
+            string assets = MNNKeywordSpotter.AssetDirectory(Selected.Directory);
             if (File.Exists(Path.Combine(assets, language == MNNKeywordLanguage.English ? "test_wavs/0.wav" : "test_wavs/3.wav")))
             {
                 if (MNNStudioUI.Button("Load demo recording", 180, quiet: true))
@@ -57,7 +57,7 @@ namespace MNN.Unity.Editor
 
         private void LoadKeywordDemo()
         {
-            string assets = MNNKwsModel.AssetDirectory(Selected.Directory);
+            string assets = MNNKeywordSpotter.AssetDirectory(Selected.Directory);
             bool english = MNNKeywordSpotterConfig.Read(Selected.Directory).Language == MNNKeywordLanguage.English;
             // The demo input uses the same ordinary-text path as a user's custom phrases.
             string keywords = english ? "light up\nlovely child\nforever" : "文森特卡索\n周望军\n朱丽楠\n蒋友伯\n女儿\n法国\n见面会\n落实";

@@ -289,7 +289,7 @@ namespace MNN.Unity.Tests
                 if (inputText != null)
                     Set(window, "_query", inputText);
                 Set(window, "_speechLanguage", speechLanguage);
-                if (model.TtsProfile == MNNTtsModelProfile.IndicVits)
+                if (model.TtsProfile == MNNSpeechModelKind.IndicVits)
                     Set(window, "_ttsVoice", 18);
                 if (model.RequiresReferenceAudio)
                 {
@@ -350,7 +350,7 @@ namespace MNN.Unity.Tests
 
                 if (tts)
                 {
-                    Assert.AreEqual(model.TtsProfile == MNNTtsModelProfile.MossNano ? 48000 : (model.TtsProfile == MNNTtsModelProfile.MmsTamil || model.TtsProfile == MNNTtsModelProfile.SherpaVitsChinese) ? 16000 : model.IsIndexTts ? 22050 : model.IsIndicF5 || model.IsPocket || model.IsQwen3Explicit || model.IsDhVaani || model.IsFireRedTts || model.IsCosyVoice || (model.TtsProfile == MNNTtsModelProfile.Kokoro || model.TtsProfile == MNNTtsModelProfile.IndicVits) ? 24000 : model.IsPiper ? (repository == "PiperLessac" ? 22050 : 16000) : 44100, result.SampleRate);
+                    Assert.AreEqual(model.TtsProfile == MNNSpeechModelKind.MossNano ? 48000 : (model.TtsProfile == MNNSpeechModelKind.MmsTamil || model.TtsProfile == MNNSpeechModelKind.SherpaVitsChinese) ? 16000 : model.IsIndexTts ? 22050 : model.IsIndicF5 || model.IsPocket || model.IsQwen3Explicit || model.IsDhVaani || model.IsFireRedTts || model.IsCosyVoice || (model.TtsProfile == MNNSpeechModelKind.Kokoro || model.TtsProfile == MNNSpeechModelKind.IndicVits) ? 24000 : model.IsPiper ? (repository == "PiperLessac" ? 22050 : 16000) : 44100, result.SampleRate);
                     Assert.Greater(result.Waveform.Length, result.SampleRate);
                     Assert.AreEqual((double)result.Waveform.Length / result.SampleRate, result.AudioSeconds);
                     Assert.Greater(result.RealTimeFactor.Value, 0);

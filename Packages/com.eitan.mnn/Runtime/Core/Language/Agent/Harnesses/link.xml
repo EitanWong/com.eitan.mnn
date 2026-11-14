@@ -1,0 +1,4 @@
+<linker>
+  <!-- DataContractJsonSerializer accesses these wire and persistence DTOs through reflection. -->
+  <assembly fullname="MNN.Samples.SiriAI.Harnesses" preserve="all" />
+</linker>

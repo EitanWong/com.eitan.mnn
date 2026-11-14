@@ -26,7 +26,8 @@ namespace MNN.Unity
             return checked(frames * Channels);
         }
 
-        internal void RequireValid()
+        /// <summary>Reject an uninitialized default PCM format before binding a device or allocating buffers.</summary>
+        public void RequireValid()
         {
             if (SampleRate == 0 || Channels == 0)
                 throw new ArgumentException("An initialized PCM format is required.");

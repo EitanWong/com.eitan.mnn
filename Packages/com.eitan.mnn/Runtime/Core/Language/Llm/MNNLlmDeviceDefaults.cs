@@ -8,6 +8,8 @@ namespace MNN.Unity
     // sweep of thread counts an unreliable benchmark and add work to first load.
     internal static class MNNLlmDeviceDefaults
     {
+        private const string Qwen08Profile = "Qwen3.5-0.8B-MNN";
+
         internal static MNNLlmPerformanceOptions Select(string directory, MNNBackendType requested)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -16,6 +18,13 @@ namespace MNN.Unity
             const bool android = false;
 #endif
             string model = Path.GetFileName(Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            var identity = MNNModelOptions.ReadLlmConfiguration(directory);
+            // A local re-export or renamed folder retains the measured profile.
+            // Require the qualified architecture dimensions before reusing it.
+            if (identity.TryGetValue("model_type", out var type) && type as string == "qwen3_5" &&
+                identity.TryGetValue("hidden_size", out var hidden) && MNNModelData.Integer(hidden) == 1024 &&
+                identity.TryGetValue("layer_nums", out var layers) && MNNModelData.Integer(layers) == 24)
+                model = Qwen08Profile;
             return Select(model, requested, android, MNNInferenceCache.DeviceModel,
                 MNNInferenceCache.GraphicsDevice, MNNInferenceCache.ProcessorCount);
         }
@@ -31,7 +40,7 @@ namespace MNN.Unity
                 PrecisionMode = MNNPrecisionMode.Low,
                 PowerMode = MNNPowerMode.High
             };
-            bool qwen08 = string.Equals(model, "Qwen3.5-0.8B-MNN", StringComparison.OrdinalIgnoreCase);
+            bool qwen08 = string.Equals(model, Qwen08Profile, StringComparison.OrdinalIgnoreCase);
             // MNN 3.6.2 Apple CPU Low/4 threads answers the arithmetic gate
             // incorrectly. Normal passes at both 1 and 4 threads; Metal Low passes.
             if (!android && qwen08 && requested == MNNBackendType.CPU)

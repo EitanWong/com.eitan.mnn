@@ -1,0 +1,59 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scenes/SiriAI.unity",
+      "before": "37230e22917a042e7255dfb0c2258d8edbea87de0941e0388024ca0bf33109ea",
+      "after": "cc237c6495dbeba82a04d6e6aa1445961cd64500af7c9349d81d375603ca1218"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.MiniMindO.cs",
+      "before": null,
+      "after": "57322fe8d9c4e62640296cf1c5bc4f42824f1f49a86dd81d48e0ebd43141f040"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.MiniMindO.cs.meta",
+      "before": null,
+      "after": "9e17fffb6ab03d75ed2bc701d29b45f2014117265afb8ac8fbbd092454af478b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Configuration/SiriAISettingsConstraints.cs",
+      "before": "7e2acc24506d8a439f190d29fef27f38df0c25caac55767115df83db7d5e51f1",
+      "after": "05806648357ac4ce1e5d39d2896981349a8aa278bd2dcb5cf3565c5489663579"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.cs",
+      "before": "cd78f85238e96fffa5afd7320b52028a7e138cdf5b90964c2d206f7408f48624",
+      "after": "423e481f882c2ba30208c9cb50be157221e33c7b510fdf33d37de03b40bfd271"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelManifest.cs",
+      "before": "283faa490012d0448c4e74a65027ea85cd195a027a6cc23c89c7499ceafe95e1",
+      "after": "3e170be6cb82664b5bda1dfd746d527477abcdf2d3fc797511882aa42c28ceca"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindONativeVoiceTests.cs",
+      "before": null,
+      "after": "e67b54749daf282c6d1d98566d30cb365dd5d8f755f1e2a706dd40bcc35a4f3c"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindONativeVoiceTests.cs.meta",
+      "before": null,
+      "after": "0953024e0c4722c199c11524061ff087ba5330cb109ed786c5a9d5f01d12cfed"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindOVoiceTests.cs",
+      "before": null,
+      "after": "2d5b3b6b50e8b24460406db212080fb8aea5b25c4da181944656ebef2a67fab7"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIMiniMindOVoiceTests.cs.meta",
+      "before": null,
+      "after": "42d9ba41a33d212146a8d1491cc84522d4146c65f6de95e073af306b620569d7"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIModelReuseTests.cs",
+      "before": "c0cfbb6774af94a9eb23380c3fbc06e2a42307f994201bc700f452452261da91",
+      "after": "52776086baa9cd454a9ddc2973c640072f8d0116f5b7257421bd025d897eaf53"
+    }
+  ]
+}

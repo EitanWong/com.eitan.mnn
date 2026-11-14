@@ -191,3 +191,17 @@ Every change follows this order:
 
 - If crapper, dryer, or mutator is unavailable, report the limitation and any
   checks actually performed. Do not claim an unavailable tool ran or passed.
+
+## Model onboarding acceptance
+
+- Register every newly integrated model in the shared runtime model catalog and
+  Editor Model Manager adapter. Do not stop at Studio-only filesystem discovery.
+- Add regression tests proving both catalogs find the model by its documented
+  search names, recognize a complete installation, reject incomplete exports, and
+  resolve the dedicated runtime adapter. Run real native inference before release.
+- After successful validation, publish complete deployable assets, checksums and
+  source/quantization metadata to ModelScope under the authorized account.
+- Register the actual ModelScope repository and pin the verified release revision;
+  verify downloading through the package installer and loading that downloaded
+  installation. Never use a raw training repository as a downloadable MNN export.
+- Keep upload credentials in the SDK login or environment; never commit secrets.

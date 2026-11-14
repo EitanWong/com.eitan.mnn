@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Serialization;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,34 +20,43 @@ namespace MNN.Unity
         private const string ApiRoot = "https://www.modelscope.cn";
         internal List<MNNRemoteModel> models = new List<MNNRemoteModel>();
         public IReadOnlyList<MNNRemoteModel> Models => models;
+
+        public MNNModelCatalog() { }
+        /// <summary>Start a catalog from an existing collection without sharing its mutable list.</summary>
+        public MNNModelCatalog(IEnumerable<MNNRemoteModel> initialModels)
+        {
+            if (initialModels == null) throw new ArgumentNullException(nameof(initialModels));
+            models = initialModels.Where(model => model != null).ToList();
+        }
+
         public static readonly string[] FeaturedHuggingFaceRepositories = { MNNKwsModel.Repository, "VicenTrent/Cosy-Voice-MNN", MNNReferenceSpeechModel.IndexRepository, MNNReferenceSpeechModel.FireRedRepository };
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private class ModelSearchResponse
         {
-            public bool success;
-            public ModelSearchData data;
+            [DataMember, UnityEngine.Scripting.Preserve] public bool success;
+            [DataMember, UnityEngine.Scripting.Preserve] public ModelSearchData data;
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private class ModelSearchData
         {
-            public ModelScopeModel[] models;
-            public int total_count;
+            [DataMember, UnityEngine.Scripting.Preserve] public ModelScopeModel[] models;
+            [DataMember, UnityEngine.Scripting.Preserve] public int total_count;
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private class ModelScopeModel
         {
-            public string id;
-            public string display_name;
-            public string description;
-            public string[] tasks;
-            public long file_size;
-            public long @params;
-            public long downloads;
-            public string[] tags;
-            public string last_modified;
-            public string license;
+            [DataMember, UnityEngine.Scripting.Preserve] public string id;
+            [DataMember, UnityEngine.Scripting.Preserve] public string display_name;
+            [DataMember, UnityEngine.Scripting.Preserve] public string description;
+            [DataMember, UnityEngine.Scripting.Preserve] public string[] tasks;
+            [DataMember, UnityEngine.Scripting.Preserve] public long file_size;
+            [DataMember, UnityEngine.Scripting.Preserve] public long @params;
+            [DataMember, UnityEngine.Scripting.Preserve] public long downloads;
+            [DataMember, UnityEngine.Scripting.Preserve] public string[] tags;
+            [DataMember, UnityEngine.Scripting.Preserve] public string last_modified;
+            [DataMember, UnityEngine.Scripting.Preserve] public string license;
         }
 
         public static MNNModelCatalog CreateDefault()
@@ -55,6 +65,8 @@ namespace MNN.Unity
             repository.IncludeDtlnAecProfiles();
             repository.IncludeCosyVoice300MProfile();
             repository.IncludePublishedSpeechProfiles();
+            repository.IncludePocketProfiles();
+            repository.IncludeMiniMindOProfile();
             return repository;
         }
 
@@ -155,7 +167,7 @@ namespace MNN.Unity
                             var body = await MNNModelMetadata.ReadTextAsync(response.Content, timeout.Token).ConfigureAwait(false);
                             if (!response.IsSuccessStatusCode)
                                 throw new HttpRequestException($"Hugging Face metadata failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
-                            var item = JsonUtility.FromJson<HuggingFaceModel>(body);
+                            var item = MNNModelMetadata.ReadJson<HuggingFaceModel>(body);
                             if (item == null || string.IsNullOrWhiteSpace(item.id))
                                 throw new InvalidDataException("Hugging Face returned invalid model metadata.");
                             mirrorPool.ReportSuccess(mirror);
@@ -189,32 +201,32 @@ namespace MNN.Unity
             throw new HttpRequestException("No Hugging Face metadata source was available for " + repositoryId + ".");
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceModel
         {
-            public string id;
-            public string modelId;
-            public string author;
-            public string sha;
-            public string pipeline_tag;
-            public long downloads;
-            public string[] tags;
-            public HuggingFaceSibling[] siblings;
+            [DataMember, UnityEngine.Scripting.Preserve] public string id;
+            [DataMember, UnityEngine.Scripting.Preserve] public string modelId;
+            [DataMember, UnityEngine.Scripting.Preserve] public string author;
+            [DataMember, UnityEngine.Scripting.Preserve] public string sha;
+            [DataMember, UnityEngine.Scripting.Preserve] public string pipeline_tag;
+            [DataMember, UnityEngine.Scripting.Preserve] public long downloads;
+            [DataMember, UnityEngine.Scripting.Preserve] public string[] tags;
+            [DataMember, UnityEngine.Scripting.Preserve] public HuggingFaceSibling[] siblings;
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceSibling
         {
-            public string rfilename;
-            public long size;
-            public HuggingFaceLfs lfs;
+            [DataMember, UnityEngine.Scripting.Preserve] public string rfilename;
+            [DataMember, UnityEngine.Scripting.Preserve] public long size;
+            [DataMember, UnityEngine.Scripting.Preserve] public HuggingFaceLfs lfs;
         }
 
-        [Serializable]
+        [Serializable, DataContract, UnityEngine.Scripting.Preserve]
         private sealed class HuggingFaceLfs
         {
-            public string sha256;
-            public long size;
+            [DataMember, UnityEngine.Scripting.Preserve] public string sha256;
+            [DataMember, UnityEngine.Scripting.Preserve] public long size;
         }
 
         private static string Categorize(ModelScopeModel item) => Classify(item.id, item.display_name, item.description, item.tasks, item.tags);
@@ -225,6 +237,7 @@ namespace MNN.Unity
 
         private static string GetFamily(string modelName)
         {
+            if (modelName.StartsWith("MNN-Pocket", StringComparison.OrdinalIgnoreCase)) return "MNN-Pocket";
             var normalizedFamily = NormalizeFamily(modelName);
             if (!string.IsNullOrEmpty(normalizedFamily))
                 return normalizedFamily;
@@ -288,7 +301,7 @@ namespace MNN.Unity
             MatchesSearch(query, model.name, model.displayName, model.description, model.modelScopeId,
                 model.repositoryId, model.tags, model.tasks, model.category);
 
-        internal static bool MatchesSearch(string query, string name, string displayName, string description,
+        public static bool MatchesSearch(string query, string name, string displayName, string description,
             string modelScopeId, string repositoryId, string[] tags, string[] tasks, string category)
         {
             if (string.IsNullOrWhiteSpace(query)) return true;

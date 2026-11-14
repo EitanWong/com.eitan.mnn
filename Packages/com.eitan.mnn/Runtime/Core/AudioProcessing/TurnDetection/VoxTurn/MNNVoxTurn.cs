@@ -8,6 +8,9 @@ namespace MNN.Unity
     /// <summary>VoxTurn v1 multimodal turn decisions at 16 kHz, with original unmerged LoRA.</summary>
     public sealed class MNNVoxTurn : IDisposable
     {
+        public static string ConfigFileName => MNNVoxTurnModel.ConfigFile;
+        public static string[] SupportedTasks => (string[])MNNVoxTurnPrompt.Tasks.Clone();
+
         private readonly object _gate = new object();
         private readonly MNNVoxTurnPrompt _prompt;
         private readonly MNNVoxTurnFeatures _features;

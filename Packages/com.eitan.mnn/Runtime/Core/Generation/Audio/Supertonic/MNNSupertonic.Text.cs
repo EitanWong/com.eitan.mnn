@@ -12,7 +12,7 @@ namespace MNN.Unity
 {
     public sealed partial class MNNSupertonic
     {
-        internal static string[] LanguagesForVersion(string version) => version == "v1.7.3" ? new[]{"en", "ko", "ja", "ar", "bg", "cs", "da", "de", "el", "es", "et", "fi", "fr", "hi", "hr", "hu", "id", "it", "lt", "lv", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi"} : version == "v1.6.0" ? new[]{"en", "ko", "es", "pt", "fr"} : new[]{"en"};
+        public static string[] LanguagesForVersion(string version) => version == "v1.7.3" ? new[]{"en", "ko", "ja", "ar", "bg", "cs", "da", "de", "el", "es", "et", "fi", "fr", "hi", "hr", "hu", "id", "it", "lt", "lv", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi"} : version == "v1.6.0" ? new[]{"en", "ko", "es", "pt", "fr"} : new[]{"en"};
         // Keep attention and duration prediction bounded. Prefer sentence ends,
         // then whitespace; never cut a word or a decimal number in half.
         internal static string[] SplitText(string normalized, bool english = true)

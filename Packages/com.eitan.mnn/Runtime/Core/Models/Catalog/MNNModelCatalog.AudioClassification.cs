@@ -46,12 +46,12 @@ namespace MNN.Unity
                 (family == MNNModelCatalogCategory.KeywordSpotting || family == MNNModelCatalogCategory.VoiceActivityDetection || family == MNNModelCatalogCategory.TurnDetection);
         }
 
-        internal static bool IsAudioProcessingCategory(string category) =>
+        public static bool IsAudioProcessingCategory(string category) =>
             Enum.TryParse(category, out MNNModelCatalogCategory value) &&
             (value == MNNModelCatalogCategory.AudioProcessing ||
                 value >= MNNModelCatalogCategory.VoiceActivityDetection && value <= MNNModelCatalogCategory.AudioClassification);
 
-        internal static bool IsSpecificAudioCategory(string category) =>
+        public static bool IsSpecificAudioCategory(string category) =>
             category != MNNModelCatalogCategory.AudioProcessing.ToString() &&
             (IsAudioProcessingCategory(category) || category == MNNModelCatalogCategory.KeywordSpotting.ToString() ||
                 category == MNNModelCatalogCategory.EchoCancellation.ToString() || category == MNNModelCatalogCategory.SpeakerRecognition.ToString());

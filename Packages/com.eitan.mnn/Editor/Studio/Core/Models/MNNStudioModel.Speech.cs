@@ -18,25 +18,25 @@ namespace MNN.Unity.Editor
 
         internal string PiperDataDirectory => MNNPiper.ResolveDataDirectory(Directory, ReadTaskConfig()?.asset_folder);
         internal bool IsBertVits2 => ReadTaskConfig()?.model_type == "bertvits";
-        internal bool IsCosyVoice300M => TtsProfile == MNNTtsModelProfile.CosyVoice300M;
+        internal bool IsCosyVoice300M => TtsProfile == MNNSpeechModelKind.CosyVoice300M;
         private readonly Lazy<bool> _snapshotIsCosyVoice;
         internal bool IsCosyVoice => _snapshotIsCosyVoice.Value;
         private readonly Lazy<bool> _snapshotIsIndexTts;
         internal bool IsIndexTts => _snapshotIsIndexTts.Value;
         private readonly Lazy<bool> _snapshotIsFireRedTts;
         internal bool IsFireRedTts => _snapshotIsFireRedTts.Value;
-        internal bool IsQwen3Explicit => TtsProfile == MNNTtsModelProfile.Qwen3Explicit;
-        internal bool IsIndicF5 => TtsProfile == MNNTtsModelProfile.IndicF5;
-        internal bool IsPocket => TtsProfile == MNNTtsModelProfile.Pocket;
-        internal bool IsDhVaani => TtsProfile == MNNTtsModelProfile.DhVaani;
+        internal bool IsQwen3Explicit => TtsProfile == MNNSpeechModelKind.Qwen3Explicit;
+        internal bool IsIndicF5 => TtsProfile == MNNSpeechModelKind.IndicF5;
+        internal bool IsPocket => TtsProfile == MNNSpeechModelKind.Pocket;
+        internal bool IsDhVaani => TtsProfile == MNNSpeechModelKind.DhVaani;
         internal bool RequiresReferenceTranscript => IsFireRedTts || IsDhVaani || IsIndicF5;
         internal bool RequiresReferenceAudio => IsIndexTts || IsFireRedTts || IsDhVaani || IsPocket || IsIndicF5;
-        internal MNNTtsModelProfile TtsProfile
+        internal MNNSpeechModelKind TtsProfile
         {
             get
             {
                 if (!_ttsProfile.HasValue)
-                    _ttsProfile = MNNTtsModelProfiles.Detect(Directory, Name);
+                    _ttsProfile = MNNSpeechSynthesizer.DetectModelKind(Directory, Name);
                 return _ttsProfile.Value;
             }
         }
@@ -51,12 +51,11 @@ namespace MNN.Unity.Editor
                     return _speechLanguages = new[]{"hi", "ta"};
                 if (IsPocket)
                     return _speechLanguages = new[]{"en"};
-                if (TtsProfile != MNNTtsModelProfile.Supertonic)
+                if (TtsProfile != MNNSpeechModelKind.Supertonic)
                     return _speechLanguages = new[]{"zh", "en"};
                 try
                 {
-                    string version = (string)MNNModelData.Get(MNNModelData.Read(Path.Combine(Directory, "mnn_models", "tts.json")), "tts_version");
-                    return _speechLanguages = MNNSupertonic.LanguagesForVersion(version);
+                    return _speechLanguages = MNNSpeechSynthesizer.InstalledSupertonicLanguages(Directory);
                 }
                 catch (Exception error)when (error is IOException || error is ArgumentException || error is UnauthorizedAccessException)
                 {
@@ -81,6 +80,6 @@ namespace MNN.Unity.Editor
         }
 
         internal string[] TtsVoices => (string[])(_ttsVoices ?? (_ttsVoices = ReadTtsVoices())).Clone();
-        private string[] ReadTtsVoices() => IsQwen3Explicit ? MNNQwen3ExplicitTts.InstalledVoices(Directory) : TtsProfile == MNNTtsModelProfile.MossNano ? MNNMossNano.InstalledVoices(Directory) : TtsProfile == MNNTtsModelProfile.SherpaVitsChinese ? MNNSherpaVitsChinese.InstalledVoices(Directory) : TtsProfile == MNNTtsModelProfile.MmsTamil ? new[]{"Tamil"} : TtsProfile == MNNTtsModelProfile.IndicVits ? (string[])MNNIndicVits.SpeakerNames.Clone() : TtsProfile == MNNTtsModelProfile.Kokoro ? MNNKokoro.InstalledVoices(Directory) : RequiresReferenceAudio ? new[]{"Reference audio"} : IsCosyVoice300M || IsCosyVoice ? new[]{"Default"} : IsPiper ? MNNPiper.InstalledVoices(Directory) : IsBertVits2 ? new[]{"Chenxi"} : MNNSupertonic.InstalledVoices(Directory);
+        private string[] ReadTtsVoices() => MNNSpeechSynthesizer.InstalledVoices(Directory);
     }
 }

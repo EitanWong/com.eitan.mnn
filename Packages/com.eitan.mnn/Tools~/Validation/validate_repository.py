@@ -20,6 +20,14 @@ LOCAL_DIRECTORIES = {
     ".venv", ".idea", ".vscode", ".claude", ".codex", "node_modules",
 }
 LOCAL_SUFFIXES = {".csproj", ".sln", ".slnx", ".pyc", ".log", ".part", ".partial"}
+# Hand-authored standalone tooling projects, not Unity-generated IDE files.
+AUTHORED_PROJECTS = {
+    "Packages/com.eitan.mnn/Tools~/DotCraftHost/SiriAI.DotCraftHost.csproj",
+    "Packages/com.eitan.mnn/Tools~/HarnessChecks/Fixtures/DotCraftPlugin/DotCraftPlugin.csproj",
+    "Packages/com.eitan.mnn/Tools~/HarnessChecks/Fixtures/PackageConsumer/Consumer.csproj",
+    "Packages/com.eitan.mnn/Tools~/HarnessCore/MNN.HarnessCore.csproj",
+    "Packages/com.eitan.mnn/Tools~/HarnessHost/SiriAI.HarnessHost.csproj",
+}
 MODEL_PATTERNS = (
     "*.mnn", "*.mnn.weight", "*.safetensors", "*.onnx", "*.tflite", "*.gguf",
     "*.pt", "*.pth", "pytorch_model*.bin",
@@ -58,7 +66,7 @@ def local_only(name):
         inside(plain, "MNN"),
         local_package(path),
         path.name == ".DS_Store",
-        path.suffix in LOCAL_SUFFIXES,
+        path.suffix in LOCAL_SUFFIXES and name not in AUTHORED_PROJECTS,
         fnmatch.fnmatch(path.name, "mono_cras*.json"),
         fnmatch.fnmatch(path.name, "mono_cras*.blob"),
         plain not in FIXTURES and any(fnmatch.fnmatch(PurePosixPath(plain).name, pattern) for pattern in MODEL_PATTERNS),

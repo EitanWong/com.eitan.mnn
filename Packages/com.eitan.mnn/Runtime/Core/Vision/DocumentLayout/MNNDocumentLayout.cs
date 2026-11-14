@@ -11,6 +11,9 @@ namespace MNN.Unity
     /// Auto selects CPU; this export has failed Metal correctness checks.</summary>
     public sealed class MNNDocumentLayout : IDisposable
     {
+        public static string GraphFileName => MNNDocumentLayoutModel.Graph;
+        public static string MetadataFileName => MNNDocumentLayoutModel.Metadata;
+
         private readonly object _gate = new object();
         private readonly MNNGenerationGraph _graph;
         private bool _disposed;

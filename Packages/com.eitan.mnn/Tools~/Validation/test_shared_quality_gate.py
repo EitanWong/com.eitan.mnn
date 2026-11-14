@@ -130,8 +130,8 @@ class SharedQualityGateTests(unittest.TestCase):
     def test_source_scope_audits_all_existing_explicit_methods_and_exact_network_set(self):
         report = self.gate.audit_suite_sources(ROOT / "Packages/com.eitan.mnn")
         self.assertTrue(report["passed"], report)
-        self.assertEqual(22, len(report["shared_explicit_cases"]))
-        self.assertEqual(7, len(report["network_cases"]))
+        self.assertEqual(24, len(report["shared_explicit_cases"]))
+        self.assertEqual(8, len(report["network_cases"]))
         self.assertGreater(len(report["all_explicit_declarations"]), 22)
 
     def test_new_network_classification_or_explicit_test_is_not_automatically_exempted(self):
@@ -144,25 +144,25 @@ class SharedQualityGateTests(unittest.TestCase):
                                            'public void NewNetwork(){}}}')
         report = self.gate.audit_suite_sources(package)
         self.assertFalse(report["passed"])
-        self.assertIn("reviewed seven-case", " ".join(report["errors"]))
+        self.assertIn("reviewed eight-case", " ".join(report["errors"]))
 
     def offline_xml(self):
         path = self.xml()
         leaves = ''.join(f'<test-case fullname="{name}" result="Skipped" label="Explicit" runstate="Explicit"/>'
                          for name in self.gate.NETWORK_CASES)
-        text = path.read_text().replace('total="1"', 'total="8"').replace('skipped="0"', 'skipped="7"')
-        text = text.replace('testcasecount="1"', 'testcasecount="8"').replace('result="Passed"><test-suite', 'result="Skipped:Explicit"><test-suite', 1)
+        text = path.read_text().replace('total="1"', 'total="9"').replace('skipped="0"', 'skipped="8"')
+        text = text.replace('testcasecount="1"', 'testcasecount="9"').replace('result="Passed"><test-suite', 'result="Skipped:Explicit"><test-suite', 1)
         path.write_text(text.replace('</test-suite></test-suite></test-run>', leaves + '</test-suite></test-suite></test-run>'))
         return path
 
     def offline_report(self, path):
         return self.gate.evaluate_results(path, 0, ["MNN.Unity.Tests.Fixture"])
 
-    def test_offline_xml_retains_exactly_seven_unselected_network_leaves(self):
+    def test_offline_xml_retains_exactly_eight_unselected_network_leaves(self):
         report = self.offline_report(self.offline_xml())
         self.assertTrue(report["passed"], report)
-        self.assertEqual(8, report["cases"])
-        self.assertEqual(8, report["discovered_cases"])
+        self.assertEqual(9, report["cases"])
+        self.assertEqual(9, report["discovered_cases"])
         self.assertEqual(set(self.gate.NETWORK_CASES), set(report["not_selected_network_cases"]))
         self.assertEqual([], report["unresolved_cases"])
 
@@ -177,8 +177,8 @@ class SharedQualityGateTests(unittest.TestCase):
     def test_missing_network_leaf_cannot_be_hidden_by_matching_total_and_discovery(self):
         path = self.offline_xml()
         leaf = f'<test-case fullname="{self.gate.NETWORK_CASES[0]}" result="Skipped" label="Explicit" runstate="Explicit"/>'
-        text = path.read_text().replace(leaf, '').replace('total="8"', 'total="7"')
-        path.write_text(text.replace('testcasecount="8"', 'testcasecount="7"').replace('skipped="7"', 'skipped="6"'))
+        text = path.read_text().replace(leaf, '').replace('total="9"', 'total="8"')
+        path.write_text(text.replace('testcasecount="9"', 'testcasecount="8"').replace('skipped="8"', 'skipped="7"'))
         report = self.offline_report(path)
         self.assertFalse(report["passed"], report)
         self.assertIn(self.gate.NETWORK_CASES[0], ' '.join(report["errors"]))
@@ -186,10 +186,10 @@ class SharedQualityGateTests(unittest.TestCase):
     def test_local_resource_or_allocation_skips_remain_unresolved(self):
         path = self.offline_xml()
         text = path.read_text().replace('result="Passed"/>', 'result="Skipped" label="Ignored" runstate="Runnable"/>')
-        path.write_text(text.replace('passed="1"', 'passed="0"').replace('skipped="7"', 'skipped="8"'))
+        path.write_text(text.replace('passed="1"', 'passed="0"').replace('skipped="8"', 'skipped="9"'))
         report = self.offline_report(path)
         self.assertFalse(report["passed"], report)
-        self.assertEqual(7, len(report["not_selected_network_cases"]))
+        self.assertEqual(8, len(report["not_selected_network_cases"]))
         self.assertEqual(["MNN.Unity.Tests.Fixture.Behavior"], [case["name"] for case in report["unresolved_cases"]])
 
     def test_network_scope_requires_exactly_every_live_test(self):
@@ -199,7 +199,7 @@ class SharedQualityGateTests(unittest.TestCase):
 
     def test_network_download_destinations_do_not_reuse_installed_model_inputs(self):
         environment = self.gate.network_download_environment(self.root / "UnityProject")
-        self.assertEqual(4, len(environment))
+        self.assertEqual(5, len(environment))
         for value in environment.values():
             self.assertTrue(Path(value).is_relative_to(self.root / "UnityProject/TestArtifacts~/NetworkDownloads"))
 

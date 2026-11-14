@@ -1,0 +1,84 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs",
+      "before": "86c3ea3b496d2875be42ac2d13dd4781073ef49f86924465e2a05d5b62caac96",
+      "after": "8e488af1ba9187378abb93a8951a6faab841516fcef78f459033773a60e73e07"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.Backends.cs",
+      "before": "67578b073c0d3b85730b9d9490c26aad99b30ba250e715c38e8ab3f910a0b331",
+      "after": "6ee99408755e277b5b8a33500ba828897e3484054523f06ef1ebff7274023839"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.cs",
+      "before": "842ac980bdfc5176e7b29fc7cb1efab420181ae7f29b689af5eb92eb07e5a214",
+      "after": "76cdbd51baafaa3cad0002b7d3b3f4433fd4e5f94f5e78ad3b62427953fede00"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.Skills.cs",
+      "before": "514f63dc6758218ecbdc0a2343d0f2dc6b6f04a7df39077a5095d94578a3e17e",
+      "after": "c771770b4c41af228113968f69aec986819b9c76eac0b8d8484580c77a6f8b8c"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessConnection.cs",
+      "before": "57758a2b7cd16f248ad64b102cf4c59e30570a075dc78503da00890a81c7b6ee",
+      "after": "a68cf44da3b62bc62abad2f504ecb6e70072d1e8651f49746d359bd1fa5cb0d3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIHarnessSetupSettingsTests.cs",
+      "before": "e1013203238d6604f9467361eaf7ac917f8e04a08b56cfc9e1a0ff4c9475fb42",
+      "after": "8d9bafe833d54705c7b71fb4bfbd8c48267f92fad588e36efc19d2f6dba5c8a5"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Scaffolding/SiriAIHarnessLiveDashboardTests.cs",
+      "before": "9ff1dc3df4991c089a0612507acff167e02c27e824827594fca978b3768c6cc5",
+      "after": "b939546b94f361daccb5d5ec8f8ffce43c4bafdc0c35f059db886c7d6023fa06"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs",
+      "before": "c7367ecf904601376cd5379f989eff4865b94a5ab48db9d03ee6298e23a6d013",
+      "after": "b0789d794de1e33bc7540b38f5d19d5c42c59c6390843ba2e2fa7e42e2304b7c"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs.meta",
+      "before": "32d65c2aef8b1c973317b8ac3ff08fe3e9ef9940fb5407017b73de5e2a5ac1d9",
+      "after": "32d65c2aef8b1c973317b8ac3ff08fe3e9ef9940fb5407017b73de5e2a5ac1d9"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.Backends.cs.meta",
+      "before": "df225a6907f74715bbc4a0f9c1bedb70673d57fbe054e1d5de2c9267537b751d",
+      "after": "df225a6907f74715bbc4a0f9c1bedb70673d57fbe054e1d5de2c9267537b751d"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.cs.meta",
+      "before": "8f5d56ff64e8c74fe13671051d6f495cbd548c71346cc568cbbd20fe76bbdee4",
+      "after": "8f5d56ff64e8c74fe13671051d6f495cbd548c71346cc568cbbd20fe76bbdee4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.Skills.cs.meta",
+      "before": "2f91876bba52c5414a4b11ebc1f6332afe10907635ca27050adc7d15d1e4f0d7",
+      "after": "2f91876bba52c5414a4b11ebc1f6332afe10907635ca27050adc7d15d1e4f0d7"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessConnection.cs.meta",
+      "before": "53a6ee3bfa119e83b331466704d2d2de383071cc65baf39af7ccefdbba8a3e61",
+      "after": "53a6ee3bfa119e83b331466704d2d2de383071cc65baf39af7ccefdbba8a3e61"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIHarnessSetupSettingsTests.cs.meta",
+      "before": "7734722fa8221db3a910fe9cc331df54dc2ca93d9d41d5c5db6ada5a5048ab93",
+      "after": "7734722fa8221db3a910fe9cc331df54dc2ca93d9d41d5c5db6ada5a5048ab93"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Scaffolding/SiriAIHarnessLiveDashboardTests.cs.meta",
+      "before": "a4aea9ae645ccaf7eaeb7a6c0ebb2f1debc3373ebdaae9dbe0bc8c0e14613adc",
+      "after": "a4aea9ae645ccaf7eaeb7a6c0ebb2f1debc3373ebdaae9dbe0bc8c0e14613adc"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs.meta",
+      "before": "c7037cd12bd225fb349bcf92304371765195d9e67d4adb028f5f7a73bc3c50d7",
+      "after": "c7037cd12bd225fb349bcf92304371765195d9e67d4adb028f5f7a73bc3c50d7"
+    }
+  ]
+}

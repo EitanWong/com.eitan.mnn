@@ -4,7 +4,7 @@
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR && ENABLE_IL2CPP
 #define MNN_MOBILE_LLM_CPP_ABI
 #endif
-#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR && !ENABLE_IL2CPP)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN && !UNITY_EDITOR) || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR && !ENABLE_IL2CPP))
 #define MNN_GNU_DESKTOP_CPP_ABI
 #endif
 using System;
@@ -14,12 +14,15 @@ using System.Text;
 
 namespace MNN.Unity.Interop
 {
-    // STL ownership: pinned MNN 3.6.2 desktop Mono or ARM64 mobile IL2CPP.
+    // STL ownership: pinned MNN 3.6.2 desktop Mono, Windows x64 IL2CPP,
+    // or ARM64 mobile IL2CPP.
     // Apple libc++ / Android NDK r25c contracts are documented in MobileInterop.md.
     // These are compiler ABI representations, not a portable MNN C# interface.
     internal static partial class MNNInterop
     {
-#if MNN_GNU_DESKTOP_CPP_ABI
+#if UNITY_WEBGL && !UNITY_EDITOR
+        private const string Cxx = Lib;
+#elif MNN_GNU_DESKTOP_CPP_ABI
 #if UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR)
         private const string Cxx = Lib;
 #else
@@ -39,8 +42,13 @@ namespace MNN.Unity.Interop
                 throw new PlatformNotSupportedException($"Direct MNN C++ binding requires the platform-specific bundled MNN {MNNVersion.RequiredNativeVersion} binary and its documented compiler ABI.");
         }
 
-#if MNN_MOBILE_LLM_CPP_ABI
-#if UNITY_ANDROID
+#if MNN_MOBILE_LLM_CPP_ABI || (UNITY_WEBGL && !UNITY_EDITOR)
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNKSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE4dataEv")]
+        private static extern IntPtr StringData(ref CppString value);
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNKSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE4sizeEv")]
+        private static extern UIntPtr StringSize(ref CppString value);
+#elif UNITY_ANDROID
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNKSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE4dataEv")]
         private static extern IntPtr StringData(ref CppString value);
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNKSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE4sizeEv")]
@@ -57,7 +65,11 @@ namespace MNN.Unity.Interop
         [StructLayout(LayoutKind.Sequential)]
         internal struct CppString
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            internal uint Data, Length, Capacity;
+#else
             internal ulong Data, Length, Capacity;
+#endif
 #if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
             internal ulong Extra;
 #endif
@@ -85,6 +97,37 @@ namespace MNN.Unity.Interop
 
 #if MNN_GNU_DESKTOP_CPP_ABI
         private static void StringInit(ref CppString value, byte[] bytes, UIntPtr length) => throw new InvalidOperationException("GNU strings require stable native object storage.");
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        // Resolve the actual official function to avoid a C-linkage declaration
+        // colliding with libc++ in IL2CPP's generated translation unit.
+        [UnmanagedFunctionPointer(Conv)]
+        private delegate IntPtr WebGLStringConstructor(ref CppString value, byte[] bytes, UIntPtr length);
+        [UnmanagedFunctionPointer(Conv)]
+        private delegate IntPtr WebGLStringDestructor(ref CppString value);
+        private static T ResolveWebGLSymbol<T>(string name) where T : Delegate
+        {
+            IntPtr slot = Marshal.AllocHGlobal(4);
+            IntPtr address;
+            try
+            {
+                Marshal.WriteInt32(slot, 0);
+                // Unity 2021's built-in synchronous JS invocation avoids declaring
+                // emscripten_run_script_int with an incompatible non-const char*.
+#pragma warning disable 618
+                UnityEngine.Application.ExternalEval("HEAP32[" + (slot.ToInt64() / 4) + "]=Module['addFunction'](Module['_" + name + "'],'" + (typeof(T) == typeof(WebGLStringConstructor) ? "iiii" : "ii") + "')");
+#pragma warning restore 618
+                address = new IntPtr(Marshal.ReadInt32(slot));
+            }
+            finally { Marshal.FreeHGlobal(slot); }
+            if (address == IntPtr.Zero) throw new PlatformNotSupportedException("Missing pinned WebGL C++ symbol: " + name);
+            return Marshal.GetDelegateForFunctionPointer<T>(address);
+        }
+        private static class WebGLStringAbi
+        {
+            internal static readonly WebGLStringConstructor Construct = ResolveWebGLSymbol<WebGLStringConstructor>("_ZNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEC2EPKcm");
+            internal static readonly WebGLStringDestructor Destroy = ResolveWebGLSymbol<WebGLStringDestructor>("_ZNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEED2Ev");
+        }
+        private static void StringInit(ref CppString value, byte[] bytes, UIntPtr length) => WebGLStringAbi.Construct(ref value, bytes, length);
 #elif MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Cxx, CallingConvention = Conv, EntryPoint = "_ZNSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm")]
@@ -97,6 +140,8 @@ namespace MNN.Unity.Interop
 #endif
 #if MNN_GNU_DESKTOP_CPP_ABI
         private static void StringDestroy(ref CppString value) => throw new InvalidOperationException("Destroy owning GNU strings in their original DesktopStringResult storage.");
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        private static void StringDestroy(ref CppString value) => WebGLStringAbi.Destroy(ref value);
 #elif MNN_LLM_CPP_ABI
 #if UNITY_IOS && !UNITY_EDITOR
         // IL2CPP's C-linkage declaration of this untagged symbol collides with
@@ -133,6 +178,11 @@ namespace MNN.Unity.Interop
             try { DesktopIntVectorDestroy(ref value); }
             finally { value = default; }
         }
+#elif UNITY_WEBGL && !UNITY_EDITOR
+        // Emscripten wasm32 constructors/destructors return this (compiler IR audited).
+        [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNSt3__26vectorIiNS_9allocatorIiEEED2Ev")]
+        private static extern IntPtr WebGLIntVectorDestroy(ref CppVector value);
+        private static void IntVectorDestroy(ref CppVector value) => WebGLIntVectorDestroy(ref value);
 #elif MNN_LLM_CPP_ABI
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport(Lib, CallingConvention = Conv, EntryPoint = "_ZNSt6__ndk16vectorIiNS_9allocatorIiEEED2Ev")]
@@ -205,9 +255,9 @@ namespace MNN.Unity.Interop
         {
 #if MNN_GNU_DESKTOP_CPP_ABI
             return CopyDesktopInputStringBytes(ref value, start, ref buffer);
-#elif MNN_MOBILE_LLM_CPP_ABI
+#elif MNN_MOBILE_LLM_CPP_ABI || (UNITY_WEBGL && !UNITY_EDITOR)
             // Use compiled libc++ members for SSO, long and embedded-NUL strings.
-            // The 24-byte storage size is pinned to the audited compiler ABI.
+            // Storage is pinned to the audited compiler ABI (12 bytes on wasm32).
             ulong size = StringSize(ref value).ToUInt64();
             if (size > 64 * 1024 * 1024)
                 throw new InvalidDataException("Unexpected native string size.");

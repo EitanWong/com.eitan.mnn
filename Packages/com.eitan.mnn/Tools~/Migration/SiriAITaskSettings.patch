@@ -1,0 +1,658 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs
+@@ -17,12 +17,32 @@
+         private bool _harnessRemember, _harnessDirty, _harnessActionBusy;
+         private InputField _harnessTokenField;
+         private float _nextHarnessDraw;
++        private bool _harnessRebuildRequested;
++        private long _harnessPageGeneration;
++        private string _harnessPageConnectionId;
++        private Transform[] _harnessLiveRows = new Transform[0];
++        private Action[] _harnessLiveReaders = new Action[0], _harnessLiveChoices = new Action[0];
++        private readonly System.Collections.Generic.List<Button> _harnessActions = new System.Collections.Generic.List<Button>();
+         public void ConfigureHarness(SiriAIHarnessController controller) { harness = controller; }
+         private void HarnessChanged()
+         {
+             bool changedScope = harness != null && _harnessTaskDraft.Scope != harness.Dashboard.Generation;
+             EnsureHarnessDraftScope();
+-            if (changedScope) RedrawHarnessContent();
++            string connected = harness?.Connection?.IsAvailable == true ? harness.Connection.ProfileId : null;
++            bool changedConnection = connected != null && connected != _harnessPageConnectionId;
++            _harnessPageConnectionId = connected;
++            if (changedConnection)
++            {
++                var profile = harness.Profiles.Profiles.FirstOrDefault(item => item.Id == connected);
++                if (profile != null)
++                {
++                    LoadHarnessDraft(profile);
++                    _harnessRemote = Application.isMobilePlatform || !IsAutomaticLocalProfile(profile);
++                    _harnessModeLoaded = true;
++                }
++            }
++            // A host/account switch clears the previous scope immediately; normal polling never enters this path.
++            if (changedScope || changedConnection) RedrawHarnessContent();
+             _harnessDirty = true;
+             _harnessExecutionPending = true; ImportHarnessExecution();
+         }
+@@ -38,16 +58,24 @@
+         }
+         private void LoadHarnessDraft(HarnessHostProfile profile)
+         {
+-            ClearHarnessSecret(); InvalidateHarnessDiscovery();
++            ClearHarnessSecret(); InvalidateHarnessDiscovery(); _harnessDeleteProfileId = null;
+             _harnessDraftId = profile?.Id ?? Guid.NewGuid().ToString("N");
+-            _harnessName = profile?.Name ?? "My task host";
++            _harnessName = profile?.Name ?? "";
+             _harnessAddress = profile?.Address ?? (Application.isMobilePlatform ? "https://" : "http://127.0.0.1:8765");
+             _harnessBackend = profile?.HarnessId ?? "codex";
+             _harnessWorkspace = profile?.WorkspaceKey ?? "project";
+             _harnessRemember = false;
++            if (profile != null && harness?.Connection?.IsAvailable == true && harness.Connection.ProfileId == profile.Id)
++                _harnessDraftCatalog = harness.Catalog;
+         }
+         private void BuildHarnessSettings()
+         {
++            _harnessLiveRows = new Transform[0];
++            _harnessLiveReaders = _harnessLiveChoices = new Action[0];
++            _harnessActions.Clear();
++            _harnessPageGeneration = harness != null ? harness.Dashboard.Generation : 0;
++            _harnessPageConnectionId = harness?.Connection?.IsAvailable == true ? harness.Connection.ProfileId : null;
++            _harnessRebuildRequested = false;
+             SetSettingsNotice("Connect saves host settings and reloads an active foreground session. Task controls apply immediately.");
+             BuildHarnessDispatchSettings();
+             if (_editorPreview || harness == null)
+@@ -58,7 +86,7 @@
+             BuildHarnessBackendSelection(profiles);
+             AddBoolField("Speak task results", "Applies immediately. The foreground waits for a conversation pause.",
+                 () => harness.SpeakResults, value => harness.SpeakResults = value);
+-            if (harness.Connection == null || !harness.Connection.IsAvailable) return;
++            if (harness.Connection == null || !harness.Connection.IsAvailable || !HarnessDraftConnected) return;
+             BuildHarnessReadiness();
+             BuildHarnessSkills();
+             HarnessAction("Scan host installations", () => harness.DiscoverAsync());
+@@ -80,8 +108,13 @@
+                 HarnessAction("Submit background task", SubmitHarnessDraftAsync);
+             else SettingsDescription("An admission is pending. It will retry automatically after reconnecting.");
+             HarnessAction("Refresh tasks", () => harness.RefreshAsync());
++            BuildHarnessTaskList();
++        }
++        private void BuildHarnessTaskList()
++        {
++            int firstRow = _settingsContent.childCount, firstReader = _settingsReaders.Count, firstChoice = _settingsChoiceLabels.Count;
+             var tasks = harness.Dashboard.Tasks;
+-            if (tasks.Length == 0) { SettingsDescription("No tasks for this account."); return; }
++            if (tasks.Length == 0) SettingsDescription("No tasks for this account.");
+             foreach (var task in tasks.Take(30))
+             {
+                 string id = task.Id;
+@@ -93,6 +126,23 @@
+             if (tasks.Length > 30) SettingsDescription("Showing the 30 most recent tasks.");
+             var selected = tasks.FirstOrDefault(p => p.Id == _selectedHarnessTask);
+             if (selected != null) BuildHarnessTaskDetails(selected);
++            _harnessLiveRows = Enumerable.Range(firstRow, _settingsContent.childCount - firstRow).Select(index => _settingsContent.GetChild(index)).ToArray();
++            _harnessLiveReaders = _settingsReaders.Skip(firstReader).ToArray();
++            _harnessLiveChoices = _settingsChoiceLabels.Skip(firstChoice).ToArray();
++        }
++        private void RefreshHarnessTaskList()
++        {
++            if (_harnessLiveRows.Length == 0) return;
++            float scroll = SettingsScrollOffset;
++            foreach (var row in _harnessLiveRows)
++                if (row != null) { row.gameObject.SetActive(false); Release(row.gameObject); }
++            foreach (var reader in _harnessLiveReaders) _settingsReaders.Remove(reader);
++            foreach (var choice in _harnessLiveChoices) _settingsChoiceLabels.Remove(choice);
++            BuildHarnessTaskList();
++            InitializeSettingsChoices();
++            _settingsSelectables = _settingsPanel.GetComponentsInChildren<Selectable>();
++            LayoutRebuilder.ForceRebuildLayoutImmediate(_settingsContent);
++            RestoreSettingsScrollOffset(scroll);
+         }
+         private void BuildHarnessDispatchSettings()
+         {
+@@ -172,27 +222,43 @@
+             var button = SettingsButton(_settingsContent, title, GlassInset, Ink);
+             button.GetComponentInChildren<Text>().supportRichText = false;
+             FixedHeight(button.gameObject, 46);
+-            button.interactable = harness != null && !harness.IsBusy && !harness.LocalSetup.IsBusy && !_harnessActionBusy;
++            _harnessActions.Add(button);
++            button.interactable = HarnessActionsAvailable;
+             button.onClick.AddListener(() => _ = RunHarnessActionAsync(action));
+         }
++        private bool HarnessActionsAvailable => harness != null && !harness.IsBusy && !harness.LocalSetup.IsBusy && !_harnessActionBusy;
++        private void RefreshHarnessActions()
++        {
++            _harnessActions.RemoveAll(button => button == null);
++            foreach (var button in _harnessActions) button.interactable = HarnessActionsAvailable;
++        }
+         private async Task RunHarnessActionAsync(Func<Task> action)
+         {
+             if (_harnessActionBusy) return;
+-            _harnessActionBusy = true; _harnessDirty = true;
++            _harnessActionBusy = true; _harnessDirty = true; RefreshHarnessActions();
+             try { await action(); }
+             catch (Exception error) { if (this != null && IsSettingsOpen) SetSettingsNotice(error.Message, true); }
+-            finally { _harnessActionBusy = false; _harnessDirty = true; }
++            finally { _harnessActionBusy = false; _harnessDirty = _harnessRebuildRequested = true; RefreshHarnessActions(); }
+         }
+         private void TickHarnessSettings()
+         {
+             if (!_harnessDirty || !IsSettingsOpen || _settingsTab != HarnessTab || Time.unscaledTime < _nextHarnessDraw) return;
++            RefreshHarnessActions();
++            if (_harnessPageGeneration != harness.Dashboard.Generation)
++            {
++                // A deliberate host/account change fences the previous host's draft.
++                _harnessDirty = false;
++                RedrawHarnessContent();
++                return;
++            }
++            // Preserve open pickers, focus, selection, and a scrollbar being dragged.
++            if (_settingsPopup != null || Input.GetMouseButton(0) || Input.touchCount > 0) return;
+             var selected = EventSystem.current?.currentSelectedGameObject;
+             if (selected != null && selected.GetComponent<InputField>()?.isFocused == true) return;
+             if (!ReadSettingsFields()) return;
+             _harnessDirty = false; _nextHarnessDraw = Time.unscaledTime + 1;
+-            float scroll = SettingsScrollOffset;
+-            ShowSettingsTab(HarnessTab, false);
+-            RestoreSettingsScrollOffset(scroll);
++            if (_harnessRebuildRequested) RedrawHarnessContent(); // One refresh after an explicit user action.
++            else RefreshHarnessTaskList(); // Background observations never rebuild configuration controls.
+         }
+         private static string Short(string text, int count) => text.Length <= count ? text :
+             text.Substring(0, char.IsHighSurrogate(text[count - 1]) ? count - 1 : count) + "…";
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.Backends.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.Backends.cs
+@@ -11,6 +11,8 @@
+     public sealed partial class SiriAIChatView
+     {
+         private bool _harnessRemote, _harnessModeLoaded, _harnessAdvanced;
++        private string _harnessDeleteProfileId;
++        private static bool IsAutomaticLocalProfile(HarnessHostProfile profile) => profile.Id == "local-desktop" || profile.Id.StartsWith("local-desktop-", StringComparison.Ordinal);
+         private string _localBackend = "auto", _localWorkspace, _llmEndpoint = "https://api.openai.com/v1/", _llmModel = "", _llmKey = "";
+         private HarnessHostCatalog _harnessDraftCatalog;
+         private int _harnessDraftRevision;
+@@ -20,7 +22,7 @@
+         {
+             if (!_harnessModeLoaded)
+             {
+-                _harnessRemote = Application.isMobilePlatform || profiles.Any(p => p.Id == _harnessDraftId && !new Uri(p.Address).IsLoopback);
++                _harnessRemote = Application.isMobilePlatform || profiles.Any(p => p.Id == _harnessDraftId && !IsAutomaticLocalProfile(p));
+                 _harnessModeLoaded = true;
+             }
+             AddSettingsTitle("Task backend", "Reuse your agent's own models, tools and sign-in.");
+@@ -29,18 +31,23 @@
+                 {
+                     if (!ReadSettingsFields()) return;
+                     _harnessRemote = value == 1; InvalidateHarnessDiscovery(); ClearHarnessSecret();
++                    _harnessDeleteProfileId = null;
++                    if (_harnessRemote && profiles.Any(profile => profile.Id == _harnessDraftId && IsAutomaticLocalProfile(profile)))
++                        LoadHarnessDraft(profiles.FirstOrDefault(profile => !IsAutomaticLocalProfile(profile)));
+                     ShowSettingsTab(HarnessTab, false);
+                 }, new[] { "This computer", "Remote host" });
+-            if (_harnessRemote) BuildRemoteHarnessSelection(profiles);
++            if (_harnessRemote) BuildRemoteHarnessSelection(profiles.Where(profile => !IsAutomaticLocalProfile(profile)).ToArray());
+             else BuildLocalHarnessSelection();
+         }
+         private void BuildLocalHarnessSelection()
+         {
+             var setup = harness.LocalSetup;
+             if (setup.ServiceDirectory == null) setup.Configure();
++            var saved = harness.Profiles.Profiles.FirstOrDefault(profile => IsAutomaticLocalProfile(profile) && profile.Id == harness.Profiles.SelectedId) ??
++                harness.Profiles.Profiles.FirstOrDefault(IsAutomaticLocalProfile);
+             if (_localWorkspace == null)
+-                _localWorkspace = Directory.Exists(_conversations?.GetWorkingDirectory(_conversations.ActiveId)) ? _conversations.GetWorkingDirectory(_conversations.ActiveId) :
+-                    Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
++                _localWorkspace = HarnessDesktopPaths.FindWorkspace(new[] { saved?.WorkspaceKey,
++                    _conversations?.GetWorkingDirectory(_conversations.ActiveId), Path.GetFullPath(Path.Combine(Application.dataPath, "..")) });
+             SettingsDescription("Local agents are detected automatically. Installation and sign-in are always your choice.");
+             var definitions = HarnessBackendCatalog.All.ToArray();
+             string[] names = new[] { Localize("Automatic (installed backend)") }.Concat(definitions.Select(item =>
+@@ -50,7 +57,7 @@
+             })).ToArray();
+             AddEnumField("Task agent", null, () => _localBackend == "auto" ? 0 : Array.FindIndex(definitions, item => item.Id == _localBackend) + 1,
+                 index => { if (!ReadSettingsFields()) return; _localBackend = index == 0 ? "auto" : definitions[index - 1].Id; ShowSettingsTab(HarnessTab, false); }, names);
+-            string selected = _localBackend == "auto" ? HarnessBackendCatalog.ChooseLocal(setup.Installations, _harnessBackend) : _localBackend;
++            string selected = _localBackend == "auto" ? HarnessBackendCatalog.ChooseLocal(setup.Installations, saved?.HarnessId) : _localBackend;
+             if (selected != null)
+             {
+                 var definition = HarnessBackendCatalog.Get(selected);
+@@ -104,19 +111,24 @@
+                 LoadHarnessDraft(index < profiles.Length ? profiles[index] : null); _harnessDraftCatalog = null;
+                 ShowSettingsTab(HarnessTab, false);
+             }, profiles.Select(item => item.Name).Concat(new[] { Localize("New host") }).ToArray());
++            AddTextField("Profile name", "Optional. Uses the host name when left empty.", () => _harnessName, value => _harnessName = value.Trim());
++            HarnessAction("Add host profile", () =>
++            {
++                LoadHarnessDraft(null); _harnessDeleteProfileId = null; RedrawHarnessContent(); return Task.CompletedTask;
++            });
+             AddTextField("Host address", "Use your remote host HTTPS address.", () => _harnessAddress, value => { if (_harnessAddress != value.Trim()) { _harnessAddress = value.Trim(); InvalidateHarnessDiscovery(); } });
+             _harnessTokenField = AddTextField("Host access token", "Leave empty to use this profile's saved credential.",
+                 () => _harnessToken, value => { if (_harnessToken != value) { _harnessToken = value; InvalidateHarnessDiscovery(); } }, password: true);
++            HarnessAction("Save host profile", async () =>
++            {
++                if (!ReadSettingsFields()) return;
++                await harness.SaveProfileAsync(new HarnessHostProfile(_harnessDraftId, HarnessDraftName(), _harnessAddress,
++                    _harnessBackend, _harnessWorkspace));
++            });
++            if (profiles.Any(profile => profile.Id == _harnessDraftId)) BuildHarnessProfileDeletion();
+             HarnessAction("Discover remote backends", async () =>
+             {
+-                if (!ReadSettingsFields()) return;
+-                int revision = _harnessDraftRevision;
+-                var discovered = await harness.InspectHostAsync(_harnessDraftId, _harnessAddress, _harnessToken);
+-                if (this == null || !IsSettingsOpen || !_harnessRemote || revision != _harnessDraftRevision) return;
+-                _harnessDraftCatalog = discovered;
+-                var configured = _harnessDraftCatalog.Configured ?? Array.Empty<ConfiguredHarness>();
+-                if (!configured.Any(item => item.Id == _harnessBackend)) _harnessBackend = configured.FirstOrDefault()?.Id;
+-                if (!(_harnessDraftCatalog.Workspaces ?? Array.Empty<string>()).Contains(_harnessWorkspace)) _harnessWorkspace = _harnessDraftCatalog.Workspaces?.FirstOrDefault();
++                if (ReadSettingsFields()) { _harnessDraftCatalog = null; await DiscoverHarnessDraftAsync(); }
+             });
+             var catalog = _harnessDraftCatalog;
+             if (catalog?.Configured?.Length > 0)
+@@ -127,15 +139,52 @@
+                     index => _harnessWorkspace = catalog.Workspaces[index], catalog.Workspaces);
+             AddBoolField("Remember host credential", "Uses this device's credential vault.", () => _harnessRemember,
+                 value => _harnessRemember = value, harness.CanPersistCredentials);
+-            if (catalog?.Configured?.Length > 0 && catalog.Workspaces?.Length > 0)
+-                HarnessAction("Connect and save host", async () =>
+-                {
+-                    if (!ReadSettingsFields()) return;
+-                    if (_harnessDraftCatalog != catalog) throw new InvalidOperationException("Discover this host before connecting.");
+-                    var profile = new HarnessHostProfile(_harnessDraftId, new Uri(_harnessAddress).Host, _harnessAddress, _harnessBackend, _harnessWorkspace);
+-                    string token = _harnessToken; ClearHarnessSecret();
+-                    await harness.ConnectAsync(profile, token, _harnessRemember); await harness.RefreshAsync();
+-                });
++            SettingsDescription("Connect detects the available backends and workspaces. You can change the selection after discovery.");
++            HarnessAction("Connect and save host", async () =>
++            {
++                if (!ReadSettingsFields() || !await DiscoverHarnessDraftAsync()) return;
++                var profile = new HarnessHostProfile(_harnessDraftId, HarnessDraftName(), _harnessAddress, _harnessBackend, _harnessWorkspace);
++                string token = _harnessToken; ClearHarnessSecret();
++                await harness.ConnectAsync(profile, token, _harnessRemember); await harness.RefreshAsync();
++            });
++        }
++        private async Task<bool> DiscoverHarnessDraftAsync()
++        {
++            int revision = _harnessDraftRevision;
++            var catalog = _harnessDraftCatalog ?? await harness.InspectHostAsync(_harnessDraftId, _harnessAddress, _harnessToken);
++            if (this == null || !IsSettingsOpen || !_harnessRemote || !ReadSettingsFields() || revision != _harnessDraftRevision) return false;
++            _harnessBackend = catalog.ChooseBackend(_harnessBackend);
++            _harnessWorkspace = catalog.ChooseWorkspace(_harnessWorkspace);
++            if (_harnessBackend == null || _harnessWorkspace == null)
++                throw new InvalidOperationException(Localize("This host has no configured task backend or workspace. Complete setup on the host first."));
++            _harnessDraftCatalog = catalog;
++            return true;
++        }
++        private string HarnessDraftName()
++        {
++            if (!string.IsNullOrWhiteSpace(_harnessName)) return _harnessName;
++            string host = HarnessHostAddress.Parse(_harnessAddress).Host;
++            return host.Substring(0, Math.Min(host.Length, 128));
++        }
++        private void BuildHarnessProfileDeletion()
++        {
++            if (_harnessDeleteProfileId != _harnessDraftId)
++            {
++                HarnessAction("Delete host profile", () =>
++                { _harnessDeleteProfileId = _harnessDraftId; RedrawHarnessContent(); return Task.CompletedTask; });
++                return;
++            }
++            SettingsDescription("Delete this saved connection and its credential? Tasks already running on the host will continue.");
++            string id = _harnessDraftId;
++            HarnessAction("Confirm delete profile", async () =>
++            {
++                await harness.RemoveProfileAsync(id);
++                LoadHarnessDraft(harness.Profiles.Profiles.FirstOrDefault(profile => !IsAutomaticLocalProfile(profile)));
++                _harnessDeleteProfileId = null;
++                RedrawHarnessContent();
++            });
++            HarnessAction("Keep profile", () =>
++            { _harnessDeleteProfileId = null; RedrawHarnessContent(); return Task.CompletedTask; });
+         }
+     }
+ }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.cs
+@@ -181,6 +181,50 @@
+             if (generation != _dashboard.Generation) return;
+             Catalog = catalog; Notify();
+         }
++        public async Task SaveProfileAsync(HarnessHostProfile profile)
++        {
++            if (profile == null) throw new ArgumentNullException(nameof(profile));
++            if (IsBusy) throw new InvalidOperationException("Wait for the current task control operation.");
++            _busy = true; Notify();
++            try
++            {
++                var previous = Profiles.Profiles.FirstOrDefault(item => item.Id == profile.Id);
++                if (previous != null && connection != null)
++                {
++                    if (previous.Address != profile.Address) await ForgetProfileConnectionAsync(previous);
++                    else if (connection.ProfileId == previous.Id && (previous.HarnessId != profile.HarnessId || previous.WorkspaceKey != profile.WorkspaceKey))
++                        await ForgetProfileConnectionAsync(previous, false);
++                }
++                Profiles.Save(profile, false);
++                if (connection != null && connection.IsAvailable && connection.ProfileId == profile.Id) Notice = "Connected: " + profile.Name;
++            }
++            finally { _busy = false; Notify(); }
++        }
++        public async Task RemoveProfileAsync(string id)
++        {
++            if (IsBusy) throw new InvalidOperationException("Wait for the current task control operation.");
++            _busy = true; Notify();
++            try
++            {
++                var profile = Profiles.Profiles.FirstOrDefault(item => item.Id == id);
++                if (profile == null) return;
++                await ForgetProfileConnectionAsync(profile);
++                Profiles.Remove(id);
++            }
++            finally { _busy = false; Notify(); }
++        }
++        private async Task ForgetProfileConnectionAsync(HarnessHostProfile profile, bool forgetCredential = true)
++        {
++            if (connection == null) return;
++            bool active = connection.ProfileId == profile.Id;
++            if (active) { _changing = true; _dashboard.ResetScope(); Catalog = null; ResetSkills(); }
++            try
++            {
++                if (forgetCredential) await connection.ForgetProfileAsync(profile);
++                else await connection.DisconnectProfileAsync(profile.Id);
++            }
++            finally { if (active) { _changing = false; Notice = "Connect a host to use background tasks."; Notify(); } }
++        }
+         public Task ReplyAsync(long generation, string taskId, string requestId, string text, bool allow,
+             HarnessInputAction action = HarnessInputAction.Answer) =>
+             ControlAsync(generation, taskId, () =>
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.Skills.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.Skills.cs
+@@ -1,5 +1,6 @@
+ using System;
+ using System.IO;
++using System.Linq;
+ using System.Threading;
+ using System.Threading.Tasks;
+ using MNN.Samples.SiriAI.Harnesses;
+@@ -43,7 +44,10 @@
+             var client = SkillConnection(generation);
+             var history = await client.ListSkillOperationsAsync(_lifetime?.Token ?? CancellationToken.None);
+             if (generation != _dashboard.Generation || client != connection.Client) return;
+-            _skillOperations = history; Notify();
++            bool changed = !_skillOperations.OrderBy(task => task.Id).Select(task => new { task.Id, task.Revision })
++                .SequenceEqual(history.OrderBy(task => task.Id).Select(task => new { task.Id, task.Revision }));
++            _skillOperations = history;
++            if (changed) Notify();
+         }
+         public async Task SubmitSkillOperationAsync(long generation, HarnessSkillRequest request)
+         {
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessConnection.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessConnection.cs
+@@ -159,6 +159,32 @@
+             PlayerPrefs.Save();
+             if (isActiveAndEnabled && !_paused) StartPolling();
+         }
++        /// <summary>Forget this saved connection and its credential. Admitted tasks continue on the host.</summary>
++        public async Task ForgetProfileAsync(HarnessHostProfile selected)
++        {
++            if (selected == null) throw new ArgumentNullException(nameof(selected));
++            var address = HarnessHostAddress.Parse(selected.Address, Application.isMobilePlatform);
++            var secrets = MNNSecretStore.Create(Application.identifier + ".SiriAI.Harness",
++                Path.Combine(Application.persistentDataPath, "MNN", "SiriAI", "Harness", MNNSecretStore.AliasHash(selected.Id)));
++            string key = CredentialKey(address.AbsoluteUri);
++            secrets.Delete(key);
++            _sessionSecrets.Delete(selected.Id + ":" + key);
++            string preference = "MNN.SiriAI.Harness." + MNNSecretStore.AliasHash(selected.Id);
++            PlayerPrefs.DeleteKey(preference + ".address");
++            PlayerPrefs.DeleteKey(preference + ".conversation");
++            PlayerPrefs.Save();
++            await DisconnectProfileAsync(selected.Id);
++        }
++        internal async Task DisconnectProfileAsync(string profileId)
++        {
++            if (profile != profileId) return;
++            StopPolling();
++            await _pollTask;
++            lock (_sync) { _client?.Dispose(); _client = null; _observer = null; }
++            if (_journal != null) { await _journal.DisposeAsync(); _journal = null; }
++            _journalScope = null;
++        }
++
+         internal RemoteTaskClient Client
+         {
+             get
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIHarnessSetupSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIHarnessSetupSettingsTests.cs
+@@ -40,6 +40,21 @@
+         }
+         private void Remote()
+         { SiriAITestAccess.Set(view, "_harnessRemote", true); SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false); }
++        [Test] public void NewRemoteHostOffersOneStepConnectionAndAnOptionalName()
++        {
++            SiriAITestAccess.Call(view, "LoadHarnessDraft", new object[] { null }); Remote();
++            Assert.IsNotNull(ActionButton("Connect and save host"), "Discovery must not be a required separate step.");
++            Assert.IsEmpty(Content.Find("Profile name").GetComponentInChildren<InputField>().text);
++        }
++        [Test] public void LocalSetupRestoresTheSavedProjectWhenItStillExists()
++        {
++            var profile = new HarnessHostProfile("local-desktop-test", "Local · Codex", "http://127.0.0.1:8765", "codex", directory);
++            controller.Profiles.Save(profile, true);
++            SiriAITestAccess.Call(view, "LoadHarnessDraft", profile);
++            SiriAITestAccess.Set(view, "_localWorkspace", null);
++            SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++            Assert.AreEqual(directory, SiriAITestAccess.Field<string>(view, "_localWorkspace"));
++        }
+         [Test] public void LocalDefaultsOfferAllAgentsWithoutManualHostPaths()
+         {
+             var names = Options("Task agent");
+@@ -73,5 +88,132 @@
+             SiriAITestAccess.Call(view, "LoadHarnessDraft", new object[] { null }); Remote();
+             Assert.AreEqual("New host", Content.Find("Host profile").GetComponentInChildren<Button>().GetComponentInChildren<Text>().text);
+         }
++
++        private Button ActionButton(string title) => Content.GetComponentsInChildren<Button>()
++            .Single(button => button.GetComponentInChildren<Text>()?.text == title);
++        private void TickBackgroundChange()
++        {
++            SiriAITestAccess.Call(controller, "Notify");
++            SiriAITestAccess.Set(view, "_nextHarnessDraw", 0f);
++            SiriAITestAccess.Call(view, "TickHarnessSettings");
++        }
++        [Test] public void BackgroundNotificationsKeepRemoteFieldsAndDraftsAlive()
++        {
++            Remote();
++            var address = Content.Find("Host address").GetComponentInChildren<InputField>();
++            address.text = "https://typing.example/new";
++            for (int i = 0; i < 3; i++) TickBackgroundChange();
++            Assert.AreSame(address, Content.Find("Host address").GetComponentInChildren<InputField>(), "Background changes must not reconstruct the settings page.");
++            Assert.AreEqual("https://typing.example/new", address.text);
++        }
++        [Test] public void BackgroundNotificationsKeepAnOpenBackendMenuAlive()
++        {
++            Content.Find("Task agent").GetComponentInChildren<Button>().onClick.Invoke();
++            var popup = SiriAITestAccess.Field<RectTransform>(view, "_settingsPopup");
++            TickBackgroundChange();
++            Assert.AreSame(popup, SiriAITestAccess.Field<RectTransform>(view, "_settingsPopup"), "A background refresh cannot close a user's picker.");
++            Assert.True(popup.gameObject.activeInHierarchy);
++        }
++        [Test] public void RemoteModeExcludesAutomaticLocalProfilesAndStartsANewDraft()
++        {
++            var local = new HarnessHostProfile("local-desktop-" + new string('a', 64), "Local · Codex", "http://127.0.0.1:8765", "codex", "project");
++            controller.Profiles.Save(local, true);
++            controller.Profiles.Save(new HarnessHostProfile("local-desktop", "Local · Legacy Codex", local.Address, "codex", "project"), false);
++            SiriAITestAccess.Call(view, "LoadHarnessDraft", local);
++            SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++            Content.Find("Run tasks on").GetComponentInChildren<Button>().onClick.Invoke();
++            SiriAITestAccess.Field<RectTransform>(view, "_settingsOptionsContent").GetComponentsInChildren<Button>()
++                .Single(button => button.GetComponentInChildren<Text>().text == "Remote host").onClick.Invoke();
++            Assert.AreEqual("New host", Content.Find("Host profile").GetComponentInChildren<Button>().GetComponentInChildren<Text>().text);
++            Assert.False(Options("Host profile").Any(label => label.Contains("Local · Codex")));
++        }
++        [Test] public void UserNamedLoopbackProfilesRemainAvailableInRemoteMode()
++        {
++            var profile = new HarnessHostProfile("my-computer", "My own desktop", "http://127.0.0.1:8765", "codex", "project");
++            controller.Profiles.Save(profile, false);
++            SiriAITestAccess.Call(view, "LoadHarnessDraft", profile); Remote();
++            CollectionAssert.Contains(Options("Host profile"), "My own desktop");
++        }
++        [Test] public void UnchangedEnvironmentScansDoNotNotifySettings()
++        {
++            var setup = typeof(SiriAIHarnessController).GetProperty("LocalSetup").GetValue(controller);
++            SiriAITestAccess.Call(setup, "RefreshEnvironment"); // EditMode does not run the Player's first OnEnable scan.
++            int events = 0; Action changed = () => events++;
++            var notification = setup.GetType().GetEvent("Changed"); notification.AddEventHandler(setup, changed);
++            try
++            {
++                SiriAITestAccess.Call(setup, "RefreshEnvironment"); SiriAITestAccess.Call(setup, "RefreshEnvironment");
++                Assert.Zero(events, "An unchanged inventory must not trigger page updates.");
++            }
++            finally { notification.RemoveEventHandler(setup, changed); }
++        }
++        [Test] public void UserCanCreateRenameAddAndDeleteNamedRemoteProfiles()
++        {
++            Remote();
++            var name = Content.Find("Profile name"); Assert.NotNull(name, "Host profiles need a user-editable name.");
++            name.GetComponentInChildren<InputField>().text = "Work desktop";
++            Content.Find("Host address").GetComponentInChildren<InputField>().text = "https://work.example/";
++            ActionButton("Save host profile").onClick.Invoke();
++            string first = controller.Profiles.Profiles.Single().Id;
++            Assert.AreEqual("Work desktop", controller.Profiles.Get(first).Name);
++            SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++            Content.Find("Profile name").GetComponentInChildren<InputField>().text = "My workstation";
++            ActionButton("Save host profile").onClick.Invoke();
++            Assert.AreEqual("My workstation", controller.Profiles.Get(first).Name);
++            Assert.AreEqual(1, controller.Profiles.Profiles.Length);
++            SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++            ActionButton("Add host profile").onClick.Invoke();
++            Content.Find("Profile name").GetComponentInChildren<InputField>().text = "Travel host";
++            Content.Find("Host address").GetComponentInChildren<InputField>().text = "https://travel.example/";
++            ActionButton("Save host profile").onClick.Invoke();
++            Assert.AreEqual(2, controller.Profiles.Profiles.Length);
++            SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++            ActionButton("Delete host profile").onClick.Invoke();
++            Assert.AreEqual(2, controller.Profiles.Profiles.Length, "Deletion requires its in-app confirmation.");
++            ActionButton("Confirm delete profile").onClick.Invoke();
++            Assert.AreEqual(1, controller.Profiles.Profiles.Length);
++            Assert.AreEqual(first, controller.Profiles.Profiles.Single().Id);
++        }
++
++        [Test] public void TaskProgressUpdatesWithoutReplacingHostOrTaskDraftControls()
++        {
++            var connection = root.AddComponent<SiriAIHarnessConnection>();
++            var profile = new HarnessHostProfile("fixture", "Fixture", "https://host.example/", "codex", "project");
++            controller.Profiles.Save(profile, true);
++            controller.Configure(connection, null, root.GetComponent<SiriAIChat>(), new SiriAIHarnessTaskTool[0]);
++            SiriAITestAccess.Set(connection, "profile", profile.Id);
++            SiriAITestAccess.Set(connection, "hostAddress", profile.Address);
++            SiriAITestAccess.Set(connection, "_client", new RemoteTaskClient(new Uri(profile.Address), "fixture-token"));
++            SiriAITestAccess.Call(view, "LoadHarnessDraft", profile); Remote();
++            var address = Content.Find("Host address").GetComponentInChildren<InputField>();
++            var objective = Content.Find("New task objective").GetComponentInChildren<InputField>();
++            objective.text = "Keep this draft";
++            controller.Dashboard.Apply(controller.Dashboard.Generation, new[] { Snapshot(1) });
++            TickBackgroundChange();
++            Assert.AreSame(address, Content.Find("Host address").GetComponentInChildren<InputField>());
++            Assert.AreSame(objective, Content.Find("New task objective").GetComponentInChildren<InputField>());
++            ActionButton("Running · live task").onClick.Invoke();
++            address = Content.Find("Host address").GetComponentInChildren<InputField>();
++            objective = Content.Find("New task objective").GetComponentInChildren<InputField>();
++            int readers = SiriAITestAccess.Field<System.Collections.Generic.List<Action>>(view, "_settingsReaders").Count;
++            for (int revision = 2; revision < 5; revision++)
++            {
++                controller.Dashboard.Apply(controller.Dashboard.Generation, new[] { Snapshot(revision) }); TickBackgroundChange();
++                Assert.AreSame(address, Content.Find("Host address").GetComponentInChildren<InputField>());
++                Assert.AreSame(objective, Content.Find("New task objective").GetComponentInChildren<InputField>());
++                Assert.AreEqual("Keep this draft", objective.text);
++                Assert.AreEqual("Activity " + revision, Content.Find("Result or activity").GetComponentInChildren<InputField>().text);
++                Assert.AreEqual(readers, SiriAITestAccess.Field<System.Collections.Generic.List<Action>>(view, "_settingsReaders").Count, "Replacing live task rows cannot retain destroyed field readers.");
++            }
++            var next = new HarnessHostProfile("next-fixture", "Next host", profile.Address, "codex", "project");
++            controller.Profiles.Save(next, true);
++            SiriAITestAccess.Set(connection, "profile", next.Id);
++            controller.Dashboard.ResetScope();
++            SiriAITestAccess.Call(controller, "Notify");
++            Assert.AreEqual("", Content.Find("New task objective").GetComponentInChildren<InputField>().text, "An explicit host switch still clears the previous host's draft immediately.");
++            Assert.AreEqual(next.Id, SiriAITestAccess.Field<string>(view, "_harnessDraftId"));
++        }
++        private static HarnessTask Snapshot(int revision) => TaskHostJson.Read<HarnessTask>(System.Text.Encoding.UTF8.GetBytes(
++            "{\"Id\":\"live\",\"OwnerId\":\"alice\",\"ConversationId\":\"chat\",\"SubmissionKey\":\"key\",\"HarnessId\":\"codex\",\"WorkspaceKey\":\"project\",\"Objective\":\"live task\",\"State\":1,\"Revision\":" + revision + ",\"CreatedUtcTicks\":1,\"UpdatedUtcTicks\":" + revision + ",\"Activity\":\"Activity " + revision + "\"}"));
+     }
+ }
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Scaffolding/SiriAIHarnessLiveDashboardTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Scaffolding/SiriAIHarnessLiveDashboardTests.cs
+@@ -118,13 +118,11 @@
+                 SiriAITestAccess.Field<RectTransform>(view, "_settingsOptionsContent").GetComponentsInChildren<Button>().Single(x => x.GetComponentInChildren<Text>().text == "Remote host").onClick.Invoke();
+                 Field(content, "Host address").text = Environment.GetEnvironmentVariable("SIRIAI_DASHBOARD_HOST");
+                 Field(content, "Host access token").text = Environment.GetEnvironmentVariable("SIRIAI_DASHBOARD_TOKEN");
+-                Button(content, "Discover remote backends").onClick.Invoke();
+-                yield return Until(() => SiriAITestAccess.Field<HarnessHostCatalog>(view, "_harnessDraftCatalog") != null);
+-                SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
+-                Assert.AreEqual("fixture", SiriAITestAccess.Field<string>(view, "_harnessBackend"));
+-                Assert.AreEqual("test", SiriAITestAccess.Field<string>(view, "_harnessWorkspace"));
+                 Button(content, "Connect and save host").onClick.Invoke();
+-                yield return Until(() => connection.IsAvailable && !controller.IsBusy);
++                yield return Until(() => connection.IsAvailable && !controller.IsBusy && !SiriAITestAccess.Field<bool>(view, "_harnessActionBusy"));
++                Assert.AreEqual("fixture", controller.Profiles.Get(connection.ProfileId).HarnessId);
++                Assert.AreEqual("test", controller.Profiles.Get(connection.ProfileId).WorkspaceKey);
++                Assert.AreEqual("127.0.0.1", controller.Profiles.Get(connection.ProfileId).Name);
+                 StringAssert.StartsWith("Connected:", controller.Notice);
+                 Assert.False(chat.IsPreparingConversation);
+                 Assert.IsNull(chat.Runtime);
+@@ -148,6 +146,29 @@
+                     Assert.AreEqual("foreground-dispatch", task.Objective);
+                     yield return Until(() => controller.Dashboard.Tasks.Single(p => p.Id == task.Id).State == HarnessTaskState.Completed);
+                     Assert.AreEqual("fixture result: foreground-dispatch", controller.Dashboard.Tasks.Single(p => p.Id == task.Id).Result);
++                    // Renaming a saved connection preserves the current host; deletion disconnects
++                    // this client while leaving the host's admitted task and result intact.
++                    SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++                    long generation = controller.Dashboard.Generation;
++                    Field(content, "Profile name").text = "My remote workstation";
++                    Button(content, "Save host profile").onClick.Invoke();
++                    yield return Until(() => !controller.IsBusy);
++                    Assert.AreEqual("My remote workstation", controller.Profiles.Get(connection.ProfileId).Name);
++                    Assert.True(connection.IsAvailable);
++                    Assert.AreEqual(generation, controller.Dashboard.Generation);
++                    SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++                    Button(content, "Delete host profile").onClick.Invoke();
++                    Assert.True(connection.IsAvailable, "Opening confirmation does not delete or disconnect.");
++                    Button(content, "Confirm delete profile").onClick.Invoke();
++                    yield return Until(() => !controller.IsBusy && controller.Profiles.Profiles.Length == 0);
++                    Assert.False(connection.IsAvailable);
++                    using (var inspect = new RemoteTaskClient(new Uri(Environment.GetEnvironmentVariable("SIRIAI_DASHBOARD_HOST")),
++                        Environment.GetEnvironmentVariable("SIRIAI_DASHBOARD_TOKEN")))
++                    {
++                        var retained = inspect.ListAsync(CancellationToken.None);
++                        yield return Until(() => retained.IsCompleted);
++                        Assert.AreEqual("fixture result: foreground-dispatch", retained.GetAwaiter().GetResult().Single(item => item.Id == task.Id).Result);
++                    }
+                 }
+             }
+             finally { UnityEngine.Object.Destroy(root); }
+@@ -169,7 +190,8 @@
+             public void Dispose() { }
+         }
+ 
+-        private static InputField Field(Transform content, string title) => content.Find(title).GetComponentInChildren<InputField>();
++        private static InputField Field(Transform content, string title) => content.GetComponentsInChildren<InputField>()
++            .Single(input => input.transform.parent.name == title);
+ 
+         private static Button Button(Transform content, string title) => content.GetComponentsInChildren<Button>()
+             .Single(p => p.GetComponentInChildren<Text>()?.text == title);
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -201,6 +201,17 @@
+             { "Run tasks on", "执行位置" },
+             { "This computer", "本机" },
+             { "Remote host", "远程宿主" },
++            { "Profile name", "配置名称" },
++            { "Optional. Uses the host name when left empty.", "可选。留空时自动使用主机名。" },
++            { "Connect detects the available backends and workspaces. You can change the selection after discovery.", "连接时自动识别可用的代理和工作区；也可先检测再自行选择。" },
++            { "This host has no configured task backend or workspace. Complete setup on the host first.", "此主机尚未配置任务代理或工作区，请先完成主机端设置。" },
++            { "Choose a name that helps you recognize this host.", "为这台宿主设置一个容易辨认的名称。" },
++            { "Add host profile", "新增宿主配置" },
++            { "Save host profile", "保存宿主配置" },
++            { "Delete host profile", "删除宿主配置" },
++            { "Confirm delete profile", "确认删除配置" },
++            { "Keep profile", "保留配置" },
++            { "Delete this saved connection and its credential? Tasks already running on the host will continue.", "删除此连接配置及其凭据？宿主上已经运行的任务将继续执行。" },
+             { "Task agent", "任务代理" },
+             { "Automatic (installed backend)", "自动选择已安装的代理" },
+             { "Experimental · text only", "实验功能 · 仅文本" },

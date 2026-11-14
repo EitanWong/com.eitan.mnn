@@ -10,16 +10,16 @@ namespace MNN.Unity
         public Func<IMNNConversationProvider, CancellationToken, Task> Prepare;
         public Action<IMNNConversationProvider> Release;
         public Func<MNNConversationSpeechTimings> SpeechTimings;
-        internal static readonly IEqualityComparer<IMNNConversationProvider> Identity = new ProviderIdentity();
+        public static readonly IEqualityComparer<IMNNConversationProvider> Identity = new ProviderIdentity();
         private sealed class ProviderIdentity : IEqualityComparer<IMNNConversationProvider>
         {
             public bool Equals(IMNNConversationProvider x, IMNNConversationProvider y) => ReferenceEquals(x, y);
             public int GetHashCode(IMNNConversationProvider value) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(value);
         }
-        internal MNNConversationProviders Snapshot() => (MNNConversationProviders)MemberwiseClone();
+        public MNNConversationProviders Snapshot() => (MNNConversationProviders)MemberwiseClone();
         internal Task PrepareAsync(IMNNConversationProvider provider, CancellationToken token) => provider == null ? Task.CompletedTask :
             Prepare != null ? Prepare(provider, token) : provider.PrepareAsync(token);
-        internal void Dispose(IMNNConversationProvider provider) { if (provider == null) return; if (Release != null) Release(provider); else provider.Dispose(); }
+        public void Dispose(IMNNConversationProvider provider) { if (provider == null) return; if (Release != null) Release(provider); else provider.Dispose(); }
     }
     public readonly struct MNNConversationSpeechTimings
     {

@@ -5,7 +5,7 @@ namespace MNN.Unity
 {
     public sealed partial class MNNModelDownloader
     {
-        internal static void PrepareArchives(string directory, MNNModelSource source, string repository, CancellationToken token = default)
+        public static void PrepareArchives(string directory, MNNModelSource source, string repository, CancellationToken token = default)
         {
             if (source == MNNModelSource.HuggingFace && MNNCosyVoiceModel.IsRepository(repository))
                 MNNCosyVoiceAssets.Install(directory, token);
@@ -44,6 +44,8 @@ namespace MNN.Unity
                 MNNReferenceSpeechModel.Validate(directory, MNNReferenceSpeechModel.IsIndex(repository));
             if (source == MNNModelSource.ModelScope && MNNVerifiedTtsModel.IsRepository(repository) || source == MNNModelSource.HuggingFace && MNNVerifiedTtsModel.IsHuggingFaceRepository(repository))
                 MNNVerifiedTtsModel.Prepare(directory, repository);
+            if (source == MNNModelSource.ModelScope && MNNEnglishKwsModel.IsModelScopeRepository(repository))
+                MNNEnglishKwsModel.Prepare(directory);
             if (source == MNNModelSource.HuggingFace && MNNKwsModel.IsRepository(repository))
                 MNNKwsModel.Prepare(directory);
             if (source == MNNModelSource.HuggingFace && MNNSileroModel.IsRepository(repository))

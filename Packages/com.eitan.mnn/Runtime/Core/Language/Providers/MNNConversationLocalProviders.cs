@@ -17,6 +17,8 @@ namespace MNN.Unity
             int recognitionThreads = settings.RecognitionThreads;
             switch (kind)
             {
+                case MNNConversationModelAdapter.MiniMindO:
+                    return new MiniMindO(caps, directory, settings);
                 case MNNConversationModelAdapter.Language:
                 case MNNConversationModelAdapter.Omni:
                     return new Language(caps, null, directory, settings, settings.ScratchDirectory,
@@ -55,7 +57,7 @@ namespace MNN.Unity
                 default: throw new NotSupportedException("Unsupported local conversation task: " + kind);
             }
         }
-        public static string PrepareKokoroText(string text) => text?.Replace('~', ' ').Trim();
+        public static string PrepareKokoroText(string text) => MNNMandarinNumber.NormalizeKokoro(text?.Replace('~', ' ').Trim());
 
         public static bool HasPronounceableText(string text)
         {
@@ -93,6 +95,10 @@ namespace MNN.Unity
             var features = supported ? MNNRealtimeFeature.SupportedAbi | MNNRealtimeFeature.InProcessMnn : MNNRealtimeFeature.None;
             switch (kind)
             {
+                case MNNConversationModelAdapter.MiniMindO:
+                    features |= MNNRealtimeFeature.TextInput | MNNRealtimeFeature.StableSpokenText |
+                        MNNRealtimeFeature.MemoryAudioInput | MNNRealtimeFeature.BufferedSpeech | MNNRealtimeFeature.ContextRecovery;
+                    break;
                 case MNNConversationModelAdapter.Language:
                 case MNNConversationModelAdapter.Omni:
                     features |= MNNRealtimeFeature.TextInput | MNNRealtimeFeature.StableSpokenText | MNNRealtimeFeature.ContextRecovery;
@@ -130,17 +136,24 @@ namespace MNN.Unity
         // an explicit model-speech request is checked separately by MNNLlm's waveform ABI/capability gate.
         internal static MNNModelCapabilities OmniPreparationCapabilities => MNNModelCapabilities.AudioInput;
 
-        private sealed class Language : Provider, IMNNConversationTextProvider, IMNNConversationSpeechModelProvider, IMNNConversationVoiceIntentProvider, IMNNConversationRequestPlanner
+        private sealed class Language : Provider, IMNNConversationTextAssistanceProvider, IMNNConversationSpeechModelProvider, IMNNConversationVoiceIntentProvider, IMNNConversationRequestPlanner
         {
-            protected override string ReadBackend() => _model == null ? "Not loaded" :
-                "Language: " + _model.Backend + " · image/audio processor: " + _model.MediaBackend +
-                " · " + _settings.Threads + " threads · " + _performance.PrecisionMode + "/" + _performance.PowerMode + Volatile.Read(ref _lastTiming) +
-                " (model runtime selection; individual operator placement not exposed)";
+            protected override string ReadBackend()
+            {
+                if (_model == null) return "Not loaded";
+                var backend = _model.Backend;
+                if (_runtimePerformance == null || _runtimePerformance.BackendType != backend)
+                    _runtimePerformance = _performance.ResolveForBackend(Directory, backend);
+                return "Language: " + backend + " · image/audio processor: " + _model.MediaBackend +
+                    " · " + _runtimePerformance.ThreadCount + " threads · " + _runtimePerformance.PrecisionMode + "/" +
+                    _runtimePerformance.PowerMode + Volatile.Read(ref _lastTiming) +
+                    " (model runtime selection; individual operator placement not exposed)";
+            }
             private readonly MNNConversationLocalModelOptions _settings;
             private readonly string _scratch;
             private readonly bool _omni;
             private MNNLlm _model;
-            private MNNLlmPerformanceOptions _performance;
+            private MNNLlmPerformanceOptions _performance, _runtimePerformance;
             private readonly string _cacheRoot, _buildIdentity, _deviceIdentity;
             private MNNLlmCache _cache;
             private string _lastTiming = "";
@@ -169,8 +182,8 @@ namespace MNN.Unity
                     performance.PowerMode = MNNPowerMode.Normal;
                 }
 #endif
-                performance = performance.Resolve(Directory);
                 _performance = performance;
+                _runtimePerformance = null;
                 if (!string.IsNullOrEmpty(_buildIdentity))
                     _cache = MNNLlmCache.Acquire(_cacheRoot, Directory, _buildIdentity, _deviceIdentity, performance);
                 _model = _settings.DeterministicDecisions ? MNNLlm.Load(Directory, performance, _settings.Thinking, cacheDirectory: _cache?.DirectoryPath ?? _settings.CacheDirectory) :
@@ -190,6 +203,10 @@ namespace MNN.Unity
             public async Task PlanRequestAsync(IReadOnlyList<MNNOpenAIMessage> prompt,
                 Func<string, Task> textDelta, CancellationToken token) =>
                 await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token, 256).ConfigureAwait(false);
+            public async Task GenerateAssistanceAsync(MNNConversationTextTask task, IReadOnlyList<MNNOpenAIMessage> prompt,
+                Func<string, Task> textDelta, CancellationToken token) =>
+                await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token,
+                    Math.Min(_settings.MaximumReplyTokens, MNNConversationTextAssistance.MaximumTokens(task))).ConfigureAwait(false);
             private async Task<MNNMultimodalResult> GenerateCoreAsync(IReadOnlyList<MNNOpenAIMessage> history,
                 float[] audio, int rate, Func<string, Task> delta, bool speech, CancellationToken token, int? tokenBudget = null)
             {

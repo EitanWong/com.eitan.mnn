@@ -12,7 +12,7 @@ using UnityEngine;
 namespace MNN.Unity
 {
     /// <summary>Shared Editor/Player transfer engine: bounded connections, resume, pinned checkpoints and verification.</summary>
-    public sealed class MNNModelFileTransfer : IDisposable
+    public sealed partial class MNNModelFileTransfer : IDisposable
     {
         private readonly HttpClient _httpClient;
         private readonly MNNModelTransferOptions _options;
@@ -36,9 +36,8 @@ namespace MNN.Unity
             onProgress = onProgress ?? (_ => { });
             destination = Path.GetFullPath(destination);
             var partsDirectory = destination + ".mnn-parts";
-            var revision = string.IsNullOrWhiteSpace(file.Revision) ? "master" : file.Revision;
-            var identity = modelScopeId + "\n" + file.Path + "\n" + revision + "\n" + file.Size + "\n" + file.Sha256;
-            var count = retryLimit >= 0 ? 1 : file.Size >= _options.ParallelThresholdBytes && file.Size > 0 ? (int)Math.Min(file.Size, _options.MaxConnections) : 1;
+            var identity = TransferIdentity(modelScopeId, file);
+            var count = PartCount(file, retryLimit);
             try
             {
                 // Size alone cannot establish that an existing file belongs to this repository revision.
@@ -50,11 +49,13 @@ namespace MNN.Unity
                     return size;
                 }
 
+                EnsureSpace(Path.GetDirectoryName(destination), modelScopeId,
+                    await RequiredSpaceAsync(modelScopeId, file, destination, token, retryLimit).ConfigureAwait(false));
                 Directory.CreateDirectory(Path.GetDirectoryName(destination));
                 var checkpointPath = Path.Combine(partsDirectory, "checkpoint.json");
                 if (Directory.Exists(partsDirectory))
                 {
-                    var checkpoint = File.Exists(checkpointPath) ? JsonUtility.FromJson<Checkpoint>(File.ReadAllText(checkpointPath)) : null;
+                    var checkpoint = ReadCheckpoint(partsDirectory);
                     if (!_options.PreservePartialDownloads || checkpoint?.Identity != identity)
                         Directory.Delete(partsDirectory, true);
                     else if (checkpoint.Parts >= 1 && checkpoint.Parts <= 16)
@@ -62,7 +63,7 @@ namespace MNN.Unity
                 }
 
                 Directory.CreateDirectory(partsDirectory);
-                File.WriteAllText(checkpointPath, JsonUtility.ToJson(new Checkpoint { Identity = identity, Parts = count }));
+                WriteDownloadMetadata(checkpointPath, JsonUtility.ToJson(new Checkpoint { Identity = identity, Parts = count }), modelScopeId);
                 if (count > 1)
                 {
                     var progress = new long[count];
@@ -73,7 +74,7 @@ namespace MNN.Unity
                         {
                             try
                             {
-                                await DownloadPartAsync(urlProvider, Path.Combine(partsDirectory, index + ".part"), file.Size * index / count, file.Size * (index + 1) / count - 1, true, bytes =>
+                                await DownloadPartAsync(modelScopeId, urlProvider, Path.Combine(partsDirectory, index + ".part"), file.Size * index / count, file.Size * (index + 1) / count - 1, true, bytes =>
                                 {
                                     lock (progressLock)
                                     {
@@ -96,26 +97,31 @@ namespace MNN.Unity
                         catch
                         {
                             token.ThrowIfCancellationRequested();
+                            if (tasks.Any(task => task.Exception?.Flatten().InnerExceptions.Any(e => e is MNNInsufficientDiskSpaceException || e is IOException io && IsDiskFull(io)) == true))
+                                throw;
                             if (!tasks.Any(task => task.Exception?.Flatten().InnerExceptions.Any(e => e is RangeUnsupportedException || e is HttpRequestException || e is IOException) == true))
                                 throw;
                             count = 1;
                             Directory.Delete(partsDirectory, true);
                             Directory.CreateDirectory(partsDirectory);
-                            File.WriteAllText(checkpointPath, JsonUtility.ToJson(new Checkpoint { Identity = identity, Parts = 1 }));
+                            WriteDownloadMetadata(checkpointPath, JsonUtility.ToJson(new Checkpoint { Identity = identity, Parts = 1 }), modelScopeId);
                         }
                     }
                 }
 
                 if (count == 1)
-                    await DownloadPartAsync(urlProvider, Path.Combine(partsDirectory, "0.part"), 0, file.Size > 0 ? file.Size - 1 : (long?)null, false, onProgress, token, sourceResult, retryLimit).ConfigureAwait(false);
-                var temporary = Path.Combine(partsDirectory, "verified.tmp");
-                await Task.Run(async () =>
+                    await DownloadPartAsync(modelScopeId, urlProvider, Path.Combine(partsDirectory, "0.part"), 0, file.Size > 0 ? file.Size - 1 : (long?)null, false, onProgress, token, sourceResult, retryLimit).ConfigureAwait(false);
+                var temporary = Path.Combine(partsDirectory, count == 1 ? "0.part" : "verified.tmp");
+                if (count > 1)
                 {
-                    using (var target = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, true))
-                        for (var index = 0; index < count; index++)
-                            using (var source = File.OpenRead(Path.Combine(partsDirectory, index + ".part")))
-                                await source.CopyToAsync(target, 128 * 1024, token).ConfigureAwait(false);
-                }, token).ConfigureAwait(false);
+                    await Task.Run(async () =>
+                    {
+                        using (var target = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, true))
+                            for (var index = 0; index < count; index++)
+                                using (var source = File.OpenRead(Path.Combine(partsDirectory, index + ".part")))
+                                    await source.CopyToAsync(target, 128 * 1024, token).ConfigureAwait(false);
+                    }, token).ConfigureAwait(false);
+                }
                 if (!await IsValidAsync(temporary, file, token).ConfigureAwait(false))
                 {
                     Directory.Delete(partsDirectory, true);
@@ -130,6 +136,10 @@ namespace MNN.Unity
                 Directory.Delete(partsDirectory, true);
                 return new FileInfo(destination).Length;
             }
+            catch (IOException error) when (!(error is MNNInsufficientDiskSpaceException) && IsDiskFull(error))
+            {
+                throw StorageFailure(Path.GetDirectoryName(destination), modelScopeId, Math.Max(1, file.Size), error);
+            }
             catch
             {
                 if (!_options.PreservePartialDownloads && Directory.Exists(partsDirectory))
@@ -138,7 +148,7 @@ namespace MNN.Unity
             }
         }
 
-        private async Task DownloadPartAsync(Func<string> urlProvider, string path, long start, long? end, bool requireRange, Action<long> onProgress, CancellationToken token, Action<bool> sourceResult = null, int retryLimit = -1)
+        private async Task DownloadPartAsync(string repository, Func<string> urlProvider, string path, long start, long? end, bool requireRange, Action<long> onProgress, CancellationToken token, Action<bool> sourceResult = null, int retryLimit = -1)
         {
             for (var attempt = 0; ; attempt++)
             {
@@ -181,6 +191,8 @@ namespace MNN.Unity
 
                             if (!response.IsSuccessStatusCode)
                                 throw new HttpRequestException($"ModelScope download failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
+                            if (!length.HasValue && response.Content.Headers.ContentLength.HasValue)
+                                EnsureSpace(Path.GetDirectoryName(path), repository, response.Content.Headers.ContentLength.Value);
                             var buffer = new byte[128 * 1024];
                             using (var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                             using (var target = new FileStream(path, existing > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.Read, buffer.Length, true))
@@ -190,6 +202,8 @@ namespace MNN.Unity
                                 {
                                     if (length.HasValue && existing + read > length.Value)
                                         throw new InvalidDataException("Server returned too many bytes for a download segment.");
+                                    if (!length.HasValue)
+                                        EnsureSpace(Path.GetDirectoryName(path), repository, read);
                                     await target.WriteAsync(buffer, 0, read, token).ConfigureAwait(false);
                                     existing += read;
                                     onProgress(existing);
@@ -205,7 +219,7 @@ namespace MNN.Unity
                         }
                     }
                 }
-                catch (Exception error) when (!(error is InvalidDataException) && !(error is RangeUnsupportedException) && (error is IOException || error is HttpRequestException || error is TaskCanceledException && !token.IsCancellationRequested))
+                catch (Exception error) when (!(error is MNNInsufficientDiskSpaceException) && !(error is IOException io && IsDiskFull(io)) && !(error is InvalidDataException) && !(error is RangeUnsupportedException) && (error is IOException || error is HttpRequestException || error is TaskCanceledException && !token.IsCancellationRequested))
                 {
                     sourceResult?.Invoke(false);
                     if (attempt >= (retryLimit < 0 ? _options.RetryCount : retryLimit))

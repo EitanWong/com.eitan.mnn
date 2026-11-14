@@ -21,7 +21,8 @@ namespace MNN.Unity
         private static readonly MNNRealtimeRoute[] TextReplyPriority =
         {
             MNNRealtimeRoute.AudioTextToSpeech,
-            MNNRealtimeRoute.CascadedSpeech
+            MNNRealtimeRoute.CascadedSpeech,
+            MNNRealtimeRoute.TextChat
         };
 
         /// <summary>
