@@ -2,6 +2,21 @@
 
 MNN-Pocket 系列的固定部署版本、源权重格式及 SiriAI 默认项见 [MNN-Pocket 接入](MNNPocket.md)。
 
+Hojo V2 通过共享 `MNNModelRegistry` 登记，运行时 `MNNModelCatalog.CreateDefault()` 和
+Editor Model Manager 均可用 `Hojo`、`HojoAI`、`Hojo-TTS-Light-40M-V2` 搜索。
+[ModelScope 部署](https://www.modelscope.cn/models/EitanWang/Hojo-TTS-Light-40M-V2-MNN)
+固定版本为 `ba4d52f0ea8e605f5d01c8d1243b3c288c4ac0f0`，安装目录
+`Hojo-TTS-Light-40M-V2-MNN`。注册项统一提供仓库、文件 SHA-256、版本、完整性和语音工厂；
+共享目录、下载器和 Editor 不包含 Hojo 名称判断。模型前端和数学运算留在
+`Generation/Audio/Hojo`，后续部署沿用同一注册入口。
+
+该 FP16 部署提供 17 个中英文预设音色及 24 kHz PCM。Apple M5 / macOS arm64 Mono、
+官方 MNN 3.6.2 的真实测试中，2.76 秒英语预热 CPU 合成约 0.335 秒，Metal 约 0.489 秒；
+因此 Auto 默认 CPU，显式 Metal 可用。四组中英文贪心波形对原始 ONNX 的 SNR 为
+37.52–45.98 dB。该结果不代表其他平台、音色或 GPU 的质量/速度保证；完整范围、
+长文本分段和原始模型的贪心生成限制见模型卡。转换工具和复现步骤在
+[Hojo 转换工具](../Tools~/Models/HojoTts/README.md)。
+
 管理器内置 46 个已发布的 `EitanWang` 语音处理仓库，无需等待 ModelScope 搜索索引；
 三个已有 DTLN-AEC 仓库继续使用各自的固定下载方案。46 个仓库下载完整发布文件，
 包括配置、运行常量和许可，使用可变的 `master` 版本；目录收录不构成新的推理或平台验证。

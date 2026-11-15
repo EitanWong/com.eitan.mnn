@@ -67,6 +67,7 @@ namespace MNN.Unity
             repository.IncludePublishedSpeechProfiles();
             repository.IncludePocketProfiles();
             repository.IncludeMiniMindOProfile();
+            repository.IncludeRegisteredProfiles();
             return repository;
         }
 

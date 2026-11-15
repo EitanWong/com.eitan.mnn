@@ -9,6 +9,8 @@ namespace MNN.Unity
         {
             if (string.IsNullOrWhiteSpace(directory))
                 return MNNSpeechModelKind.Unknown;
+            var registration = MNNModelRegistry.FindSpeech(directory);
+            if (registration != null) return registration.Speech.Kind;
             if (MNNCosyVoice300MModel.HasLayout(directory))
                 return MNNSpeechModelKind.CosyVoice300M;
             if (File.Exists(Path.Combine(directory, "gpt_prefill_fp16.mnn")) || string.Equals(name, "IndexTTS-2.5-mnn", StringComparison.OrdinalIgnoreCase))

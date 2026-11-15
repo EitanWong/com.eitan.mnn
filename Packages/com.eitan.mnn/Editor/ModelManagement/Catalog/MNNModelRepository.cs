@@ -33,6 +33,14 @@ namespace MNN.Unity.Editor
             string directory = System.IO.Path.Combine(Application.streamingAssetsPath, "MNN/Models", MNNMiniMindO.InstallationName);
             if (miniMind != null && MNNMiniMindO.IsComplete(directory))
             { miniMind.isInstalled = true; miniMind.localPath = directory; }
+            foreach (var model in repository.models)
+            {
+                var registration = MNNModelRegistry.Find((MNNModelSource)model.provider, model.repositoryId);
+                if (registration == null) continue;
+                directory = System.IO.Path.Combine(Application.streamingAssetsPath, "MNN/Models", registration.InstallationName);
+                model.isInstalled = registration.IsComplete(directory);
+                model.localPath = model.isInstalled ? directory : null;
+            }
             return repository;
         }
 
@@ -69,6 +77,7 @@ namespace MNN.Unity.Editor
         {
             IncludeProfiles(catalog => catalog.IncludePocketProfiles(), repository => repository?.StartsWith("MNN/MNN-Pocket-0.3B", StringComparison.OrdinalIgnoreCase) == true);
             IncludeDtlnAecProfiles();
+            MergeProfiles(MNNModelRegistry.All.Select(registration => registration.CreateModel()));
             IncludeProfiles(catalog => catalog.IncludeMiniMindOProfile(), repository => repository == MNNMiniMindO.Repository);
             IncludeProfiles(catalog => catalog.IncludeCosyVoice300MProfile(), MNNModelSources.IsCosyVoice300M);
             IncludeProfiles(catalog => catalog.IncludePublishedSpeechProfiles(), MNNModelCatalog.IsPublishedSpeechRepository);
@@ -81,7 +90,12 @@ namespace MNN.Unity.Editor
             var catalog = new MNNModelCatalog(models.Where(item => item.provider == MNNModelProvider.ModelScope && matches(item.repositoryId))
                 .Select(ToRemote));
             include(catalog);
-            foreach (var model in catalog.Models)
+            MergeProfiles(catalog.Models);
+        }
+
+        private void MergeProfiles(IEnumerable<MNNRemoteModel> profiles)
+        {
+            foreach (var model in profiles)
             {
                 var existing = models.FirstOrDefault(item => item.provider == (MNNModelProvider)model.provider && string.Equals(item.repositoryId, model.repositoryId, StringComparison.OrdinalIgnoreCase));
                 if (existing == null)

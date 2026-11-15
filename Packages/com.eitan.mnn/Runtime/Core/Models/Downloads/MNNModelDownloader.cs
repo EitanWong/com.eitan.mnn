@@ -68,6 +68,8 @@ namespace MNN.Unity
         {
             ValidateRepositoryId(modelScopeId);
             cancellationToken.ThrowIfCancellationRequested();
+            var registration = MNNModelRegistry.Find(MNNModelSource.ModelScope, modelScopeId);
+            if (registration != null) revision = registration.ResolveRevision(revision);
             if (MNNEnglishKwsModel.IsModelScopeRepository(modelScopeId)) revision = MNNEnglishKwsModel.ResolveRevision(revision);
             if (MNNPocketModel.IsRepository(modelScopeId)) revision = MNNPocketModel.ResolveRevision(revision);
             revision = MNNVerifiedTtsModel.IsCosyVoice300MRepository(modelScopeId) ? MNNVerifiedTtsModel.ResolveCosyVoice300MRevision(revision)
@@ -79,7 +81,9 @@ namespace MNN.Unity
                 var identityPath = Path.Combine(stagingDirectory, ".mnn-download-repository");
                 MNNModelRepositoryFile[] files;
                 // Verified profiles use their immutable plan even when resuming an older mutable manifest.
-                if (MNNPocketModel.IsRepository(modelScopeId))
+                if (registration != null)
+                    files = registration.Files();
+                else if (MNNPocketModel.IsRepository(modelScopeId))
                     files = MNNPocketModel.Files();
                 else if (MNNEnglishKwsModel.IsModelScopeRepository(modelScopeId))
                     files = MNNEnglishKwsModel.Files();
@@ -100,7 +104,7 @@ namespace MNN.Unity
                     files = ReadResumeFiles(manifestPath) ?? await GetRepositoryFilesAsync(modelScopeId, cancellationToken, revision).ConfigureAwait(false);
                 else
                     files = await GetRepositoryFilesAsync(modelScopeId, cancellationToken, revision).ConfigureAwait(false);
-                var blobs = SelectInferenceFiles(modelScopeId, files);
+                var blobs = registration != null ? files : SelectInferenceFiles(modelScopeId, files);
                 if (blobs.Length == 0)
                     throw new InvalidDataException("The ModelScope repository contains no downloadable files.");
                 foreach (var file in blobs)

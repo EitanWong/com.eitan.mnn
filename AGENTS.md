@@ -194,6 +194,11 @@ Every change follows this order:
 
 ## Model onboarding acceptance
 
+- Register new deployment metadata, pinned files and task adapters through the shared
+  `MNNModelRegistry`. Shared catalog, installer and Editor workflows consume that
+  registration; do not add model-name branches, special predicates or duplicated
+  registration tables. Keep model mathematics and frontend logic in its task domain.
+
 - Register every newly integrated model in the shared runtime model catalog and
   Editor Model Manager adapter. Do not stop at Studio-only filesystem discovery.
 - Add regression tests proving both catalogs find the model by its documented

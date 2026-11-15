@@ -10,6 +10,8 @@ namespace MNN.Unity
         {
             if (!Enum.IsDefined(typeof(MNNModelSource), source)) throw new ArgumentOutOfRangeException(nameof(source));
             if (string.IsNullOrWhiteSpace(repositoryId)) throw new ArgumentException("Supply a repository ID.", nameof(repositoryId));
+            var registration = MNNModelRegistry.Find(source, repositoryId);
+            if (registration != null) return registration.ResolveRevision(revision);
             if (string.IsNullOrWhiteSpace(revision)) revision = source == MNNModelSource.ModelScope ? "master" : "main";
             if (source == MNNModelSource.HuggingFace && MNNCosyVoiceModel.IsRepository(repositoryId) && revision == "main")
                 revision = MNNCosyVoiceModel.Revision;

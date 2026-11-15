@@ -108,11 +108,13 @@ Packages/com.eitan.mnn/
 资源、采样器、声码器和运行器 partial。目录划分不改变 `MNN.Unity` 命名空间及类型所属程序集。
 
 音频生成模型目录为 `BertVits2`、`CosyVoice`、`CosyVoice300M`、`DhVaani`、`FireRedTts3`、`IndexTts25`、
-`IndicF5`、`IndicVits`、`Kokoro`、`MmsTamil`、`MossNano`、`Piper`、`PocketTts`、
+`Hojo`、`IndicF5`、`IndicVits`、`Kokoro`、`MmsTamil`、`MossNano`、`Piper`、`PocketTts`、
 `Qwen3Tts`、`SherpaVitsChinese` 和 `Supertonic`。跨模型语言路由、参考音频、文本清理、
 图生命周期和 DSP 位于 `Audio/Common`；流式输出与文本分段位于 `Audio/Realtime`。
 多种模型共用的固定安装协议注册表保留在 `Models/Profiles/Speech`，同一注册表的 partial
-保持同目录，模型自己的执行逻辑不进入注册表。
+保持同目录，模型自己的执行逻辑不进入注册表。新增部署通过 `Models/Profiles/MNNModelRegistry`
+统一登记仓库、固定版本、文件计划和任务适配器；目录、下载器与 Editor 使用这条登记，
+不再向共享流程添加逐模型判断。
 
 共享操作按职责归属：RIFF 解码在 `Common/Audio/MNNWaveAudio`，语音重采样、特征、
 声码器数学和波形拼接在 `Generation/Audio/Common/MNNSpeechDsp.*`，

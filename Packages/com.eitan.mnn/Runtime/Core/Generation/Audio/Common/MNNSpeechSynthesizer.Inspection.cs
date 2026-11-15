@@ -14,6 +14,8 @@ namespace MNN.Unity
         /// <summary>Read installed voice identifiers without loading a model. The returned array belongs to the caller.</summary>
         public static string[] InstalledVoices(string directory)
         {
+            var registration = MNNModelRegistry.FindSpeech(directory);
+            if (registration != null) return registration.Speech.Voices(directory);
             switch (DetectModelKind(directory))
             {
                 case MNNSpeechModelKind.Unknown: return Array.Empty<string>();
@@ -65,6 +67,8 @@ namespace MNN.Unity
         /// speechDataDirectory optionally selects Piper's external eSpeak data directory.</summary>
         public static bool IsComplete(string directory, MNNSpeechModelKind kind, string speechDataDirectory = null)
         {
+            var registration = MNNModelRegistry.FindSpeech(kind);
+            if (registration != null) return registration.IsComplete(directory);
             if (!AssetChecks.TryGetValue(kind, out var check)) throw new ArgumentOutOfRangeException(nameof(kind));
             return !string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory) && check(directory, speechDataDirectory);
         }

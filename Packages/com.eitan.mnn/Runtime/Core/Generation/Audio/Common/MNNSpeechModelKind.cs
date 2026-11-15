@@ -27,6 +27,7 @@ namespace MNN.Unity
         Qwen3Explicit,
         Pocket,
         IndicF5,
-        CosyVoice300M
+        CosyVoice300M,
+        Hojo
     }
 }

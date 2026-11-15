@@ -10,7 +10,7 @@ namespace MNN.Unity
         private readonly Func<string, CancellationToken, MNNGeneratedAudio> _synthesize;
         public int SampleRate { get; }
         public string[] Languages { get; }
-        private MNNSpeechSynthesizer(IDisposable owner, int rate, string[] languages, Func<string, CancellationToken, MNNGeneratedAudio> synthesize)
+        internal MNNSpeechSynthesizer(IDisposable owner, int rate, string[] languages, Func<string, CancellationToken, MNNGeneratedAudio> synthesize)
         { _owner = owner; SampleRate = rate; Languages = languages; _synthesize = synthesize; }
         /// <summary>Check the detected frontend's required local assets without loading weights.</summary>
         public static bool HasProfile(string directory) => IsComplete(directory, DetectModelKind(directory));
@@ -36,7 +36,8 @@ namespace MNN.Unity
         {
             if (model == null) return false;
             string repository = model.repositoryId ?? model.modelScopeId;
-            return model.provider == MNNModelSource.ModelScope && MNNVerifiedTtsModel.IsRepository(repository) ||
+            return MNNModelRegistry.Find(model.provider, repository)?.Speech != null ||
+                model.provider == MNNModelSource.ModelScope && MNNVerifiedTtsModel.IsRepository(repository) ||
                 model.provider == MNNModelSource.HuggingFace && (MNNVerifiedTtsModel.IsHuggingFaceRepository(repository) ||
                     MNNReferenceSpeechModel.IsRepository(repository) || MNNCosyVoiceModel.IsRepository(repository));
         }
@@ -47,6 +48,8 @@ namespace MNN.Unity
             options = new MNNSpeechSynthesisOptions { Voice = requested.Voice, Language = requested.Language,
                 Precision = requested.Precision, ReferenceWavePath = requested.ReferenceWavePath, ReferenceText = requested.ReferenceText,
                 Steps = requested.Steps, Seed = requested.Seed, Speed = requested.Speed };
+            var registration = MNNModelRegistry.FindSpeech(directory);
+            if (registration != null) return registration.Speech.Load(directory, options, threadCount, backendType);
             var profile = MNNTtsModelProfiles.Detect(directory);
             MNNReferenceAudio reference = null;
             if (RequiresReferenceAudio(directory))

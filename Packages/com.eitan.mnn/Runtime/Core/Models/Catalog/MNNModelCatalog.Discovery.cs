@@ -536,6 +536,16 @@ namespace MNN.Unity
         internal static void ApplyArtifactEvidence(MNNRemoteModel model, string[] paths)
         {
             var files = new HashSet<string>(paths, StringComparer.Ordinal);
+            var registration = MNNModelRegistry.Find(model.provider, model.repositoryId);
+            if (registration != null)
+            {
+                var metadata = registration.CreateModel();
+                model.revision = model.version = registration.Revision;
+                model.category = metadata.category; model.fileSize = metadata.fileSize;
+                model.mnnFiles = metadata.mnnFiles; model.supportSummary = metadata.supportSummary;
+                model.runtimeAvailable = registration.Files().All(file => files.Contains(file.Path));
+                return;
+            }
             bool hasGraph = paths.Any(path => path.EndsWith(".mnn", StringComparison.OrdinalIgnoreCase));
             model.mnnFiles = paths.Where(path => HasMnnArtifacts(new[] { path }) || HasMnnLabel(model.repositoryId, model.tags) && IsArchive(path)).OrderBy(path => path, StringComparer.Ordinal).ToArray();
             model.category = Classify(model.repositoryId ?? model.id, model.name, model.description, model.tasks, model.tags, paths);
@@ -739,6 +749,8 @@ namespace MNN.Unity
         public static string InstallFolderName(MNNRemoteModel model)
         {
             string repository = model.repositoryId ?? model.modelScopeId ?? model.id;
+            var registration = MNNModelRegistry.Find(model.provider, repository);
+            if (registration != null) return registration.InstallationName;
             string name = string.IsNullOrWhiteSpace(model.name) ? "model" : model.name;
             name = new string(name.Select(c => char.IsLetterOrDigit(c) || c == '-' || c == '_' || c == '.' ? c : '_').ToArray()).Trim('.');
             if (name.Length == 0)

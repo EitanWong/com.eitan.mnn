@@ -13,6 +13,13 @@ namespace MNN.Unity
 
         private static void Prepare(string directory, MNNModelSource source, string repository, CancellationToken token)
         {
+            var registration = MNNModelRegistry.Find(source, repository);
+            if (registration != null)
+            {
+                token.ThrowIfCancellationRequested();
+                registration.Validate(directory);
+                return;
+            }
             PrepareArchives(directory, source, repository, token);
             if (source == MNNModelSource.ModelScope && MNNDtlnAecModel.IsRepository(repository))
                 MNNDtlnAecModel.Prepare(directory, repository);

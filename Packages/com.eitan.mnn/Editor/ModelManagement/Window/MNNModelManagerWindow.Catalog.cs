@@ -18,7 +18,9 @@ namespace MNN.Unity.Editor
             foreach (var model in _repository.models)
             {
                 var path = GetInstalledPath(model, installations);
-                model.isInstalled = model.repositoryId == MNNMiniMindO.Repository ? MNNMiniMindO.IsComplete(path) : model.isRepository ? Directory.Exists(path) && File.Exists(Path.Combine(path, INSTALL_MARKER)) && MNNModelRepository.MatchesInstallMarker(model, File.ReadAllText(Path.Combine(path, INSTALL_MARKER)).Trim()) : File.Exists(path);
+                var registration = MNNModelRegistry.Find((MNNModelSource)model.provider, model.repositoryId);
+                model.isInstalled = registration != null ? registration.IsComplete(path)
+                    : model.repositoryId == MNNMiniMindO.Repository ? MNNMiniMindO.IsComplete(path) : model.isRepository ? Directory.Exists(path) && File.Exists(Path.Combine(path, INSTALL_MARKER)) && MNNModelRepository.MatchesInstallMarker(model, File.ReadAllText(Path.Combine(path, INSTALL_MARKER)).Trim()) : File.Exists(path);
                 if (model.isInstalled)
                 {
                     model.localPath = path;
