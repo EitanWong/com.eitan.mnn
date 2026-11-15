@@ -1,0 +1,34 @@
+{
+  "repository": "HojoAI/Hojo-TTS-Light-40M-V2",
+  "revision": "7541fea0b0fdd53ca001ff8a7518de093f381b48",
+  "files": {
+    "Hojo-TTS-Light-40M-decoder.onnx": {
+      "bytes": 123148065,
+      "sha256": "3d4c418b1b0fe0d48e624803123f302ad133d5c17e945194f33accdaa8fa51f2"
+    },
+    "Hojo-TTS-Light-40M-fine_local.onnx": {
+      "bytes": 26645858,
+      "sha256": "bc84eb2799601988b565bed6e13145a6582f8092fa35ebf28e3387d5ae19d044"
+    },
+    "Hojo-TTS-Light-40M-llm.onnx": {
+      "bytes": 63138277,
+      "sha256": "5ded248418ca5ab9a77b3f5d1d30440b19d989b0383c8126d5ba4ee13e077233"
+    },
+    "Hojo-TTS-Light-40M-voice.npz": {
+      "bytes": 36791252,
+      "sha256": "e889af0ce62494e5962b7e9b827fc6fa9d27e3f68f679ae96ee5719bfa962f1a"
+    },
+    "tokenizer.json": {
+      "bytes": 2074377,
+      "sha256": "f4ad802b750ab45534bfd05fade29fc749960761afb70b80b5b99156bc3eef7a"
+    },
+    "tokenizer_config.json": {
+      "bytes": 449,
+      "sha256": "ca7bda83294d0771b980dd039b201f24de605d724e08c10eb5385c185f078d68"
+    },
+    "config.json": {
+      "bytes": 1068,
+      "sha256": "77e57b7fea1f1125171a28455090a05a1227cf5850c859697d81f5dc13a335ce"
+    }
+  }
+}
