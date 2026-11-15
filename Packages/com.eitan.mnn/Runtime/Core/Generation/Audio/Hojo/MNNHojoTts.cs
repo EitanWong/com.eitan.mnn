@@ -10,6 +10,9 @@ namespace MNN.Unity
     /// All sampling, tokenization, speaker injection, cache ownership and ISTFT are managed.</summary>
     public sealed partial class MNNHojoTts : IDisposable
     {
+        private static readonly Dictionary<string, string> DefaultVoices = new Dictionary<string, string>
+            { { "zh", "hojo_zh_f_01" }, { "en", "hojo_en_m_02" } };
+        internal static string[] SupportedLanguages => DefaultVoices.Keys.ToArray();
         private readonly object _gate = new object();
         private readonly MNNGenerationGraph _prefill, _decode, _fine, _decoder;
         private readonly MNNHojoTokenizer _tokenizer;
@@ -59,7 +62,8 @@ namespace MNN.Unity
             for (int i = 0; i < ids.Length; ++i) Array.Copy(_embedding, checked(ids[i] * 512), values, i * 512, 512);
             return values;
         }
-        public MNNGeneratedAudio Synthesize(string text, string voice = "hojo_en_m_02", int seed = 42,
+        /// <summary>Synthesize with the requested voice, or select a default matching the text language.</summary>
+        public MNNGeneratedAudio Synthesize(string text, string voice = null, int seed = 42,
             float temperature = 0.8f, int maximumTokens = 2048, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(text) || text.Length > 16000) throw new ArgumentException("Supply a nonempty speech segment, at most 16000 characters.", nameof(text));
@@ -69,6 +73,8 @@ namespace MNN.Unity
             {
                 if (_disposed) throw new ObjectDisposedException(nameof(MNNHojoTts));
                 cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(voice))
+                    voice = DefaultVoices[MNNSpeechLanguages.Select(text, SupportedLanguages) ?? "en"];
                 int speaker = Array.IndexOf(_voices, voice);
                 if (speaker < 0) throw new ArgumentException("Unknown Hojo voice: " + voice, nameof(voice));
                 return Generate(text, speaker, seed, temperature, maximumTokens, cancellationToken);

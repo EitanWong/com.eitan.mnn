@@ -16,8 +16,8 @@ namespace MNN.Unity
         private static MNNSpeechSynthesizer LoadSpeech(string directory, MNNSpeechSynthesisOptions options, int threads, MNNBackendType backend)
         {
             var runner = MNNHojoTts.Load(directory, threads, backend);
-            return new MNNSpeechSynthesizer(runner, runner.SampleRate, new[] { "zh", "en" },
-                (text, token) => runner.Synthesize(text, string.IsNullOrWhiteSpace(options.Voice) ? "hojo_en_m_02" : options.Voice,
+            return new MNNSpeechSynthesizer(runner, runner.SampleRate, MNNHojoTts.SupportedLanguages,
+                (text, token) => runner.Synthesize(text, options.Voice,
                     options.Seed, cancellationToken: token));
         }
     }

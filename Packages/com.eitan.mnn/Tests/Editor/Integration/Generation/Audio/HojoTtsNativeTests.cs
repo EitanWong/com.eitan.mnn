@@ -74,6 +74,63 @@ namespace MNN.Unity.Tests
             }
         }
 
+        [TestCase("Hello, this is a test.", "hojo_en_m_02")]
+        [TestCase("你好，欢迎使用语音合成。", "hojo_zh_f_01")]
+        public void DefaultVoiceMatchesTheTextLanguage(string text, string expectedVoice)
+        {
+            using (var direct = MNNHojoTts.Load(Model, 4, MNNBackendType.CPU))
+            using (var shared = MNNSpeechSynthesizer.Load(Model, threadCount: 4, backendType: MNNBackendType.CPU))
+            {
+                var expected = direct.Synthesize(text, expectedVoice);
+                var actual = direct.Synthesize(text);
+                var adapted = shared.Synthesize(text);
+                TestContext.WriteLine("TEXT=" + text + ";EXPECTED_VOICE=" + expectedVoice +
+                    ";EXPECTED_SECONDS=" + expected.Waveform.Length / 24000d +
+                    ";DEFAULT_SECONDS=" + actual.Waveform.Length / 24000d +
+                    ";SHARED_SECONDS=" + adapted.Waveform.Length / 24000d);
+                TestContext.WriteLine("DEFAULT_SHA256=" + PcmHash(actual.Waveform) + ";SHARED_SHA256=" + PcmHash(adapted.Waveform));
+                Assert.AreEqual(24000, actual.SampleRate);
+                CollectionAssert.AreEqual(expected.Waveform, actual.Waveform, "Direct default must use a voice matching the text language.");
+                CollectionAssert.AreEqual(expected.Waveform, adapted.Waveform, "Shared runtime default must follow the same voice policy.");
+            }
+        }
+
+        [TestCase(24000, 1)]
+        [TestCase(44100, 2)]
+        [TestCase(48000, 2)]
+        public void RuntimeConversionPreservesDefaultSpeechDuration(int outputRate, int channels)
+        {
+            using (var runner = MNNConversationMnnProviders.Speech(Model))
+            {
+                runner.PrepareAsync(default).GetAwaiter().GetResult();
+                Assert.AreEqual(24000, runner.SampleRate);
+                int inputSamples = 0, outputSamples = 0, finals = 0;
+                var converter = new MNNStreamingSpeechConverter(runner.SampleRate, new MNNPcmFormat(outputRate, channels),
+                    (samples, offset, count, final) =>
+                    {
+                        outputSamples += count;
+                        if (final) ++finals;
+                        for (int i = offset; i < offset + count; i += channels)
+                            for (int c = 1; c < channels; ++c) Assert.AreEqual(samples[i], samples[i + c]);
+                        return System.Threading.Tasks.Task.CompletedTask;
+                    });
+                runner.SynthesizeAsync("你好，欢迎使用语音合成。", (samples, count) =>
+                {
+                    inputSamples += count;
+                    return converter.AppendAsync(samples, count);
+                }, default).GetAwaiter().GetResult();
+                converter.CompleteAsync().GetAwaiter().GetResult();
+                double expectedSeconds = inputSamples / (double)runner.SampleRate;
+                double actualSeconds = outputSamples / (double)(outputRate * channels);
+                TestContext.WriteLine("SOURCE_SECONDS=" + expectedSeconds + ";OUTPUT_RATE=" + outputRate +
+                    ";CHANNELS=" + channels + ";OUTPUT_SECONDS=" + actualSeconds);
+                Assert.AreEqual(72960, inputSamples, "The runtime provider must use the verified Chinese default voice.");
+                Assert.AreEqual(1, finals);
+                Assert.AreEqual(expectedSeconds, actualSeconds, 1d / runner.SampleRate,
+                    "Runtime resampling and channel expansion must preserve speaking duration.");
+            }
+        }
+
         [Test]
         public void CompleteInstallationRejectsMissingStagesAndMalformedMetadata()
         {
@@ -176,11 +233,15 @@ namespace MNN.Unity.Tests
             {
                 var audio = runner.Synthesize(text, voice, seed: 42, temperature: .8f);
                 Assert.AreEqual(samples, audio.Waveform.Length);
-                var bytes = new byte[audio.Waveform.Length * 4];
-                Buffer.BlockCopy(audio.Waveform, 0, bytes, 0, bytes.Length);
-                using (var hash = SHA256.Create())
-                    Assert.AreEqual(expectedHash, BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant());
+                Assert.AreEqual(expectedHash, PcmHash(audio.Waveform));
             }
+        }
+        private static string PcmHash(float[] waveform)
+        {
+            var bytes = new byte[waveform.Length * 4];
+            Buffer.BlockCopy(waveform, 0, bytes, 0, bytes.Length);
+            using (var hash = SHA256.Create())
+                return BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
         }
     }
 }
