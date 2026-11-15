@@ -62,12 +62,12 @@ namespace MNN.Unity
             var cache = new float[20 * capacity * 128];
             CopyCache(state[2].Values, length, cache, capacity, 0);
             var coarse = new List<int>(); var hidden = new List<float>();
-            var generated = new HashSet<int>(); var random = new Random(seed);
+            var generated = new HashSet<int>(); var sampler = new MNNHojoSampler(state[0].Values.Length, seed);
             int end = _tokenizer.Id("[target_speech_end]"); bool ended = false;
             for (int step = 0; step < limit; ++step)
             {
                 token.ThrowIfCancellationRequested();
-                int next = Sample(state[0].Values, temperature, generated, random);
+                int next = sampler.Sample(state[0].Values, temperature, generated);
                 generated.Add(next);
                 if (next == end && step + 1 >= 10) { ended = true; break; }
                 if (_audioIds.Contains(next)) { coarse.Add(next); hidden.AddRange(state[1].Values); }
@@ -106,24 +106,6 @@ namespace MNN.Unity
         {
             if (source.Length != 20 * sourceFrames * 128 || offset + sourceFrames > capacity) throw new InvalidDataException("Hojo KV shape mismatch.");
             for (int i = 0; i < 20; ++i) Array.Copy(source, i * sourceFrames * 128, target, (i * capacity + offset) * 128, sourceFrames * 128);
-        }
-
-        private static int Sample(float[] logits, float temperature, HashSet<int> history, Random random)
-        {
-            var scores = (float[])logits.Clone();
-            foreach (int id in history) scores[id] = scores[id] > 0 ? scores[id] / 1.1f : scores[id] * 1.1f;
-            int best = 0;
-            for (int i = 1; i < scores.Length; ++i) if (scores[i] > scores[best]) best = i;
-            if (temperature == 0) return best;
-            var order = Enumerable.Range(0, scores.Length).ToArray();
-            Array.Sort(order, (a, b) => scores[b].CompareTo(scores[a]));
-            double total = 0; var probabilities = new double[scores.Length];
-            for (int i = 0; i < scores.Length; ++i) total += probabilities[i] = Math.Exp((scores[order[i]] - scores[best]) / temperature);
-            double retained = 0; int keep = 0;
-            do { retained += probabilities[keep++]; } while (keep < probabilities.Length && retained <= total * .95);
-            double draw = random.NextDouble() * retained;
-            for (int i = 0; i < keep; ++i) if ((draw -= probabilities[i]) <= 0) return order[i];
-            return order[keep - 1];
         }
     }
 }

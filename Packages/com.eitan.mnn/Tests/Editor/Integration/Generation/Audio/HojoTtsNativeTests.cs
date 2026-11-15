@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -160,6 +161,25 @@ namespace MNN.Unity.Tests
                 Assert.Greater(audio.Waveform.Length, 24000);
                 Assert.True(audio.Waveform.All(value => !float.IsNaN(value) && !float.IsInfinity(value)));
                 TestContext.WriteLine("LONG_SAMPLED_SAMPLES=" + audio.Waveform.Length);
+            }
+        }
+
+        [TestCase("Hello, this is a test.", "hojo_en_m_02", 73440, "13cc351ebab8fe54229198250901ba954b33ff642763207535bf3d4e2d5fb81c")]
+        [TestCase("你好，欢迎使用语音合成。", "hojo_zh_f_01", 72960, "caa03ab95427d078b5054fda6aeffeb5c389e18bd09c7d3f38de7bb512e56db6")]
+        [TestCase("The quick brown fox jumps over the lazy dog.", "hojo_en_f_01", 85920, "007132693ca0aaf9b9e0ff6bf4e70ca52ee7a49b26f8b04fde5cbd9b90faf138")]
+        [TestCase("Welcome to our voice system. It can read longer sentences in a clear and natural voice.", "hojo_en_m_02", 147360, "42e3f1e2c1053a0e8081f764cd5820282a2ffc60da800b9e0aff3d9ea226aa89")]
+        public void SampledSpeechPreservesPriorSeededWaveforms(string text, string voice, int samples, string expectedHash)
+        {
+            // Exact fixtures were captured before the sampler optimization using
+            // the package's official 3.6.2 macOS arm64 Mono CPU contract.
+            using (var runner = MNNHojoTts.Load(Model, 4, MNNBackendType.CPU))
+            {
+                var audio = runner.Synthesize(text, voice, seed: 42, temperature: .8f);
+                Assert.AreEqual(samples, audio.Waveform.Length);
+                var bytes = new byte[audio.Waveform.Length * 4];
+                Buffer.BlockCopy(audio.Waveform, 0, bytes, 0, bytes.Length);
+                using (var hash = SHA256.Create())
+                    Assert.AreEqual(expectedHash, BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant());
             }
         }
     }
