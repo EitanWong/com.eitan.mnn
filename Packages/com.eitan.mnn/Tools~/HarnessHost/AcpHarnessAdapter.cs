@@ -5,7 +5,7 @@ using MNN.Samples.SiriAI.Harnesses;
 namespace SiriAI.HarnessHost;
 
 /// <summary>Native ACP context ownership is independent of a foreground request and a task turn.</summary>
-internal sealed partial class AcpHarnessAdapter : IRecoverableHarnessAdapter, IHarnessCancellationOutcomeAdapter, IHarnessSubmissionValidator, IHarnessAdmissionCheckpoint, IHarnessInputActionAdapter, IHarnessInstructionAdapter, IAsyncDisposable
+internal sealed partial class AcpHarnessAdapter : IRecoverableHarnessAdapter, IHarnessCancellationOutcomeAdapter, IHarnessSubmissionValidator, IHarnessContinuationAdapter, IHarnessAdmissionCheckpoint, IHarnessInputActionAdapter, IHarnessInstructionAdapter, IAsyncDisposable
 {
     private readonly HarnessConfiguration _configuration;
     private readonly AcpSessionIndex _index;
@@ -17,7 +17,7 @@ internal sealed partial class AcpHarnessAdapter : IRecoverableHarnessAdapter, IH
     private readonly ConcurrentDictionary<string, AcpExecution> _executions = new();
     internal string ExecutionFingerprint => _fingerprint;
     public string Id => _configuration.Id;
-    public HarnessCapabilities Capabilities => HarnessCapabilities.Cancel | HarnessCapabilities.Input | HarnessCapabilities.Update | HarnessCapabilities.Attachments | HarnessCapabilities.UpdateAttachments | (_configuration.Backend == "pi" ? HarnessCapabilities.None : HarnessCapabilities.Permission);
+    public HarnessCapabilities Capabilities => HarnessCapabilities.Continue | HarnessCapabilities.Cancel | HarnessCapabilities.Input | HarnessCapabilities.Update | HarnessCapabilities.Attachments | HarnessCapabilities.UpdateAttachments | (_configuration.Backend == "pi" ? HarnessCapabilities.None : HarnessCapabilities.Permission);
     public string CancellationScope => _configuration.OpenClawStartupWaitMilliseconds == 0 ? "acp-prompt" : "startup-wait-or-acp-prompt";
     internal AcpHarnessAdapter(HarnessConfiguration configuration, string directory)
     {
@@ -64,6 +64,18 @@ internal sealed partial class AcpHarnessAdapter : IRecoverableHarnessAdapter, IH
         try { _activeContexts.Remove(key); }
         finally { _contextGate.Release(); }
     }
+    public string CreateContinuationCheckpoint(HarnessTask completed)
+    {
+        if (completed.BackendState == null || !CanRecover(completed.BackendState))
+            throw new InvalidOperationException("The original ACP checkpoint is unavailable or its configuration changed.");
+        var state = JsonSerializer.Deserialize<AcpCheckpoint>(completed.BackendState);
+        var record = _index.Get(ContextKey(completed));
+        if (state.WaitingForBackend || state.ContextKey != ContextKey(completed) || string.IsNullOrWhiteSpace(state.SessionId) ||
+            record == null || record.Uncertain || record.SessionId != state.SessionId ||
+            !record.Resumable && (!_contexts.TryGetValue(ContextKey(completed), out var live) || !live.IsOpen))
+            throw new InvalidOperationException("The original native ACP session is unavailable; a new session cannot replace it.");
+        return completed.BackendState;
+    }
     public bool CanRecover(string checkpoint)
     {
         try { var state = JsonSerializer.Deserialize<AcpCheckpoint>(checkpoint); return state?.Fingerprint == _fingerprint && state.ContextKey?.Length == 64 && ValidStartupState(state); }
@@ -71,7 +83,7 @@ internal sealed partial class AcpHarnessAdapter : IRecoverableHarnessAdapter, IH
     }
     public Task<HarnessOutcome> RunAsync(HarnessTask task, Action<HarnessActivity> activity, CancellationToken stopping) => throw new NotSupportedException("ACP requires durable context checkpoints.");
     public Task<HarnessOutcome> RunDurableAsync(HarnessTask task, Action<HarnessActivity> activity, Action<string> checkpoint, CancellationToken stopping) =>
-        RunDurableAsync(task, activity, checkpoint, stopping, false);
+        RunDurableAsync(task, activity, checkpoint, stopping, false, expectedCheckpoint: task.ContinuationState);
     internal async Task<HarnessOutcome> RunDurableAsync(HarnessTask task, Action<HarnessActivity> activity, Action<string> checkpoint,
         CancellationToken stopping, bool propagatePromptCapabilityFailure, Action<JsonElement> toolObserver = null, string expectedCheckpoint = null)
     {
@@ -97,7 +109,7 @@ internal sealed partial class AcpHarnessAdapter : IRecoverableHarnessAdapter, IH
                     record == null || record.SessionId != expected.SessionId)
                 {
                     _index.Fence(key);
-                    return execution.End(HarnessOutcome.Interrupted("Original ACP coordinator session is unavailable; no replacement session or result prompt was sent."));
+                    return execution.End(HarnessOutcome.Interrupted("Original ACP session is unavailable; no replacement session or result prompt was sent."));
                 }
             }
             if (record?.Uncertain == true)

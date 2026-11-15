@@ -22,7 +22,7 @@ namespace MNN.Samples.SiriAI.Harnesses
             _http = handler == null ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) : new HttpClient(handler, true);
             _http.Timeout = TimeSpan.FromSeconds(30);
         }
-        public Task<HarnessTask> SubmitAsync(SubmitTaskRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, "v1/tasks", request, cancellation);
+        public Task<HarnessTask> SubmitAsync(SubmitTaskRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, request?.ContinuedFromTaskId == null ? "v1/tasks" : TaskPath(request.ContinuedFromTaskId) + "/continue", request, cancellation);
         public Task<HarnessTask[]> ListAsync(CancellationToken cancellation) => SendAsync<HarnessTask[]>(HttpMethod.Get, "v1/tasks", null, cancellation);
         public Task<HarnessHostHealth> GetHealthAsync(CancellationToken cancellation) => SendAsync<HarnessHostHealth>(HttpMethod.Get, "v1/health", null, cancellation);
         public Task<HarnessReadiness> GetReadinessAsync(string harnessId, string workspaceKey, CancellationToken cancellation) =>
@@ -51,6 +51,11 @@ namespace MNN.Samples.SiriAI.Harnesses
         public Task<HarnessTask> RespondAsync(string taskId, TaskControlRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/respond", request, cancellation);
         public Task<HarnessTask> UpdateAsync(string taskId, TaskControlRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/update", request, cancellation);
         public Task<HarnessTask> ClaimAsync(ResultClaimRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, "v1/results/claim", request, cancellation);
+        public Task<HarnessTask> FailDeliveryAsync(string taskId, string leaseId, CancellationToken cancellation) =>
+            SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/delivery-failed", new ResultReceiptRequest {
+                LeaseId = leaseId, Error = "Foreground presentation did not complete." }, cancellation);
+        public Task<HarnessTask> RetryDeliveryAsync(string taskId, CancellationToken cancellation) =>
+            SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/retry-result", null, cancellation);
         public Task<HarnessTask> AcknowledgeAsync(string taskId, ResultReceiptRequest request, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/receipt", request, cancellation);
         public Task<HarnessTask> ReleaseAsync(string taskId, string leaseId, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/release", new ResultReceiptRequest { LeaseId = leaseId }, cancellation);
         public Task<HarnessTask> RenewAsync(string taskId, string leaseId, int seconds, CancellationToken cancellation) => SendAsync<HarnessTask>(HttpMethod.Post, TaskPath(taskId) + "/renew", new ResultReceiptRequest { LeaseId = leaseId, LeaseSeconds = seconds }, cancellation);

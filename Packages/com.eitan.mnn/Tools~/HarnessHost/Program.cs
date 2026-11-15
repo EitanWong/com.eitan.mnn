@@ -123,15 +123,19 @@ app.MapPost("/v1/harnesses/{harness}/readiness", async context =>
     var request = await ReadAsync<HarnessReadinessRequest>(context);
     await WriteAsync(context, await readiness.ProbeAsync(Owner(context), context.Request.RouteValues["harness"]?.ToString(), request.WorkspaceKey, context.RequestAborted));
 });
-app.MapPost("/v1/tasks", async context =>
+async Task SubmitTaskAsync(HttpContext context, bool continuation)
 {
     var request = await ReadAsync<SubmitTaskRequest>(context);
+    if (continuation && (request.ContinuedFromTaskId == null || request.ContinuedFromTaskId != Id(context)))
+        throw new ArgumentException("Continuation route must match its source task identity.");
     if (!configuration.Workspaces.TryGetValue(request.WorkspaceKey ?? "", out var workspace)) throw new ArgumentException("Workspace is not configured.");
     var task = runtime.Submit(new TaskSubmission(Owner(context), request.ConversationId, request.SubmissionKey,
-        request.HarnessId, workspace, request.Objective, request.Attachments, isolatedContext: request.IsolatedContext));
+        request.HarnessId, workspace, request.Objective, request.Attachments, isolatedContext: request.IsolatedContext, continuedFromTaskId: request.ContinuedFromTaskId));
     context.Response.StatusCode = 202;
     await WriteAsync(context, task);
-});
+}
+app.MapPost("/v1/tasks", context => SubmitTaskAsync(context, false));
+app.MapPost("/v1/tasks/{id}/continue", context => SubmitTaskAsync(context, true));
 app.MapGet("/v1/tasks/{id}", async context => await WriteAsync(context, runtime.Get(Id(context), Owner(context))));
 app.MapGet("/v1/tasks/{id}/native-sessions", async context =>
 {
@@ -179,6 +183,17 @@ app.MapPost("/v1/results/claim", async context =>
     var task = runtime.ClaimResult(Owner(context), input.ConversationId, input.ClientId, TimeSpan.FromSeconds(input.LeaseSeconds));
     if (task == null) { context.Response.StatusCode = 204; return; }
     await WriteAsync(context, task);
+});
+app.MapPost("/v1/tasks/{id}/delivery-failed", async context =>
+{
+    var input = await ReadAsync<ResultReceiptRequest>(context);
+    runtime.FailResultDelivery(Id(context), Owner(context), input.LeaseId, input.Error);
+    await WriteAsync(context, runtime.Get(Id(context), Owner(context)));
+});
+app.MapPost("/v1/tasks/{id}/retry-result", async context =>
+{
+    runtime.RetryResultDelivery(Id(context), Owner(context));
+    await WriteAsync(context, runtime.Get(Id(context), Owner(context)));
 });
 app.MapPost("/v1/tasks/{id}/receipt", async context =>
 {

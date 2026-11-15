@@ -86,7 +86,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                     if (existing.Objective != request.Objective || existing.HarnessId != request.HarnessId ||
                         existing.WorkspaceKey != request.WorkspaceKey || existing.ConversationId != request.ConversationId ||
                         existing.ResultConversationId != request.ResultConversationId || existing.Title != request.Title ||
-                        existing.IsolatedContext != request.IsolatedContext ||
+                        existing.IsolatedContext != request.IsolatedContext || existing.ContinuedFromTaskId != request.ContinuedFromTaskId ||
                         !HarnessContentPart.SameInputs(existing.Attachments, request.Attachments))
                         throw new ArgumentException("The submission key already belongs to a different request.");
                     return existing.Copy();
@@ -97,6 +97,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                 (_adapters[request.HarnessId] as IHarnessSubmissionValidator)?.ValidateSubmission(request);
                 if (_tasks.Count >= _maximumRecords) throw new InvalidOperationException("Task record capacity reached.");
                 var task = HarnessTask.Create(request);
+                BindContinuation(task);
                 string admission = (_adapters[request.HarnessId] as IHarnessAdmissionCheckpoint)?.CreateAdmissionCheckpoint(request);
                 task.BackendState = admission == null ? null : HarnessText.Required(admission, 16384);
                 Commit(task);

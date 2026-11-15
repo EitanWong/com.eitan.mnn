@@ -29,7 +29,7 @@ internal static class Program
         await Wait(async () => (await Client.GetAsync(task.Id, CancellationToken.None)).IsTerminal);
         return await Client.GetAsync(task.Id, CancellationToken.None);
     }
-    private static HarnessResultFeedback Feedback(Presenter presenter, Func<bool> available = null) =>
+    private static HarnessResultFeedback Feedback(IHarnessResultPresenter presenter, Func<bool> available = null) =>
         new(() => available == null || available() ? new HarnessResultConnection(Client, "phone") : null,
             presenter, error => { lock (Errors) Errors.Add(error); });
     private static async Task Stop(Task run, CancellationTokenSource owner) { owner.Cancel(); await run; }
@@ -39,11 +39,121 @@ internal static class Program
         Journal = new SubmissionJournal(args[1]);
         try
         {
+            await PendingPermission(); await SessionIdentity(); await DeliveryFairness();
             await Tools(); await TextAndIdle(); await Speech(); await Interrupted();
             await RefusalAndCancellation(); await FaultedPresenter(); await ScopeChanges(); await Renewal(); await Observer();
             Check(Errors.Count == 0, string.Join("\n", Errors));
         }
         finally { await Journal.DisposeAsync(); }
+    }
+
+    private static async Task PendingPermission()
+    {
+        var session = new HarnessFrontendSession(); session.BindConversation("permission-chat");
+        session.BindInput("turn-1");
+        var submit = new HarnessTaskTool(Client, Client.SubmitAsync, session, HarnessTaskToolOperation.Submit, "acp", "test", false);
+        await submit.ExecuteAsync("completed-before-question", default);
+        var earlier = (await Client.ListAsync(default)).Single(t => t.DeliveryConversationId == "permission-chat");
+        await Wait(async () => (await Client.GetAsync(earlier.Id, default)).IsTerminal);
+        session.BindInput("turn-permission");
+        await submit.ExecuteAsync("permission", default);
+        HarnessTask task = null;
+        await Wait(async () => { task = (await Client.ListAsync(default)).Single(t => t.DeliveryConversationId == "permission-chat" && t.Id != earlier.Id); return task.WaitingFor == HarnessWaitingFor.Permission; });
+        var presenter = new RequestPresenter { Refuse = true };
+        using var owner = new CancellationTokenSource();
+        var feedback = new HarnessResultFeedback(() => new HarnessResultConnection(Client, session.Scope), presenter, e => Errors.Add(e));
+        var run = feedback.RunAsync(owner.Token);
+        await Wait(async () => !(await Client.GetAsync(earlier.Id, default)).ResultPending);
+        Check(presenter.Count <= 2, "refused pending request starved a completed result or busy-polled");
+        presenter.Count = 0; presenter.Refuse = false;
+        await Wait(() => presenter.Count > 0);
+        await Task.Delay(350);
+        Check(presenter.Count == 1 && presenter.Interruptions == 0, "request generation completed before playback; must not interrupt or announce repeatedly");
+        Check(presenter.Context.Contains("Task: " + task.Id) && presenter.Context.Contains("RequestId: " + task.RequestId), "request identity missing");
+        presenter.Reply.PlaybackStarted = true;
+        await Task.Delay(180);
+        Check(presenter.Interruptions == 0, "permission playback cut short");
+        presenter.Reply.PlaybackCompleted = true;
+        await Task.Delay(700);
+        Check(presenter.Count == 1, "same request announced again after completed playback");
+        var status = new HarnessTaskTool(Client, null, session, HarnessTaskToolOperation.Status, "acp", "test", false);
+        Check((await status.ExecuteAsync(task.Id, default)).Contains("RequestId: " + task.RequestId), "planner cannot obtain exact request identity");
+        var respond = new HarnessTaskTool(Client, null, session, HarnessTaskToolOperation.Respond, "acp", "test", false);
+        string input = "{\"TaskId\":\"" + task.Id + "\",\"RequestId\":\"" + task.RequestId + "\",\"Text\":\"Allow once\"";
+        try { await respond.ExecuteAsync(input + "}", default); throw new Exception("implicit approval accepted"); } catch (ArgumentException) { }
+        session.BindConversation("another-chat");
+        try { await respond.ExecuteAsync(input + ",\"Allow\":true}", default); throw new Exception("foreign request accepted"); } catch (InvalidOperationException) { }
+        session.BindConversation("permission-chat");
+        await respond.ExecuteAsync(input + ",\"Allow\":true}", default);
+        await Wait(async () => (await Client.GetAsync(task.Id, default)).IsTerminal);
+        Check((await Client.GetAsync(task.Id, default)).Result == "fixture result: approved", "exact permission decision did not continue original work");
+        try { await respond.ExecuteAsync(input + ",\"Allow\":true}", default); throw new Exception("stale approval accepted"); } catch (InvalidOperationException) { }
+        await Stop(run, owner);
+        Pass("pending permission waits for playback evidence, exposes exact identity and accepts only the explicit current-conversation decision");
+    }
+    private static async Task SessionIdentity()
+    {
+        var session = new HarnessFrontendSession(); session.BindConversation("session-A");
+        session.BindInput("input-A", "User constraint: preserve /workspace/user-file", new[] { new HarnessContentPart(HarnessContentKind.Text, "attached input") });
+        var tool = new HarnessTaskTool(Client, Client.SubmitAsync, session, HarnessTaskToolOperation.Submit, "acp", "test", false);
+        var first = await tool.ExecuteAsync("investigate", default);
+        var again = await tool.ExecuteAsync("investigate", default);
+        Check(first.Split('.')[0] == again.Split('.')[0], "same turn admitted duplicate work");
+        var admitted = (await Client.ListAsync(default)).Where(t => t.DeliveryConversationId == "session-A").ToArray();
+        Check(admitted.Length == 1 && admitted[0].Attachments[0].Payload == "attached input" && admitted[0].Objective.Contains("preserve /workspace/user-file"), "context or attachment lost");
+        session.BindConversation("session-B"); session.BindInput("input-B");
+        await tool.ExecuteAsync("second conversation", default);
+        var second = (await Client.ListAsync(default)).Single(t => t.DeliveryConversationId == "session-B");
+        Check(second.Attachments.Length == 0 && !second.Objective.Contains("user-file"), "input leaked across conversations");
+        session.BindConversation("session-A"); session.BindInput("continued-input");
+        await Wait(async () => (await Client.GetAsync(admitted[0].Id, default)).IsTerminal);
+        var original = await Client.GetAsync(admitted[0].Id, default);
+        var continuation = new HarnessTaskTool(Client, Client.SubmitAsync, session, HarnessTaskToolOperation.Continue, "acp", "test", false);
+        string nextInput = "{\"TaskId\":\"" + original.Id + "\",\"Text\":\"continue exact work\"}";
+        await continuation.ExecuteAsync(nextInput, default);
+        await continuation.ExecuteAsync(nextInput, default);
+        var linked = (await Client.ListAsync(default)).Where(t => t.ContinuedFromTaskId == original.Id).ToArray();
+        Check(linked.Length == 1, "continuation admitted twice");
+        await Wait(async () => (await Client.GetAsync(linked[0].Id, default)).IsTerminal);
+        Check((await Client.GetAsync(linked[0].Id, default)).Result == "fixture result: continue exact work", "continuation did not execute");
+        Check((await Client.GetAsync(original.Id, default)).Revision == original.Revision, "continuation rewrote original result");
+        session.BindConversation(null);
+        try { await tool.ExecuteAsync("draft", default); throw new Exception("draft submitted"); } catch (InvalidOperationException) { }
+        Pass("frontend API snapshots context/attachments, deduplicates one turn and dynamically binds new conversations without recreating tools");
+    }
+    private static async Task DeliveryFairness()
+    {
+        var first = await Submit("delivery-failure-one"); var second = await Submit("delivery-success-two");
+        var presenter = new FairPresenter(first.Id);
+        using var owner = new CancellationTokenSource(); var run = Feedback(presenter).RunAsync(owner.Token);
+        await Wait(async () => !(await Client.GetAsync(second.Id, default)).ResultPending);
+        await Stop(run, owner);
+        var failed = await Client.GetAsync(first.Id, default);
+        Check(failed.ResultPending && failed.DeliveryAttempts >= 1 && failed.State == HarnessTaskState.Completed && !failed.PlaybackStarted, "failure fabricated delivery or execution state");
+        Check(failed.NextDeliveryUtcTicks > 0 && !string.IsNullOrEmpty(failed.DeliveryError), "failure backoff not durable");
+        await Client.RetryDeliveryAsync(first.Id, default);
+        var lease = await Client.ClaimAsync(new ResultClaimRequest { ConversationId = "phone", ClientId = "explicit-retry", LeaseSeconds = 60 }, default);
+        Check(lease.Id == first.Id, "explicit retry did not restore result eligibility");
+        await Client.AcknowledgeAsync(first.Id, new ResultReceiptRequest { LeaseId = lease.LeaseId, Receipt = ResultReceipt.TextDisplayed }, default);
+        await Client.ReleaseAsync(first.Id, lease.LeaseId, default);
+        Pass("failed oldest result backs off without starving the next result; explicit retry preserves execution and requires actual presentation");
+    }
+    private sealed class RequestPresenter : IHarnessResultPresenter, IHarnessRequestPresenter
+    {
+        public bool CanPresent => true;
+        public bool UsesSpeech => true;
+        public int Count, Interruptions; public string Context; public bool Refuse;
+        public readonly Reply Reply = new();
+        public IHarnessResultReply TryBeginRequestReply(string id, string context, CancellationToken token) { Count++; Context = context; return Refuse ? null : Reply; }
+        public IHarnessResultReply TryBeginReply(string id, string context, CancellationToken token) => new Reply { TextDisplayed = true, PlaybackStarted = true, PlaybackCompleted = true };
+        public Task InterruptAsync(IHarnessResultReply reply) { Interruptions++; return Task.CompletedTask; }
+    }
+    private sealed class FairPresenter : IHarnessResultPresenter
+    {
+        private readonly string failed; public FairPresenter(string id) { failed = id; }
+        public bool CanPresent => true; public bool UsesSpeech => false;
+        public IHarnessResultReply TryBeginReply(string id, string context, CancellationToken token) => id == failed ? null : new Reply { TextDisplayed = true };
+        public Task InterruptAsync(IHarnessResultReply reply) => Task.CompletedTask;
     }
 
     private static async Task Tools()

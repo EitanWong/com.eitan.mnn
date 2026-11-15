@@ -23,7 +23,7 @@ def prompt(request):
             sessionId='fixture-session', toolCall=dict(title='Write a test artifact'),
             options=[dict(optionId='yes', kind='allow_once', name='Allow'),
                      dict(optionId='no', kind='reject_once', name='Reject')])))
-        if not permission.wait(10):
+        if not permission.wait(30):
             emit(dict(id=request['id'], error=dict(code=-1, message='Permission timed out')))
             return
         text = 'approved' if permission_value == 'yes' else 'rejected'
@@ -42,7 +42,7 @@ for line in sys.stdin:
     request = json.loads(line)
     method = request.get('method')
     if method == 'initialize':
-        emit(dict(id=request['id'], result=dict(protocolVersion=1, agentCapabilities={})))
+        emit(dict(id=request['id'], result=dict(protocolVersion=1, agentCapabilities=dict(promptCapabilities=dict(embeddedContext=True)))))
     elif method == 'session/new':
         emit(dict(id=request['id'], result=dict(sessionId='fixture-session')))
     elif method == 'session/prompt':

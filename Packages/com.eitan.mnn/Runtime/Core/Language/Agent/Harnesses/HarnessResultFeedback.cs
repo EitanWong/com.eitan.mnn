@@ -7,7 +7,7 @@ namespace MNN.Samples.SiriAI.Harnesses
 {
     /// <summary>Claims, renews and acknowledges results through application presentation ports.
     /// Await preserves the caller's context. Stopping delivery never cancels backend work.</summary>
-    public sealed class HarnessResultFeedback
+    public sealed partial class HarnessResultFeedback
     {
         private readonly Func<HarnessResultConnection> _connection;
         private readonly IHarnessResultPresenter _presenter;
@@ -36,9 +36,12 @@ namespace MNN.Samples.SiriAI.Harnesses
                         var connection = _connection();
                         if (connection != null && _presenter.CanPresent)
                         {
-                            var task = await RpcAsync(ct => connection.Client.ClaimAsync(new ResultClaimRequest {
-                                ConversationId = connection.ConversationId, ClientId = _clientId, LeaseSeconds = 60 }, ct), cancellation);
-                            if (task != null) await DeliverAsync(connection, task, cancellation);
+                            if (!await PresentPendingRequestAsync(connection, cancellation))
+                            {
+                                var task = await RpcAsync(ct => connection.Client.ClaimAsync(new ResultClaimRequest {
+                                    ConversationId = connection.ConversationId, ClientId = _clientId, LeaseSeconds = 60 }, ct), cancellation);
+                                if (task != null) await DeliverAsync(connection, task, cancellation);
+                            }
                         }
                     }
                     catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return; }
@@ -54,7 +57,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         {
             var current = _connection();
             return current != null && ReferenceEquals(current.Client, connection.Client) &&
-                current.ConversationId == connection.ConversationId;
+                current.ConversationId == connection.ConversationId && ReferenceEquals(current.Scope, connection.Scope);
         }
 
         private async Task DeliverAsync(HarnessResultConnection connection, HarnessTask task, CancellationToken token)
@@ -87,6 +90,12 @@ namespace MNN.Samples.SiriAI.Harnesses
                 {
                     using (var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
                     {
+                        if (!token.IsCancellationRequested && IsCurrent(connection) &&
+                            (reply != null || _presenter.CanPresent) && !(reply?.PlaybackStarted ?? false) && !(reply?.TextDisplayed ?? false))
+                        {
+                            try { await client.FailDeliveryAsync(task.Id, task.LeaseId, cleanup.Token); }
+                            catch (Exception error) { _report?.Invoke(error); }
+                        }
                         try { await client.ReleaseAsync(task.Id, task.LeaseId, cleanup.Token); }
                         catch (Exception) { /* The host reclaims disconnected or expired delivery leases. */ }
                     }
@@ -103,10 +112,11 @@ namespace MNN.Samples.SiriAI.Harnesses
             var receipts = new Receipts();
             long deadline = task.LeaseUntilUtcTicks;
             var renewed = Stopwatch.StartNew();
+            var presentation = Stopwatch.StartNew();
             while (true)
             {
                 token.ThrowIfCancellationRequested();
-                if (!IsCurrent(connection) || DateTime.UtcNow.Ticks >= deadline) return;
+                if (!IsCurrent(connection) || DateTime.UtcNow.Ticks >= deadline || presentation.Elapsed.TotalMinutes >= 2) return;
                 try
                 {
                     if (renewed.Elapsed.TotalSeconds >= 20)

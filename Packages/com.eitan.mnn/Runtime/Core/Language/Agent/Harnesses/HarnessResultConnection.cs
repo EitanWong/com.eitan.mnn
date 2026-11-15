@@ -7,6 +7,10 @@ namespace MNN.Samples.SiriAI.Harnesses
     {
         public RemoteTaskClient Client { get; }
         public string ConversationId { get; }
+        public HarnessFrontendScope Scope { get; }
+        public HarnessResultConnection(RemoteTaskClient client, HarnessFrontendScope scope)
+            : this(client, scope?.ConversationId)
+        { Scope = scope; }
         public HarnessResultConnection(RemoteTaskClient client, string conversationId)
         {
             Client = client ?? throw new ArgumentNullException(nameof(client));

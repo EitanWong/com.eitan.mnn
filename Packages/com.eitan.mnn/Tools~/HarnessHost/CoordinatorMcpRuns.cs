@@ -62,6 +62,8 @@ internal sealed class CoordinatorMcpRuns
 
 internal sealed class CoordinatorRun
 {
+    internal string NativeCheckpoint;
+    internal Action<string> PersistCheckpoint;
     internal readonly HarnessTask Parent;
     internal readonly CoordinatorMcpScope Scope;
     internal readonly PersistentTaskRuntime Runtime;

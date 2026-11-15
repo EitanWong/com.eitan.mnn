@@ -49,6 +49,12 @@ namespace MNN.Samples.SiriAI.Harnesses
         [DataMember(Order = 34, EmitDefaultValue = false)] public HarnessNativeToolState NativeTools { get; internal set; }
 
         [DataMember(Order = 35, EmitDefaultValue = false)] public bool IsolatedContext { get; internal set; }
+        [DataMember(Order = 36, EmitDefaultValue = false)] public int DeliveryAttempts { get; internal set; }
+        [DataMember(Order = 37, EmitDefaultValue = false)] public long NextDeliveryUtcTicks { get; internal set; }
+        [DataMember(Order = 38, EmitDefaultValue = false)] public string DeliveryError { get; internal set; }
+        [DataMember(Order = 39, EmitDefaultValue = false)] public string ContinuedFromTaskId { get; internal set; }
+        [DataMember(Order = 40, EmitDefaultValue = false)] public string ContinuationState { get; internal set; }
+        public bool DeliveryExhausted => DeliveryAttempts >= 8;
 
         public string DeliveryConversationId => ResultConversationId ?? ConversationId;
 
@@ -73,7 +79,7 @@ namespace MNN.Samples.SiriAI.Harnesses
             ConversationId = request.ConversationId, SubmissionKey = request.SubmissionKey,
             HarnessId = request.HarnessId, WorkspaceKey = request.WorkspaceKey, Objective = request.Objective,
             Attachments = request.Attachments, IsolatedContext = request.IsolatedContext,
-            ResultConversationId = request.ResultConversationId, Title = request.Title,
+            ResultConversationId = request.ResultConversationId, Title = request.Title, ContinuedFromTaskId = request.ContinuedFromTaskId,
             Revision = 1, CreatedUtcTicks = DateTime.UtcNow.Ticks, UpdatedUtcTicks = DateTime.UtcNow.Ticks,
             State = HarnessTaskState.Queued
         };
@@ -81,7 +87,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         internal void Validate()
         {
             HarnessText.Required(Id, 128);
-            new TaskSubmission(OwnerId, ConversationId, SubmissionKey, HarnessId, WorkspaceKey, Objective, Attachments, ResultConversationId, Title, IsolatedContext);
+            new TaskSubmission(OwnerId, ConversationId, SubmissionKey, HarnessId, WorkspaceKey, Objective, Attachments, ResultConversationId, Title, IsolatedContext, ContinuedFromTaskId);
             if (Revision < 1 || CreatedUtcTicks < 1 || UpdatedUtcTicks < CreatedUtcTicks ||
                 !Enum.IsDefined(typeof(HarnessTaskState), State) || !Enum.IsDefined(typeof(HarnessWaitingFor), WaitingFor))
                 throw new SerializationException("Invalid persisted task state.");
@@ -95,6 +101,8 @@ namespace MNN.Samples.SiriAI.Harnesses
             NativeTools?.Validate();
             if (Result != null && Result.Length > 65536) throw new SerializationException("Persisted result exceeds its budget.");
             if (ResultPending && !IsTerminal) throw new SerializationException("Nonterminal result in outbox.");
+            if (DeliveryAttempts < 0 || DeliveryAttempts > 8 || NextDeliveryUtcTicks < 0 || (DeliveryError?.Length ?? 0) > 1024)
+                throw new SerializationException("Invalid delivery retry state.");
             HarnessArtifact.Checked(Artifacts);
             if (Execution != null)
             {
@@ -115,6 +123,8 @@ namespace MNN.Samples.SiriAI.Harnesses
                 if (!IsTerminal || ResultPending || ResultConversationId != HarnessCollectedResult.ConversationFor(ResultCollectedBy))
                     throw new SerializationException("Invalid collected child result.");
             }
+            if ((ContinuedFromTaskId == null) != (ContinuationState == null)) throw new SerializationException("Continuation requires both source identity and original checkpoint.");
+            if (ContinuationState != null) HarnessText.Required(ContinuationState, 16384);
             if (BackendState != null) HarnessText.Required(BackendState, 16384);
         }
     }

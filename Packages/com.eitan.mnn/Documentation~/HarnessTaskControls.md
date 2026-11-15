@@ -14,7 +14,7 @@
 
 `Paused` 追加到枚举末尾（数值7），旧状态和四项旧工具操作的数值保持不变。
 暂停与继续都在提交存储成功后生效；暂停任务不占执行槽位，重启后保持暂停。
-已结束任务不能继续，暂停任务可直接取消；运行中任务没有可移植的挂起契约，返回明确不支持。
+已结束任务不能通过 resume 恢复；Completed 工作可使用显式 continue 新建关联执行，暂停任务可直接取消；运行中任务没有可移植的挂起契约，返回明确不支持。
 不使用取消后重提来模拟暂停，避免重复外部副作用。
 
 HTTP 新增 `POST /v1/tasks/{id}/pause`、`/resume` 与 `/cancel-request`，沿用 token 身份和 owner 隔离。
@@ -33,3 +33,5 @@ PYTHONDONTWRITEBYTECODE=1 python3 Tools~/HarnessChecks/check_task_controls.py --
 第二项实际构建并启动独立 .NET8 Host，使用外部 ACP 测试进程和生产 C# 工具检查13项查询、
 暂停/取消/owner边界、跨重启保留、同一任务继续和真实文字展示回执。
 夹具不代表真实厂商推理、天气搜索能力、移动设备后台运行或实体语音播报验证。
+
+前台会话绑定、失败回报退避、语音追问和原生会话续办见 [前台与后台交互](HarnessFrontendLoop.md)。

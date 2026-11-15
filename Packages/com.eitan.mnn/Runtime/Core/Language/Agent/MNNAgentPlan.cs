@@ -5,6 +5,8 @@ namespace MNN.Unity
     /// <summary>A validated single action. Tools, clarifications and model routes have distinct payloads.</summary>
     public sealed class MNNAgentPlan
     {
+        public const int MaximumToolInputCharacters = 8192;
+        public const int MaximumJsonCharacters = MaximumToolInputCharacters * 6 + 512;
         public string Route { get; }
         public string Tool { get; }
         public string Input { get; }
@@ -16,7 +18,7 @@ namespace MNN.Unity
         public static MNNAgentPlan Automatic() => new MNNAgentPlan("auto");
         public static MNNAgentPlan InvokeTool(string name, string input)
         {
-            if (string.IsNullOrWhiteSpace(name) || name.Length > 64 || string.IsNullOrWhiteSpace(input) || input.Length > 1024) throw new ArgumentException("Tool plans require a bounded name and input.");
+            if (string.IsNullOrWhiteSpace(name) || name.Length > 64 || string.IsNullOrWhiteSpace(input) || input.Length > MaximumToolInputCharacters) throw new ArgumentException("Tool plans require a bounded name and input.");
             return new MNNAgentPlan("tool", name, input);
         }
         public static MNNAgentPlan Clarify(string question)
@@ -27,7 +29,7 @@ namespace MNN.Unity
         [Serializable] private sealed class WirePlan { public string route, tool, input, message; }
         public static MNNAgentPlan Parse(string text)
         {
-            if (text == null || text.Length > 2048) throw new ArgumentException("Expected a bounded routing JSON object.");
+            if (text == null || text.Length > MaximumJsonCharacters) throw new ArgumentException("Expected a bounded routing JSON object.");
             text = text.Trim();
             if (!text.StartsWith("{", StringComparison.Ordinal) || !text.EndsWith("}", StringComparison.Ordinal)) throw new ArgumentException("Expected a routing JSON object.");
             var result = JsonUtility.FromJson<WirePlan>(text);

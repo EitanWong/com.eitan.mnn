@@ -38,6 +38,15 @@ namespace MNN.Unity.Tests
             public Task<string> ExecuteAsync(string input, CancellationToken token) { ++Calls; return Task.FromResult("Task accepted"); }
         }
         [Test]
+        public void BoundedLongToolInputRetainsExactPathsAndConstraints()
+        {
+            string input = new string('x', 1800) + "/workspace/retain-this-path";
+            Assert.AreEqual(input, MNNAgentPlan.InvokeTool("spawn_thinking", input).Input);
+            string wire = "{\"route\":\"tool\",\"tool\":\"spawn_thinking\",\"input\":\"" + input + "\"}";
+            Assert.AreEqual(input, MNNAgentPlan.Parse(wire).Input);
+            Assert.Throws<ArgumentException>(() => MNNAgentPlan.InvokeTool("spawn_thinking", new string('x', MNNAgentPlan.MaximumToolInputCharacters + 1)));
+        }
+        [Test]
         public void ExplicitTaskHostPermissionDoesNotEnableCloudAnswers()
         {
             var tool = new ConsentedTool();

@@ -18,6 +18,7 @@ def main():
     parser.add_argument('--source-root', required=True, type=Path)
     parser.add_argument('--dotnet', required=True, type=Path)
     parser.add_argument('--runtime', type=Path)
+    parser.add_argument('--framework', default='net10.0', choices=['net8.0', 'net10.0'])
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     output = args.output.resolve()
@@ -35,6 +36,8 @@ def main():
     checks = Path(__file__).parent
     shutil.copyfile(checks / 'Fixtures/ForegroundConsumer/Program.cs', consumer / 'Program.cs')
     shutil.copyfile(checks / 'Fixtures/PackageConsumer/Consumer.csproj', consumer / 'Consumer.csproj')
+    project = consumer / 'Consumer.csproj'
+    project.write_text(project.read_text().replace('net10.0', args.framework))
     assert not (run / 'Assets').exists()
     token = uuid.uuid4().hex * 2
     env = dict(os.environ, MNN_PACKAGE_FOREGROUND_TOKEN=token, DOTNET_CLI_HOME=str(output / 'cli'),
@@ -90,12 +93,12 @@ def main():
                 if time.monotonic() > deadline:
                     raise AssertionError('Host did not start')
                 time.sleep(.03)
-        result = command([str(args.dotnet), str(consumer / 'bin/Debug/net10.0/Consumer.dll'), url, str(run / 'journal')])
+        result = command([str(args.dotnet), str(consumer / ('bin/Debug/' + args.framework + '/Consumer.dll')), url, str(run / 'journal')])
         if result.returncode:
             return result.returncode
-        assert result.stdout.count('PASS ') == 9
+        assert result.stdout.count('PASS ') == 12
         (output / 'results.json').write_text(json.dumps(dict(run=str(run), package_only=True,
-            assets_directory_exists=False, passed=9, real_vendor=False, physical_playback=False), indent=2) + '\n')
+            assets_directory_exists=False, passed=12, framework=args.framework, real_vendor=False, physical_playback=False), indent=2) + '\n')
         return 0
     finally:
         if host:

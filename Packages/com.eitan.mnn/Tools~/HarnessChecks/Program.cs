@@ -8,6 +8,8 @@ internal static class Program
     {
         try
         {
+            new SiriAIHarnessContinuationTests().ContinuationRetainsOriginalResultAndRequiresOriginalContext();
+            Console.WriteLine("PASS continuation retains original result and verifies native context");
             if (args.Length >= 5 && args[0] == "--service-client")
             {
                 var client = new MNN.Samples.SiriAI.Harnesses.DesktopHostServiceClient(args[1], args[2], args[3], false);
@@ -37,6 +39,12 @@ internal static class Program
     }
     private static async Task RunAsync()
     {
+        new SiriAIHarnessFrontendSessionTests().ConversationAndInputHaveIndependentLifetimes();
+        Console.WriteLine("PASS frontend conversation generations, input snapshots and stable turn admission");
+        await new SiriAIHarnessDeliveryFailureTests().VerifyAsync();
+        Console.WriteLine("PASS durable failed-result backoff permits later results and explicit retry without false receipts");
+        new SiriAIHarnessReplyTests().VoiceReplyRequiresTheExactCurrentRequestAndAnExplicitPermissionDecision();
+        Console.WriteLine("PASS foreground replies bind exact task/request/conversation and require explicit permission decisions");
         await new SiriAIHarnessPauseTests().VerifyAsync();
         Console.WriteLine("PASS durable queued pause, restart, ownership, single resume and cancellation");
         await new SiriAIHarnessPauseTests().CancellationAdmissionAsync();

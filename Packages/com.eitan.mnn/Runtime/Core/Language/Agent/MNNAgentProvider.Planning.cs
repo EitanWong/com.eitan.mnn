@@ -20,7 +20,7 @@ namespace MNN.Unity
                 Func<string, Task> consume = value =>
                 {
                     deadline.Token.ThrowIfCancellationRequested();
-                    if (value == null || output.Length + value.Length > 2048)
+                    if (value == null || output.Length + value.Length > MNNAgentPlan.MaximumJsonCharacters)
                         throw new InvalidOperationException("Routing plan exceeded its budget.");
                     output.Append(value);
                     return Task.CompletedTask;

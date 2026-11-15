@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace MNN.Samples.SiriAI.Harnesses
 {
     [Flags]
-    public enum HarnessCapabilities { None = 0, Cancel = 1, Input = 2, Permission = 4, Update = 8, Attachments = 16, UpdateAttachments = 32 }
+    public enum HarnessCapabilities { None = 0, Cancel = 1, Input = 2, Permission = 4, Update = 8, Attachments = 16, UpdateAttachments = 32, Continue = 64 }
     public enum HarnessTaskState { Queued, Running, Cancelling, Completed, Failed, Cancelled, Interrupted, Paused }
     public enum HarnessWaitingFor { None, Input, Permission }
     public enum HarnessInputAction { Answer, Clarify, Cancel, Decline }
@@ -22,6 +22,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         public string ResultConversationId { get; }
         public string Title { get; }
         public bool IsolatedContext { get; }
+        public string ContinuedFromTaskId { get; }
         private readonly HarnessContentPart[] _attachments;
         public HarnessContentPart[] Attachments => (HarnessContentPart[])_attachments.Clone();
         public TaskSubmission(string ownerId, string conversationId, string submissionKey,
@@ -31,7 +32,7 @@ namespace MNN.Samples.SiriAI.Harnesses
                 attachments, resultConversationId, title, false) { }
         public TaskSubmission(string ownerId, string conversationId, string submissionKey,
             string harnessId, string workspaceKey, string objective, HarnessContentPart[] attachments = null,
-            string resultConversationId = null, string title = null, bool isolatedContext = false)
+            string resultConversationId = null, string title = null, bool isolatedContext = false, string continuedFromTaskId = null)
         {
             OwnerId = HarnessText.Required(ownerId, 128);
             ConversationId = HarnessText.Required(conversationId, 128);
@@ -42,6 +43,7 @@ namespace MNN.Samples.SiriAI.Harnesses
             ResultConversationId = resultConversationId == null ? null : HarnessText.Required(resultConversationId, 128);
             Title = title == null ? null : HarnessText.Required(title, 256);
             IsolatedContext = isolatedContext;
+            ContinuedFromTaskId = continuedFromTaskId == null ? null : HarnessText.Required(continuedFromTaskId, 128);
             _attachments = HarnessContentPart.CheckedInputs(attachments);
         }
     }
@@ -133,6 +135,12 @@ namespace MNN.Samples.SiriAI.Harnesses
     {
         string CancellationScope { get; }
         Task<HarnessOutcome> CancelWithOutcomeAsync(HarnessTask task, CancellationToken rpcCancellation);
+    }
+
+    /// <summary>Returns a verified original native-session checkpoint. Never substitutes a fresh context.</summary>
+    public interface IHarnessContinuationAdapter : IHarnessAdapter
+    {
+        string CreateContinuationCheckpoint(HarnessTask completed);
     }
 
     public interface IHarnessSubmissionValidator

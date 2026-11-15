@@ -202,7 +202,7 @@ namespace MNN.Unity
                 await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token, 128).ConfigureAwait(false);
             public async Task PlanRequestAsync(IReadOnlyList<MNNOpenAIMessage> prompt,
                 Func<string, Task> textDelta, CancellationToken token) =>
-                await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token, 256).ConfigureAwait(false);
+                await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token, 1024).ConfigureAwait(false);
             public async Task GenerateAssistanceAsync(MNNConversationTextTask task, IReadOnlyList<MNNOpenAIMessage> prompt,
                 Func<string, Task> textDelta, CancellationToken token) =>
                 await GenerateCoreAsync(prompt, null, 16000, textDelta, false, token,

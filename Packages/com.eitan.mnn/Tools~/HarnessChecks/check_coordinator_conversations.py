@@ -48,7 +48,10 @@ def stop(kill=False):
         except subprocess.TimeoutExpired:process.kill();process.wait(timeout=5)
         process=None;log.close()
 def submit(conversation,objective='instant',**extra):
-    return http('/v1/tasks',dict(ConversationId=conversation,SubmissionKey=uuid.uuid4().hex,HarnessId='coordinator',WorkspaceKey=extra.pop('workspace','test'),Objective=objective),**extra)
+    source=extra.pop('ContinuedFromTaskId',None)
+    path='/v1/tasks/'+source+'/continue' if source else '/v1/tasks'
+    return http(path,dict(ConversationId=conversation,SubmissionKey=uuid.uuid4().hex,HarnessId='coordinator',WorkspaceKey=extra.pop('workspace','test'),Objective=objective,ContinuedFromTaskId=source),**extra)
+
 def task(value):return http('/v1/tasks/'+(value['Id'] if 'Id' in value else value['delegation_id']))
 def terminal(value):
     t=task(value);return t if t['State'] in [3,4,5,6] else None
@@ -98,6 +101,19 @@ try:
     repeat=submit(ca,'instant-repeat',status=202);assert wait(lambda:terminal(repeat))['Result']=='collected:worker:instant-repeat';rt=turn(repeat)
     assert (rt['pid'],rt['sid'])==(at['pid'],at['sid'])
     ok('same foreground conversation reuses its native coordinator context without sharing another conversation history')
+    # Explicit continuation is a new linked run in the verified original native session.
+    before=task(repeat);continued=submit(ca,'instant-continuation',status=202,ContinuedFromTaskId=repeat['Id'])
+    completed=wait(lambda:terminal(continued));ct=turn(continued)
+    assert completed['State']==3 and completed['Result']=='collected:worker:instant-continuation' and completed['ContinuedFromTaskId']==repeat['Id'],completed
+    assert (ct['pid'],ct['sid'])==(rt['pid'],rt['sid']) and task(repeat)==before
+    submit(cb,'must-not-continue',status=400,ContinuedFromTaskId=repeat['Id'])
+    stop();start()
+    after_restart=submit(ca,'instant-continuation-restart',status=202,ContinuedFromTaskId=continued['Id'])
+    assert wait(lambda:terminal(after_restart))['Result']=='collected:worker:instant-continuation-restart'
+    restarted_turn=turn(after_restart);assert restarted_turn['sid']==ct['sid']
+    assert any(e['sid']==ct['sid'] and e['method'] in ['session/load','session/resume'] for e in rows('sessions.jsonl'))
+    observations['continuation']=dict(original=repeat['Id'],continued=continued['Id'],reopened=after_restart['Id'],native_session=ct['sid'])
+    ok('explicit completed-task continuation retains original result and native session across Host restart, and rejects another foreground')
     config['MaximumConcurrent']=1;stop();start()
     blocker=submit(ca,'hold-crash',status=202);cc=wait(lambda:child(blocker));wait(lambda:task(cc)['State']==1)
     queued=submit(cb,'instant-queued',status=202);assert task(queued)['State']==0 and task(queued).get('BackendState')
@@ -111,6 +127,7 @@ try:
     assert wait(lambda:terminal(rebound))['State']==6
     assert not any(e['turn']['run_id']==rebound['Id'] for e in rows('turns.jsonl'))
     fresh=submit('fresh-guid','instant-fresh',status=202);assert wait(lambda:terminal(fresh))['Result']=='collected:worker:instant-fresh'
+    submit(ca,'continuation-after-rebind-must-not-run',status=409,ContinuedFromTaskId=after_restart['Id'])
     observations['queued_rebinding']=dict(interrupted=task(rebound),fresh=task(fresh))
     ok('queued admission seals scope identity so configuration rebinding interrupts it before any native turn; new explicit work remains usable')
     # An existing admission seal must not become optional when switching to Fixed.

@@ -14,6 +14,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         [DataMember] public string HarnessId;
         [DataMember] public string WorkspaceKey;
         [DataMember] public string Objective;
+        [DataMember(EmitDefaultValue = false)] public string ContinuedFromTaskId;
         [DataMember(EmitDefaultValue = false)] public bool IsolatedContext;
         [DataMember(EmitDefaultValue = false)] public HarnessContentPart[] Attachments;
     }
@@ -40,6 +41,7 @@ namespace MNN.Samples.SiriAI.Harnesses
         [DataMember] public string LeaseId;
         [DataMember] public ResultReceipt Receipt;
         [DataMember] public int LeaseSeconds = 60;
+        [DataMember(EmitDefaultValue = false)] public string Error;
     }
     [DataContract]
     public sealed class TaskHostError

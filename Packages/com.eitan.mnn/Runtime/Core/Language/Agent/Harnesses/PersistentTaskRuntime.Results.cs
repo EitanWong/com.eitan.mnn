@@ -28,7 +28,8 @@ namespace MNN.Samples.SiriAI.Harnesses
                 RequireOpen();
                 long now = DateTime.UtcNow.Ticks;
                 var item = _tasks.Values.Where(task => task.OwnerId == ownerId && task.DeliveryConversationId == conversationId &&
-                    task.ResultPending && (task.LeaseId == null || task.LeaseUntilUtcTicks <= now)).OrderBy(task => task.CreatedUtcTicks).FirstOrDefault();
+                    task.ResultPending && !task.DeliveryExhausted && task.NextDeliveryUtcTicks <= now &&
+                    (task.LeaseId == null || task.LeaseUntilUtcTicks <= now)).OrderBy(task => task.CreatedUtcTicks).FirstOrDefault();
                 if (item == null) return null;
                 var next = Changed(item);
                 next.LeaseId = Guid.NewGuid().ToString("N");
@@ -64,6 +65,35 @@ namespace MNN.Samples.SiriAI.Harnesses
                 var next = Changed(item);
                 next.LeaseId = null;
                 next.LeaseUntilUtcTicks = 0;
+                Commit(next);
+            }
+        }
+        /// <summary>Presentation failure never changes execution or fabricates a presentation receipt.</summary>
+        public void FailResultDelivery(string taskId, string ownerId, string leaseId, string error)
+        {
+            error = HarnessText.Required(error, 1024);
+            lock (_sync)
+            {
+                RequireOpen();
+                var next = Changed(Leased(taskId, ownerId, leaseId));
+                if (!next.ResultPending || next.PlaybackStarted) throw new InvalidOperationException("Result presentation already started.");
+                next.DeliveryAttempts = Math.Min(8, next.DeliveryAttempts + 1);
+                next.DeliveryError = error;
+                next.NextDeliveryUtcTicks = DateTime.UtcNow.AddSeconds(Math.Min(60, Math.Pow(2, next.DeliveryAttempts - 1))).Ticks;
+                next.LeaseId = null; next.LeaseUntilUtcTicks = 0;
+                Commit(next);
+            }
+        }
+        public void RetryResultDelivery(string taskId, string ownerId)
+        {
+            lock (_sync)
+            {
+                RequireOpen();
+                var next = Changed(Owned(taskId, ownerId));
+                if (!next.ResultPending || next.PlaybackStarted || next.LeaseId != null && next.LeaseUntilUtcTicks > DateTime.UtcNow.Ticks)
+                    throw new InvalidOperationException("Only an unclaimed pending result can be retried.");
+                next.DeliveryAttempts = 0; next.DeliveryError = null; next.NextDeliveryUtcTicks = 0;
+                next.LeaseId = null; next.LeaseUntilUtcTicks = 0;
                 Commit(next);
             }
         }
