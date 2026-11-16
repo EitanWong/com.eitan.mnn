@@ -62,13 +62,17 @@ namespace MNN.Unity
             for (int i = 0; i < ids.Length; ++i) Array.Copy(_embedding, checked(ids[i] * 512), values, i * 512, 512);
             return values;
         }
-        /// <summary>Synthesize with the requested voice, or select a default matching the text language.</summary>
+        /// <summary>Synthesize with a language-matched default voice and natural timing (1.15x model tempo,
+        /// trimmed boundary silence). Speed multiplies that tempo without changing pitch.
+        /// Set naturalTiming=false and speed=1 to retain the original model waveform.</summary>
         public MNNGeneratedAudio Synthesize(string text, string voice = null, int seed = 42,
-            float temperature = 0.8f, int maximumTokens = 2048, CancellationToken cancellationToken = default)
+            float temperature = 0.8f, int maximumTokens = 2048, CancellationToken cancellationToken = default,
+            float speed = 1, bool naturalTiming = true)
         {
             if (string.IsNullOrWhiteSpace(text) || text.Length > 16000) throw new ArgumentException("Supply a nonempty speech segment, at most 16000 characters.", nameof(text));
             if (float.IsNaN(temperature) || float.IsInfinity(temperature) || temperature < 0 || temperature > 2) throw new ArgumentOutOfRangeException(nameof(temperature));
             if (maximumTokens < 1 || maximumTokens > 4096) throw new ArgumentOutOfRangeException(nameof(maximumTokens));
+            if (float.IsNaN(speed) || float.IsInfinity(speed) || speed < .5f || speed > 2) throw new ArgumentOutOfRangeException(nameof(speed));
             lock (_gate)
             {
                 if (_disposed) throw new ObjectDisposedException(nameof(MNNHojoTts));
@@ -77,7 +81,10 @@ namespace MNN.Unity
                     voice = DefaultVoices[MNNSpeechLanguages.Select(text, SupportedLanguages) ?? "en"];
                 int speaker = Array.IndexOf(_voices, voice);
                 if (speaker < 0) throw new ArgumentException("Unknown Hojo voice: " + voice, nameof(voice));
-                return Generate(text, speaker, seed, temperature, maximumTokens, cancellationToken);
+                var audio = Generate(text, speaker, seed, temperature, maximumTokens, cancellationToken);
+                var wave = naturalTiming ? MNNSpeechDsp.TrimSpeechEdges(audio.Waveform, SampleRate, cancellationToken) : audio.Waveform;
+                wave = MNNSpeechDsp.ChangeTempo(wave, SampleRate, speed * (naturalTiming ? 1.15f : 1), cancellationToken);
+                return new MNNGeneratedAudio(wave, SampleRate, text);
             }
         }
         public void Dispose()

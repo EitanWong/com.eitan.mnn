@@ -18,7 +18,7 @@ namespace MNN.Unity
             var runner = MNNHojoTts.Load(directory, threads, backend);
             return new MNNSpeechSynthesizer(runner, runner.SampleRate, MNNHojoTts.SupportedLanguages,
                 (text, token) => runner.Synthesize(text, options.Voice,
-                    options.Seed, cancellationToken: token));
+                    options.Seed, cancellationToken: token, speed: options.Speed));
         }
     }
 }

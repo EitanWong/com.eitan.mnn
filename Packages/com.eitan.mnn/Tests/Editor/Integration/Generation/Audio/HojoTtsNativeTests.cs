@@ -37,7 +37,7 @@ namespace MNN.Unity.Tests
                 for (int iteration = 0; iteration < 2; ++iteration)
                 {
                     var clock = Stopwatch.StartNew();
-                    var audio = runner.Synthesize("Hello, this is a test.", temperature: 0, maximumTokens: 512);
+                    var audio = runner.Synthesize("Hello, this is a test.", temperature: 0, maximumTokens: 512, naturalTiming: false);
                     clock.Stop();
                     byte[] bytes = File.ReadAllBytes(Path.Combine(Artifacts, "reference-en.bin"));
                     var reference = new float[bytes.Length / 4]; Buffer.BlockCopy(bytes, 0, reference, 0, bytes.Length);
@@ -124,7 +124,9 @@ namespace MNN.Unity.Tests
                 double actualSeconds = outputSamples / (double)(outputRate * channels);
                 TestContext.WriteLine("SOURCE_SECONDS=" + expectedSeconds + ";OUTPUT_RATE=" + outputRate +
                     ";CHANNELS=" + channels + ";OUTPUT_SECONDS=" + actualSeconds);
-                Assert.AreEqual(72960, inputSamples, "The runtime provider must use the verified Chinese default voice.");
+                using (var direct = MNNHojoTts.Load(Model))
+                    Assert.AreEqual(direct.Synthesize("你好，欢迎使用语音合成。").Waveform.Length, inputSamples,
+                        "The runtime provider must use the same Chinese default voice and timing as the direct API.");
                 Assert.AreEqual(1, finals);
                 Assert.AreEqual(expectedSeconds, actualSeconds, 1d / runner.SampleRate,
                     "Runtime resampling and channel expansion must preserve speaking duration.");
@@ -167,7 +169,7 @@ namespace MNN.Unity.Tests
                     string[] fields = line.Split('\t');
                     string text = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(fields[1]));
                     var watch = Stopwatch.StartNew();
-                    var audio = runner.Synthesize(text, fields[2], temperature: 0, maximumTokens: 1024);
+                    var audio = runner.Synthesize(text, fields[2], temperature: 0, maximumTokens: 1024, naturalTiming: false);
                     watch.Stop();
                     byte[] bytes = File.ReadAllBytes(Path.Combine(Artifacts, "reference-" + fields[0] + ".bin"));
                     var reference = new float[bytes.Length / 4]; Buffer.BlockCopy(bytes, 0, reference, 0, bytes.Length);
@@ -231,7 +233,7 @@ namespace MNN.Unity.Tests
             // the package's official 3.6.2 macOS arm64 Mono CPU contract.
             using (var runner = MNNHojoTts.Load(Model, 4, MNNBackendType.CPU))
             {
-                var audio = runner.Synthesize(text, voice, seed: 42, temperature: .8f);
+                var audio = runner.Synthesize(text, voice, seed: 42, temperature: .8f, naturalTiming: false);
                 Assert.AreEqual(samples, audio.Waveform.Length);
                 Assert.AreEqual(expectedHash, PcmHash(audio.Waveform));
             }
