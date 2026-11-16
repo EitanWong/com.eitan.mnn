@@ -28,6 +28,9 @@ Window open/close and size changes reuse the sample's spring surface animation.
 Independent surfaces own separate input groups, so closing one does not disable
 other windows. Icons retain tooltips when a narrow layout hides their text.
 Animations follow the existing UI animation preference and quality setting.
+The header task icon and its sibling shadow join the final startup reveal stage
+alongside conversation navigation and settings, so neither appears ahead of the
+layered entrance. Disabled motion leaves both fully visible.
 
 Progress is the reported activity and execution record, not a fabricated percentage.
 The sample polls every two seconds, shows the last successful sync, and marks stale
