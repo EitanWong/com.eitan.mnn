@@ -12,9 +12,11 @@ namespace MNN.Unity.Tests
         [TestCase("Bairong-TurnSense-1.0-MNN")]
         [TestCase("Bairong-TurnSense-1.1-MNN")]
         [TestCase("Easy-Turn-MNN")]
+        [TestCase("TEN-Turn-Detection-7B-MNN")]
         [TestCase("DualTurn-Endpointing-MNN")]
         [TestCase("LiveKit-Turn-Detector-Multilingual-MNN")]
         [TestCase("LiveKit-Turn-Detector-MNN")]
+        [Timeout(3600000)]
         public async Task PackageInstallerDownloadsPinnedReleaseAndLoadsRuntimeAdapter(string name)
         {
             string root = Environment.GetEnvironmentVariable("MNN_TEST_MODELS_ROOT");

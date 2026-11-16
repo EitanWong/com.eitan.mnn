@@ -13,6 +13,7 @@ namespace MNN.Unity.Tests
         [TestCase("Bairong-TurnSense-1.0-MNN", false)]
         [TestCase("Bairong-TurnSense-1.1-MNN", false)]
         [TestCase("Easy-Turn-MNN", false)]
+        [TestCase("TEN-Turn-Detection-7B-MNN", true)]
         [TestCase("DualTurn-Endpointing-MNN", false)]
         [TestCase("LiveKit-Turn-Detector-Multilingual-MNN", true)]
         [TestCase("LiveKit-Turn-Detector-MNN", true)]
@@ -45,6 +46,8 @@ namespace MNN.Unity.Tests
         [TestCase("TurnSense 1.0", "Bairong-TurnSense-1.0-MNN")]
         [TestCase("TurnSense 1.1", "Bairong-TurnSense-1.1-MNN")]
         [TestCase("Easy Turn", "Easy-Turn-MNN")]
+        [TestCase("TEN Turn Detection", "TEN-Turn-Detection-7B-MNN")]
+        [TestCase("DualTurn", "DualTurn-Endpointing-MNN")]
         [TestCase("LiveKit multilingual", "LiveKit-Turn-Detector-Multilingual-MNN")]
         [TestCase("LiveKit English", "LiveKit-Turn-Detector-MNN")]
         public void DocumentedSearchNamesResolveInBothCatalogs(string query, string name)

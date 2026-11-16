@@ -42,6 +42,7 @@ namespace MNN.Unity.Tests
         [TestCase("Bairong-TurnSense-1.0-MNN", false)]
         [TestCase("Bairong-TurnSense-1.1-MNN", false)]
         [TestCase("Easy-Turn-MNN", false)]
+        [TestCase("TEN-Turn-Detection-7B-MNN", true)]
         [TestCase("LiveKit-Turn-Detector-Multilingual-MNN", true)]
         [TestCase("LiveKit-Turn-Detector-MNN", true)]
         public void SharedRegistrationDiscoversAndExecutesTurnPipeline(string name, bool transcript)
