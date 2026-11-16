@@ -519,3 +519,28 @@ stall; they verify startup, fallback and continued capture. No models are downlo
 
 The migration checks complete file hashes, rejects partial/edited imports before
 writing, and makes no changes when repeated. Existing asset GUIDs are preserved.
+
+## Camera startup and shutdown ordering
+
+After `camera-startup`, matching imports can run:
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage camera-lifecycle
+```
+
+SiriAI now waits for audio to finish opening before starting visual presence, and
+finishes visual preparation before loading the conversation models. Disabling or
+destroying the chat releases its camera immediately, even while audio shutdown is
+pending. This removes overlapping device startup and delayed camera ownership.
+
+Two controlled regressions fail on the previous source and restored source, and
+pass with this change; the surrounding conversation lifecycle checks also pass.
+The opt-in `SiriAIVisualCameraTests.ActualSiriAISceneStartsCameraWithSavedSettings`
+loads the actual SiriAI scene with saved settings and installed models, then checks
+readable pixels and continued frames across two Play entries. It stores counters
+only. Hardware acceptance is pending: the current Mac is locked and its UVC
+service reports a Disabled stream. This lifecycle change does not establish that
+the user's original timeout is resolved. No models are downloaded.
+
+The migration checks complete hashes, rejects partial or edited imports before
+writing, and preserves existing asset GUIDs. Repeating it makes no changes.

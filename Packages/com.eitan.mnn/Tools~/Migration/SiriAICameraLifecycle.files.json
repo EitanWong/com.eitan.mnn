@@ -1,0 +1,24 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs",
+      "before": "657330ac70a56733af3f65975f056174c2e913114b0b7ec2e7a306c8ff157efd",
+      "after": "7457c2e14b19bb7155465133089e6fb5e70b46ee542d32a1cee6514b55292ef0"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs",
+      "before": "1059901bd5f46fb64b56eae78c1a7fb433036c0fb4b4a7ec5c95b513314f4682",
+      "after": "1171054829c7f7856253d9b42c62df5e501a5e040169af65d4a621dc471ab92b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs",
+      "before": "233fcef3744771dc55d34559fb9de524a5699c103c471aae0ce3fd1aef9887c3",
+      "after": "cf0bf045c0f02c55e7e9cb7176cf1dea13b1f80f91e03f4df9b2ccc76bff37c3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs",
+      "before": "47a0c95ba8c2318910c4719bef563561026239a5c0e7480fc98b49dc49bd3744",
+      "after": "847bf0c8731ae014455637bcbcde41b32471237374b61cd192dffb926acaea78"
+    }
+  ]
+}

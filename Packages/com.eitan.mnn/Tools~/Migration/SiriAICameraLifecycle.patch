@@ -1,0 +1,244 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -21,6 +21,7 @@
+         private int _presenceRevision;
+         private bool _visualReady;
+         private bool _visualStarting;
++        private bool _interactionStartupReady;
+         private string _visualCameraError;
+         public WebCamTexture VisualCamera => _interactionCamera;
+         public bool IsVisualLoading => !_visualReady || _visualStarting || !_presenceChange.IsCompleted || IsPreparingConversation ||
+@@ -53,7 +54,7 @@
+ 
+         private void UpdateInteractionPresence()
+         {
+-            if (_context == null || _stopTask != null) return;
++            if (_context == null || _stopTask != null || !_interactionStartupReady) return;
+             if (_visualReady && _interactionCamera != null && !_interactionCamera.isPlaying)
+             { _visualReady = false; RetryVisualCamera(); }
+             if (_interactionSettings == null || Time.realtimeSinceStartupAsDouble >= _nextInteractionSettingsRead)
+@@ -89,6 +90,17 @@
+             // Presence gates continuous listening, never an explicit recording or the user's mode choice.
+             // Keep realtime selected so fresh presence resumes capture without changing manual mode.
+             if (_context.Input.Realtime) _context.SetCaptureEnabled(true);
++        }
++
++        private async Task StartInteractionPresenceAsync()
++        {
++            _interactionStartupReady = true;
++            UpdateInteractionPresence();
++            // Audio has finished opening the shared capture device. Finish visual startup
++            // before the conversation's acoustic and language models compete for resources.
++            if (_interactionSettings?.visualPresence != true) return;
++            try { await _presenceChange; }
++            catch (Exception) { /* The visual owner already reports its optional startup failure. */ }
+         }
+ 
+         /// <summary>Attach any package-compatible sensor/capture provider. Scene composition only;
+@@ -253,6 +265,7 @@
+ 
+         private async Task StopInteractionAsync()
+         {
++            _interactionStartupReady = false;
+             ++_presenceRevision;
+             _presenceLifetime?.Cancel();
+             try { await _presenceChange; } catch (Exception) { }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs
+@@ -250,7 +250,6 @@
+                 throw new InvalidOperationException("SiriAI Chat requires an unconfigured session component.");
+             _context = new SiriAIChatContext(_audio.Capture, () => _session.Session, _audio.Capabilities, GateAcousticCapture, () => _audio.CanInterruptSpeech, _audio.FadeOutSpeechAsync, () => _audio.CaptureReady, () => _audio.SpeakerAudible);
+             _context.Headphones = _audio.GetHeadphoneStatus();
+-            UpdateInteractionPresence();
+             _context.Input.SetRealtime(false);
+             _registration = backend.CreateRegistration(_context) ??
+                 throw new InvalidOperationException("The backend returned no registration.");
+@@ -271,6 +270,8 @@
+             try
+             {
+                 var output = await _audio.OpenAsync(token);
++                token.ThrowIfCancellationRequested();
++                await StartInteractionPresenceAsync();
+                 token.ThrowIfCancellationRequested();
+                 if (!(_audio is SiriAITextAudio)) await PrepareAcousticsAsync(token);
+                 Runtime = new MNNRealtimeFallbackRuntime(_registration.Factory, output, _registration.Model,
+@@ -573,7 +574,7 @@
+             onError.Invoke(error.Message);
+         }
+ 
+-        private void OnDisable() { Observe(StopConversationAsync); }
+-        private void OnDestroy() { Observe(StopConversationAsync); }
++        private void OnDisable() { ReleaseVisualCamera(); Observe(StopConversationAsync); }
++        private void OnDestroy() { ReleaseVisualCamera(); Observe(StopConversationAsync); }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
+@@ -13,6 +13,126 @@
+     public sealed class SiriAIVisualCameraTests
+     {
+         private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
++
++        [UnityTest]
++        public IEnumerator DisablingChatReleasesCameraBeforeAudioShutdownCompletes()
++        {
++            yield return new EnterPlayMode();
++            yield return DisableDuringAudioShutdown();
++            yield return new ExitPlayMode();
++        }
++
++        private static IEnumerator DisableDuringAudioShutdown()
++        {
++            var root = new GameObject("Immediate camera owner release");
++            var chat = root.AddComponent<SiriAIChat>();
++            var audio = root.AddComponent<SiriAIRetryTestAudio>();
++            audio.CloseGate = new TaskCompletionSource<bool>();
++            SiriAITestAccess.Set(chat, "_audio", audio);
++            // Creating an unopened texture exercises ownership without requesting device access.
++            SiriAITestAccess.Set(chat, "_interactionCamera", new WebCamTexture());
++            try
++            {
++                chat.enabled = false;
++                bool released = chat.VisualCamera == null;
++                TestContext.WriteLine("audioShutdownPending=" + !audio.CloseGate.Task.IsCompleted +
++                    " cameraReleased=" + released);
++                audio.CloseGate.TrySetResult(true);
++                Task stopping = chat.StopConversationAsync();
++                while (!stopping.IsCompleted) yield return null;
++                stopping.GetAwaiter().GetResult();
++                Assert.IsTrue(released, "Disabling the owner must release its camera before awaiting audio shutdown.");
++            }
++            finally { audio.CloseGate.TrySetResult(true); UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        [UnityTest]
++        public IEnumerator VisionWaitsUntilAudioEndpointFinishesOpening()
++        {
++            var root = new GameObject("Ordered visual startup");
++            var chat = root.AddComponent<SiriAIChat>();
++            var audio = root.AddComponent<SiriAIRetryTestAudio>();
++            audio.OpenGate = new TaskCompletionSource<bool>();
++            var backend = root.AddComponent<SiriAIRetryTestBackend>();
++            backend.FailuresRemaining = 0;
++            try
++            {
++                chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>());
++                chat.SetBackend(backend);
++                chat.SetAcousticSettings(new SiriAIAcousticSettings
++                {
++                    enabled = false,
++                    interaction = new MNNInteractionSettings { visualPresence = true }
++                });
++                Task starting = chat.StartConversationAsync();
++                bool visualStartedBeforeAudio = chat.Interaction != null;
++                TestContext.WriteLine("audioPending=" + !audio.OpenGate.Task.IsCompleted +
++                    " visualStartedBeforeAudio=" + visualStartedBeforeAudio);
++                // Shut down before releasing the pending endpoint: this also checks that a
++                // canceled startup cannot acquire a camera after its owner has stopped.
++                Task stopping = chat.StopConversationAsync();
++                audio.OpenGate.TrySetCanceled();
++                while (!stopping.IsCompleted) yield return null;
++                stopping.GetAwaiter().GetResult();
++                Assert.IsTrue(starting.IsCanceled);
++                Assert.IsNull(chat.VisualCamera);
++                Assert.IsFalse(visualStartedBeforeAudio,
++                    "Camera startup must wait for the audio endpoint to finish configuring the capture device.");
++            }
++            finally { audio.OpenGate.TrySetCanceled(); UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        [UnityTest, Explicit("Runs the actual SiriAI scene with saved settings and installed models; counts frames only."), Timeout(180000)]
++        public IEnumerator ActualSiriAISceneStartsCameraWithSavedSettings()
++        {
++            for (int cycle = 0; cycle < 2; ++cycle)
++            {
++                yield return new EnterPlayMode();
++                yield return StartActualScene();
++                yield return new ExitPlayMode();
++            }
++        }
++
++        private static IEnumerator StartActualScene()
++        {
++            var loading = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(
++                "Assets/Samples/SiriAI/Scenes/SiriAI.unity",
++                new UnityEngine.SceneManagement.LoadSceneParameters(UnityEngine.SceneManagement.LoadSceneMode.Single));
++            while (!loading.isDone) yield return null;
++            // Let the actual view/onboarding lifecycle run before issuing the same idempotent start command.
++            for (int frame = 0; frame < 5; ++frame) yield return null;
++            var chat = UnityEngine.Object.FindObjectOfType<SiriAIChat>();
++            Assert.IsNotNull(chat);
++            Assert.IsTrue(chat.AcousticProcessing.ReadSettings().interaction.visualPresence,
++                "Enable vision in the saved SiriAI settings before running this physical scene check.");
++            Task starting = chat.StartConversationAsync();
++            double deadline = Time.realtimeSinceStartupAsDouble + 120;
++            while ((!starting.IsCompleted || chat.VisualCamera == null || chat.VisualCamera.width <= 16) &&
++                Time.realtimeSinceStartupAsDouble < deadline)
++            {
++                if (starting.IsFaulted) starting.GetAwaiter().GetResult();
++                yield return null;
++            }
++            TestContext.WriteLine("Actual SiriAI scene: startup=" + starting.Status + " camera=" + chat.VisualCameraStatus);
++            Assert.IsTrue(starting.IsCompleted, "Conversation startup must finish.");
++            starting.GetAwaiter().GetResult();
++            Assert.IsNotNull(chat.VisualCamera, chat.VisualCameraStatus);
++            Assert.Greater(chat.VisualCamera.width, 16, chat.VisualCameraStatus);
++            Assert.That(chat.VisualCamera.GetPixels32().Length, Is.EqualTo(chat.VisualCamera.width * chat.VisualCamera.height));
++            int frames = 0;
++            deadline = Time.realtimeSinceStartupAsDouble + 2;
++            while (Time.realtimeSinceStartupAsDouble < deadline)
++            {
++                if (chat.VisualCamera.didUpdateThisFrame) ++frames;
++                yield return null;
++            }
++            TestContext.WriteLine("Actual SiriAI scene: size=" + chat.VisualCamera.width + "x" + chat.VisualCamera.height +
++                " frames=" + frames + " camera=" + chat.VisualCamera.deviceName);
++            Assert.Greater(frames, 0);
++            Task stopping = chat.StopConversationAsync();
++            while (!stopping.IsCompleted) yield return null;
++            stopping.GetAwaiter().GetResult();
++        }
+ 
+         [UnityTest, Explicit("Uses the connected C930c camera and microphone; stores counters only, no recordings.")]
+         public IEnumerator C930cVisualCameraStartsAndReopensDuringMicrophoneCapture()
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIPreparationRetryTests.cs
+@@ -20,6 +20,8 @@
+         private MNNRealtimeOutputPipeline _output;
+         public int OpenCount, ResetCount, CloseAttempts, CloseFailuresRemaining;
+         public bool Closed;
++        public TaskCompletionSource<bool> OpenGate;
++        public TaskCompletionSource<bool> CloseGate;
+         public override IMNNAudioCaptureSource Capture => this;
+         public override MNNRealtimeOutputPipeline Output => _output;
+         public override Exception Fault => null;
+@@ -29,19 +31,21 @@
+         public bool HasPendingCaptureFrames => false;
+         public bool TryReadCapture(float[] buffer, int offset, out MNNAudioFrameInfo frame, out int count)
+         { frame = default; count = 0; return false; }
+-        public override Task<MNNRealtimeOutputPipeline> OpenAsync(CancellationToken token)
++        public override async Task<MNNRealtimeOutputPipeline> OpenAsync(CancellationToken token)
+         {
+             Assert.False(Closed);
+             ++OpenCount;
+             _output = new MNNRealtimeOutputPipeline(CaptureFormat, 160);
+-            return Task.FromResult(_output);
++            if (OpenGate != null) await OpenGate.Task;
++            return _output;
+         }
+         public override void EnableCapture() { }
+         public override void Close() { Closed = true; _output?.Interrupt(); }
+-        public override Task CloseAsync()
++        public override async Task CloseAsync()
+         {
+             Close(); ++CloseAttempts;
+-            return CloseFailuresRemaining-- > 0 ? Task.FromException(new IOException("Endpoint join failed.")) : Task.CompletedTask;
++            if (CloseGate != null) await CloseGate.Task;
++            if (CloseFailuresRemaining-- > 0) throw new IOException("Endpoint join failed.");
+         }
+         public override void ResetForRetry()
+         { Assert.True(Closed); ++ResetCount; Closed = false; _output = null; }
