@@ -8,12 +8,12 @@
     {
       "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs",
       "before": "cefc5a61b728420f7c129a87f8bb7178d6dff315a4ebd02ccb6cbeb7eb89bb57",
-      "after": "167879bccf7853e5e8f4b8740809776f4ac52048e2b78e7464e201f1c961b191"
+      "after": "815cf163dea8da0c224aa5dae08bdc4c8c2c8b0cd59a24f8387a3bb73aa7b307"
     },
     {
       "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.Visuals.cs",
       "before": null,
-      "after": "f39c97a99ee04c7f901aac06fca1c4bd12e29f8869252d1f34bed017b1e9b7f2"
+      "after": "e9bef5619ef25ce62b702ad0d3befb5ea37f8976b63a623998070061be4e8bbb"
     },
     {
       "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.Visuals.cs.meta",
@@ -48,7 +48,7 @@
     {
       "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISetupExperienceTests.cs",
       "before": null,
-      "after": "a9c14094e48169733bd068c43867f2e05e05a07dc0c345a7deb26a66462aa8ec"
+      "after": "998da575e5f381cfd032f314b434a0fbcc9f7481f75b8fdb7d858578c8451408"
     },
     {
       "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISetupExperienceTests.cs.meta",

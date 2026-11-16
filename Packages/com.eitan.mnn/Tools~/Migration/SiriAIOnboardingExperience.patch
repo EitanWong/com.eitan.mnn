@@ -82,7 +82,7 @@
              if (_setupControlMaterial != null) button.targetGraphic.material = _setupControlMaterial;
              return button;
          }
-@@ -123,14 +127,18 @@
+@@ -123,14 +127,19 @@
              _setupOffset.y = Mathf.Clamp(_setupOffset.y, -(available.height - height) * .5f + inset, (available.height - height) * .5f - inset);
              Place(_setupCard, new Rect(available.center.x - width * .5f + _setupOffset.x, available.center.y - height * .5f + _setupOffset.y, width, height));
              Place(_setupDragHeader, new Rect(0, height - 96, width, 96));
@@ -90,22 +90,25 @@
 -            _setupTitle.fontSize = width < 360 ? 22 : 26;
 -            Place(_setupStepLabel.rectTransform, new Rect(20, height - 88, width - 40, 24));
 -            Place(_setupScrollRect, new Rect(16, 84, width - 32, Mathf.Max(0, height - 180)));
-+            Place(_setupTitle.rectTransform, new Rect(96, height - 60, width - 116, 36));
+-            Place(_setupFooter, new Rect(20, 20, width - 40, 44));
+-            float buttonWidth = Mathf.Max(0, (width - 52) * .5f);
++            Place(_setupTitle.rectTransform, new Rect(96, height - 60, width - 96 - SetupWindowInset, 36));
 +            _setupTitle.fontSize = width < 420 ? 20 : 26;
 +            _setupTitle.resizeTextForBestFit = true; _setupTitle.resizeTextMinSize = 15; _setupTitle.resizeTextMaxSize = _setupTitle.fontSize;
-+            Place(_setupStepLabel.rectTransform, new Rect(96, height - 88, width - 116, 24));
++            Place(_setupStepLabel.rectTransform, new Rect(96, height - 88, width - 96 - SetupWindowInset, 24));
 +            LayoutSetupVisuals(width, height);
-+            Place(_setupScrollRect, new Rect(20, 84, width - 40, Mathf.Max(0, height - 240)));
-             Place(_setupFooter, new Rect(20, 20, width - 40, 44));
-             float buttonWidth = Mathf.Max(0, (width - 52) * .5f);
++            // Content has four-unit horizontal padding; its visible edges match the header and footer.
++            Place(_setupScrollRect, new Rect(SetupWindowInset - 4, 84, width - (SetupWindowInset - 4) * 2, Mathf.Max(0, height - 240)));
++            Place(_setupFooter, new Rect(SetupWindowInset, 20, width - SetupWindowInset * 2, 44));
++            float buttonWidth = Mathf.Max(0, (width - SetupWindowInset * 2 - 12) * .5f);
              Place((RectTransform)_setupBack.transform, new Rect(0, 0, buttonWidth, 44));
              Place((RectTransform)_setupNext.transform, new Rect(buttonWidth + 12, 0, buttonWidth, 44));
 +            if (_setupFlow?.Step == SiriAISetupStep.Welcome)
-+                Place((RectTransform)_setupNext.transform, new Rect(0, 0, width - 40, 44));
++                Place((RectTransform)_setupNext.transform, new Rect(0, 0, width - SetupWindowInset * 2, 44));
              _setupTransition?.CaptureExpandedBounds();
              _setupRoot.SetAsLastSibling();
          }
-@@ -159,20 +167,19 @@
+@@ -159,20 +168,19 @@
                  child.gameObject.SetActive(false); Release(child.gameObject);
              }
              Array.Clear(_setupPermissionStatus, 0, 4); Array.Clear(_setupPermissionRequest, 0, 4);
@@ -132,7 +135,7 @@
                      break;
                  case SiriAISetupStep.Configuration:
                      SetupDescription("Choose local models or a cloud service in Settings. Review the model, audio device, language and API credentials, then save and return here.");
-@@ -182,10 +189,12 @@
+@@ -182,10 +190,12 @@
                  case SiriAISetupStep.Permissions:
                      BuildSetupPermissions(); break;
                  case SiriAISetupStep.Preparation:
@@ -147,7 +150,7 @@
                      SetupAction("Review configuration", ConfigureSetup);
                      SetupAction("Skip download and continue", SkipSetupDownload);
                      break;
-@@ -195,10 +204,12 @@
+@@ -195,10 +205,12 @@
              }
              _setupError = SetupDescription("", 15);
              _setupRenderedStep = _setupFlow.Step;
@@ -160,7 +163,7 @@
          }
  
          private void BuildSetupPermissions()
-@@ -246,14 +257,16 @@
+@@ -246,14 +258,16 @@
              string[] titles = { "Welcome to SiriAI", "Models and services", "Permissions", "Download and initialize", "Setup complete" };
              bool macPermissions = _setupFlow.Step == SiriAISetupStep.Permissions && Application.platform == RuntimePlatform.OSXPlayer;
              SetTextIfChanged(_setupTitle, macPermissions ? "macOS permissions" : titles[(int)_setupFlow.Step]);
@@ -180,7 +183,7 @@
              PresentSetupFailure(_setupFailure);
              AutoRequestSetupPermissions();
          }
-@@ -277,9 +290,15 @@
+@@ -277,9 +291,15 @@
                  ? _chat.AudioEndpoint?.AudioPreparationDownloads ?? backend?.PreparationDownloads : backend?.PreparationDownloads;
              string details = SetupRuntimeReady ? Localize("Ready") : _setupPreparing ? Localize(backend?.PreparationStatus ?? "Preparing model") : Localize("Ready to prepare");
              if (downloads != null && downloads.TotalModels > 0)
@@ -200,7 +203,7 @@
  }
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.Visuals.cs
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,184 @@
 +using UnityEngine;
 +using UnityEngine.UI;
 +
@@ -208,6 +211,7 @@
 +{
 +    public sealed partial class SiriAIChatView
 +    {
++        private const float SetupWindowInset = 24f;
 +        private static readonly Color SetupTint = new Color(.48f, .65f, 1f, 1f);
 +        private RectTransform _setupHero, _setupStageRail, _setupStageProgress, _setupTransferFill;
 +        private SiriAIActionIcon _setupHeroIcon;
@@ -253,6 +257,7 @@
 +                _setupStageIcons[i] = icon.gameObject.AddComponent<SiriAIActionIcon>();
 +                _setupStageIcons[i].raycastTarget = false;
 +                _setupStageNames[i] = Label(cell, SetupStageNames[i], 13, Muted);
++                _setupStageNames[i].alignment = TextAnchor.MiddleLeft;
 +                var label = _setupStageNames[i].rectTransform;
 +                Stretch(label); label.offsetMin = new Vector2(27, 0); label.offsetMax = new Vector2(-4, 0);
 +            }
@@ -268,10 +273,21 @@
 +
 +        private void LayoutSetupVisuals(float width, float height)
 +        {
-+            Place(_setupHero, new Rect(22, height - 85, 58, 58));
-+            Place(_setupStageRail, new Rect(24, height - 126, width - 48, 30));
-+            Place(_setupStageProgress, new Rect(24, height - 139, width - 48, 3));
-+            foreach (var label in _setupStageNames) label.gameObject.SetActive(width >= 420);
++            Place(_setupHero, new Rect(SetupWindowInset, height - 84, 56, 56));
++            Place(_setupStageRail, new Rect(SetupWindowInset, height - 126, width - SetupWindowInset * 2, 30));
++            Place(_setupStageProgress, new Rect(SetupWindowInset, height - 139, width - SetupWindowInset * 2, 3));
++            bool showNames = width >= 420;
++            for (int i = 0; i < _setupStageNames.Length; ++i)
++            {
++                _setupStageNames[i].gameObject.SetActive(showNames);
++                var icon = _setupStageIcons[i].rectTransform;
++                if (showNames) Place(icon, new Rect(0, 5, 20, 20));
++                else
++                {
++                    icon.anchorMin = icon.anchorMax = icon.pivot = new Vector2(.5f, .5f);
++                    icon.anchoredPosition = Vector2.zero; icon.sizeDelta = Vector2.one * 20;
++                }
++            }
 +        }
 +
 +        private void BeginSetupStepReveal()
@@ -343,22 +359,22 @@
 +            var heading = button.GetComponentInChildren<Text>();
 +            heading.alignment = TextAnchor.MiddleLeft;
 +            Stretch(heading.rectTransform);
-+            heading.rectTransform.offsetMin = new Vector2(54, 30);
-+            heading.rectTransform.offsetMax = new Vector2(-42, -8);
++            heading.rectTransform.offsetMin = new Vector2(56, 44);
++            heading.rectTransform.offsetMax = new Vector2(-52, -10);
 +            heading.fontStyle = FontStyle.Normal;
 +            var hint = Label(button.transform, detail, 13, Muted);
 +            hint.alignment = TextAnchor.MiddleLeft; hint.horizontalOverflow = HorizontalWrapMode.Wrap;
 +            Stretch(hint.rectTransform);
-+            hint.rectTransform.offsetMin = new Vector2(54, 8); hint.rectTransform.offsetMax = new Vector2(-12, -36);
++            hint.rectTransform.offsetMin = new Vector2(56, 10); hint.rectTransform.offsetMax = new Vector2(-52, -36);
 +            hint.resizeTextForBestFit = true; hint.resizeTextMinSize = 11; hint.resizeTextMaxSize = 13;
 +            var icon = RectObject("Mode Icon", button.transform);
-+            Place(icon, new Rect(16, 25, 26, 26));
++            Place(icon, new Rect(16, 26, 24, 24));
 +            var graphic = icon.gameObject.AddComponent<SiriAIActionIcon>(); graphic.Glyph = glyph;
 +            graphic.raycastTarget = false; SetAppearanceColor(graphic, value == selected ? SetupTint : Muted);
 +            if (value != selected) return;
 +            var check = RectObject("Selected mode", button.transform);
-+            check.anchorMin = check.anchorMax = new Vector2(1, 1); check.pivot = Vector2.one;
-+            check.anchoredPosition = new Vector2(-14, -12); check.sizeDelta = Vector2.one * 20;
++            check.anchorMin = check.anchorMax = new Vector2(1, .5f); check.pivot = new Vector2(.5f, .5f);
++            check.anchoredPosition = new Vector2(-26, 0); check.sizeDelta = Vector2.one * 20;
 +            var mark = check.gameObject.AddComponent<SiriAIActionIcon>(); mark.Glyph = SiriAIActionGlyph.Check;
 +            mark.raycastTarget = false; SetAppearanceColor(mark, SetupTint);
 +        }
@@ -540,7 +556,7 @@
                  Assert.False(start.IsCompleted); Assert.AreEqual(1,backend.Attempts);
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISetupExperienceTests.cs
-@@ -0,0 +1,286 @@
+@@ -0,0 +1,347 @@
 +using System;
 +using System.IO;
 +using System.Linq;
@@ -556,6 +572,67 @@
 +{
 +    public sealed class SiriAISetupExperienceTests
 +    {
++        private static Rect SetupBounds(RectTransform item, Transform relativeTo)
++        {
++            var corners = new Vector3[4]; item.GetWorldCorners(corners);
++            var min = (Vector2)relativeTo.InverseTransformPoint(corners[0]);
++            var max = (Vector2)relativeTo.InverseTransformPoint(corners[2]);
++            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
++        }
++
++        [TestCase(320)] [TestCase(480)] [TestCase(520)] [TestCase(568)] [TestCase(800)]
++        public void SetupAlignmentUsesSharedEdgesAndCenteredIconLabels(int width)
++        {
++            var owner = new GameObject("Setup alignment");
++            try
++            {
++                var view = owner.AddComponent<SiriAIChatView>();
++                view.TickEditorPreview(new Rect(0, 0, width, 760), 1f);
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").language = SiriAILanguage.English;
++                view.OpenSetupWizard();
++                Canvas.ForceUpdateCanvases();
++                var card = SiriAITestAccess.Field<RectTransform>(view, "_setupCard");
++                var hero = SiriAITestAccess.Field<RectTransform>(view, "_setupHero");
++                var footer = SiriAITestAccess.Field<RectTransform>(view, "_setupFooter");
++                var rail = SiriAITestAccess.Field<RectTransform>(view, "_setupStageRail");
++                var progress = SiriAITestAccess.Field<RectTransform>(view, "_setupStageProgress");
++                var content = SiriAITestAccess.Field<RectTransform>(view, "_setupContent");
++                var firstMode = content.GetComponentsInChildren<Button>().First();
++                foreach (var rect in new[] { hero, footer, rail, progress, (RectTransform)firstMode.transform })
++                    Assert.AreEqual(24, SetupBounds(rect, card).xMin, .1f, rect.name + " left edge");
++                foreach (var rect in new[] { footer, rail, progress, (RectTransform)firstMode.transform })
++                    Assert.AreEqual(card.rect.width - 24, SetupBounds(rect, card).xMax, .1f, rect.name + " right edge");
++                foreach (Transform cell in rail)
++                {
++                    var icon = cell.Find("Stage Icon").GetComponent<RectTransform>();
++                    var label = cell.GetComponentInChildren<Text>(true);
++                    if (label.gameObject.activeSelf)
++                    {
++                        Assert.AreEqual(TextAnchor.MiddleLeft, label.alignment, "Stage text must center vertically beside its icon.");
++                        Assert.LessOrEqual(label.preferredWidth, label.rectTransform.rect.width + .1f,
++                            "Stage names must fit on one line beside their icons.");
++                        Assert.AreEqual(SetupBounds(icon, cell).center.y, SetupBounds(label.rectTransform, cell).center.y, .1f);
++                    }
++                    else
++                        Assert.AreEqual(((RectTransform)cell).rect.center.x, SetupBounds(icon, cell).center.x, .1f,
++                            "Icon-only stages must center in their equal-width cells.");
++                }
++                foreach (var mode in content.GetComponentsInChildren<Button>().Where(x => x.transform.Find("Mode Icon") != null))
++                {
++                    var rect = (RectTransform)mode.transform;
++                    var icon = mode.transform.Find("Mode Icon").GetComponent<RectTransform>();
++                    var labels = mode.GetComponentsInChildren<Text>();
++                    var heading = SetupBounds(labels[0].rectTransform, rect); var detail = SetupBounds(labels[1].rectTransform, rect);
++                    Assert.AreEqual(heading.xMin, detail.xMin, .1f);
++                    Assert.LessOrEqual(detail.yMax, heading.yMin, "Mode text boxes must not overlap.");
++                    Assert.AreEqual(rect.rect.center.y, SetupBounds(icon, rect).center.y, .1f);
++                    var check = mode.transform.Find("Selected mode") as RectTransform;
++                    if (check != null) Assert.AreEqual(SetupBounds(icon, rect).center.y, SetupBounds(check, rect).center.y, .1f);
++                }
++            }
++            finally { Object.DestroyImmediate(owner); }
++        }
++
 +        [TestCase(-1, false)] [TestCase(2, false)] [TestCase(4, true)]
 +        public void InstalledModelProbeRejectsMissingAndTruncatedFiles(int bytes, bool installed)
 +        {
