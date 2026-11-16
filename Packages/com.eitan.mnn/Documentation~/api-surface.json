@@ -1906,6 +1906,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNEasyTurn.ConfigFileName",
+    "Signature": "public const string MNN.Unity.MNNEasyTurn.ConfigFileName = \u0022mnn_easy_turn.json\u0022",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "F:MNN.Unity.MNNEchoCancellationOptions.automaticDelay",
     "Signature": "public bool MNN.Unity.MNNEchoCancellationOptions.automaticDelay",
     "Summary": ""
@@ -2601,6 +2608,13 @@
     "Domain": "AudioProcessing",
     "Id": "F:MNN.Unity.MNNKeywordText.LanguageHint",
     "Signature": "public const string MNN.Unity.MNNKeywordText.LanguageHint = \u0022This wake model supports Chinese. Enter Chinese phrases, one per line. English or mixed-language wake words require a compatible model.\u0022",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNLiveKitMultilingual.ConfigFileName",
+    "Signature": "public const string MNN.Unity.MNNLiveKitMultilingual.ConfigFileName = \u0022mnn_livekit_multilingual.json\u0022",
     "Summary": ""
   },
   {
@@ -4538,6 +4552,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNTenTurnDetector.ConfigFileName",
+    "Signature": "public const string MNN.Unity.MNNTenTurnDetector.ConfigFileName = \u0022mnn_ten_turn.json\u0022",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "F:MNN.Unity.MNNTigerConfig.FileName",
     "Signature": "public const string MNN.Unity.MNNTigerConfig.FileName = \u0022mnn_tiger.json\u0022",
     "Summary": ""
@@ -5840,6 +5861,27 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNBairongTurnSense.Dispose",
+    "Signature": "public void MNN.Unity.MNNBairongTurnSense.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNBairongTurnSense.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
+    "Signature": "public static MNN.Unity.MNNBairongTurnSense MNN.Unity.MNNBairongTurnSense.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNBairongTurnSense.Predict(System.Single[],System.Int32,System.Threading.CancellationToken)",
+    "Signature": "public MNN.Unity.MNNBairongTurnSenseResult MNN.Unity.MNNBairongTurnSense.Predict(float[] samples, int sampleRate, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNBargeInAction.#ctor",
     "Signature": "public MNN.Unity.MNNBargeInAction.MNNBargeInAction()",
     "Summary": ""
@@ -6421,6 +6463,27 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNEasyTurn.Dispose",
+    "Signature": "public void MNN.Unity.MNNEasyTurn.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNEasyTurn.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
+    "Signature": "public static MNN.Unity.MNNEasyTurn MNN.Unity.MNNEasyTurn.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNEasyTurn.Predict(System.Single[],System.Int32,System.Threading.CancellationToken)",
+    "Signature": "public MNN.Unity.MNNEasyTurnResult MNN.Unity.MNNEasyTurn.Predict(float[] samples, int sampleRate, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNEchoCancellationOptions.#ctor",
     "Signature": "public MNN.Unity.MNNEchoCancellationOptions.MNNEchoCancellationOptions()",
     "Summary": ""
@@ -6879,6 +6942,48 @@
     "Id": "M:MNN.Unity.MNNKeywordText.Prepare(System.String,MNN.Unity.MNNKeywordLanguage)",
     "Signature": "public static string MNN.Unity.MNNKeywordText.Prepare(string wakeWords, MNN.Unity.MNNKeywordLanguage language = MNN.Unity.MNNKeywordLanguage.Automatic)",
     "Summary": "Prepare ordinary Chinese or English phrases for one model, one per line, with model vocabulary and language checks. Legacy token lines with @labels remain accepted for saved configurations."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNLiveKitMultilingual.Dispose",
+    "Signature": "public void MNN.Unity.MNNLiveKitMultilingual.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNLiveKitMultilingual.IsEndOfTurn(System.String,System.String,System.Threading.CancellationToken)",
+    "Signature": "public bool MNN.Unity.MNNLiveKitMultilingual.IsEndOfTurn(string text, string language = \u0022en\u0022, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNLiveKitMultilingual.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
+    "Signature": "public static MNN.Unity.MNNLiveKitMultilingual MNN.Unity.MNNLiveKitMultilingual.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNLiveKitMultilingual.Predict(System.Collections.Generic.IReadOnlyList{MNN.Unity.MNNLiveKitTurnMessage},System.Threading.CancellationToken)",
+    "Signature": "public float MNN.Unity.MNNLiveKitMultilingual.Predict(System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNLiveKitTurnMessage\u003E messages, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNLiveKitMultilingual.Predict(System.String,System.Threading.CancellationToken)",
+    "Signature": "public float MNN.Unity.MNNLiveKitMultilingual.Predict(string text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNLiveKitMultilingual.Threshold(System.String)",
+    "Signature": "public float MNN.Unity.MNNLiveKitMultilingual.Threshold(string language)",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Unity",
@@ -8143,6 +8248,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNRealtimeUtteranceBuffer.Snapshot(System.Int32)",
+    "Signature": "public float[] MNN.Unity.MNNRealtimeUtteranceBuffer.Snapshot(int maximumTrailingSilenceSamples)",
+    "Summary": "Keep speech and internal pauses, bounding only the final VAD-silent tail."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNRealtimeVadUpdate.#ctor",
     "Signature": "public MNN.Unity.MNNRealtimeVadUpdate.MNNRealtimeVadUpdate()",
     "Summary": ""
@@ -8878,6 +8990,34 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNTenTurnDetector.Dispose",
+    "Signature": "public void MNN.Unity.MNNTenTurnDetector.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNTenTurnDetector.IsEndOfTurn(System.String,System.Threading.CancellationToken)",
+    "Signature": "public bool MNN.Unity.MNNTenTurnDetector.IsEndOfTurn(string text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNTenTurnDetector.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
+    "Signature": "public static MNN.Unity.MNNTenTurnDetector MNN.Unity.MNNTenTurnDetector.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNTenTurnDetector.Predict(System.String,System.Threading.CancellationToken)",
+    "Signature": "public string MNN.Unity.MNNTenTurnDetector.Predict(string text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNTigerConfig.#ctor",
     "Signature": "public MNN.Unity.MNNTigerConfig.MNNTigerConfig()",
     "Summary": ""
@@ -8934,6 +9074,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNTurnDetector.IsComplete(System.Single[],System.Int32,System.String,System.String,System.Threading.CancellationToken)",
+    "Signature": "public bool MNN.Unity.MNNTurnDetector.IsComplete(float[] audio, int sampleRate, string transcript, string language, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": "Uses the model\u0027s published threshold for the supplied transcript language."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNTurnDetector.IsComplete(System.Single[],System.Int32,System.String,System.Threading.CancellationToken)",
     "Signature": "public bool MNN.Unity.MNNTurnDetector.IsComplete(float[] audio, int sampleRate, string transcript = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
     "Summary": ""
@@ -8942,7 +9089,7 @@
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNTurnDetector.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
-    "Signature": "public static MNN.Unity.MNNTurnDetector MNN.Unity.MNNTurnDetector.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)",
+    "Signature": "public static MNN.Unity.MNNTurnDetector MNN.Unity.MNNTurnDetector.Load(string directory, int threadCount = 0, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)",
     "Summary": ""
   },
   {
@@ -9788,6 +9935,41 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNBairongTurnSense.Backend",
+    "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNBairongTurnSense.Backend { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNBairongTurnSenseResult.ClassIndex",
+    "Signature": "public int MNN.Unity.MNNBairongTurnSenseResult.ClassIndex { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNBairongTurnSenseResult.IsComplete",
+    "Signature": "public bool MNN.Unity.MNNBairongTurnSenseResult.IsComplete { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNBairongTurnSenseResult.Label",
+    "Signature": "public string MNN.Unity.MNNBairongTurnSenseResult.Label { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNBairongTurnSenseResult.Probabilities",
+    "Signature": "public System.Collections.Generic.IReadOnlyList\u003Cfloat\u003E MNN.Unity.MNNBairongTurnSenseResult.Probabilities { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "P:MNN.Unity.MNNBargeInPolicy.HasCandidate",
     "Signature": "public bool MNN.Unity.MNNBargeInPolicy.HasCandidate { get; }",
     "Summary": ""
@@ -10082,6 +10264,48 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNEasyTurn.Backend",
+    "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNEasyTurn.Backend { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNEasyTurnResult.IsComplete",
+    "Signature": "public bool MNN.Unity.MNNEasyTurnResult.IsComplete { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNEasyTurnResult.Label",
+    "Signature": "public string MNN.Unity.MNNEasyTurnResult.Label { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNEasyTurnResult.Text",
+    "Signature": "public string MNN.Unity.MNNEasyTurnResult.Text { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNEasyTurnResult.Tokens",
+    "Signature": "public System.Collections.Generic.IReadOnlyList\u003Cint\u003E MNN.Unity.MNNEasyTurnResult.Tokens { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNEasyTurnResult.Transcript",
+    "Signature": "public string MNN.Unity.MNNEasyTurnResult.Transcript { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "P:MNN.Unity.MNNEchoCancellationWorker.CaptureFormat",
     "Signature": "public MNN.Unity.MNNPcmFormat MNN.Unity.MNNEchoCancellationWorker.CaptureFormat { get; }",
     "Summary": ""
@@ -10294,6 +10518,13 @@
     "Domain": "AudioProcessing",
     "Id": "P:MNN.Unity.MNNKeywordSpotterConfig.Language",
     "Signature": "public MNN.Unity.MNNKeywordLanguage MNN.Unity.MNNKeywordSpotterConfig.Language { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNLiveKitMultilingual.Backend",
+    "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNLiveKitMultilingual.Backend { get; }",
     "Summary": ""
   },
   {
@@ -11454,6 +11685,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNTenTurnDetector.Backend",
+    "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNTenTurnDetector.Backend { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "P:MNN.Unity.MNNTigerSeparation.Backend",
     "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNTigerSeparation.Backend { get; }",
     "Summary": ""
@@ -12021,6 +12259,20 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNBairongTurnSense",
+    "Signature": "class MNN.Unity.MNNBairongTurnSense",
+    "Summary": "Bairong TurnSense 1.0/1.1 acoustic complete/incomplete/invalid decisions, separate from SmolLM2 TurnSense."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNBairongTurnSenseResult",
+    "Signature": "class MNN.Unity.MNNBairongTurnSenseResult",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "T:MNN.Unity.MNNBargeInAction",
     "Signature": "enum MNN.Unity.MNNBargeInAction",
     "Summary": ""
@@ -12217,6 +12469,20 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNEasyTurn",
+    "Signature": "class MNN.Unity.MNNEasyTurn",
+    "Summary": "ASLP Easy-Turn acoustic transcription and four-way turn classification."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNEasyTurnResult",
+    "Signature": "class MNN.Unity.MNNEasyTurnResult",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "T:MNN.Unity.MNNEchoCancellationOptions",
     "Signature": "class MNN.Unity.MNNEchoCancellationOptions",
     "Summary": ""
@@ -12346,6 +12612,13 @@
     "Id": "T:MNN.Unity.MNNKeywordText",
     "Signature": "class MNN.Unity.MNNKeywordText",
     "Summary": "Offline ordinary-text preparation for the supported Chinese Wenetspeech and English GigaSpeech KWS models. Does not load native libraries, write files, download assets or require Python."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNLiveKitMultilingual",
+    "Signature": "class MNN.Unity.MNNLiveKitMultilingual",
+    "Summary": "LiveKit v0.4.1 multilingual transcript detector with published language thresholds."
   },
   {
     "Assembly": "MNN.Unity",
@@ -12871,6 +13144,13 @@
     "Id": "T:MNN.Unity.MNNSudoRmRfSeparation",
     "Signature": "class MNN.Unity.MNNSudoRmRfSeparation",
     "Summary": "Original improved U16/512 SudoRMRF two-speaker WSJ0-2mix inference."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNTenTurnDetector",
+    "Signature": "class MNN.Unity.MNNTenTurnDetector",
+    "Summary": "TEN 7B transcript classification. Only finished ends a turn; wait never does."
   },
   {
     "Assembly": "MNN.Unity",
@@ -20036,6 +20316,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNConversationLocalModelOptions.TurnThreads",
+    "Signature": "public int MNN.Unity.MNNConversationLocalModelOptions.TurnThreads",
+    "Summary": "Zero selects the turn model\u0027s measured default; 1\u201364 explicitly overrides it."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
     "Id": "F:MNN.Unity.MNNConversationLocalModelOptions.Voice",
     "Signature": "public string MNN.Unity.MNNConversationLocalModelOptions.Voice",
     "Summary": ""
@@ -20109,6 +20396,13 @@
     "Id": "F:MNN.Unity.MNNConversationOptions.maximumResponseSeconds",
     "Signature": "public int MNN.Unity.MNNConversationOptions.maximumResponseSeconds",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNConversationOptions.maximumTurnSilenceMilliseconds",
+    "Signature": "public int MNN.Unity.MNNConversationOptions.maximumTurnSilenceMilliseconds",
+    "Summary": "Continuous VAD silence that releases a negative semantic decision; voice validation still applies. The effective limit is at least silenceMilliseconds. Does not limit inference execution time."
   },
   {
     "Assembly": "MNN.Unity",
@@ -24811,7 +25105,7 @@
     "Assembly": "MNN.Unity",
     "Domain": "Language",
     "Id": "M:MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(System.Single[],System.Boolean,System.String,System.Threading.CancellationToken)",
-    "Signature": "protected System.Threading.Tasks.Task\u003CMNN.Unity.MNNConversationRuntime.VoiceCandidate\u003E MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(float[] audio, bool full, string echo, System.Threading.CancellationToken token)",
+    "Signature": "protected System.Threading.Tasks.Task\u003CMNN.Unity.MNNConversationRuntime.VoiceCandidate\u003E MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(float[] audio, bool silenceExpired, string echo, System.Threading.CancellationToken token)",
     "Summary": ""
   },
   {
@@ -36605,6 +36899,20 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelRegistry.Find(MNN.Unity.MNNModelSource,System.String)",
+    "Signature": "public static MNN.Unity.MNNModelRegistration MNN.Unity.MNNModelRegistry.Find(MNN.Unity.MNNModelSource source, string repository)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelRegistry.FindTurn(System.String)",
+    "Signature": "public static MNN.Unity.MNNModelRegistration MNN.Unity.MNNModelRegistry.FindTurn(string directory)",
+    "Summary": "Finds a registered turn deployment by its marker, independent of the folder name."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
     "Id": "M:MNN.Unity.MNNModelRepositoryFile.#ctor",
     "Signature": "public MNN.Unity.MNNModelRepositoryFile.MNNModelRepositoryFile()",
     "Summary": ""
@@ -37256,6 +37564,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNModelRegistry.All",
+    "Signature": "public static System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNModelRegistration\u003E MNN.Unity.MNNModelRegistry.All { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
     "Id": "P:MNN.Unity.MNNModelRepositoryIdentity.Repository",
     "Signature": "public string MNN.Unity.MNNModelRepositoryIdentity.Repository { get; }",
     "Summary": ""
@@ -37749,6 +38064,13 @@
     "Id": "T:MNN.Unity.MNNModelRecommendationTask",
     "Signature": "enum MNN.Unity.MNNModelRecommendationTask",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "T:MNN.Unity.MNNModelRegistry",
+    "Signature": "class MNN.Unity.MNNModelRegistry",
+    "Summary": "Immutable shared registration table. New deployments add one entry here."
   },
   {
     "Assembly": "MNN.Unity",

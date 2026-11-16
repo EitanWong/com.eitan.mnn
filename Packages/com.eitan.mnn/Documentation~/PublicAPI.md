@@ -1095,6 +1095,10 @@ public string MNN.Unity.MNNDualTurnEndpointingConfig.weights
 ```
 
 ```csharp
+public const string MNN.Unity.MNNEasyTurn.ConfigFileName = "mnn_easy_turn.json"
+```
+
+```csharp
 public bool MNN.Unity.MNNEchoCancellationOptions.automaticDelay
 ```
 
@@ -1494,6 +1498,10 @@ public string MNN.Unity.MNNKeywordSpotterConfig.repository
 
 ```csharp
 public const string MNN.Unity.MNNKeywordText.LanguageHint = "This wake model supports Chinese. Enter Chinese phrases, one per line. English or mixed-language wake words require a compatible model."
+```
+
+```csharp
+public const string MNN.Unity.MNNLiveKitMultilingual.ConfigFileName = "mnn_livekit_multilingual.json"
 ```
 
 ```csharp
@@ -2601,6 +2609,10 @@ public const int MNN.Unity.MNNSudoRmRfSeparation.SampleRate = 8000
 ```
 
 ```csharp
+public const string MNN.Unity.MNNTenTurnDetector.ConfigFileName = "mnn_ten_turn.json"
+```
+
+```csharp
 public const string MNN.Unity.MNNTigerConfig.FileName = "mnn_tiger.json"
 ```
 
@@ -3391,6 +3403,18 @@ public static float[] MNN.Unity.MNNAvMossFormer2TseVisual.PrepareFrame(MNN.Unity
 ```
 
 ```csharp
+public void MNN.Unity.MNNBairongTurnSense.Dispose()
+```
+
+```csharp
+public static MNN.Unity.MNNBairongTurnSense MNN.Unity.MNNBairongTurnSense.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
+```
+
+```csharp
+public MNN.Unity.MNNBairongTurnSenseResult MNN.Unity.MNNBairongTurnSense.Predict(float[] samples, int sampleRate, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
 public MNN.Unity.MNNBargeInAction.MNNBargeInAction()
 ```
 
@@ -3759,6 +3783,18 @@ public static MNN.Unity.MNNDualTurnEndpointingConfig MNN.Unity.MNNDualTurnEndpoi
 ```
 
 ```csharp
+public void MNN.Unity.MNNEasyTurn.Dispose()
+```
+
+```csharp
+public static MNN.Unity.MNNEasyTurn MNN.Unity.MNNEasyTurn.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
+```
+
+```csharp
+public MNN.Unity.MNNEasyTurnResult MNN.Unity.MNNEasyTurn.Predict(float[] samples, int sampleRate, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
 public MNN.Unity.MNNEchoCancellationOptions.MNNEchoCancellationOptions()
 ```
 
@@ -4059,6 +4095,30 @@ public static string MNN.Unity.MNNKeywordText.Prepare(string wakeWords, MNN.Unit
 ```
 
 Prepare ordinary Chinese or English phrases for one model, one per line, with model vocabulary and language checks. Legacy token lines with @labels remain accepted for saved configurations.
+
+```csharp
+public void MNN.Unity.MNNLiveKitMultilingual.Dispose()
+```
+
+```csharp
+public bool MNN.Unity.MNNLiveKitMultilingual.IsEndOfTurn(string text, string language = "en", System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+public static MNN.Unity.MNNLiveKitMultilingual MNN.Unity.MNNLiveKitMultilingual.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
+```
+
+```csharp
+public float MNN.Unity.MNNLiveKitMultilingual.Predict(System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNLiveKitTurnMessage> messages, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+public float MNN.Unity.MNNLiveKitMultilingual.Predict(string text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+public float MNN.Unity.MNNLiveKitMultilingual.Threshold(string language)
+```
 
 ```csharp
 public void MNN.Unity.MNNLiveKitTurnDetector.Dispose()
@@ -4859,6 +4919,12 @@ public float[] MNN.Unity.MNNRealtimeUtteranceBuffer.Snapshot()
 ```
 
 ```csharp
+public float[] MNN.Unity.MNNRealtimeUtteranceBuffer.Snapshot(int maximumTrailingSilenceSamples)
+```
+
+Keep speech and internal pauses, bounding only the final VAD-silent tail.
+
+```csharp
 public MNN.Unity.MNNRealtimeVadUpdate.MNNRealtimeVadUpdate()
 ```
 
@@ -5323,6 +5389,22 @@ public MNN.Unity.MNNSeparatedAudio MNN.Unity.MNNSudoRmRfSeparation.SeparateWaveF
 ```
 
 ```csharp
+public void MNN.Unity.MNNTenTurnDetector.Dispose()
+```
+
+```csharp
+public bool MNN.Unity.MNNTenTurnDetector.IsEndOfTurn(string text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+public static MNN.Unity.MNNTenTurnDetector MNN.Unity.MNNTenTurnDetector.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
+```
+
+```csharp
+public string MNN.Unity.MNNTenTurnDetector.Predict(string text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
 public MNN.Unity.MNNTigerConfig.MNNTigerConfig()
 ```
 
@@ -5357,11 +5439,17 @@ public void MNN.Unity.MNNTurnDetector.Dispose()
 ```
 
 ```csharp
+public bool MNN.Unity.MNNTurnDetector.IsComplete(float[] audio, int sampleRate, string transcript, string language, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+Uses the model's published threshold for the supplied transcript language.
+
+```csharp
 public bool MNN.Unity.MNNTurnDetector.IsComplete(float[] audio, int sampleRate, string transcript = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
 ```
 
 ```csharp
-public static MNN.Unity.MNNTurnDetector MNN.Unity.MNNTurnDetector.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)
+public static MNN.Unity.MNNTurnDetector MNN.Unity.MNNTurnDetector.Load(string directory, int threadCount = 0, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)
 ```
 
 ```csharp
@@ -5857,6 +5945,26 @@ public MNN.Unity.MNNBackendType MNN.Unity.MNNAvMossFormer2Tse.Backend { get; }
 ```
 
 ```csharp
+public MNN.Unity.MNNBackendType MNN.Unity.MNNBairongTurnSense.Backend { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNBairongTurnSenseResult.ClassIndex { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNBairongTurnSenseResult.IsComplete { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNBairongTurnSenseResult.Label { get; }
+```
+
+```csharp
+public System.Collections.Generic.IReadOnlyList<float> MNN.Unity.MNNBairongTurnSenseResult.Probabilities { get; }
+```
+
+```csharp
 public bool MNN.Unity.MNNBargeInPolicy.HasCandidate { get; }
 ```
 
@@ -6025,6 +6133,30 @@ public float MNN.Unity.MNNDualTurnEndpointingResult.UserVoiceProbability { get; 
 ```
 
 ```csharp
+public MNN.Unity.MNNBackendType MNN.Unity.MNNEasyTurn.Backend { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNEasyTurnResult.IsComplete { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNEasyTurnResult.Label { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNEasyTurnResult.Text { get; }
+```
+
+```csharp
+public System.Collections.Generic.IReadOnlyList<int> MNN.Unity.MNNEasyTurnResult.Tokens { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNEasyTurnResult.Transcript { get; }
+```
+
+```csharp
 public MNN.Unity.MNNPcmFormat MNN.Unity.MNNEchoCancellationWorker.CaptureFormat { get; }
 ```
 
@@ -6146,6 +6278,10 @@ public MNN.Unity.MNNKeywordLanguage MNN.Unity.MNNKeywordSpotter.Language { get; 
 
 ```csharp
 public MNN.Unity.MNNKeywordLanguage MNN.Unity.MNNKeywordSpotterConfig.Language { get; }
+```
+
+```csharp
+public MNN.Unity.MNNBackendType MNN.Unity.MNNLiveKitMultilingual.Backend { get; }
 ```
 
 ```csharp
@@ -6819,6 +6955,10 @@ public MNN.Unity.MNNBackendType MNN.Unity.MNNSudoRmRfSeparation.Backend { get; }
 ```
 
 ```csharp
+public MNN.Unity.MNNBackendType MNN.Unity.MNNTenTurnDetector.Backend { get; }
+```
+
+```csharp
 public MNN.Unity.MNNBackendType MNN.Unity.MNNTigerSeparation.Backend { get; }
 ```
 
@@ -7201,6 +7341,16 @@ class MNN.Unity.MNNAvMossFormer2TseVisual
 Compatible AV-MossFormer2 entry point for ClearerVoice target-face preparation.
 
 ```csharp
+class MNN.Unity.MNNBairongTurnSense
+```
+
+Bairong TurnSense 1.0/1.1 acoustic complete/incomplete/invalid decisions, separate from SmolLM2 TurnSense.
+
+```csharp
+class MNN.Unity.MNNBairongTurnSenseResult
+```
+
+```csharp
 enum MNN.Unity.MNNBargeInAction
 ```
 
@@ -7341,6 +7491,16 @@ class MNN.Unity.MNNDualTurnEndpointingResult
 One 80 ms frame: user EOT, both VAD channels, and four FVAD horizons per channel.
 
 ```csharp
+class MNN.Unity.MNNEasyTurn
+```
+
+ASLP Easy-Turn acoustic transcription and four-way turn classification.
+
+```csharp
+class MNN.Unity.MNNEasyTurnResult
+```
+
+```csharp
 class MNN.Unity.MNNEchoCancellationOptions
 ```
 
@@ -7441,6 +7601,12 @@ class MNN.Unity.MNNKeywordText
 ```
 
 Offline ordinary-text preparation for the supported Chinese Wenetspeech and English GigaSpeech KWS models. Does not load native libraries, write files, download assets or require Python.
+
+```csharp
+class MNN.Unity.MNNLiveKitMultilingual
+```
+
+LiveKit v0.4.1 multilingual transcript detector with published language thresholds.
 
 ```csharp
 class MNN.Unity.MNNLiveKitTurnDetector
@@ -7851,6 +8017,12 @@ class MNN.Unity.MNNSudoRmRfSeparation
 ```
 
 Original improved U16/512 SudoRMRF two-speaker WSJ0-2mix inference.
+
+```csharp
+class MNN.Unity.MNNTenTurnDetector
+```
+
+TEN 7B transcript classification. Only finished ends a turn; wait never does.
 
 ```csharp
 class MNN.Unity.MNNTigerConfig
@@ -12607,6 +12779,12 @@ public int MNN.Unity.MNNConversationLocalModelOptions.Threads
 ```
 
 ```csharp
+public int MNN.Unity.MNNConversationLocalModelOptions.TurnThreads
+```
+
+Zero selects the turn model's measured default; 1–64 explicitly overrides it.
+
+```csharp
 public string MNN.Unity.MNNConversationLocalModelOptions.Voice
 ```
 
@@ -12649,6 +12827,12 @@ public int MNN.Unity.MNNConversationOptions.maximumResponseCharacters
 ```csharp
 public int MNN.Unity.MNNConversationOptions.maximumResponseSeconds
 ```
+
+```csharp
+public int MNN.Unity.MNNConversationOptions.maximumTurnSilenceMilliseconds
+```
+
+Continuous VAD silence that releases a negative semantic decision; voice validation still applies. The effective limit is at least silenceMilliseconds. Does not limit inference execution time.
 
 ```csharp
 public int MNN.Unity.MNNConversationOptions.maximumUtteranceSeconds
@@ -15391,7 +15575,7 @@ public static System.Threading.Tasks.Task MNN.Unity.MNNConversationRuntime.Drain
 ```
 
 ```csharp
-protected System.Threading.Tasks.Task<MNN.Unity.MNNConversationRuntime.VoiceCandidate> MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(float[] audio, bool full, string echo, System.Threading.CancellationToken token)
+protected System.Threading.Tasks.Task<MNN.Unity.MNNConversationRuntime.VoiceCandidate> MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(float[] audio, bool silenceExpired, string echo, System.Threading.CancellationToken token)
 ```
 
 ```csharp
@@ -22659,6 +22843,16 @@ public MNN.Unity.MNNModelRecommendationTask.MNNModelRecommendationTask()
 ```
 
 ```csharp
+public static MNN.Unity.MNNModelRegistration MNN.Unity.MNNModelRegistry.Find(MNN.Unity.MNNModelSource source, string repository)
+```
+
+```csharp
+public static MNN.Unity.MNNModelRegistration MNN.Unity.MNNModelRegistry.FindTurn(string directory)
+```
+
+Finds a registered turn deployment by its marker, independent of the folder name.
+
+```csharp
 public MNN.Unity.MNNModelRepositoryFile.MNNModelRepositoryFile()
 ```
 
@@ -23039,6 +23233,10 @@ public double MNN.Unity.MNNModelRecommendationResult.ThroughputPerSecond { get; 
 ```
 
 ```csharp
+public static System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNModelRegistration> MNN.Unity.MNNModelRegistry.All { get; }
+```
+
+```csharp
 public string MNN.Unity.MNNModelRepositoryIdentity.Repository { get; }
 ```
 
@@ -23371,6 +23569,12 @@ enum MNN.Unity.MNNModelRecommendationStatus
 ```csharp
 enum MNN.Unity.MNNModelRecommendationTask
 ```
+
+```csharp
+class MNN.Unity.MNNModelRegistry
+```
+
+Immutable shared registration table. New deployments add one entry here.
 
 ```csharp
 class MNN.Unity.MNNModelRepositoryFile
