@@ -480,3 +480,18 @@ Runtime Settings 和 Configurable Backend Inspector 使用包级 `GetVoiceOption
 从当前模型导出读取音色 ID，改用选择列表；参考录音模型继续配置 WAV 和转写。
 未安装或元数据损坏时不猜测音色，旧的无效选项提示并回到模型默认。
 详见[语音合成音色选择](../../Documentation~/SpeechVoices.md)。
+
+
+## 实时存在感知与手动语音
+
+`realtime-presence` 在 `voice-input` 后应用。人脸存在感知只控制实时聆听；
+空格和长按录音、转写、提交不等待目标入镜。目标离开只暂停实时采集，保留用户的模式选择。
+摄像头先读取首帧再检查尺寸；重新打开前等待原设备释放，自动画质超时后在同一设备重试 640×480、15 FPS。
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage realtime-presence
+```
+
+补丁保留全部 `.meta` GUID，校验精确基线，重复执行不写入。
+C930c 与 EasyMic、已有真实人脸检测模型已完成三次启动和重启，持续收到视频帧与麦克风 PCM。
+首帧协商问题有确定性回归覆盖；用户现场的间歇性超时未在硬件测试中重现。
