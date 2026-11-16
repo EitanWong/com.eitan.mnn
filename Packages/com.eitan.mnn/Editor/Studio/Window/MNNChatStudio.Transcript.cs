@@ -7,7 +7,8 @@ namespace MNN.Unity.Editor
 {
     public sealed partial class MNNChatStudio
     {
-        // Measured heights preserve the existing IMGUI layout, including media and actions.
+        // Estimate cold rows so opening a long chat draws only the viewport. Visible
+        // rows acquire exact IMGUI heights, including media and actions.
         // Visibility is frozen at Layout so input/Repaint consume the same control tree.
         private readonly List<TranscriptRow> _transcriptRows = new List<TranscriptRow>();
         private float _transcriptWidth;
@@ -35,9 +36,16 @@ namespace MNN.Unity.Editor
             _transcriptDark = dark;
             _transcriptScale = scale;
             while (_transcriptRows.Count < _messages.Count)
-                _transcriptRows.Add(new TranscriptRow { Message = _messages[_transcriptRows.Count] });
+            {
+                var message = _messages[_transcriptRows.Count];
+                float charactersPerLine = Mathf.Max(16, width * (message.IsUser ? .82f : 1f) / 7);
+                float estimate = 80 + Mathf.Ceil((message.Text?.Length ?? 0) / charactersPerLine) * 20;
+                if (message.ImagePath != null) estimate += 200;
+                if (message.AudioPath != null) estimate += 32;
+                _transcriptRows.Add(new TranscriptRow { Message = message, Height = estimate });
+            }
             float total = TranscriptHeight(out bool measured);
-            float viewport = _conversationRect.height;
+            float viewport = _conversationRect.height > 0 ? _conversationRect.height : Mathf.Max(100, position.height - 220);
             float top = Mathf.Clamp(_scroll.y, 0, Mathf.Max(0, total - viewport));
             UpdateTranscriptVisibility(top, viewport, measured);
         }

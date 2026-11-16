@@ -40,6 +40,10 @@ namespace MNN.Unity.Editor
         private bool _isClosing;
         private CancellationTokenSource _catalogCancellation;
         private CancellationTokenSource _searchCancellation;
+        private CancellationTokenSource _installationCancellation;
+        private int _completedDownloadCount, _filteredInstalledCount;
+        private string _modelStatus;
+        private readonly Dictionary<MNNModelCategory, string> _categoryButtonLabels = new Dictionary<MNNModelCategory, string>();
         private int _searchScopePage;
         private string _searchFaceCursor;
         private bool _searchFaceMore, _searchReady;
@@ -63,7 +67,7 @@ namespace MNN.Unity.Editor
         public static void ShowWindow()
         {
             var window = GetWindow<MNNModelManagerWindow>();
-            window.titleContent = new GUIContent(MNNLocalization.Get("modelmanager.title"));
+            window.titleContent = new GUIContent(MNNLocalization.Get("modelmanager.title"), MNNEditorUI.GetIcon("Prefab Icon").image);
             window.minSize = new Vector2(760, 480);
             if (window._workspaceTask != null)
             {
@@ -96,10 +100,13 @@ namespace MNN.Unity.Editor
         {
             _isClosing = false;
             _isLoadingModels = false;
-            _repository = MNNModelRepository.GetDefaultRepository();
+            // The first frame needs metadata only; installation I/O runs below on a worker.
+            _repository = new MNNModelRepository();
+            _repository.IncludePublishedProfiles();
             foreach (MNNModelProvider provider in Enum.GetValues(typeof(MNNModelProvider)))
                 if (MNNModelCatalogCache.Shared.TryRead(provider, out var cached))
                     _repository.models.AddRange(cached.models);
+            _completedDownloadCount = MNNModelDownloadTasks.instance.Jobs.Count(job => job.State == MNNDownloadState.Completed);
             MNNModelDownloadTasks.instance.Changed += OnDownloadsChanged;
             RebuildCategoryOptions();
             _sizeFilterLabels = GetLabels("filter.size.any", "filter.size.under100mb", "filter.size.100mb1gb", "filter.size.1gb5gb", "filter.size.over5gb");
@@ -115,6 +122,8 @@ namespace MNN.Unity.Editor
         {
             _isClosing = true;
             _catalogCancellation?.Cancel();
+            _installationCancellation?.Cancel();
+            EditorApplication.delayCall -= LoadMoreRepository;
             _searchCancellation?.Cancel();
             _searchCancellation?.Dispose();
             _searchCancellation = null;
@@ -123,12 +132,19 @@ namespace MNN.Unity.Editor
 
         private void OnDownloadsChanged()
         {
-            CheckInstalledModels();
+            int completed = MNNModelDownloadTasks.instance.Jobs.Count(job => job.State == MNNDownloadState.Completed);
+            if (completed != _completedDownloadCount)
+            {
+                _completedDownloadCount = completed;
+                CheckInstalledModels();
+            }
             Repaint();
         }
 
         private void OnGUI()
         {
+            EditorGUI.DrawRect(new Rect(Vector2.zero, position.size), MNNStudioUI.Background);
+            HandleModelListKeyboard();
             using (new EditorGUILayout.VerticalScope(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true)))
             {
                 DrawToolbarSection();
@@ -182,7 +198,6 @@ namespace MNN.Unity.Editor
             _searchQuery = MNNEditorUI.DrawSearchField(_searchQuery);
             if (EditorGUI.EndChangeCheck())
             {
-                RefreshModelList();
                 SearchOnlineRepository(_searchQuery);
             }
         }
@@ -210,7 +225,9 @@ namespace MNN.Unity.Editor
             var jobs = tasks.Jobs;
             if (jobs.Count > 0)
             {
-                var index = jobs.ToList().FindIndex(job => job.Id == _selectedDownloadId);
+                int index = -1;
+                for (int i = 0; i < jobs.Count; ++i)
+                    if (jobs[i].Id == _selectedDownloadId) { index = i; break; }
                 if (index < 0)
                     index = jobs.Count - 1;
                 if (jobs.Count > 1)
@@ -238,8 +255,7 @@ namespace MNN.Unity.Editor
             }
             else
             {
-                var statusText = $"{_filteredModels.Count} {MNNLocalization.Get("status.models")} | " + $"{_filteredModels.Count(m => m.isInstalled)} {MNNLocalization.Get("modelmanager.installed")}";
-                MNNEditorUI.DrawStatusBar(statusText);
+                MNNEditorUI.DrawStatusBar(_modelStatus, _installationCancellation != null ? "Checking local models…" : null);
             }
         }
 

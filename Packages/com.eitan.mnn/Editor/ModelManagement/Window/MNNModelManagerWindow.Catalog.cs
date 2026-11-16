@@ -12,21 +12,53 @@ namespace MNN.Unity.Editor
 {
     public partial class MNNModelManagerWindow
     {
-        private void CheckInstalledModels()
+        private async void CheckInstalledModels()
+        {
+            _installationCancellation?.Cancel();
+            var cancellation = new CancellationTokenSource();
+            _installationCancellation = cancellation;
+            var token = cancellation.Token;
+            // Workers own snapshots. Only the editor thread publishes UI state.
+            var originals = _repository.models.ToArray();
+            var snapshots = originals.Select(model => model.CopyCatalogEntry()).ToArray();
+            try
+            {
+                await Task.Run(() => ReadInstallations(snapshots, token), token);
+                if (_isClosing || token.IsCancellationRequested)
+                    return;
+                for (int i = 0; i < originals.Length; ++i)
+                {
+                    originals[i].isInstalled = snapshots[i].isInstalled;
+                    originals[i].localPath = snapshots[i].localPath;
+                }
+                RefreshModelStatus();
+                Repaint();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception error)
+            {
+                if (!_isClosing && !token.IsCancellationRequested)
+                    _repositoryError = "Unable to check local models: " + error.Message;
+            }
+            finally
+            {
+                if (_installationCancellation == cancellation)
+                    _installationCancellation = null;
+                cancellation.Dispose();
+            }
+        }
+
+        private static void ReadInstallations(MNNModelInfo[] models, CancellationToken token)
         {
             var installations = MNNModelInstallIndex.Read(MODELS_FOLDER);
-            foreach (var model in _repository.models)
+            foreach (var model in models)
             {
+                token.ThrowIfCancellationRequested();
                 var path = GetInstalledPath(model, installations);
                 var registration = MNNModelRegistry.Find((MNNModelSource)model.provider, model.repositoryId);
                 model.isInstalled = registration != null ? registration.IsComplete(path)
                     : model.repositoryId == MNNMiniMindO.Repository ? MNNMiniMindO.IsComplete(path) : model.isRepository ? Directory.Exists(path) && File.Exists(Path.Combine(path, INSTALL_MARKER)) && MNNModelRepository.MatchesInstallMarker(model, File.ReadAllText(Path.Combine(path, INSTALL_MARKER)).Trim()) : File.Exists(path);
-                if (model.isInstalled)
-                {
-                    model.localPath = path;
-                }
-                else
-                    model.localPath = null;
+                model.localPath = model.isInstalled ? path : null;
             }
         }
 
@@ -148,11 +180,19 @@ namespace MNN.Unity.Editor
             _searchScopePage = string.IsNullOrWhiteSpace(value) ? 0 : 1;
             _searchFaceCursor = null;
             _searchFaceMore = _searchScopePage > 0;
-            if (_searchScopePage == 0) return;
+            if (_searchScopePage == 0)
+            {
+                RefreshModelList();
+                return;
+            }
             var source = _searchCancellation = new CancellationTokenSource();
             try
             {
-                await Task.Delay(350, source.Token);
+                await Task.Delay(150, source.Token);
+                if (_isClosing) return;
+                RefreshModelList();
+                Repaint();
+                await Task.Delay(200, source.Token);
                 while (_loadMorePending) await Task.Delay(50, source.Token);
                 _searchReady = true;
                 await LoadSearchRepositoryAsync(value.Trim(), source.Token);
@@ -197,10 +237,11 @@ namespace MNN.Unity.Editor
                 token.ThrowIfCancellationRequested();
                 if (_isClosing || !string.Equals(query, _searchQuery.Trim(), StringComparison.Ordinal)) return;
                 _searchScopePage = scopeNext; _searchFaceCursor = faceNext; _searchFaceMore = faceMore;
+                var identities = new HashSet<string>(_repository.models.Select(model => model.provider + ":" + model.repositoryId), StringComparer.OrdinalIgnoreCase);
                 foreach (var remote in models)
                 {
                     var model = MNNModelRepository.FromRemote(remote);
-                    if (!_repository.models.Any(existing => existing.provider == model.provider && string.Equals(existing.repositoryId, model.repositoryId, StringComparison.OrdinalIgnoreCase)))
+                    if (identities.Add(model.provider + ":" + model.repositoryId))
                         _repository.models.Add(model);
                 }
                 _repositoryError = errors.Count == 0 ? null : string.Join("\n", errors);

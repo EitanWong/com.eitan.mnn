@@ -45,8 +45,17 @@ namespace MNN.Unity.Editor
             }
 
             _filteredModels = results.ToList();
+            _modelListScrollPos = Vector2.zero;
+            RefreshModelStatus();
             if (_selectedModel != null && !_filteredModels.Contains(_selectedModel))
                 _selectedModel = null;
+        }
+
+        private void RefreshModelStatus()
+        {
+            _filteredInstalledCount = _filteredModels.Count(model => model.isInstalled);
+            _modelStatus = _filteredModels.Count + " " + MNNLocalization.Get("status.models") + "  ·  " +
+                _filteredInstalledCount + " " + MNNLocalization.Get("modelmanager.installed");
         }
 
         private bool MatchesSizeFilter(MNNModelInfo model)
@@ -120,6 +129,15 @@ namespace MNN.Unity.Editor
             var available = _repository.models.Select(model => Enum.TryParse(model.category, true, out MNNModelCategory category) ? category : MNNModelCategory.All).Where(category => category != MNNModelCategory.All).Distinct().OrderBy(GetCategoryDisplayName, StringComparer.OrdinalIgnoreCase).ToArray();
             _categories = new[]{MNNModelCategory.All}.Concat(available).ToArray();
             _categoryLabels = _categories.Select(GetCategoryDisplayName).ToArray();
+            var counts = _repository.models.GroupBy(model => model.category ?? "", StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+            _categoryButtonLabels.Clear();
+            foreach (var category in _categories)
+            {
+                counts.TryGetValue(category.ToString(), out int count);
+                if (category == MNNModelCategory.All) count = _repository.models.Count;
+                _categoryButtonLabels[category] = GetCategoryDisplayName(category) + "  (" + count + ")";
+            }
             if (!_categories.Contains(_selectedCategory))
                 _selectedCategory = MNNModelCategory.All;
         }

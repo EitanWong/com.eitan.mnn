@@ -21,15 +21,14 @@ namespace MNN.Unity.Editor
             using (new EditorGUILayout.VerticalScope(GUILayout.Width(SidebarWidth), GUILayout.ExpandHeight(true)))
             {
                 var heading = GUILayoutUtility.GetRect(SidebarWidth, 60, GUILayout.ExpandWidth(false));
-                GUI.Label(new Rect(heading.x + 16, heading.y + 16, SidebarWidth - 60, 28), "MNN Studio", new GUIStyle(MNNStudioUI.Heading)
-                {alignment = TextAnchor.MiddleLeft});
+                GUI.Label(new Rect(heading.x + 16, heading.y + 16, SidebarWidth - 60, 28), "MNN Studio", MNNStudioUI.Heading);
                 if (MNNStudioUI.ButtonAt(new Rect(heading.xMax - 40, heading.y + 16, 28, 28), "‹", quiet: true, tooltip: "Hide sidebar"))
                     _sidebarOpen = false;
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.Space(10);
                     using (new EditorGUI.DisabledScope(Busy))
-                        if (MNNStudioUI.Navigation("＋   New chat", false, SidebarWidth - 20))
+                        if (MNNStudioUI.Navigation("New chat", false, SidebarWidth - 20, "Start a new conversation", icon: "Toolbar Plus"))
                             StartNewChat();
                 }
 
@@ -37,7 +36,7 @@ namespace MNN.Unity.Editor
                 {
                     GUILayout.Space(10);
                     using (new EditorGUI.DisabledScope(Busy))
-                        if (MNNStudioUI.Navigation("⌕   Search chats", false, SidebarWidth - 20, "Search titles and messages (⌘/Ctrl K)"))
+                        if (MNNStudioUI.Navigation("Search chats", false, SidebarWidth - 20, "Search titles and messages (⌘/Ctrl K)", icon: "d_ViewToolZoom"))
                             OpenSearch();
                 }
 
@@ -49,7 +48,7 @@ namespace MNN.Unity.Editor
                         {
                             if (Event.current.type == EventType.Repaint)
                                 _catalogNavigationRect = new Rect(GUIUtility.GUIToScreenPoint(rect.position) - position.position, rect.size);
-                        }))
+                        }, icon: "Prefab Icon"))
                             SelectTask((int)MNNStudioTask.Other);
                 }
 

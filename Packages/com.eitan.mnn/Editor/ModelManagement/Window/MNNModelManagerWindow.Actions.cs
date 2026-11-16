@@ -62,6 +62,7 @@ namespace MNN.Unity.Editor
                         File.Delete(metaPath);
                     model.isInstalled = false;
                     model.localPath = null;
+                    RefreshModelStatus();
                     AssetDatabase.Refresh();
                 }
                 else if (File.Exists(model.localPath))
@@ -75,6 +76,7 @@ namespace MNN.Unity.Editor
 
                     model.isInstalled = false;
                     model.localPath = null;
+                    RefreshModelStatus();
                     AssetDatabase.Refresh();
                 }
             }

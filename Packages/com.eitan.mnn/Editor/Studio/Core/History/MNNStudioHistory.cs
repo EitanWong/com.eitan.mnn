@@ -14,9 +14,11 @@ namespace MNN.Unity.Editor
     {
         public List<MNNStudioConversation> Conversations = new List<MNNStudioConversation>();
         public List<MNNStudioFolder> Folders = new List<MNNStudioFolder>();
+        [NonSerialized] internal int Revision;
         internal void Remember(MNNStudioConversation conversation)
         {
             int index = Conversations.FindIndex(item => item.Id == conversation.Id);
+            ++Revision;
             if (index >= 0)
             {
                 var previous = Conversations[index];
@@ -37,6 +39,7 @@ namespace MNN.Unity.Editor
                 throw new ArgumentException("Enter a folder name.");
             var folder = new MNNStudioFolder{Id = Guid.NewGuid().ToString("N"), Name = name};
             Folders.Add(folder);
+            ++Revision;
             return folder;
         }
 
@@ -45,6 +48,7 @@ namespace MNN.Unity.Editor
             name = CleanName(name);
             if (name.Length == 0)
                 throw new ArgumentException("Enter a name.");
+            ++Revision;
             if (folder)
             {
                 var target = Folders.Find(item => item.Id == id);
@@ -70,6 +74,7 @@ namespace MNN.Unity.Editor
             if (!string.IsNullOrEmpty(folder) && !Folders.Exists(item => item.Id == folder))
                 throw new ArgumentException("Folder not found.");
             chat.FolderId = folder;
+            ++Revision;
             Conversations.Remove(chat);
             int index = Conversations.FindIndex(item => item.Id == before && item.FolderId == folder);
             if (index < 0)
@@ -84,6 +89,7 @@ namespace MNN.Unity.Editor
             if (folder == null || before == id)
                 return;
             Folders.Remove(folder);
+            ++Revision;
             int index = Folders.FindIndex(item => item.Id == before);
             if (index < 0)
                 Folders.Add(folder);
@@ -93,6 +99,7 @@ namespace MNN.Unity.Editor
 
         internal void Delete(string id, bool folder = false)
         {
+            ++Revision;
             if (folder)
             {
                 Folders.RemoveAll(item => item.Id == id);
@@ -125,13 +132,14 @@ namespace MNN.Unity.Editor
                 throw new IOException("The Studio history file is invalid.");
             history.Conversations = history.Conversations.Where(item => item != null && !string.IsNullOrEmpty(item.Id)).GroupBy(item => item.Id).Select(group => group.First()).ToList();
             history.Folders = (history.Folders ?? new List<MNNStudioFolder>()).Where(item => item != null && !string.IsNullOrEmpty(item.Id)).GroupBy(item => item.Id).Select(group => group.First()).ToList();
+            var folderIds = new HashSet<string>(history.Folders.Select(folder => folder.Id));
             foreach (var conversation in history.Conversations)
             {
                 conversation.Messages = (conversation.Messages ?? new List<MNNStudioHistoryMessage>()).Where(item => item != null).ToList();
                 conversation.Draft = conversation.Draft ?? "";
                 conversation.ContextSummary = MNNStudioPrompt.BoundSummary(conversation.ContextSummary);
                 conversation.SummarizedMessages = string.IsNullOrEmpty(conversation.ContextSummary) ? 0 : Math.Max(0, Math.Min(conversation.SummarizedMessages, conversation.Messages.Count));
-                if (!history.Folders.Exists(item => item.Id == conversation.FolderId))
+                if (!folderIds.Contains(conversation.FolderId))
                     conversation.FolderId = null;
             }
 

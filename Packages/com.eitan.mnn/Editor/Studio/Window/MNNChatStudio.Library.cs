@@ -37,6 +37,7 @@ namespace MNN.Unity.Editor
 
         private void SaveLibrary()
         {
+            _libraryDirty = true;
             if (!string.IsNullOrEmpty(_historyPath))
                 Try(() => _history.Save(_historyPath));
             Repaint();

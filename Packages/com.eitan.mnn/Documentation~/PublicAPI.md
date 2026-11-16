@@ -1869,6 +1869,26 @@ public string MNN.Unity.MNNMossFormerGanConfig.source_revision
 ```
 
 ```csharp
+MNN.Unity.MNNMultimodalSpeechRoute.AudioVisualTarget = 2
+```
+
+```csharp
+MNN.Unity.MNNMultimodalSpeechRoute.ReferenceTarget = 3
+```
+
+```csharp
+MNN.Unity.MNNMultimodalSpeechRoute.Rejected = 0
+```
+
+```csharp
+MNN.Unity.MNNMultimodalSpeechRoute.SeparatedTarget = 4
+```
+
+```csharp
+MNN.Unity.MNNMultimodalSpeechRoute.SingleSpeaker = 1
+```
+
+```csharp
 public const int MNN.Unity.MNNNamoTurnDetector.MaximumTokens = 8192
 ```
 
@@ -2940,6 +2960,14 @@ void MNN.Unity.IMNNRealtimeVoiceInputProcessor.Process(float[] monoPcm, int offs
 
 ```csharp
 void MNN.Unity.IMNNRealtimeVoiceInputProcessor.Reset()
+```
+
+```csharp
+float[] MNN.Unity.IMNNTargetSpeechExtractor.Extract(MNN.Unity.MNNMultimodalSpeechInput input, System.Threading.CancellationToken cancellationToken)
+```
+
+```csharp
+bool MNN.Unity.IMNNTargetSpeechExtractor.Supports(MNN.Unity.MNNMultimodalSpeechInput input)
 ```
 
 ```csharp
@@ -4293,6 +4321,34 @@ public static MNN.Unity.MNNMossFormerGanConfig MNN.Unity.MNNMossFormerGanConfig.
 ```
 
 ```csharp
+public MNN.Unity.MNNMultimodalSpeechInput.MNNMultimodalSpeechInput(float[] audio, int sampleRate, double startedAt, string trackId, int speakerCount = 0, MNN.Unity.MNNVisualSpeechFrames visual = null)
+```
+
+```csharp
+public float[] MNN.Unity.MNNMultimodalSpeechInput.CopyAudio()
+```
+
+```csharp
+public static MNN.Unity.MNNMultimodalSpeechProcessor MNN.Unity.MNNMultimodalSpeechModels.Create(MNN.Unity.MNNAvMossFormer2Tse audioVisual = null, MNN.Unity.MNNSpeechSeparator separator = null, System.Func<MNN.Unity.MNNSeparatedAudio, string, int> selectSpeaker = null, System.Func<MNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, float[]> referenceTarget = null, bool requirePresence = true)
+```
+
+```csharp
+public static MNN.Unity.MNNMultimodalSpeechProcessor MNN.Unity.MNNMultimodalSpeechModels.CreateFromProviders(MNN.Unity.IMNNTargetSpeechExtractor audioVisual = null, MNN.Unity.IMNNTargetSpeechExtractor referenceTarget = null, System.Func<MNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, MNN.Unity.MNNSeparatedAudio> separate = null, System.Func<MNN.Unity.MNNSeparatedAudio, string, int> selectSpeaker = null, bool requirePresence = true)
+```
+
+```csharp
+public MNN.Unity.MNNMultimodalSpeechProcessor.MNNMultimodalSpeechProcessor(System.Func<MNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, float[]> audioVisual = null, System.Func<MNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, float[]> referenceTarget = null, System.Func<MNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, MNN.Unity.MNNSeparatedAudio> separate = null, System.Func<MNN.Unity.MNNSeparatedAudio, string, int> selectSpeaker = null, bool requirePresence = true, double maximumAgeSeconds = 0.75, double synchronizationToleranceSeconds = 0.08, System.Func<MNN.Unity.MNNMultimodalSpeechInput, bool> visualSupports = null, System.Func<MNN.Unity.MNNMultimodalSpeechInput, bool> referenceSupports = null)
+```
+
+```csharp
+public MNN.Unity.MNNMultimodalSpeechResult MNN.Unity.MNNMultimodalSpeechProcessor.Process(MNN.Unity.MNNMultimodalSpeechInput input, MNN.Unity.MNNPresenceSnapshot presence, double now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+public MNN.Unity.MNNMultimodalSpeechRoute.MNNMultimodalSpeechRoute()
+```
+
+```csharp
 public void MNN.Unity.MNNNamoTurnDetector.Dispose()
 ```
 
@@ -4975,6 +5031,28 @@ public void MNN.Unity.MNNRealtimeVoiceInputProcessor.Reset()
 Resets filter, frame and recurrent VAD state after a discontinuity or for a new stream.
 
 ```csharp
+public MNN.Unity.MNNRecognitionDefaults.MNNRecognitionDefaults(System.Collections.Generic.IEnumerable<MNN.Unity.MNNRecognitionPreset> presets)
+```
+
+```csharp
+public MNN.Unity.MNNRecognitionPreset MNN.Unity.MNNRecognitionDefaults.Select(string corpusId, string deviceId, string language, string metric, double maximumP95Milliseconds)
+```
+
+```csharp
+public MNN.Unity.MNNRecognitionPreset.MNNRecognitionPreset(MNN.Unity.MNNRecognitionQuality quality, MNN.Unity.MNNAcousticSettings acoustics, MNN.Unity.MNNInteractionSettings interaction)
+```
+
+```csharp
+public MNN.Unity.MNNRecognitionQuality.MNNRecognitionQuality(string configurationId, string corpusId, string deviceId, string language, string metric, long errors, long referenceUnits, double p95LatencyMilliseconds, bool nativeInferenceVerified)
+```
+
+```csharp
+public static MNN.Unity.MNNRecognitionQuality MNN.Unity.MNNRecognitionQuality.Select(System.Collections.Generic.IEnumerable<MNN.Unity.MNNRecognitionQuality> results, string corpusId, string deviceId, string language, string metric, double maximumP95Milliseconds)
+```
+
+Returns the lowest measured error rate among comparable native runs within the latency budget. A tie prefers lower latency, then stable configuration ID. Null means no evidence-backed default exists.
+
+```csharp
 public void MNN.Unity.MNNResembleDenoiser.Dispose()
 ```
 
@@ -5512,6 +5590,14 @@ Load a pinned profile. Omitted threadCount (-1) selects its measured CPU fallbac
 
 ```csharp
 public static float MNN.Unity.MNNVbxEmbedding.Similarity(float[] left, float[] right)
+```
+
+```csharp
+public MNN.Unity.MNNVisualSpeechFrames.MNNVisualSpeechFrames(float[] frames, int frameCount, double startedAt, string trackId, int width = 112, int height = 112, double framesPerSecond = 25)
+```
+
+```csharp
+public float[] MNN.Unity.MNNVisualSpeechFrames.CopyFrames()
 ```
 
 ```csharp
@@ -6325,6 +6411,50 @@ public MNN.Unity.MNNBackendType MNN.Unity.MNNMossFormerGan.Backend { get; }
 ```
 
 ```csharp
+public double MNN.Unity.MNNMultimodalSpeechInput.EndedAt { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNMultimodalSpeechInput.SampleCount { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNMultimodalSpeechInput.SampleRate { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNMultimodalSpeechInput.SpeakerCount { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNMultimodalSpeechInput.StartedAt { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNMultimodalSpeechInput.TrackId { get; }
+```
+
+```csharp
+public MNN.Unity.MNNVisualSpeechFrames MNN.Unity.MNNMultimodalSpeechInput.Visual { get; }
+```
+
+```csharp
+public float[] MNN.Unity.MNNMultimodalSpeechResult.Audio { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNMultimodalSpeechResult.Reason { get; }
+```
+
+```csharp
+public MNN.Unity.MNNMultimodalSpeechRoute MNN.Unity.MNNMultimodalSpeechResult.Route { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNMultimodalSpeechResult.SampleRate { get; }
+```
+
+```csharp
 public MNN.Unity.MNNBackendType MNN.Unity.MNNNamoTurnDetector.Backend { get; }
 ```
 
@@ -6807,6 +6937,58 @@ public int MNN.Unity.MNNRealtimeVoiceInputProcessor.PendingVadSamples { get; }
 ```
 
 ```csharp
+public MNN.Unity.MNNAcousticSettings MNN.Unity.MNNRecognitionPreset.AcousticSettings { get; }
+```
+
+```csharp
+public MNN.Unity.MNNInteractionSettings MNN.Unity.MNNRecognitionPreset.InteractionSettings { get; }
+```
+
+```csharp
+public MNN.Unity.MNNRecognitionQuality MNN.Unity.MNNRecognitionPreset.Quality { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNRecognitionQuality.ConfigurationId { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNRecognitionQuality.CorpusId { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNRecognitionQuality.DeviceId { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNRecognitionQuality.ErrorRate { get; }
+```
+
+```csharp
+public long MNN.Unity.MNNRecognitionQuality.Errors { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNRecognitionQuality.Language { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNRecognitionQuality.Metric { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNRecognitionQuality.NativeInferenceVerified { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNRecognitionQuality.P95LatencyMilliseconds { get; }
+```
+
+```csharp
+public long MNN.Unity.MNNRecognitionQuality.ReferenceUnits { get; }
+```
+
+```csharp
 public MNN.Unity.MNNBackendType MNN.Unity.MNNResembleDenoiser.Backend { get; }
 ```
 
@@ -7015,6 +7197,34 @@ public int MNN.Unity.MNNVbxEmbedding.ThreadCount { get; }
 ```
 
 ```csharp
+public double MNN.Unity.MNNVisualSpeechFrames.EndedAt { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNVisualSpeechFrames.FrameCount { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNVisualSpeechFrames.FramesPerSecond { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNVisualSpeechFrames.Height { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNVisualSpeechFrames.StartedAt { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNVisualSpeechFrames.TrackId { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNVisualSpeechFrames.Width { get; }
+```
+
+```csharp
 public MNN.Unity.MNNBackendType MNN.Unity.MNNVoiceActivityDetector.Backend { get; }
 ```
 
@@ -7167,6 +7377,12 @@ interface MNN.Unity.IMNNRealtimeVoiceInputProcessor
 ```
 
 Worker-owned streaming audio processor that emits fixed VAD frames from bounded PCM blocks.
+
+```csharp
+interface MNN.Unity.IMNNTargetSpeechExtractor
+```
+
+Borrowed, worker-owned target extraction model. Supports checks frame shape/rate and required conditioning. Implementations may use vision, reference voice, or other validated target evidence.
 
 ```csharp
 class MNN.Unity.MNNAcousticCheckEntry
@@ -7679,6 +7895,34 @@ class MNN.Unity.MNNMossFormerGanConfig
 ```
 
 ```csharp
+class MNN.Unity.MNNMultimodalSpeechInput
+```
+
+Owned mono PCM, at most three seconds. SpeakerCount=0 means unknown, never single speaker. All timestamps share the presence controller's monotonic clock; this is a worker block, not a device callback.
+
+```csharp
+class MNN.Unity.MNNMultimodalSpeechModels
+```
+
+Connects existing model instances to target routing. Caller owns and disposes the models.
+
+```csharp
+class MNN.Unity.MNNMultimodalSpeechProcessor
+```
+
+Worker-owned target routing before acoustic enhancement, VAD and ASR. Inject already-loaded providers; this class owns no models and adds no native ABI. Model exceptions propagate. No failure silently falls back to unseparated mixture.
+
+```csharp
+class MNN.Unity.MNNMultimodalSpeechResult
+```
+
+Owns the accepted waveform. A rejected block contains no audio and must not reach ASR.
+
+```csharp
+enum MNN.Unity.MNNMultimodalSpeechRoute
+```
+
+```csharp
 class MNN.Unity.MNNNamoTurnDetector
 ```
 
@@ -7845,6 +8089,24 @@ class MNN.Unity.MNNRealtimeVoiceInputProcessor
 ```
 
 Composes streaming resampling, fixed-frame assembly and recurrent Silero VAD for one mono input stream. Process on a dedicated audio-processing worker, never from a device callback.
+
+```csharp
+class MNN.Unity.MNNRecognitionDefaults
+```
+
+Application-owned immutable candidate catalog. Install evaluated candidates once, select at first-run setup. Users' saved overrides take precedence. Missing comparable evidence returns null.
+
+```csharp
+class MNN.Unity.MNNRecognitionPreset
+```
+
+Complete measured pipeline preset. Supply pinned model paths/revisions through its configuration ID. Reports must come from real recognition evaluation; no preset is manufactured from tensor parity or model size.
+
+```csharp
+class MNN.Unity.MNNRecognitionQuality
+```
+
+Measured error counts for one exact pipeline configuration and pinned evaluation corpus. ConfigurationId must identify model revisions, preprocessing, toggles and thresholds together. Conversion tensor agreement is not recognition error-rate evidence.
 
 ```csharp
 class MNN.Unity.MNNResembleDenoiser
@@ -8071,6 +8333,12 @@ class MNN.Unity.MNNVbxEmbedding
 ```
 
 Author VBx ResNet101 direct utterance entry, returning the original raw 256-dimensional x-vector.
+
+```csharp
+class MNN.Unity.MNNVisualSpeechFrames
+```
+
+Owned, uniformly sampled, one-track ClearerVoice face crops: 25 FPS, grayscale [frame,112,112]. Capture must align/crop and normalize with MNNClearerVoiceFaceFrames; do not pass full camera images.
 
 ```csharp
 class MNN.Unity.MNNVoiceActivityDetector
@@ -9027,7 +9295,23 @@ class MNN.Unity.MNNWaveAudio
 ## Components
 
 ```csharp
+public System.Action<System.Exception> MNN.Unity.MNNFaceCameraComponent.Failed
+```
+
+```csharp
+public System.Action<MNN.Unity.MNNRgbImage, double> MNN.Unity.MNNFaceCameraComponent.FrameCaptured
+```
+
+```csharp
+public System.Action<MNN.Unity.MNNPresenceObservation> MNN.Unity.MNNFaceCameraComponent.Observation
+```
+
+```csharp
 public System.Action MNN.Unity.MNNHarnessBackendSetup.Changed
+```
+
+```csharp
+public System.Action<MNN.Unity.MNNPresenceSnapshot> MNN.Unity.MNNInteractionComponent.Changed
 ```
 
 ```csharp
@@ -9042,6 +9326,10 @@ public static System.Action<string> MNN.Unity.MNNModelManager.OnModelRegistered
 
 ```csharp
 public static System.Action<string> MNN.Unity.MNNModelManager.OnModelUnloaded
+```
+
+```csharp
+public System.Action<MNN.Unity.MNNPresenceSnapshot> MNN.Unity.MNNPresenceComponent.Changed
 ```
 
 ```csharp
@@ -9173,6 +9461,44 @@ public MNN.Unity.InferenceEvent.InferenceEvent()
 ```
 
 ```csharp
+public MNN.Unity.MNNAcousticProcessing.MNNAcousticProcessing()
+```
+
+```csharp
+public MNN.Unity.IMNNRealtimeVoiceInputProcessor MNN.Unity.MNNAcousticProcessing.CreateVoiceInputProcessor(MNN.Unity.MNNPcmFormat format, int capacity, MNN.Unity.IMNNRealtimeVoiceActivity vad)
+```
+
+```csharp
+public System.Threading.Tasks.Task MNN.Unity.MNNAcousticProcessing.PrepareAsync(MNN.Unity.MNNAcousticSettings settings, string modelsDirectory, System.Threading.CancellationToken token, MNN.Unity.IMNNAcousticModelFactory factory = null)
+```
+
+```csharp
+public System.Threading.Tasks.Task<float[]> MNN.Unity.MNNAcousticProcessing.PrepareVoiceAsync(float[] samples, System.Threading.CancellationToken token)
+```
+
+```csharp
+public void MNN.Unity.MNNAcousticProcessing.Release()
+```
+
+```csharp
+public System.Threading.Tasks.Task MNN.Unity.MNNAcousticProcessing.ReleaseAsync()
+```
+
+```csharp
+public MNN.Unity.MNNFaceCameraComponent.MNNFaceCameraComponent()
+```
+
+```csharp
+public void MNN.Unity.MNNFaceCameraComponent.StartTracking(UnityEngine.WebCamTexture camera, MNN.Unity.IMNNPresenceSource pipeline)
+```
+
+Main thread only. Does not request permissions, start the camera, load or dispose models.
+
+```csharp
+public System.Threading.Tasks.Task MNN.Unity.MNNFaceCameraComponent.StopAsync()
+```
+
+```csharp
 public MNN.Unity.MNNHarnessBackendSetup.MNNHarnessBackendSetup()
 ```
 
@@ -9241,6 +9567,38 @@ public void MNN.Unity.MNNInferenceComponent.SetInput(UnityEngine.Texture2D textu
 ```
 
 手动设置输入
+
+```csharp
+public MNN.Unity.MNNInteractionComponent.MNNInteractionComponent()
+```
+
+```csharp
+public void MNN.Unity.MNNInteractionComponent.Configure(MNN.Unity.MNNInteractionSettings settings)
+```
+
+```csharp
+public void MNN.Unity.MNNInteractionComponent.ConfigureSpeech(MNN.Unity.IMNNTargetSpeechExtractor audioVisual, MNN.Unity.IMNNTargetSpeechExtractor reference, System.Func<MNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, MNN.Unity.MNNSeparatedAudio> separate, System.Func<MNN.Unity.MNNSeparatedAudio, string, int> select, System.Func<float[], System.Threading.CancellationToken, MNN.Unity.MNNMultimodalSpeechInput> captureInput)
+```
+
+Model and synchronized capture ownership stays with the caller. Reconfigure after settings change. Capture must return the actual original timestamps/track; never stamp old audio as fresh at recognition time.
+
+```csharp
+public System.Threading.Tasks.Task<float[]> MNN.Unity.MNNInteractionComponent.PrepareVoiceAsync(float[] samples, System.Threading.CancellationToken token)
+```
+
+Recognition-worker entry. Null rejects a turn before ASR; a missing enabled provider is an error.
+
+```csharp
+public MNN.Unity.MNNInteractionSettings MNN.Unity.MNNInteractionComponent.ReadSettings()
+```
+
+```csharp
+public void MNN.Unity.MNNInteractionComponent.StartCamera(UnityEngine.WebCamTexture camera, MNN.Unity.IMNNPresenceSource source)
+```
+
+```csharp
+public System.Threading.Tasks.Task MNN.Unity.MNNInteractionComponent.StopCameraAsync()
+```
 
 ```csharp
 public MNN.Unity.MNNModelLoader.MNNModelLoader()
@@ -9359,6 +9717,36 @@ public void MNN.Unity.MNNModelManager.UnloadModel(string modelId)
 ```
 
 卸载模型
+
+```csharp
+public MNN.Unity.MNNPresenceComponent.MNNPresenceComponent()
+```
+
+```csharp
+public MNN.Unity.MNNPresenceComponent.AdmissionEvent.AdmissionEvent()
+```
+
+```csharp
+public void MNN.Unity.MNNPresenceComponent.Configure(MNN.Unity.MNNPresenceOptions options, string[] allowedIdentities = null)
+```
+
+Configure on the Unity main thread. An empty allow-list admits nobody; null accepts any qualifying face.
+
+```csharp
+public void MNN.Unity.MNNPresenceComponent.ConfigurePresentation(UnityEngine.CanvasGroup content, UnityEngine.CanvasGroup blackScreen, MNN.Unity.MNNPresenceSleepDisplay sleepDisplay)
+```
+
+```csharp
+public void MNN.Unity.MNNPresenceComponent.ConfigureVisualRoot(UnityEngine.Transform visualRoot)
+```
+
+```csharp
+public void MNN.Unity.MNNPresenceComponent.Report(MNN.Unity.MNNPresenceObservation observation)
+```
+
+```csharp
+public void MNN.Unity.MNNPresenceComponent.SetInteractionBusy(bool busy)
+```
 
 ```csharp
 public MNN.Unity.MNNRealtimeAudioDevice.MNNRealtimeAudioDevice()
@@ -9597,6 +9985,18 @@ public string MNN.Unity.ModelRuntimeInfo.GetStatusString()
 ```
 
 ```csharp
+public MNN.Unity.MNNAcousticFrontend MNN.Unity.MNNAcousticProcessing.Frontend { get; private set; }
+```
+
+```csharp
+public System.Func<bool> MNN.Unity.MNNAcousticProcessing.WakeAllowed { get; set; }
+```
+
+```csharp
+public System.Threading.Tasks.Task MNN.Unity.MNNFaceCameraComponent.Completion { get; }
+```
+
+```csharp
 public bool MNN.Unity.MNNHarnessBackendSetup.AutomaticDetection { get; set; }
 ```
 
@@ -9647,6 +10047,22 @@ public MNN.Unity.MNNSession MNN.Unity.MNNInferenceComponent.Session { get; }
 当前会话
 
 ```csharp
+public MNN.Unity.MNNFaceCameraComponent MNN.Unity.MNNInteractionComponent.Camera { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionComponent.CanStartInteraction { get; }
+```
+
+```csharp
+public MNN.Unity.MNNPresenceComponent MNN.Unity.MNNInteractionComponent.Presence { get; }
+```
+
+```csharp
+public MNN.Unity.MNNVisionContext MNN.Unity.MNNInteractionComponent.VisionContext { get; }
+```
+
+```csharp
 public MNN.Unity.MNNInterpreter MNN.Unity.MNNModelLoader.Interpreter { get; }
 ```
 
@@ -9663,6 +10079,10 @@ public static MNN.Unity.MNNModelManager MNN.Unity.MNNModelManager.Instance { get
 ```
 
 单例实例
+
+```csharp
+public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceComponent.Current { get; }
+```
 
 ```csharp
 public bool MNN.Unity.MNNRealtimeAudioDevice.CanSubmitCapture { get; }
@@ -9821,6 +10241,18 @@ class MNN.Unity.InferenceEvent
 ```
 
 ```csharp
+class MNN.Unity.MNNAcousticProcessing
+```
+
+Reusable acoustic model lifetime for any audio transport/application. Uses the task model factory rather than concrete model names. Stop and join capture before release.
+
+```csharp
+class MNN.Unity.MNNFaceCameraComponent
+```
+
+Main-thread camera polling with one bounded inference job and no queued frames. Borrow a playing, permission-approved WebCamTexture and caller-owned pipeline. StopAsync before disposing either.
+
+```csharp
 class MNN.Unity.MNNHarnessBackendSetup
 ```
 
@@ -9833,6 +10265,12 @@ class MNN.Unity.MNNInferenceComponent
 MNN推理组件 - 快速上手版 封装了完整的推理流程，开发者无需关心细节
 
 ```csharp
+class MNN.Unity.MNNInteractionComponent
+```
+
+Shared capability owner. Applications inject models/capture and supply presentation groups; no application-specific state machine, UI, microphone transport or model-name routing is required.
+
+```csharp
 class MNN.Unity.MNNModelLoader
 ```
 
@@ -9843,6 +10281,16 @@ class MNN.Unity.MNNModelManager
 ```
 
 MNN模型管理器（运行时） 集中管理所有模型的生命周期、路径和状态
+
+```csharp
+class MNN.Unity.MNNPresenceComponent
+```
+
+Opt-in main-thread adapter. Keep this component outside the UI it fades. Feed timestamped results from a camera/tracker; never run model inference in Update or an audio callback.
+
+```csharp
+class MNN.Unity.MNNPresenceComponent.AdmissionEvent
+```
 
 ```csharp
 class MNN.Unity.MNNRealtimeAudioDevice
@@ -9942,6 +10390,10 @@ MNN.Unity.MNNSpeechModelKind.DhVaani = 12
 
 ```csharp
 MNN.Unity.MNNSpeechModelKind.FireRedTts3 = 8
+```
+
+```csharp
+MNN.Unity.MNNSpeechModelKind.Hojo = 17
 ```
 
 ```csharp
@@ -10115,6 +10567,28 @@ public MNN.Unity.MNNGeneratedImage.MNNGeneratedImage(byte[] rgb, int width, int 
 ```
 
 Create an RGB24 result. The caller transfers ownership of the supplied pixel array.
+
+```csharp
+public void MNN.Unity.MNNHojoTts.Dispose()
+```
+
+```csharp
+public static string[] MNN.Unity.MNNHojoTts.InstalledVoices(string directory)
+```
+
+```csharp
+public static bool MNN.Unity.MNNHojoTts.IsComplete(string directory)
+```
+
+```csharp
+public static MNN.Unity.MNNHojoTts MNN.Unity.MNNHojoTts.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)
+```
+
+```csharp
+public MNN.Unity.MNNGeneratedAudio MNN.Unity.MNNHojoTts.Synthesize(string text, string voice = null, int seed = 42, float temperature = 0.8, int maximumTokens = 2048, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), float speed = 1, bool naturalTiming = true)
+```
+
+Synthesize with a language-matched default voice and natural timing (1.15x model tempo, trimmed boundary silence). Speed multiplies that tempo without changing pitch. Set naturalTiming=false and speed=1 to retain the original model waveform.
 
 ```csharp
 public void MNN.Unity.MNNIndexTts25.Dispose()
@@ -10833,6 +11307,18 @@ public int MNN.Unity.MNNGeneratedImage.Width { get; }
 ```
 
 ```csharp
+public int MNN.Unity.MNNHojoTts.SampleRate { get; }
+```
+
+```csharp
+public System.Collections.Generic.IReadOnlyDictionary<string, MNN.Unity.MNNBackendType> MNN.Unity.MNNHojoTts.StageBackends { get; }
+```
+
+```csharp
+public string[] MNN.Unity.MNNHojoTts.Voices { get; }
+```
+
+```csharp
 public static string[] MNN.Unity.MNNIndicVits.InstalledSpeakers { get; }
 ```
 
@@ -11145,6 +11631,12 @@ class MNN.Unity.MNNGeneratedAudio
 ```csharp
 class MNN.Unity.MNNGeneratedImage
 ```
+
+```csharp
+class MNN.Unity.MNNHojoTts
+```
+
+Hojo V2 24 kHz speech over the package's pinned official MNN C++ ABI. All sampling, tokenization, speaker injection, cache ownership and ISTFT are managed.
 
 ```csharp
 class MNN.Unity.MNNIndexTts25
@@ -11843,6 +12335,10 @@ MNN.Samples.SiriAI.Harnesses.HarnessCapabilities.Cancel = 1
 ```
 
 ```csharp
+MNN.Samples.SiriAI.Harnesses.HarnessCapabilities.Continue = 64
+```
+
+```csharp
 MNN.Samples.SiriAI.Harnesses.HarnessCapabilities.Input = 2
 ```
 
@@ -12291,6 +12787,22 @@ public string MNN.Samples.SiriAI.Harnesses.HarnessSkillTarget.Installer
 ```
 
 ```csharp
+public bool? MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.Allow
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.RequestId
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.TaskId
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.Text
+```
+
+```csharp
 MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Cancelled = 5
 ```
 
@@ -12327,7 +12839,15 @@ MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Cancel = 2
 ```
 
 ```csharp
+MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Continue = 7
+```
+
+```csharp
 MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Pause = 4
+```
+
+```csharp
+MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Respond = 6
 ```
 
 ```csharp
@@ -12391,6 +12911,10 @@ MNN.Samples.SiriAI.Harnesses.ResultReceipt.TextDisplayed = 4
 ```
 
 ```csharp
+public string MNN.Samples.SiriAI.Harnesses.ResultReceiptRequest.Error
+```
+
+```csharp
 public string MNN.Samples.SiriAI.Harnesses.ResultReceiptRequest.LeaseId
 ```
 
@@ -12404,6 +12928,10 @@ public MNN.Samples.SiriAI.Harnesses.ResultReceipt MNN.Samples.SiriAI.Harnesses.R
 
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest.Attachments
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest.ContinuedFromTaskId
 ```
 
 ```csharp
@@ -12512,6 +13040,14 @@ public MNN.Unity.MNNAgentRoutingStrategy MNN.Unity.MNNAgentOptions.Strategy
 
 ```csharp
 public bool MNN.Unity.MNNAgentOptions.UseRouter
+```
+
+```csharp
+public const int MNN.Unity.MNNAgentPlan.MaximumJsonCharacters = 49664
+```
+
+```csharp
+public const int MNN.Unity.MNNAgentPlan.MaximumToolInputCharacters = 8192
 ```
 
 ```csharp
@@ -12684,6 +13220,14 @@ MNN.Unity.MNNConversationEntryState.Failed = 2
 
 ```csharp
 MNN.Unity.MNNConversationEntryState.Running = 0
+```
+
+```csharp
+MNN.Unity.MNNConversationEventKind.Request = 1
+```
+
+```csharp
+MNN.Unity.MNNConversationEventKind.Result = 0
 ```
 
 ```csharp
@@ -13945,6 +14489,28 @@ public MNN.Samples.SiriAI.Harnesses.HarnessExecutionKind.HarnessExecutionKind()
 ```
 
 ```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.HarnessFrontendSession()
+```
+
+```csharp
+public void MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindConversation(string conversationId)
+```
+
+```csharp
+public void MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindInput(string inputId, string context = null, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null)
+```
+
+```csharp
+public void MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindInputSnapshot(string inputId, string currentInput, string[] recentMessages, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null)
+```
+
+Preserves exact current input separately from the model-written objective. Recent context includes whole messages only and explicitly records budget omissions.
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.CreateSubmission(string objective, string harnessId, string workspaceKey)
+```
+
+```csharp
 public static System.Uri MNN.Samples.SiriAI.Harnesses.HarnessHostAddress.Parse(string value, bool mobile = false)
 ```
 
@@ -14115,6 +14681,10 @@ public MNN.Samples.SiriAI.Harnesses.HarnessReadinessRequest.HarnessReadinessRequ
 ```
 
 ```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.HarnessResultConnection(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient client, MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope scope)
+```
+
+```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.HarnessResultConnection(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient client, string conversationId)
 ```
 
@@ -14231,7 +14801,35 @@ public System.Threading.Tasks.Task MNN.Samples.SiriAI.Harnesses.HarnessTaskObser
 ```
 
 ```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.HarnessTaskPresentation(MNN.Samples.SiriAI.Harnesses.HarnessTask task, MNN.Samples.SiriAI.Harnesses.HarnessCapabilities capabilities)
+```
+
+```csharp
+public static MNN.Samples.SiriAI.Harnesses.HarnessTask[] MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Active(System.Collections.Generic.IEnumerable<MNN.Samples.SiriAI.Harnesses.HarnessTask> tasks)
+```
+
+Desktop activity strips retain queued/paused requests and remove every terminal task.
+
+```csharp
+public static MNN.Samples.SiriAI.Harnesses.HarnessTask[] MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Order(System.Collections.Generic.IEnumerable<MNN.Samples.SiriAI.Harnesses.HarnessTask> tasks)
+```
+
+Attention first, then all live work, then finished work. Most recent updates break ties.
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.HarnessTaskReply()
+```
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.TaskControlRequest MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.CreateRequest(MNN.Samples.SiriAI.Harnesses.HarnessTask task, string conversationId)
+```
+
+```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessTaskState.HarnessTaskState()
+```
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessTaskTool.HarnessTaskTool(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient client, System.Func<MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest, System.Threading.CancellationToken, System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask>> submit, MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession session, MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation operation, string harness, string workspace, bool network, string unavailableMessage = null)
 ```
 
 ```csharp
@@ -14275,6 +14873,10 @@ System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessOutcome> MNN.Sam
 ```
 
 ```csharp
+string MNN.Samples.SiriAI.Harnesses.IHarnessContinuationAdapter.CreateContinuationCheckpoint(MNN.Samples.SiriAI.Harnesses.HarnessTask completed)
+```
+
+```csharp
 System.Threading.Tasks.Task MNN.Samples.SiriAI.Harnesses.IHarnessInputActionAdapter.RespondInputAsync(MNN.Samples.SiriAI.Harnesses.HarnessTask task, string requestId, string reply, MNN.Samples.SiriAI.Harnesses.HarnessInputAction action, System.Threading.CancellationToken cancellation)
 ```
 
@@ -14284,6 +14886,10 @@ System.Threading.Tasks.Task MNN.Samples.SiriAI.Harnesses.IHarnessInstructionAdap
 
 ```csharp
 void MNN.Samples.SiriAI.Harnesses.IHarnessInstructionAdapter.ValidateInstruction(MNN.Samples.SiriAI.Harnesses.HarnessTask task, MNN.Samples.SiriAI.Harnesses.HarnessInstruction instruction)
+```
+
+```csharp
+MNN.Samples.SiriAI.Harnesses.IHarnessResultReply MNN.Samples.SiriAI.Harnesses.IHarnessRequestPresenter.TryBeginRequestReply(string eventId, string context, System.Threading.CancellationToken cancellation)
 ```
 
 ```csharp
@@ -14359,6 +14965,12 @@ public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Dispose()
 ```
 
 ```csharp
+public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.FailResultDelivery(string taskId, string ownerId, string leaseId, string error)
+```
+
+Presentation failure never changes execution or fabricates a presentation receipt.
+
+```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Get(string taskId, string ownerId)
 ```
 
@@ -14392,6 +15004,10 @@ public System.Threading.Tasks.Task MNN.Samples.SiriAI.Harnesses.PersistentTaskRu
 
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Resume(string taskId, string ownerId)
+```
+
+```csharp
+public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RetryResultDelivery(string taskId, string ownerId)
 ```
 
 ```csharp
@@ -14432,6 +15048,10 @@ public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN
 
 ```csharp
 public void MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.Dispose()
+```
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.FailDeliveryAsync(string taskId, string leaseId, System.Threading.CancellationToken cancellation)
 ```
 
 ```csharp
@@ -14500,6 +15120,10 @@ public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN
 
 ```csharp
 public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ResumeAsync(string taskId, System.Threading.CancellationToken cancellation)
+```
+
+```csharp
+public System.Threading.Tasks.Task<MNN.Samples.SiriAI.Harnesses.HarnessTask> MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RetryDeliveryAsync(string taskId, System.Threading.CancellationToken cancellation)
 ```
 
 ```csharp
@@ -14575,7 +15199,7 @@ public MNN.Samples.SiriAI.Harnesses.TaskSubmission.TaskSubmission(string ownerId
 ```
 
 ```csharp
-public MNN.Samples.SiriAI.Harnesses.TaskSubmission.TaskSubmission(string ownerId, string conversationId, string submissionKey, string harnessId, string workspaceKey, string objective, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null, string resultConversationId = null, string title = null, bool isolatedContext = false)
+public MNN.Samples.SiriAI.Harnesses.TaskSubmission.TaskSubmission(string ownerId, string conversationId, string submissionKey, string harnessId, string workspaceKey, string objective, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null, string resultConversationId = null, string title = null, bool isolatedContext = false, string continuedFromTaskId = null)
 ```
 
 ```csharp
@@ -15057,11 +15681,15 @@ public MNN.Unity.MNNConversationEntryState.MNNConversationEntryState()
 ```
 
 ```csharp
-public MNN.Unity.MNNConversationEvent.MNNConversationEvent(string id, string text)
+public MNN.Unity.MNNConversationEvent.MNNConversationEvent(string id, string text, MNN.Unity.MNNConversationEventKind kind = MNN.Unity.MNNConversationEventKind.Result)
 ```
 
 ```csharp
 public System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNOpenAIMessage> MNN.Unity.MNNConversationEvent.CreateHistory(System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNOpenAIMessage> history, int maximumCharacters = 65536)
+```
+
+```csharp
+public MNN.Unity.MNNConversationEventKind.MNNConversationEventKind()
 ```
 
 ```csharp
@@ -16973,6 +17601,14 @@ public string MNN.Samples.SiriAI.Harnesses.HarnessExecutionStep.Title { get; pri
 ```
 
 ```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope.ConversationId { get; }
+```
+
+```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.Scope { get; }
+```
+
+```csharp
 public string MNN.Samples.SiriAI.Harnesses.HarnessHostHealth.HostId { get; set; }
 ```
 
@@ -17133,6 +17769,10 @@ public string MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.ConversationI
 ```
 
 ```csharp
+public MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.Scope { get; }
+```
+
+```csharp
 public int MNN.Samples.SiriAI.Harnesses.HarnessSkillClient.PendingCount { get; }
 ```
 
@@ -17161,6 +17801,14 @@ public bool MNN.Samples.SiriAI.Harnesses.HarnessTask.ContextInjected { get; inte
 ```
 
 ```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTask.ContinuationState { get; internal set; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTask.ContinuedFromTaskId { get; internal set; }
+```
+
+```csharp
 public string MNN.Samples.SiriAI.Harnesses.HarnessTask.ConversationId { get; internal set; }
 ```
 
@@ -17169,7 +17817,19 @@ public long MNN.Samples.SiriAI.Harnesses.HarnessTask.CreatedUtcTicks { get; inte
 ```
 
 ```csharp
+public int MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryAttempts { get; internal set; }
+```
+
+```csharp
 public string MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryConversationId { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryError { get; internal set; }
+```
+
+```csharp
+public bool MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryExhausted { get; }
 ```
 
 ```csharp
@@ -17214,6 +17874,10 @@ public long MNN.Samples.SiriAI.Harnesses.HarnessTask.LeaseUntilUtcTicks { get; i
 
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessNativeToolState MNN.Samples.SiriAI.Harnesses.HarnessTask.NativeTools { get; internal set; }
+```
+
+```csharp
+public long MNN.Samples.SiriAI.Harnesses.HarnessTask.NextDeliveryUtcTicks { get; internal set; }
 ```
 
 ```csharp
@@ -17329,6 +17993,38 @@ public long MNN.Samples.SiriAI.Harnesses.HarnessTaskDraftSnapshot.Scope { get; }
 ```
 
 ```csharp
+public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanCancel { get; }
+```
+
+```csharp
+public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanPause { get; }
+```
+
+```csharp
+public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanResume { get; }
+```
+
+```csharp
+public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.NeedsAttention { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.PauseHintKey { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.ProgressText { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.StatusKey { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Title { get; }
+```
+
+```csharp
 public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskTool.CanUseNetwork { get; }
 ```
 
@@ -17422,6 +18118,10 @@ public int MNN.Samples.SiriAI.Harnesses.TaskHostRequestException.StatusCode { ge
 
 ```csharp
 public MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] MNN.Samples.SiriAI.Harnesses.TaskSubmission.Attachments { get; }
+```
+
+```csharp
+public string MNN.Samples.SiriAI.Harnesses.TaskSubmission.ContinuedFromTaskId { get; }
 ```
 
 ```csharp
@@ -17872,6 +18572,10 @@ public int MNN.Unity.MNNConversationContext.RemovedMessages { get; }
 
 ```csharp
 public string MNN.Unity.MNNConversationEvent.Id { get; }
+```
+
+```csharp
+public MNN.Unity.MNNConversationEventKind MNN.Unity.MNNConversationEvent.Kind { get; }
 ```
 
 ```csharp
@@ -19325,6 +20029,18 @@ class MNN.Samples.SiriAI.Harnesses.HarnessExecutionStep
 ```
 
 ```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope
+```
+
+An immutable frontend conversation generation; returning to a conversation creates a new scope.
+
+```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession
+```
+
+Thread-safe application boundary for conversation identity and explicit input provenance. A draft has no scope and cannot submit or claim work. Binding never cancels admitted work.
+
+```csharp
 class MNN.Samples.SiriAI.Harnesses.HarnessHostAddress
 ```
 
@@ -19523,6 +20239,18 @@ class MNN.Samples.SiriAI.Harnesses.HarnessTaskObserver
 A captured host scope owns replay and revision observations. Runs serialize without sharing writers.
 
 ```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation
+```
+
+UI-independent task status and controls. Keys may be localized by any frontend. Execution records describe observed work; their count is not a completion percentage.
+
+```csharp
+class MNN.Samples.SiriAI.Harnesses.HarnessTaskReply
+```
+
+Explicit frontend reply. Missing permission decisions never become approvals.
+
+```csharp
 enum MNN.Samples.SiriAI.Harnesses.HarnessTaskState
 ```
 
@@ -19559,6 +20287,12 @@ interface MNN.Samples.SiriAI.Harnesses.IHarnessCancellationOutcomeAdapter
 A native cancel command is only admission. Its observed terminal outcome owns the result.
 
 ```csharp
+interface MNN.Samples.SiriAI.Harnesses.IHarnessContinuationAdapter
+```
+
+Returns a verified original native-session checkpoint. Never substitutes a fresh context.
+
+```csharp
 interface MNN.Samples.SiriAI.Harnesses.IHarnessInputActionAdapter
 ```
 
@@ -19567,6 +20301,12 @@ interface MNN.Samples.SiriAI.Harnesses.IHarnessInstructionAdapter
 ```
 
 Supports exact durable instruction identities and new bounded content. Validation has no side effects. Delivery must report uncertainty rather than replay unknown work.
+
+```csharp
+interface MNN.Samples.SiriAI.Harnesses.IHarnessRequestPresenter
+```
+
+Optional presentation port for real pending questions, separate from terminal results.
 
 ```csharp
 interface MNN.Samples.SiriAI.Harnesses.IHarnessResultPresenter
@@ -19911,6 +20651,10 @@ class MNN.Unity.MNNConversationEvent
 ```
 
 An application event, separate from a user turn and never a tool-planning request.
+
+```csharp
+enum MNN.Unity.MNNConversationEventKind
+```
 
 ```csharp
 class MNN.Unity.MNNConversationEventReply
@@ -22471,6 +23215,12 @@ public void MNN.Unity.MNNModelCatalog.IncludePublishedSpeechProfiles()
 ```
 
 ```csharp
+public void MNN.Unity.MNNModelCatalog.IncludeRegisteredProfiles()
+```
+
+Refresh shared deployment registrations without duplicating catalog rows.
+
+```csharp
 public static string MNN.Unity.MNNModelCatalog.InstallFolderName(MNN.Unity.MNNRemoteModel model)
 ```
 
@@ -22840,6 +23590,24 @@ public MNN.Unity.MNNModelRecommendationStatus.MNNModelRecommendationStatus()
 
 ```csharp
 public MNN.Unity.MNNModelRecommendationTask.MNNModelRecommendationTask()
+```
+
+```csharp
+public MNN.Unity.MNNRemoteModel MNN.Unity.MNNModelRegistration.CreateModel()
+```
+
+```csharp
+public MNN.Unity.MNNModelRepositoryFile[] MNN.Unity.MNNModelRegistration.Files()
+```
+
+Returns a caller-owned pinned download plan.
+
+```csharp
+public bool MNN.Unity.MNNModelRegistration.IsComplete(string directory)
+```
+
+```csharp
+public string MNN.Unity.MNNModelRegistration.ResolveRevision(string requested = null)
 ```
 
 ```csharp
@@ -23233,6 +24001,22 @@ public double MNN.Unity.MNNModelRecommendationResult.ThroughputPerSecond { get; 
 ```
 
 ```csharp
+public string MNN.Unity.MNNModelRegistration.InstallationName { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNModelRegistration.Repository { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNModelRegistration.Revision { get; }
+```
+
+```csharp
+public MNN.Unity.MNNModelSource MNN.Unity.MNNModelRegistration.Source { get; }
+```
+
+```csharp
 public static System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNModelRegistration> MNN.Unity.MNNModelRegistry.All { get; }
 ```
 
@@ -23569,6 +24353,12 @@ enum MNN.Unity.MNNModelRecommendationStatus
 ```csharp
 enum MNN.Unity.MNNModelRecommendationTask
 ```
+
+```csharp
+class MNN.Unity.MNNModelRegistration
+```
+
+One deployment contract shared by catalog, installer and task adapters.
 
 ```csharp
 class MNN.Unity.MNNModelRegistry
@@ -24413,6 +25203,66 @@ MNN.Unity.MNNImageTaskProfile.UVDoc = 2
 ```
 
 ```csharp
+public string[] MNN.Unity.MNNInteractionSettings.allowedIdentities
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.audioVisualSpeech
+```
+
+```csharp
+public float MNN.Unity.MNNInteractionSettings.confirmationSeconds
+```
+
+```csharp
+public string MNN.Unity.MNNInteractionSettings.detectorDirectory
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.faceRecognition
+```
+
+```csharp
+public float MNN.Unity.MNNInteractionSettings.graceSeconds
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.imageContext
+```
+
+```csharp
+public string MNN.Unity.MNNInteractionSettings.measuredConfigurationId
+```
+
+```csharp
+public string MNN.Unity.MNNInteractionSettings.recognizerDirectory
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.referenceSpeaker
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.requireFace
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.separateSpeakers
+```
+
+```csharp
+public MNN.Unity.MNNPresenceSleepDisplay MNN.Unity.MNNInteractionSettings.sleepDisplay
+```
+
+```csharp
+public float MNN.Unity.MNNInteractionSettings.sleepSeconds
+```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.visualPresence
+```
+
+```csharp
 public const string MNN.Unity.MNNPaddleOcrConfig.FileName = "mnn_paddle_ocr.json"
 ```
 
@@ -24577,6 +25427,50 @@ MNN.Unity.MNNPoseJoint.RightWrist = 10
 ```
 
 ```csharp
+MNN.Unity.MNNPresenceKind.Face = 2
+```
+
+```csharp
+MNN.Unity.MNNPresenceKind.None = 0
+```
+
+```csharp
+MNN.Unity.MNNPresenceKind.Person = 1
+```
+
+```csharp
+MNN.Unity.MNNPresenceSleepDisplay.BlackScreen = 2
+```
+
+```csharp
+MNN.Unity.MNNPresenceSleepDisplay.Dimmed = 1
+```
+
+```csharp
+MNN.Unity.MNNPresenceSleepDisplay.Hidden = 0
+```
+
+```csharp
+MNN.Unity.MNNPresenceState.Acquiring = 1
+```
+
+```csharp
+MNN.Unity.MNNPresenceState.Grace = 3
+```
+
+```csharp
+MNN.Unity.MNNPresenceState.Present = 2
+```
+
+```csharp
+MNN.Unity.MNNPresenceState.Sleeping = 0
+```
+
+```csharp
+MNN.Unity.MNNPresenceState.Standby = 4
+```
+
+```csharp
 MNN.Unity.MNNYoloV8BoxEncoding.AnchorDistances = 1
 ```
 
@@ -24621,6 +25515,14 @@ public int MNN.Unity.MNNYoloV8Config.width
 ```
 
 ```csharp
+MNN.Unity.MNNPresenceObservation MNN.Unity.IMNNPresenceSource.Process(MNN.Unity.MNNRgbImage image, double capturedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+void MNN.Unity.IMNNPresenceSource.Reset()
+```
+
+```csharp
 public MNN.Unity.MNNDocumentLayoutResult MNN.Unity.MNNDocumentLayout.Analyze(MNN.Unity.MNNRgbImage image, float scoreThreshold = 0.5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
 ```
 
@@ -24636,6 +25538,66 @@ public void MNN.Unity.MNNDocumentLayout.Dispose()
 
 ```csharp
 public static MNN.Unity.MNNDocumentLayout MNN.Unity.MNNDocumentLayout.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)
+```
+
+```csharp
+public MNN.Unity.MNNFaceGallery.MNNFaceGallery(float minimumSimilarity = 0.65, float ambiguityMargin = 0.1)
+```
+
+```csharp
+public void MNN.Unity.MNNFaceGallery.Clear()
+```
+
+```csharp
+public void MNN.Unity.MNNFaceGallery.Enroll(string identity, float[] embedding)
+```
+
+```csharp
+public string MNN.Unity.MNNFaceGallery.Recognize(float[] embedding)
+```
+
+```csharp
+public bool MNN.Unity.MNNFaceGallery.Remove(string identity)
+```
+
+```csharp
+public MNN.Unity.MNNFacePresencePipeline.MNNFacePresencePipeline(MNN.Unity.MNNImageTask detector, MNN.Unity.MNNImageTask recognizer = null, MNN.Unity.MNNFaceGallery gallery = null, MNN.Unity.MNNFaceTargetTracker tracker = null)
+```
+
+```csharp
+public MNN.Unity.MNNPresenceObservation MNN.Unity.MNNFacePresencePipeline.Process(MNN.Unity.MNNRgbImage image, double capturedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+public void MNN.Unity.MNNFacePresencePipeline.Reset()
+```
+
+```csharp
+public void MNN.Unity.MNNFacePresenceSource.Dispose()
+```
+
+```csharp
+public static MNN.Unity.MNNFacePresenceSource MNN.Unity.MNNFacePresenceSource.Load(string detectorDirectory, string recognizerDirectory = null, MNN.Unity.MNNFaceGallery gallery = null, int threadCount = 4, MNN.Unity.MNNBackendType backend = MNN.Unity.MNNBackendType.Auto)
+```
+
+```csharp
+public MNN.Unity.MNNPresenceObservation MNN.Unity.MNNFacePresenceSource.Process(MNN.Unity.MNNRgbImage image, double capturedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+```
+
+```csharp
+public void MNN.Unity.MNNFacePresenceSource.Reset()
+```
+
+```csharp
+public MNN.Unity.MNNFaceTargetTracker.MNNFaceTargetTracker(float minimumScore = 0.6, double maximumGapSeconds = 0.75)
+```
+
+```csharp
+public void MNN.Unity.MNNFaceTargetTracker.Reset()
+```
+
+```csharp
+public int MNN.Unity.MNNFaceTargetTracker.Select(System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNDetection> faces, double capturedAt)
 ```
 
 ```csharp
@@ -24708,6 +25670,22 @@ public MNN.Unity.MNNImageTaskProfile.MNNImageTaskProfile()
 
 ```csharp
 public MNN.Unity.MNNImageTaskResult.MNNImageTaskResult()
+```
+
+```csharp
+public MNN.Unity.MNNInteractionSettings.MNNInteractionSettings()
+```
+
+```csharp
+public MNN.Unity.MNNInteractionSettings MNN.Unity.MNNInteractionSettings.Snapshot()
+```
+
+```csharp
+public MNN.Unity.MNNPresenceOptions MNN.Unity.MNNInteractionSettings.ToPresenceOptions()
+```
+
+```csharp
+public void MNN.Unity.MNNInteractionSettings.Validate()
 ```
 
 ```csharp
@@ -24807,6 +25785,50 @@ public MNN.Unity.MNNPoseKeypoint MNN.Unity.MNNPoseResult.GetKeypoint(MNN.Unity.M
 ```
 
 ```csharp
+public MNN.Unity.MNNPresenceController.MNNPresenceController(MNN.Unity.MNNPresenceOptions options = null, System.Collections.Generic.IEnumerable<string> allowedIdentities = null)
+```
+
+```csharp
+public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Observe(MNN.Unity.MNNPresenceObservation observation, double now, bool interactionBusy = false)
+```
+
+```csharp
+public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Tick(double now, bool interactionBusy = false)
+```
+
+```csharp
+public MNN.Unity.MNNPresenceKind.MNNPresenceKind()
+```
+
+```csharp
+public MNN.Unity.MNNPresenceObservation.MNNPresenceObservation()
+```
+
+```csharp
+public MNN.Unity.MNNPresenceObservation.MNNPresenceObservation(double capturedAt, MNN.Unity.MNNPresenceKind kind, string trackId, float confidence, string identity = null)
+```
+
+```csharp
+public static MNN.Unity.MNNPresenceObservation MNN.Unity.MNNPresenceObservation.Absent(double capturedAt)
+```
+
+```csharp
+public MNN.Unity.MNNPresenceOptions.MNNPresenceOptions(double confirmationSeconds = 0.35, double freshnessSeconds = 0.75, double graceSeconds = 3, double sleepSeconds = 15, double maximumBusyHoldSeconds = 30, float minimumConfidence = 0.6, bool requireFace = true)
+```
+
+```csharp
+public MNN.Unity.MNNPresenceSleepDisplay.MNNPresenceSleepDisplay()
+```
+
+```csharp
+public MNN.Unity.MNNPresenceSnapshot.MNNPresenceSnapshot()
+```
+
+```csharp
+public MNN.Unity.MNNPresenceState.MNNPresenceState()
+```
+
+```csharp
 public MNN.Unity.MNNRgbImage.MNNRgbImage(byte[] pixels, int width, int height)
 ```
 
@@ -24816,6 +25838,22 @@ public byte[] MNN.Unity.MNNRgbImage.ToArray()
 
 ```csharp
 public MNN.Unity.MNNTextRecognition.MNNTextRecognition(string text, float confidence)
+```
+
+```csharp
+public MNN.Unity.MNNVisionContext.MNNVisionContext(double maximumAgeSeconds = 0.75, int maximumPixels = 2073600)
+```
+
+```csharp
+public void MNN.Unity.MNNVisionContext.Clear()
+```
+
+```csharp
+public bool MNN.Unity.MNNVisionContext.TryGet(string trackId, double now, out MNN.Unity.MNNRgbImage image)
+```
+
+```csharp
+public void MNN.Unity.MNNVisionContext.Update(MNN.Unity.MNNRgbImage image, double capturedAt, string trackId)
 ```
 
 ```csharp
@@ -24911,6 +25949,10 @@ public int MNN.Unity.MNNDocumentRegion.ReadingOrder { get; }
 ```
 
 Model-predicted reading order. Gaps can remain after confidence filtering.
+
+```csharp
+public string MNN.Unity.MNNFaceTargetTracker.TrackId { get; private set; }
+```
 
 ```csharp
 public int MNN.Unity.MNNImageDepthResult.GridHeight { get; }
@@ -25097,6 +26139,86 @@ public int MNN.Unity.MNNPoseResult.Width { get; }
 ```
 
 ```csharp
+public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Current { get; private set; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceObservation.CapturedAt { get; }
+```
+
+```csharp
+public float MNN.Unity.MNNPresenceObservation.Confidence { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNPresenceObservation.Identity { get; }
+```
+
+```csharp
+public MNN.Unity.MNNPresenceKind MNN.Unity.MNNPresenceObservation.Kind { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNPresenceObservation.TrackId { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceOptions.ConfirmationSeconds { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceOptions.FreshnessSeconds { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceOptions.GraceSeconds { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceOptions.MaximumBusyHoldSeconds { get; }
+```
+
+```csharp
+public float MNN.Unity.MNNPresenceOptions.MinimumConfidence { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNPresenceOptions.RequireFace { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceOptions.SleepSeconds { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNPresenceSnapshot.CanStartInteraction { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceSnapshot.ConfirmedAt { get; }
+```
+
+```csharp
+public double MNN.Unity.MNNPresenceSnapshot.EvaluatedAt { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNPresenceSnapshot.KeepCurrentInteraction { get; }
+```
+
+```csharp
+public float MNN.Unity.MNNPresenceSnapshot.PresentationTarget { get; }
+```
+
+```csharp
+public MNN.Unity.MNNPresenceState MNN.Unity.MNNPresenceSnapshot.State { get; }
+```
+
+```csharp
+public string MNN.Unity.MNNPresenceSnapshot.TrackId { get; }
+```
+
+```csharp
 public int MNN.Unity.MNNRgbImage.Height { get; }
 ```
 
@@ -25141,6 +26263,12 @@ public MNN.Unity.MNNBackendType MNN.Unity.MNNYoloV8.Backend { get; }
 ```
 
 ```csharp
+interface MNN.Unity.IMNNPresenceSource
+```
+
+Worker-owned visual detection/recognition task, independent of a model family. Implement with any validated person/face detector and tracker. Never equate a track with an identity.
+
+```csharp
 class MNN.Unity.MNNDetection
 ```
 
@@ -25163,6 +26291,30 @@ class MNN.Unity.MNNDocumentRegion
 ```
 
 A page region in source-image pixels, with top-left origin.
+
+```csharp
+class MNN.Unity.MNNFaceGallery
+```
+
+In-memory cosine matching for MobileFaceNet's aligned 512-D embeddings. Thresholds require application calibration. This is neither liveness nor an access-control credential.
+
+```csharp
+class MNN.Unity.MNNFacePresencePipeline
+```
+
+Worker-owned SCRFD -&gt; stable target -&gt; five-point alignment -&gt; optional MobileFaceNet/gallery. Caller owns the supplied models. A missing/ambiguous face produces an absent observation. Capture and UI clocks must agree. Pass the result to MNNPresenceController or MNNPresenceComponent.
+
+```csharp
+class MNN.Unity.MNNFacePresenceSource
+```
+
+Owned convenience adapter for the existing SCRFD/MobileFaceNet task APIs. Other model families implement IMNNPresenceSource; the camera/controller never inspect model names.
+
+```csharp
+class MNN.Unity.MNNFaceTargetTracker
+```
+
+Single-owner geometric face continuity. Keeps the current face ahead of larger newcomers. Crossing/ambiguous matches invalidate the track. Geometry is not biometric identity.
 
 ```csharp
 class MNN.Unity.MNNImageDepthResult
@@ -25209,6 +26361,12 @@ class MNN.Unity.MNNImageTaskResult
 ```
 
 Task data, not just a visualization. Alpha has source-image dimensions. Face vectors are unit normalized; recognition expects an aligned 112x112 face. Segmentation classes/confidence and its colored image use source-image dimensions.
+
+```csharp
+class MNN.Unity.MNNInteractionSettings
+```
+
+Independent opt-in capabilities. Enabling a capability requires a ready provider; defaults never infer camera consent, identity or a lowest-error model without measurement.
 
 ```csharp
 class MNN.Unity.MNNOcrResult
@@ -25265,6 +26423,40 @@ class MNN.Unity.MNNPoseResult
 SinglePose estimates one primary person, even on an empty scene. All 17 COCO joints are retained, including low scores and padding points.
 
 ```csharp
+class MNN.Unity.MNNPresenceController
+```
+
+Single-owner policy, independent of camera, inference, UI and Unity time scale. Observe on new sensor results; Tick even if the camera stalls. Busy means an existing turn, never new admission.
+
+```csharp
+enum MNN.Unity.MNNPresenceKind
+```
+
+```csharp
+readonly struct MNN.Unity.MNNPresenceObservation
+```
+
+One sensor result in the caller's monotonic clock. TrackId is continuity, Identity is recognition. A face does not prove identity, liveness, profession or authorization.
+
+```csharp
+class MNN.Unity.MNNPresenceOptions
+```
+
+Immutable presence timing. Defaults confirm for 350 ms, retain UI for 3 s, sleep after 15 s.
+
+```csharp
+enum MNN.Unity.MNNPresenceSleepDisplay
+```
+
+```csharp
+readonly struct MNN.Unity.MNNPresenceSnapshot
+```
+
+```csharp
+enum MNN.Unity.MNNPresenceState
+```
+
+```csharp
 class MNN.Unity.MNNRgbImage
 ```
 
@@ -25287,6 +26479,12 @@ class MNN.Unity.MNNTextRegion
 ```
 
 One detected text region and its CTC recognition result.
+
+```csharp
+class MNN.Unity.MNNVisionContext
+```
+
+Single-owner latest image for explicit multimodal requests. No history, disk storage or upload. Get it again for each turn; do not reuse a previously returned image for another person.
 
 ```csharp
 class MNN.Unity.MNNYoloV8
