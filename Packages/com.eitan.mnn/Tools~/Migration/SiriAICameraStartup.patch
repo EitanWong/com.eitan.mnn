@@ -1,0 +1,130 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -153,8 +153,11 @@
+             for (int attempt = 0; ; ++attempt)
+             {
+                 token.ThrowIfCancellationRequested();
+-                _interactionCamera = new WebCamTexture(device, attempt == 0 ? settings.RequestedWidth : 640,
+-                    attempt == 0 ? settings.RequestedHeight : 480, attempt == 0 ? settings.RequestedFramesPerSecond : 15);
++                // After a failed mode request, let this device negotiate its native defaults.
++                // A second imposed size/rate can leave USB cameras playing at a provisional 16x16.
++                _interactionCamera = attempt == 0
++                    ? new WebCamTexture(device, settings.RequestedWidth, settings.RequestedHeight, settings.RequestedFramesPerSecond)
++                    : new WebCamTexture(device);
+                 _interactionCamera.Play();
+                 var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                 var wait = StartCoroutine(WaitForVisualCameraFrame(_interactionCamera, settings.startupTimeoutSeconds, ready));
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
+@@ -0,0 +1,101 @@
++using System;
++using System.Collections;
++using System.Reflection;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.TestTools;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIVisualCameraTests
++    {
++        private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
++
++        [UnityTest, Explicit("Uses the connected C930c camera and microphone; stores counters only, no recordings.")]
++        public IEnumerator C930cVisualCameraStartsAndReopensDuringMicrophoneCapture()
++        {
++            yield return new EnterPlayMode();
++            yield return CaptureAndReopen();
++            yield return new ExitPlayMode();
++        }
++
++        private static IEnumerator CaptureAndReopen()
++        {
++            string name = Array.Find(Array.ConvertAll(WebCamTexture.devices, camera => camera.name),
++                value => value.IndexOf("C930", StringComparison.OrdinalIgnoreCase) >= 0);
++            string microphoneName = Array.Find(Microphone.devices,
++                value => value.IndexOf("C930", StringComparison.OrdinalIgnoreCase) >= 0);
++            Assert.IsNotNull(name, "Connect the C930c camera.");
++            Assert.IsNotNull(microphoneName, "Connect the C930c microphone.");
++            var openCamera = typeof(SiriAIChat).GetMethod("OpenVisualCameraAsync", Private);
++            var releaseCamera = typeof(SiriAIChat).GetMethod("ReleaseVisualCamera", Private);
++            Assert.IsNotNull(openCamera, typeof(SiriAIChat).Assembly.Location);
++            Assert.IsNotNull(releaseCamera, typeof(SiriAIChat).Assembly.Location);
++            var root = new GameObject("Visual camera startup regression");
++            var acoustics = root.AddComponent<SiriAIAcousticProcessing>();
++            Assert.IsNotNull(acoustics, "Create the acoustic settings owner.");
++            SiriAITestAccess.Set(acoustics, "preferencesKey", "");
++            var chat = root.AddComponent<SiriAIChat>();
++            Assert.IsNotNull(chat, "Create the camera owner.");
++            chat.enabled = false;
++            var audioRoot = new GameObject("Visual camera microphone");
++            audioRoot.transform.SetParent(root.transform);
++            var microphone = audioRoot.AddComponent<MNNUnityMicrophoneCapture>();
++            var device = audioRoot.AddComponent<MNNRealtimeAudioDevice>();
++            Assert.IsNotNull(microphone);
++            Assert.IsNotNull(device);
++            var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(48000, 2), 480);
++            try
++            {
++                microphone.StartCaptureNegotiated(device,
++                    (format, capacity) => device.Bind(output, format, 64, capacity), microphoneName);
++                double deadline = Time.realtimeSinceStartupAsDouble + 15;
++                while (!microphone.IsCapturing && Time.realtimeSinceStartupAsDouble < deadline) yield return null;
++                Assert.IsTrue(microphone.IsCapturing, microphone.Fault?.ToString());
++                var settings = new MNNCameraSettings { deviceName = name, startupTimeoutSeconds = 3 };
++                for (int cycle = 0; cycle < 2; ++cycle)
++                {
++                    var opening = (Task)openCamera.Invoke(chat, new object[] { name, settings, CancellationToken.None });
++                    // Force a stalled first attempt on reopen, then require a fresh readable
++                    // stream from the selected device's automatic fallback while audio continues.
++                    if (cycle == 1) chat.VisualCamera.Stop();
++                    while (!opening.IsCompleted) yield return null;
++                    opening.GetAwaiter().GetResult();
++                    var camera = chat.VisualCamera;
++                    Assert.That(camera.deviceName, Is.EqualTo(name));
++                    Assert.That(camera.width, Is.GreaterThan(16));
++                    Assert.That(camera.height, Is.GreaterThan(16));
++                    Assert.That(camera.GetPixels32().Length, Is.EqualTo(camera.width * camera.height));
++                    int frames = 0;
++                    long samples = 0;
++                    var pcm = new float[device.MaximumCaptureSamples];
++                    deadline = Time.realtimeSinceStartupAsDouble + 1;
++                    while (Time.realtimeSinceStartupAsDouble < deadline)
++                    {
++                        if (camera.didUpdateThisFrame) ++frames;
++                        while (device.TryReadCapture(pcm, 0, out _, out int count)) samples += count;
++                        yield return null;
++                    }
++                    TestContext.WriteLine("C930c cycle=" + cycle + " size=" + camera.width + "x" + camera.height +
++                        " requestedFPS=" + camera.requestedFPS + " frames=" + frames + " audioSamples=" + samples);
++                    Assert.That(frames, Is.GreaterThan(0));
++                    Assert.That(samples, Is.GreaterThan(0));
++                    var releasing = (Task)typeof(SiriAIChat).GetMethod("ReleaseVisualCameraAsync", Private)
++                        .Invoke(chat, new object[] { CancellationToken.None });
++                    while (!releasing.IsCompleted) yield return null;
++                    releasing.GetAwaiter().GetResult();
++                    Assert.IsNull(chat.VisualCamera);
++                }
++            }
++            finally
++            {
++                releaseCamera.Invoke(chat, null);
++                microphone.StopCapture();
++                UnityEngine.Object.DestroyImmediate(root);
++            }
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a22e1e182d1641f6b19be7d9067d5a57

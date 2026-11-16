@@ -1,0 +1,19 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs",
+      "before": "dbe11324b2fb34b545ea3e271e48da9b359c1540d5786d75b849670174377894",
+      "after": "657330ac70a56733af3f65975f056174c2e913114b0b7ec2e7a306c8ff157efd"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs",
+      "before": null,
+      "after": "233fcef3744771dc55d34559fb9de524a5699c103c471aae0ce3fd1aef9887c3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs.meta",
+      "before": null,
+      "after": "5903dd042993d429ed9099f29539f5bdfcc9dd6af8a8ddbd0246550abf533b84"
+    }
+  ]
+}

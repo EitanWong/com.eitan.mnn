@@ -495,3 +495,27 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 补丁保留全部 `.meta` GUID，校验精确基线，重复执行不写入。
 C930c 与 EasyMic、已有真实人脸检测模型已完成三次启动和重启，持续收到视频帧与麦克风 PCM。
 首帧协商问题有确定性回归覆盖；用户现场的间歇性超时未在硬件测试中重现。
+
+## Camera startup fallback
+
+For the matching SiriAI import, run:
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage camera-startup
+```
+
+When the initial camera mode times out, automatic quality now reopens the same
+selected device without imposing dimensions or a frame rate. The previous retry
+forced 640×480 at 15 FPS and could remain playing with Unity's provisional 16×16
+buffer. Startup still requires complete readable pixels, permits one retry, and
+releases the previous capture owner before reopening. Manual quality is unchanged.
+
+The opt-in `SiriAIVisualCameraTests.C930cVisualCameraStartsAndReopensDuringMicrophoneCapture`
+checks readable frames, simultaneous microphone capture, release/reopen, and
+recovery after a forced first-attempt stall on the connected C930c. It stores
+counters only. Managed fault injection separately checks a device rejecting both
+imposed modes. Current hardware checks do not reproduce the original intermittent
+stall; they verify startup, fallback and continued capture. No models are downloaded.
+
+The migration checks complete file hashes, rejects partial/edited imports before
+writing, and makes no changes when repeated. Existing asset GUIDs are preserved.
