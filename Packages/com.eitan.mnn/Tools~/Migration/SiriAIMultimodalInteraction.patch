@@ -401,7 +401,7 @@
          private int _wakePreviewRevision;
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,60 @@
 +using System;
 +using MNN.Unity;
 +
@@ -424,6 +424,10 @@
 +                () => value.faceRecognition, enabled => UpdateAudioSettings(() => value.faceRecognition = enabled));
 +            AddBoolField("Image context", "Use a fresh target image for supported multimodal requests.",
 +                () => value.imageContext, enabled => UpdateAudioSettings(() => value.imageContext = enabled));
++            BuildVisionModelSelection("Face detection model", "Choose an installed model or download a supported detector.",
++                FaceDetectionModelStage, () => value.detectorDirectory, directory => value.detectorDirectory = directory);
++            BuildVisionModelSelection("Face recognition model", "Used only when identity matching is enabled.",
++                FaceRecognitionModelStage, () => value.recognizerDirectory, directory => value.recognizerDirectory = directory);
 +            if (value.visualPresence)
 +            {
 +                var form = new SettingsForm(this);
@@ -437,8 +441,6 @@
 +                    selected => value.sleepDisplay = (MNNPresenceSleepDisplay)selected, new[] { "Hide UI", "Dimmed standby", "Black screen" });
 +                AddTextField("Allowed identities", "Comma-separated enrolled identifiers.", () => string.Join(", ", value.allowedIdentities ?? Array.Empty<string>()),
 +                    text => value.allowedIdentities = text.Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries));
-+                AddTextField("Presence model directory", "Any installed provider-compatible detector.", () => value.detectorDirectory, text => value.detectorDirectory = text.Trim());
-+                AddTextField("Face recognition directory", "Used only when identity matching is enabled.", () => value.recognizerDirectory, text => value.recognizerDirectory = text.Trim());
 +            }
 +        }
 +
@@ -474,16 +476,191 @@
 +  userData: 
 +  assetBundleName: 
 +  assetBundleVariant: 
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Models.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Models.cs
+@@ -128,14 +128,15 @@
+         }
+ 
+         private List<SiriAIModelCatalog.Entry> CompatibleModels(int stage) =>
+-            (_settingsDraft.Catalog?.ForStage(stage) ?? new List<SiriAIModelCatalog.Entry>())
++            (IsVisionModelStage(stage) ? CompatibleVisionModels(stage) :
++                _settingsDraft.Catalog?.ForStage(stage) ?? new List<SiriAIModelCatalog.Entry>())
+                 .OrderBy(entry => entry.installedDirectory == null).ToList();
+ 
+         private bool ModelChoiceSelectable(int index)
+         {
+             if (index >= _modelPickerEntries.Count) return true; // String-only menus also use this virtual list.
+             var entry = _modelPickerEntries[index];
+-            return SiriAIModelCatalog.CanSelect(entry, _modelPickerStage) &&
++            return CanSelectPickerModel(entry) &&
+                 (_modelPickerStage != 0 || SiriAISettingsConstraints.SupportsModel(entry.adapter, _settingsDraft.Configuration.mode));
+         }
+ 
+@@ -200,9 +201,9 @@
+                 _modelPickerOptions.Add(title + "  ·  " + FormatModelSize(entry.bytes) + "\n" +
+                     (entry.remote == null ? Localize("Legacy profile") : entry.remote.provider + " · " +
+                         (string.IsNullOrEmpty(entry.revision) ? "default" : entry.revision.Substring(0, Math.Min(8, entry.revision.Length)))) +
+-                    (entry.remote == null ? "" : " · " + Localize(!SiriAIModelCatalog.CanSelect(entry, _modelPickerStage)
++                    (entry.remote == null ? "" : " · " + Localize(!CanSelectPickerModel(entry)
+                         ? "SiriAI adapter unavailable" : !ModelChoiceSelectable(_modelPickerEntries.Count - 1)
+-                            ? "Unavailable in this conversation mode" : AcousticModelPicker ? "Downloads when selected" : "Downloads when needed")));
++                            ? "Unavailable in this conversation mode" : (AcousticModelPicker || VisionModelPicker) ? "Downloads when selected" : "Downloads when needed")));
+             }
+         }
+ 
+@@ -388,6 +389,7 @@
+         {
+             // Each async owner disposes its source after all callbacks and file I/O have ended.
+             _acousticModelCancellation?.Cancel();
++            _visionModelCancellation?.Cancel();
+             _catalogCancellation?.Cancel();
+             _catalogCancellation = null;
+             _catalogBusy = _catalogAttempted = false;
 --- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.UI.cs
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.UI.cs
 @@ -59,6 +59,7 @@
              CreateSettingsTab(_settingsNavigation, "Providers", 1, SiriAIActionGlyph.Models);
              CreateSettingsTab(_settingsNavigation, "Appearance", 2, SiriAIActionGlyph.Appearance);
              CreateSettingsTab(_settingsNavigation, "Audio", 3, SiriAIActionGlyph.Audio);
-+            CreateSettingsTab(_settingsNavigation, "Vision", VisionTab, SiriAIActionGlyph.Appearance);
++            CreateSettingsTab(_settingsNavigation, "Vision", VisionTab, SiriAIActionGlyph.Eye);
              CreateSettingsTab(_settingsNavigation, "System", DiagnosticsTab, SiriAIActionGlyph.System);
              if (harness != null) CreateSettingsTab(_settingsNavigation, "Tasks", HarnessTab, SiriAIActionGlyph.Tasks);
              CreateSettingsTab(_settingsNavigation, "Interaction", DesktopTab, SiriAIActionGlyph.Keyboard);
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.VisionModels.cs
+@@ -0,0 +1,118 @@
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private const int FaceDetectionModelStage = 20, FaceRecognitionModelStage = 21;
++        private CancellationTokenSource _visionModelCancellation;
++        private bool VisionModelPicker => IsVisionModelStage(_modelPickerStage);
++        private static bool IsVisionModelStage(int stage) => stage == FaceDetectionModelStage || stage == FaceRecognitionModelStage;
++        private static MNNImageTaskProfile VisionProfile(int stage) => stage == FaceDetectionModelStage
++            ? MNNImageTaskProfile.Scrfd500M : stage == FaceRecognitionModelStage ? MNNImageTaskProfile.MobileFaceNet
++            : throw new ArgumentOutOfRangeException(nameof(stage));
++        private static string VisionCategory(int stage) => (stage == FaceDetectionModelStage
++            ? MNNModelCatalogCategory.FaceDetection : MNNModelCatalogCategory.FaceRecognition).ToString();
++        private static string VisionModelId(int stage, string directory) => "local:vision:" + stage + ":" + directory;
++        private bool CanSelectPickerModel(SiriAIModelCatalog.Entry entry) => VisionModelPicker
++            ? CanSelectVisionModel(entry, _modelPickerStage) : SiriAIModelCatalog.CanSelect(entry, _modelPickerStage);
++        private static bool CanSelectVisionModel(SiriAIModelCatalog.Entry entry, int stage) => entry.installedDirectory != null ||
++            MNNImageTaskConfig.TryGetProfile(entry.remote, out var profile) && profile == VisionProfile(stage);
++
++        private List<SiriAIModelCatalog.Entry> CompatibleVisionModels(int stage)
++        {
++            var result = _settingsDraft.Catalog.Entries.Where(entry => entry.installedDirectory == null && entry.remote != null &&
++                (entry.remote.category == VisionCategory(stage) ||
++                MNNImageTaskConfig.TryGetProfile(entry.remote, out var profile) && profile == VisionProfile(stage))).ToList();
++            var directories = new HashSet<string>(StringComparer.Ordinal);
++            string root = _acousticModelsDirectory();
++            try
++            {
++                if (Directory.Exists(root)) foreach (string directory in Directory.GetDirectories(root)) directories.Add(Path.GetFullPath(directory));
++                var settings = _settingsDraft.Acoustics.interaction;
++                directories.Add(SiriAIAcousticModelResources.ResolvePath(root, stage == FaceDetectionModelStage ? settings.detectorDirectory : settings.recognizerDirectory));
++            }
++            catch (Exception error) when (VisionFileError(error)) { }
++            foreach (string directory in directories)
++            {
++                try
++                {
++                    var config = MNNImageTaskConfig.Read(directory);
++                    if (config.profile != VisionProfile(stage)) continue;
++                    string graph = config.Resolve(directory, false); // Presence hint only; selection verifies SHA on a worker.
++                    result.Add(new SiriAIModelCatalog.Entry { modelId = VisionModelId(stage, directory),
++                        repository = Path.GetFileName(directory), installedDirectory = directory, bytes = new FileInfo(graph).Length,
++                        remote = new MNNRemoteModel { name = Path.GetFileName(directory), category = VisionCategory(stage) } });
++                }
++                catch (Exception error) when (VisionFileError(error)) { }
++            }
++            return result;
++        }
++        private static bool VisionFileError(Exception error) => error is IOException || error is ArgumentException ||
++            error is UnauthorizedAccessException || error is NotSupportedException || error is System.Security.SecurityException;
++
++        private void BuildVisionModelSelection(string title, string detail, int stage, Func<string> read, Action<string> write)
++        {
++            string current = string.IsNullOrWhiteSpace(read()) ? "Search for a model" : read();
++            BuildModelSelection(title, detail, current, title, stage, () =>
++            {
++                try { return VisionModelId(stage, SiriAIAcousticModelResources.ResolvePath(_acousticModelsDirectory(), read())); }
++                catch (Exception error) when (VisionFileError(error)) { return null; }
++            }, selected => _ = SelectVisionModelAsync(stage, selected, write));
++        }
++
++        private Func<string, MNNRemoteModel, CancellationToken, Task<string>> _installVisionModel = (root, model, token) =>
++            MNNModelInstallation.EnsureAsync(MNNModelInstallation.DirectoryFor(root, model,
++                MNNConversationModelCatalog.DefaultInstallationName(model)), model, token: token);
++
++        private async Task SelectVisionModelAsync(int stage, SiriAIModelCatalog.Entry selected, Action<string> write)
++        {
++            if (_visionModelCancellation != null) return;
++            var cancellation = _visionModelCancellation = new CancellationTokenSource();
++            int generation = _settingsGeneration;
++            try
++            {
++                if (!CanSelectVisionModel(selected, stage)) throw new NotSupportedException("No compatible visual model adapter.");
++                string root = Path.GetFullPath(_acousticModelsDirectory());
++                string directory = selected.installedDirectory;
++                if (directory == null)
++                {
++                    if (_editorPreview) return; // A preview must never download or pretend installation succeeded.
++                    SetSettingsNotice("Downloading visual model…");
++                    SetSettingsBusy(true, allowClose: true);
++                    directory = await _installVisionModel(root, selected.remote, cancellation.Token);
++                }
++                cancellation.Token.ThrowIfCancellationRequested();
++                if (!_editorPreview)
++                    await Task.Run(() =>
++                    {
++                        var config = MNNImageTaskConfig.Read(directory);
++                        if (config.profile != VisionProfile(stage)) throw new InvalidDataException("The selected model has an incompatible visual profile.");
++                        config.Resolve(directory, true);
++                        cancellation.Token.ThrowIfCancellationRequested();
++                    }, cancellation.Token);
++                cancellation.Token.ThrowIfCancellationRequested();
++                if (this == null || generation != _settingsGeneration || !IsSettingsOpen) return;
++                write(string.Equals(Path.GetDirectoryName(directory), root, StringComparison.Ordinal) ? Path.GetFileName(directory) : directory);
++                ShowSettingsTab(_settingsTab, false);
++            }
++            catch (OperationCanceledException) { }
++            catch (Exception error)
++            {
++                if (this != null && generation == _settingsGeneration && IsSettingsOpen) SetSettingsNotice(error.Message, true);
++            }
++            finally
++            {
++                if (_visionModelCancellation == cancellation) _visionModelCancellation = null;
++                cancellation.Dispose();
++                if (this != null && generation == _settingsGeneration && IsSettingsOpen) SetSettingsBusy(false);
++            }
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.VisionModels.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: a537e41428d14447899f75c29c9dbdd9
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
 --- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
 @@ -394,6 +394,7 @@
@@ -512,6 +689,34 @@
              CloseWorkspaceFiles();
              ResetSetupWizard();
              if (_chat != null) _chat.DeferAutomaticStartup = false;
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIActionIcon.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIActionIcon.cs
+@@ -3,7 +3,7 @@
+ 
+ namespace MNN.Samples.SiriAI
+ {
+-    public enum SiriAIActionGlyph { Close, Save, ResetChat, Reload, Conversation, Models, Appearance, Audio, Copy, Earlier, Latest, Later, Transcribe, Expand, Stop, Diagnostics, Orb, Background, Sidebar, Plus, Search, Edit, Archive, Trash, ChevronLeft, ChevronRight, Filter, More, Folder, FolderPlus, Pin, Keyboard, System, Performance, Tasks, Pause, Play, Clock, Check, Alert }
++    public enum SiriAIActionGlyph { Close, Save, ResetChat, Reload, Conversation, Models, Appearance, Audio, Copy, Earlier, Latest, Later, Transcribe, Expand, Stop, Diagnostics, Orb, Background, Sidebar, Plus, Search, Edit, Archive, Trash, ChevronLeft, ChevronRight, Filter, More, Folder, FolderPlus, Pin, Keyboard, System, Performance, Tasks, Pause, Play, Clock, Check, Alert, Eye }
+ 
+     /// <summary>Small outlined action symbols, drawn as scalable geometry without font glyph dependencies.</summary>
+     [AddComponentMenu("")]
+@@ -22,6 +22,16 @@
+             _scale = Mathf.Min(rectTransform.rect.width, rectTransform.rect.height) / 24f;
+             switch (_glyph)
+             {
++                case SiriAIActionGlyph.Eye:
++                    for (int i = 0; i < 24; ++i)
++                    {
++                        float a = i / 24f, b = (i + 1) / 24f;
++                        float x1 = Mathf.Lerp(-10, 10, a), x2 = Mathf.Lerp(-10, 10, b);
++                        float y1 = Mathf.Sin(a * Mathf.PI) * 6, y2 = Mathf.Sin(b * Mathf.PI) * 6;
++                        Line(mesh, x1, y1, x2, y2, false);
++                        Line(mesh, x1, -y1, x2, -y2, false);
++                    }
++                    Arc(mesh, 3.3f, 0, 360); break;
+                 case SiriAIActionGlyph.Pause:
+                     Line(mesh, -4, -7, -4, 7); Line(mesh, 4, -7, 4, 7); break;
+                 case SiriAIActionGlyph.Play:
 --- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAcousticFrontend.cs
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Audio/SiriAIAcousticFrontend.cs
 @@ -11,6 +11,11 @@
@@ -587,11 +792,15 @@
          public MNNConversationRecording Recording { get; }
 --- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
-@@ -8,6 +8,41 @@
+@@ -8,6 +8,45 @@
      {
          private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
          {
 +            { "Vision", "视觉" },
++            { "Face detection model", "人脸检测模型" },
++            { "Face recognition model", "人脸识别模型" },
++            { "Choose an installed model or download a supported detector.", "选择已安装的模型，或下载支持的人脸检测模型。" },
++            { "Downloading visual model…", "正在下载视觉模型…" },
 +            { "Confirmation time (s)", "在场确认时长（秒）" },
 +            { "Continuous visibility required before interaction starts.", "持续检测到目标达到此时长后才开始交互。" },
 +            { "Brief absence grace (s)", "短暂离开宽限（秒）" },
@@ -712,10 +921,15 @@
 +  assetBundleVariant: 
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,122 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Reflection;
++using System.IO;
++using System.Collections;
++using UnityEngine.TestTools;
++using System.Threading.Tasks;
++using MNN.Unity;
 +using NUnit.Framework;
 +using UnityEngine;
 +using UnityEngine.UI;
@@ -734,6 +948,60 @@
 +            }
 +            return null;
 +        }
++        [UnityTest]
++        public IEnumerator DetectionUsesSharedPicker() => CheckVisualPicker("Face detection model", 20, MNNImageTaskProfile.Scrfd500M, "det_500m.mnn");
++        [UnityTest]
++        public IEnumerator RecognitionUsesSharedPicker() => CheckVisualPicker("Face recognition model", 21, MNNImageTaskProfile.MobileFaceNet, "w600k_mbf.mnn");
++        private IEnumerator CheckVisualPicker(string label, int stage, MNNImageTaskProfile profile, string graph)
++        {
++            var root = new GameObject("Visual model picker");
++            string directory = Path.GetFullPath(Path.Combine(Application.dataPath, "../TestArtifacts~/VisionPickerTests/" + Guid.NewGuid().ToString("N")));
++            try
++            {
++                string model = Path.Combine(directory, "local-visual-model");
++                Directory.CreateDirectory(model);
++                File.WriteAllText(Path.Combine(model, MNNImageTaskConfig.FileName), JsonUtility.ToJson(new MNNImageTaskConfig { profile = profile }));
++                File.WriteAllBytes(Path.Combine(model, graph), new byte[] {1}); // File-presence UI fixture; not inference validation.
++                root.AddComponent<SiriAIChat>().enabled = false;
++                var view = root.AddComponent<SiriAIChatView>();
++                var type = typeof(SiriAIChatView);
++                type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
++                type.GetField("_acousticModelsDirectory", Private).SetValue(view, (Func<string>)(() => directory));
++                view.TickEditorPreview(new Rect(0, 0, 844, 800), 1);
++                view.OpenSettings();
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
++                var row = Active(content, label);
++                Assert.That(row, Is.Not.Null, "Visual models must use the existing model picker even when detection is off.");
++                Assert.That(row.GetComponentInChildren<InputField>(), Is.Null);
++                row.GetComponentInChildren<Button>().onClick.Invoke();
++                Assert.That((bool)type.GetField("_settingsOptionsCatalog", Private).GetValue(view), Is.True);
++                Assert.That((int)type.GetField("_modelPickerStage", Private).GetValue(view), Is.EqualTo(stage));
++                var search = (InputField)type.GetField("_settingsSearch", Private).GetValue(view);
++                search.text = "local-visual-model";
++                var choices = ((RectTransform)type.GetField("_settingsOptionsContent", Private).GetValue(view)).GetComponentsInChildren<Button>();
++                Assert.That(choices.Length, Is.EqualTo(1));
++                choices[0].onClick.Invoke();
++                var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
++                Assert.That(stage == 20 ? draft.Acoustics.interaction.detectorDirectory : draft.Acoustics.interaction.recognizerDirectory, Is.EqualTo("local-visual-model"), ((Text)type.GetField("_settingsNotice", Private).GetValue(view)).text);
++                Assert.That(draft.Acoustics.interaction.visualPresence, Is.False, "Choosing a model must not enable the camera.");
++                // Real selection must reject the deliberately non-publisher fixture graph.
++                type.GetField("_editorPreview", Private).SetValue(view, false);
++                bool acceptedInvalidGraph = false;
++                var selection = (Task)type.GetMethod("SelectVisionModelAsync", Private).Invoke(view, new object[] {
++                    stage, new SiriAIModelCatalog.Entry { installedDirectory = model }, (Action<string>)(_ => acceptedInvalidGraph = true) });
++                while (!selection.IsCompleted) yield return null;
++                Assert.That(selection.IsFaulted, Is.False);
++                type.GetField("_editorPreview", Private).SetValue(view, true);
++                Assert.That(acceptedInvalidGraph, Is.False, "The picker may hint file presence but a real selection must verify publisher SHA.");
++
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {3, true});
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                Assert.That(stage == 20 ? draft.Acoustics.interaction.detectorDirectory : draft.Acoustics.interaction.recognizerDirectory, Is.EqualTo("local-visual-model"), ((Text)type.GetField("_settingsNotice", Private).GetValue(view)).text);
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); if (Directory.Exists(directory)) Directory.Delete(directory, true); }
++        }
++
 +        [Test]
 +        public void VisionHasDedicatedNavigationAndDoesNotDuplicateAudioControls()
 +        {
@@ -749,6 +1017,8 @@
 +                var ids = (List<int>)type.GetField("_settingsTabIds", Private).GetValue(view);
 +                int vision = tabs.FindIndex(button => button.name == "Vision");
 +                Assert.That(vision, Is.GreaterThanOrEqualTo(0), "Vision needs its own visible settings category.");
++                var icon = tabs[vision].GetComponentInChildren<SiriAIActionIcon>();
++                Assert.That(icon.Glyph.ToString(), Is.EqualTo("Eye"));
 +                tabs[vision].onClick.Invoke();
 +                var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
 +                foreach (string label in new[] { "Visual presence", "Recognized identities only", "Image context" })
@@ -756,7 +1026,7 @@
 +                Assert.That(Active(content, "Reference speaker extraction"), Is.Null);
 +                Active(content, "Visual presence").GetComponentInChildren<Button>().onClick.Invoke();
 +                Assert.That(Active(content, "Sleep display"), Is.Not.Null);
-+                Assert.That(Active(content, "Presence model directory"), Is.Not.Null);
++                Assert.That(Active(content, "Face detection model"), Is.Not.Null);
 +                var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
 +                Assert.That(draft.Acoustics.interaction.visualPresence, Is.True);
 +                Active(content, "Confirmation time (s)").GetComponentInChildren<InputField>().text = "1.2";

@@ -25665,6 +25665,12 @@ public string MNN.Unity.MNNImageTaskConfig.Resolve(string directory, bool verify
 ```
 
 ```csharp
+public static bool MNN.Unity.MNNImageTaskConfig.TryGetProfile(MNN.Unity.MNNRemoteModel model, out MNN.Unity.MNNImageTaskProfile profile)
+```
+
+Resolves only publisher repositories already supported by the shared image profile table. This describes an adapter; installed graph integrity is checked separately by Resolve.
+
+```csharp
 public MNN.Unity.MNNImageTaskProfile.MNNImageTaskProfile()
 ```
 

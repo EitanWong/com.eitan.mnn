@@ -41435,6 +41435,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNImageTaskConfig.TryGetProfile(MNN.Unity.MNNRemoteModel,MNN.Unity.MNNImageTaskProfile@)",
+    "Signature": "public static bool MNN.Unity.MNNImageTaskConfig.TryGetProfile(MNN.Unity.MNNRemoteModel model, out MNN.Unity.MNNImageTaskProfile profile)",
+    "Summary": "Resolves only publisher repositories already supported by the shared image profile table. This describes an adapter; installed graph integrity is checked separately by Resolve."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNImageTaskProfile.#ctor",
     "Signature": "public MNN.Unity.MNNImageTaskProfile.MNNImageTaskProfile()",
     "Summary": ""

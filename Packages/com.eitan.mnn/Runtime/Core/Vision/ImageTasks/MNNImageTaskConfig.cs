@@ -16,6 +16,25 @@ namespace MNN.Unity
         public MNNImageTaskProfile profile;
         internal MNNImageTaskConfig Clone() => new MNNImageTaskConfig {profile = profile};
 
+        /// <summary>Resolves only publisher repositories already supported by the shared image profile table.
+        /// This describes an adapter; installed graph integrity is checked separately by Resolve.</summary>
+        public static bool TryGetProfile(MNNRemoteModel model, out MNNImageTaskProfile profile)
+        {
+            profile = default;
+            if (model == null) return false;
+            string repository = model.repositoryId ?? model.modelScopeId;
+            foreach (var source in MNNImageTaskProfiles.All)
+            {
+                if (!string.Equals(source.Repository, repository, StringComparison.OrdinalIgnoreCase) || source.Url == null) continue;
+                bool providerMatches = model.provider == MNNModelSource.ModelScope && source.Url.StartsWith("https://www.modelscope.cn/", StringComparison.Ordinal) ||
+                    model.provider == MNNModelSource.HuggingFace && source.Url.StartsWith("https://huggingface.co/", StringComparison.Ordinal);
+                if (!providerMatches) return false;
+                profile = source.Profile;
+                return true;
+            }
+            return false;
+        }
+
         public static MNNImageTaskConfig Read(string directory)
         {
             var config = JsonUtility.FromJson<MNNImageTaskConfig>(File.ReadAllText(Path.Combine(directory, FileName)));
