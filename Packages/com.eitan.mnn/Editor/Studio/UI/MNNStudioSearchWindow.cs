@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEditor;
 using UnityEngine;
 
@@ -14,6 +15,9 @@ namespace MNN.Unity.Editor.UI
         private Vector2 _scroll;
         private int _selected;
         private bool _focus = true;
+        private bool _pendingSearch, _reduceMotion;
+        private double _searchAt, _nextRepaint;
+        private MNNStudioSearch.Operation _operation;
         private const float RowHeight = 72;
         internal static MNNStudioSearchWindow Open(Rect parent, MNNStudioHistory history, Action<MNNStudioSearchHit> choose)
         {
@@ -21,12 +25,48 @@ namespace MNN.Unity.Editor.UI
             window.titleContent = new GUIContent("Search chats");
             window._history = history;
             window._choose = choose;
+            window._reduceMotion = EditorPrefs.GetBool("MNN.Studio.ReduceMotion", false);
             window._hits = MNNStudioSearch.Find(history, "");
             var size = new Vector2(Mathf.Min(620, parent.width - 64), Mathf.Min(500, parent.height - 64));
             window.position = new Rect(parent.center - size / 2, size);
             window.ShowPopup();
             window.Focus();
             return window;
+        }
+
+        private void OnEnable() => EditorApplication.update += Tick;
+        private void OnDisable() => EditorApplication.update -= Tick;
+
+        private void QueueSearch()
+        {
+            _operation = null;
+            _hits = new List<MNNStudioSearchHit>();
+            _selected = 0;
+            _scroll = Vector2.zero;
+            _searchAt = EditorApplication.timeSinceStartup + .15;
+            _pendingSearch = true;
+        }
+
+        private void Tick()
+        {
+            if (!_pendingSearch || _history == null)
+                return;
+            double now = EditorApplication.timeSinceStartup;
+            if (now < _searchAt)
+                return;
+            if (_operation == null)
+                _operation = new MNNStudioSearch.Operation(_history, _query);
+            var clock = Stopwatch.StartNew();
+            do
+            {
+                _pendingSearch = !_operation.Step(8);
+            } while (_pendingSearch && clock.Elapsed.TotalMilliseconds < 2);
+            _hits = _operation.Hits;
+            if (!_pendingSearch || now >= _nextRepaint)
+            {
+                _nextRepaint = now + .05;
+                Repaint();
+            }
         }
 
         private void OnLostFocus()
@@ -89,9 +129,7 @@ namespace MNN.Unity.Editor.UI
                     _query = EditorGUILayout.TextField(_query, MNNStudioUI.Input, GUILayout.Height(30));
                     if (EditorGUI.EndChangeCheck())
                     {
-                        _hits = MNNStudioSearch.Find(_history, _query);
-                        _selected = 0;
-                        _scroll = Vector2.zero;
+                        QueueSearch();
                     }
 
                     if (_focus)
@@ -113,15 +151,21 @@ namespace MNN.Unity.Editor.UI
                     if (_hits.Count == 0)
                     {
                         GUILayout.Space(32);
-                        GUILayout.Label("No matching conversations", MNNStudioUI.CenteredCaption);
+                        GUILayout.Label(_pendingSearch ? "Searching conversations…" : "No matching conversations", MNNStudioUI.CenteredCaption);
                     }
 
-                    for (int i = 0; i < _hits.Count; ++i)
+                    var area = GUILayoutUtility.GetRect(0, _hits.Count * RowHeight, GUILayout.ExpandWidth(true));
+                    int first = Mathf.Max(0, Mathf.FloorToInt(_scroll.y / RowHeight) - 1);
+                    int last = Mathf.Min(_hits.Count, first + Mathf.CeilToInt(position.height / RowHeight) + 2);
+                    for (int i = first; i < last; ++i)
                     {
                         var hit = _hits[i];
-                        var row = GUILayoutUtility.GetRect(0, RowHeight, GUILayout.ExpandWidth(true));
+                        var row = new Rect(area.x, area.y + i * RowHeight, area.width, RowHeight);
                         if (i == _selected)
+                        {
                             EditorGUI.DrawRect(row, MNNStudioUI.Sidebar);
+                            EditorGUI.DrawRect(new Rect(row.x, row.y + 10, 3, row.height - 20), MNNStudioUI.Accent);
+                        }
                         if (GUI.Button(row, GUIContent.none, GUIStyle.none))
                         {
                             Choose(i);
@@ -135,7 +179,11 @@ namespace MNN.Unity.Editor.UI
                 }
 
                 GUILayout.Space(6);
-                GUILayout.Label(_hits.Count >= 100 ? "Showing first 100 matches · Refine your search" : "   ↑ ↓ Navigate   ·   Return Open   ·   Esc Close", MNNStudioUI.Caption, GUILayout.Height(22));
+                var footer = GUILayoutUtility.GetRect(0, 28, GUILayout.ExpandWidth(true));
+                if (_pendingSearch)
+                    MNNStudioUI.Activity(new Rect(footer.x + 20, footer.y, 24, footer.height), !_reduceMotion);
+                GUI.Label(new Rect(footer.x + (_pendingSearch ? 52 : 20), footer.y, Mathf.Max(0, footer.width - 64), footer.height),
+                    _pendingSearch ? "Searching…" : _hits.Count >= 100 ? "First 100 matches · Refine your search" : "↑ ↓ Navigate   ·   Return Open   ·   Esc Close", MNNStudioUI.SingleLineCaption);
             }
         }
 

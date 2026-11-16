@@ -43,6 +43,7 @@ namespace MNN.Unity.Editor
 
                         using (new EditorGUILayout.HorizontalScope())
                         {
+                            MNNStudioUI.Activity(GUILayoutUtility.GetRect(24, 20, GUILayout.ExpandWidth(false)), !_reduceMotion);
                             GUILayout.Label(_discarded ? "Stopping…" : string.IsNullOrEmpty(_streamText) ? "Thinking…" : "Generating…", MNNStudioUI.Caption);
                             GUILayout.FlexibleSpace();
                             if (!_discarded && MNNStudioUI.Button("Stop", 60, quiet: true, tooltip: "Stop at the next token boundary"))

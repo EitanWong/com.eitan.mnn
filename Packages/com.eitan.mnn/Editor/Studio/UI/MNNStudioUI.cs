@@ -11,7 +11,9 @@ namespace MNN.Unity.Editor.UI
     {
         internal const float ControlHeight = 28, PageInset = 24, MaximumContentWidth = 760;
         private static bool _dark;
+        private static readonly Dictionary<string, GUIContent> Icons = new Dictionary<string, GUIContent>();
         private static readonly List<Texture2D> Textures = new List<Texture2D>();
+        private static GUIStyle _navigationText;
         private static GUIStyle _card, _user, _body, _userBody, _userCaption, _caption, _title, _heading, _input;
         private static GUIStyle _code, _markdownHeading, _markdownBody, _markdownCode;
         private static GUIStyle _centeredHeading, _centeredCaption, _rightCaption, _singleLineCaption, _filename;
@@ -207,6 +209,7 @@ namespace MNN.Unity.Editor.UI
                 return;
             _dark = EditorGUIUtility.isProSkin;
             ClearTextures();
+            Icons.Clear();
             _card = Container(Surface, 16);
             _user = Container(Surface, 14);
             _body = new GUIStyle(EditorStyles.wordWrappedLabel)
@@ -250,6 +253,7 @@ namespace MNN.Unity.Editor.UI
             {padding = new RectOffset()};
             _navigation = new GUIStyle(_quiet)
             {alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 0, 0), clipping = TextClipping.Clip, normal = {textColor = Text}};
+            _navigationText = new GUIStyle(_body) { alignment = TextAnchor.MiddleLeft, wordWrap = false, clipping = TextClipping.Clip };
             _selectedNavigation = new GUIStyle(_button)
             {alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 0, 0), clipping = TextClipping.Clip};
             _model = new GUIStyle(_navigation)
@@ -313,26 +317,55 @@ namespace MNN.Unity.Editor.UI
         internal static bool IconButton(string icon, string tooltip, float size = ControlHeight)
         {
             Ensure();
-            return GUILayout.Button(new GUIContent(EditorGUIUtility.IconContent(icon).image, tooltip), _icon, GUILayout.Width(size), GUILayout.Height(size));
+            return GUILayout.Button(IconContent(icon, tooltip), _icon, GUILayout.Width(size), GUILayout.Height(size));
         }
 
         internal static bool IconButtonAt(Rect rect, string icon, string tooltip)
         {
             Ensure();
-            return GUI.Button(rect, new GUIContent(EditorGUIUtility.IconContent(icon).image, tooltip), _icon);
+            return GUI.Button(rect, IconContent(icon, tooltip), _icon);
         }
 
-        internal static bool Navigation(string label, bool selected, float width, string tooltip = null, Action<Rect> beforeButton = null)
+        internal static bool Navigation(string label, bool selected, float width, string tooltip = null, Action<Rect> beforeButton = null, string icon = null)
         {
             var rect = GUILayoutUtility.GetRect(width, 34, GUILayout.ExpandWidth(false));
             beforeButton?.Invoke(rect);
-            return NavigationAt(rect, label, selected, tooltip);
+            return NavigationAt(rect, label, selected, tooltip, icon);
         }
 
-        internal static bool NavigationAt(Rect rect, string label, bool selected, string tooltip = null)
+        internal static bool NavigationAt(Rect rect, string label, bool selected, string tooltip = null, string icon = null)
         {
             Ensure();
-            return GUI.Button(rect, new GUIContent(label, tooltip), selected ? _selectedNavigation : _navigation);
+            bool clicked = GUI.Button(rect, icon == null ? new GUIContent(label, tooltip) : GUIContent.none,
+                selected ? _selectedNavigation : _navigation);
+            if (icon != null)
+            {
+                GUI.Label(new Rect(rect.x + 12, rect.center.y - 8, 16, 16), IconContent(icon, tooltip));
+                GUI.Label(new Rect(rect.x + 36, rect.y, Mathf.Max(0, rect.width - 48), rect.height), new GUIContent(label, tooltip), _navigationText);
+            }
+            return clicked;
+        }
+
+        private static GUIContent IconContent(string icon, string tooltip)
+        {
+            string key = icon + "\n" + tooltip;
+            if (!Icons.TryGetValue(key, out var content))
+                Icons[key] = content = new GUIContent(EditorGUIUtility.IconContent(icon).image, tooltip);
+            return content;
+        }
+
+        internal static void Activity(Rect rect, bool animate)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            double phase = animate ? EditorApplication.timeSinceStartup * 5 : 0;
+            for (int i = 0; i < 3; ++i)
+            {
+                float alpha = animate ? .35f + .65f * (.5f + .5f * Mathf.Sin((float)phase - i * .8f)) : .65f;
+                Color color = SecondaryText;
+                color.a *= alpha;
+                GUI.DrawTexture(new Rect(rect.x + i * 8, rect.center.y - 2, 4, 4), Texture2D.whiteTexture,
+                    ScaleMode.StretchToFill, true, 0, color, 0, 2);
+            }
         }
 
         internal static bool ModelButton(Rect rect, string label, string tooltip)

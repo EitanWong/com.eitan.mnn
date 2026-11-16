@@ -21,6 +21,8 @@ namespace MNN.Unity.Editor.UI
     {
         private static readonly Dictionary<string, Texture2D> TextureCache = new Dictionary<string, Texture2D>();
         private static readonly string[] FileSizeUnits = {"B", "KB", "MB", "GB", "TB"};
+        private static bool _stylesInitialized, _dark;
+        private static GUIStyle _downloadTitle, _downloadSecondary, _downloadTrailing, _listTitle;
         private static GUIStyle _headerStyle;
         private static GUIStyle _cardStyle;
         private static GUIStyle _selectedCardStyle;
@@ -31,26 +33,86 @@ namespace MNN.Unity.Editor.UI
         private static GUIStyle _sectionStyle;
         private static GUIStyle _wrappedValueStyle;
         private static GUIStyle _emptyStateStyle;
-        public static GUIStyle HeaderStyle => _headerStyle ?? (_headerStyle = new GUIStyle(EditorStyles.boldLabel)
-        {fontSize = 12, alignment = TextAnchor.MiddleLeft, margin = new RectOffset(8, 8, 0, 0)});
-        public static GUIStyle CardStyle => _cardStyle ?? (_cardStyle = new GUIStyle(EditorStyles.helpBox)
-        {margin = new RectOffset(4, 4, 3, 3), padding = new RectOffset(9, 9, 7, 7)});
-        public static GUIStyle SelectedCardStyle => _selectedCardStyle ?? (_selectedCardStyle = new GUIStyle(CardStyle)
-        {normal = {background = GetColorTexture(EditorGUIUtility.isProSkin ? new Color(0.20f, 0.38f, 0.55f, 0.42f) : new Color(0.20f, 0.48f, 0.78f, 0.16f))}, hover = {background = GetColorTexture(EditorGUIUtility.isProSkin ? new Color(0.20f, 0.38f, 0.55f, 0.48f) : new Color(0.20f, 0.48f, 0.78f, 0.22f))}});
-        public static GUIStyle CategoryButtonStyle => _categoryButtonStyle ?? (_categoryButtonStyle = new GUIStyle(EditorStyles.miniButton)
-        {fixedHeight = 26, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(9, 8, 0, 0), margin = new RectOffset(4, 4, 1, 1)});
-        private static GUIStyle SelectedCategoryButtonStyle => _selectedCategoryButtonStyle ?? (_selectedCategoryButtonStyle = new GUIStyle(CategoryButtonStyle)
-        {fontStyle = FontStyle.Bold});
-        public static GUIStyle ToolbarButtonStyle => _toolbarButtonStyle ?? (_toolbarButtonStyle = new GUIStyle(EditorStyles.toolbarButton)
-        {padding = new RectOffset(8, 8, 0, 0)});
-        private static GUIStyle TagStyle => _tagStyle ?? (_tagStyle = new GUIStyle(EditorStyles.miniLabel)
-        {normal = {background = GetColorTexture(EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.08f) : new Color(0f, 0f, 0f, 0.06f))}, padding = new RectOffset(5, 5, 2, 2), margin = new RectOffset(0, 4, 2, 2)});
-        private static GUIStyle SectionStyle => _sectionStyle ?? (_sectionStyle = new GUIStyle(EditorStyles.boldLabel)
-        {margin = new RectOffset(0, 0, 7, 3)});
-        private static GUIStyle WrappedValueStyle => _wrappedValueStyle ?? (_wrappedValueStyle = new GUIStyle(EditorStyles.label)
-        {wordWrap = true, alignment = TextAnchor.UpperLeft});
-        private static GUIStyle EmptyStateStyle => _emptyStateStyle ?? (_emptyStateStyle = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
-        {wordWrap = true, alignment = TextAnchor.MiddleCenter, padding = new RectOffset(12, 12, 4, 4)});
+        public static GUIStyle HeaderStyle
+        {
+            get { EnsureStyles(); return _headerStyle ?? (_headerStyle = new GUIStyle(EditorStyles.boldLabel)
+        {fontSize = 12, alignment = TextAnchor.MiddleLeft, margin = new RectOffset(8, 8, 0, 0)}); }
+        }
+        public static GUIStyle CardStyle
+        {
+            get { EnsureStyles(); return _cardStyle ?? (_cardStyle = new GUIStyle(EditorStyles.helpBox)
+        {margin = new RectOffset(4, 4, 3, 3), padding = new RectOffset(9, 9, 7, 7)}); }
+        }
+        public static GUIStyle SelectedCardStyle
+        {
+            get { EnsureStyles(); return _selectedCardStyle ?? (_selectedCardStyle = new GUIStyle(CardStyle)
+        {normal = {background = GetColorTexture(EditorGUIUtility.isProSkin ? new Color(0.20f, 0.38f, 0.55f, 0.42f) : new Color(0.20f, 0.48f, 0.78f, 0.16f))}, hover = {background = GetColorTexture(EditorGUIUtility.isProSkin ? new Color(0.20f, 0.38f, 0.55f, 0.48f) : new Color(0.20f, 0.48f, 0.78f, 0.22f))}}); }
+        }
+        public static GUIStyle CategoryButtonStyle
+        {
+            get { EnsureStyles(); return _categoryButtonStyle ?? (_categoryButtonStyle = new GUIStyle(EditorStyles.miniButton)
+        {fixedHeight = 26, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(9, 8, 0, 0), margin = new RectOffset(4, 4, 1, 1)}); }
+        }
+        private static GUIStyle SelectedCategoryButtonStyle
+        {
+            get { EnsureStyles(); return _selectedCategoryButtonStyle ?? (_selectedCategoryButtonStyle = new GUIStyle(CategoryButtonStyle)
+        {fontStyle = FontStyle.Bold, normal = { background = GetColorTexture(EditorGUIUtility.isProSkin ? new Color(.20f, .38f, .55f, .42f) : new Color(.20f, .48f, .78f, .16f)) }}); }
+        }
+        public static GUIStyle ToolbarButtonStyle
+        {
+            get { EnsureStyles(); return _toolbarButtonStyle ?? (_toolbarButtonStyle = new GUIStyle(EditorStyles.toolbarButton)
+        {padding = new RectOffset(8, 8, 0, 0)}); }
+        }
+        private static GUIStyle TagStyle
+        {
+            get { EnsureStyles(); return _tagStyle ?? (_tagStyle = new GUIStyle(EditorStyles.miniLabel)
+        {normal = {background = GetColorTexture(EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.08f) : new Color(0f, 0f, 0f, 0.06f))}, padding = new RectOffset(5, 5, 2, 2), margin = new RectOffset(0, 4, 2, 2)}); }
+        }
+        private static GUIStyle SectionStyle
+        {
+            get { EnsureStyles(); return _sectionStyle ?? (_sectionStyle = new GUIStyle(EditorStyles.boldLabel)
+        {margin = new RectOffset(0, 0, 7, 3)}); }
+        }
+        private static GUIStyle WrappedValueStyle
+        {
+            get { EnsureStyles(); return _wrappedValueStyle ?? (_wrappedValueStyle = new GUIStyle(EditorStyles.label)
+        {wordWrap = true, alignment = TextAnchor.UpperLeft}); }
+        }
+        private static GUIStyle EmptyStateStyle
+        {
+            get { EnsureStyles(); return _emptyStateStyle ?? (_emptyStateStyle = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
+        {wordWrap = true, alignment = TextAnchor.MiddleCenter, padding = new RectOffset(12, 12, 4, 4)}); }
+        }
+        internal static GUIStyle ListTitleStyle
+        {
+            get { EnsureStyles(); return _listTitle ?? (_listTitle = new GUIStyle(EditorStyles.boldLabel) { clipping = TextClipping.Clip, wordWrap = false }); }
+        }
+
+        static MNNEditorUI()
+        {
+            AssemblyReloadEvents.beforeAssemblyReload += ClearStyles;
+            EditorApplication.quitting += ClearStyles;
+        }
+
+        private static void EnsureStyles()
+        {
+            if (_stylesInitialized && _dark == EditorGUIUtility.isProSkin) return;
+            ClearStyles();
+            _dark = EditorGUIUtility.isProSkin;
+            _stylesInitialized = true;
+        }
+
+        private static void ClearStyles()
+        {
+            foreach (var texture in TextureCache.Values)
+                if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
+            TextureCache.Clear();
+            _headerStyle = _cardStyle = _selectedCardStyle = _categoryButtonStyle = _selectedCategoryButtonStyle = null;
+            _toolbarButtonStyle = _tagStyle = _sectionStyle = _wrappedValueStyle = _emptyStateStyle = null;
+            _downloadTitle = _downloadSecondary = _downloadTrailing = _listTitle = null;
+            _stylesInitialized = false;
+        }
+
         public static void DrawToolbarTitle(string key, int width = -1)
         {
             if (width > 0)
@@ -61,7 +123,9 @@ namespace MNN.Unity.Editor.UI
 
         public static bool DrawToolbarButton(string key, int width = -1)
         {
-            return width > 0 ? GUILayout.Button(MNNLocalization.Get(key), ToolbarButtonStyle, GUILayout.Width(width)) : GUILayout.Button(MNNLocalization.Get(key), ToolbarButtonStyle);
+            string icon = key == "common.refresh" ? "Refresh" : key == "modelmanager.openfolder" ? "Folder Icon" : null;
+            var content = new GUIContent(MNNLocalization.Get(key), icon == null ? null : GetIcon(icon).image);
+            return width > 0 ? GUILayout.Button(content, ToolbarButtonStyle, GUILayout.Width(width)) : GUILayout.Button(content, ToolbarButtonStyle);
         }
 
         public static string DrawSearchField(string value)
@@ -193,12 +257,10 @@ namespace MNN.Unity.Editor.UI
             var rect = GUILayoutUtility.GetRect(0, string.IsNullOrEmpty(job.Error) ? 88 : 110, GUILayout.ExpandWidth(true));
             var inset = new Rect(rect.x + 12, rect.y + 9, Mathf.Max(0, rect.width - 24), rect.height - 18);
             EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, 1), EditorGUIUtility.isProSkin ? new Color(1, 1, 1, 0.12f) : new Color(0, 0, 0, 0.12f));
-            var title = new GUIStyle(EditorStyles.boldLabel)
-            {clipping = TextClipping.Clip};
-            var secondary = new GUIStyle(EditorStyles.miniLabel)
-            {clipping = TextClipping.Clip};
-            var trailing = new GUIStyle(secondary)
-            {alignment = TextAnchor.MiddleRight};
+            EnsureStyles();
+            var title = _downloadTitle ?? (_downloadTitle = new GUIStyle(EditorStyles.boldLabel) { clipping = TextClipping.Clip });
+            var secondary = _downloadSecondary ?? (_downloadSecondary = new GUIStyle(EditorStyles.miniLabel) { clipping = TextClipping.Clip });
+            var trailing = _downloadTrailing ?? (_downloadTrailing = new GUIStyle(secondary) { alignment = TextAnchor.MiddleRight });
             var state = MNNLocalization.Get("download." + job.State.ToString().ToLowerInvariant());
             GUI.Label(new Rect(inset.x, inset.y, inset.width - 240, 20), new GUIContent(job.DisplayName, job.DisplayName), title);
             var buttonX = inset.xMax - 170;
@@ -268,6 +330,7 @@ namespace MNN.Unity.Editor.UI
 
         public static Texture2D GetColorTexture(Color color)
         {
+            EnsureStyles();
             var key = ColorUtility.ToHtmlStringRGBA(color);
             if (TextureCache.TryGetValue(key, out var cached))
                 return cached;

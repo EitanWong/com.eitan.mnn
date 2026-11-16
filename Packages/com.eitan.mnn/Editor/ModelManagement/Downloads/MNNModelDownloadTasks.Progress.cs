@@ -45,7 +45,8 @@ namespace MNN.Unity.Editor
 
         private void Tick()
         {
-            if (_unloading)
+            // No progress changed: do not wake every subscribed editor window.
+            if (_unloading || !_jobs.Any(job => job.IsRunning))
                 return;
             var now = EditorApplication.timeSinceStartup;
             if (now - _lastUpdate < 0.2)

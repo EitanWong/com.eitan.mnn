@@ -34,9 +34,7 @@ namespace MNN.Unity.Editor
 
         private void DrawCategoryButton(MNNModelCategory category)
         {
-            var count = category == MNNModelCategory.All ? _repository.models.Count : _repository.GetModelsByCategory(category).Count;
-            var displayName = GetCategoryDisplayName(category);
-            var label = $"{displayName} ({count})";
+            var label = _categoryButtonLabels[category];
             var isSelected = _selectedCategory == category;
             if (MNNEditorUI.DrawCategoryButton(label, isSelected))
             {
@@ -94,9 +92,10 @@ namespace MNN.Unity.Editor
                     {
                         int start = Mathf.Clamp(Mathf.FloorToInt(_modelListScrollPos.y / ModelCardHeight) - 2, 0, _filteredModels.Count);
                         int end = Mathf.Min(_filteredModels.Count, start + Mathf.CeilToInt(_modelListViewportHeight / ModelCardHeight) + 5);
-                        GUILayout.Space(start * ModelCardHeight);
-                        for (int i = start; i < end; ++i) DrawVirtualModelCard(_filteredModels[i]);
-                        GUILayout.Space((_filteredModels.Count - end) * ModelCardHeight);
+                        // One layout entry regardless of scroll position or catalog size.
+                        var area = GUILayoutUtility.GetRect(0, _filteredModels.Count * ModelCardHeight, GUILayout.ExpandWidth(true));
+                        for (int i = start; i < end; ++i)
+                            DrawVirtualModelCard(_filteredModels[i], new Rect(area.x, area.y + i * ModelCardHeight, area.width, ModelCardHeight));
                     }
                     contentBottom = GUILayoutUtility.GetLastRect().yMax;
                 }
@@ -110,25 +109,50 @@ namespace MNN.Unity.Editor
             }
         }
 
-        private void DrawVirtualModelCard(MNNModelInfo model)
+        private void DrawVirtualModelCard(MNNModelInfo model, Rect rect)
         {
-            Rect rect = GUILayoutUtility.GetRect(1, ModelCardHeight, GUILayout.ExpandWidth(true));
             var card = new Rect(rect.x, rect.y, rect.width, rect.height - 2);
             GUI.Box(card, GUIContent.none, _selectedModel == model ? MNNEditorUI.SelectedCardStyle : MNNEditorUI.CardStyle);
-            float x = card.x + 10, width = Mathf.Max(0, card.width - 20);
-            GUI.Label(new Rect(x, card.y + 7, width, 20), new GUIContent(model.displayName, model.repositoryId), EditorStyles.boldLabel);
+            if (_selectedModel == model)
+                EditorGUI.DrawRect(new Rect(card.x, card.y + 8, 3, card.height - 16), MNNStudioUI.Accent);
+            GUI.Label(new Rect(card.x + 12, card.y + 10, 20, 20), GetCategoryIcon(model.category));
+            float x = card.x + 40, width = Mathf.Max(0, card.width - 52);
+            GUI.Label(new Rect(x, card.y + 7, width, 20), new GUIContent(model.displayName, model.repositoryId), MNNEditorUI.ListTitleStyle);
             GUI.Label(new Rect(x, card.y + 28, width, 18), GetCategoryDisplayName(model.category), EditorStyles.miniLabel);
             string summary = MNNEditorUI.FormatFileSize(model.fileSize);
             string parameters = FormatParameters(model);
             if (!string.IsNullOrEmpty(parameters)) summary += "  ·  " + parameters;
-            if (model.isInstalled) summary += "  ·  Installed";
+            if (model.isInstalled) summary += "  ·  " + MNNLocalization.Get("modelmanager.installed");
             GUI.Label(new Rect(x, card.y + 48, width, 18), summary, EditorStyles.miniLabel);
-            if (Event.current.type == EventType.MouseDown && card.Contains(Event.current.mousePosition))
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && card.Contains(Event.current.mousePosition))
             {
+                GUI.FocusControl(null);
                 _selectedModel = model;
                 Repaint();
                 Event.current.Use();
             }
+        }
+
+        private void HandleModelListKeyboard()
+        {
+            var evt = Event.current;
+            if (evt.type != EventType.KeyDown || GUIUtility.keyboardControl != 0 || _filteredModels.Count == 0)
+                return;
+            int index = _filteredModels.IndexOf(_selectedModel);
+            switch (evt.keyCode)
+            {
+                case KeyCode.DownArrow: index = Mathf.Min(index + 1, _filteredModels.Count - 1); break;
+                case KeyCode.UpArrow: index = Mathf.Max(0, index - 1); break;
+                case KeyCode.Home: index = 0; break;
+                case KeyCode.End: index = _filteredModels.Count - 1; break;
+                default: return;
+            }
+            _selectedModel = _filteredModels[index];
+            float top = index * ModelCardHeight;
+            _modelListScrollPos.y = Mathf.Clamp(_modelListScrollPos.y,
+                Mathf.Max(0, top + ModelCardHeight - _modelListViewportHeight), top);
+            evt.Use();
+            Repaint();
         }
 
         private void DrawEmptyModelList()

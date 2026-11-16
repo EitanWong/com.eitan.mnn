@@ -22,11 +22,22 @@ namespace MNN.Unity.Editor
         private readonly List<string> _emptyLibraryGroups = new List<string>();
         private Rect _sidebarViewRect;
         private float _libraryHeight;
+        private bool _libraryDirty = true;
+        private MNNStudioHistory _libraryHistory;
+        private int _libraryRevision, _libraryChatCount, _libraryFolderCount;
 
         private void PrepareLibraryView()
         {
             if (Event.current.type != EventType.Layout)
                 return;
+            if (!_libraryDirty && _libraryHistory == _history && _libraryRevision == _history.Revision &&
+                _libraryChatCount == _history.Conversations.Count && _libraryFolderCount == _history.Folders.Count)
+                return;
+            _libraryDirty = false;
+            _libraryHistory = _history;
+            _libraryRevision = _history.Revision;
+            _libraryChatCount = _history.Conversations.Count;
+            _libraryFolderCount = _history.Folders.Count;
             GroupLibraryChats();
             _libraryView.Clear();
             _libraryHeight = 0;
@@ -90,15 +101,27 @@ namespace MNN.Unity.Editor
             var area = GUILayoutUtility.GetRect(SidebarWidth, _libraryHeight, GUILayout.ExpandWidth(false));
             float top = _sidebarScroll.y;
             float bottom = top + (_sidebarViewRect.height > 0 ? _sidebarViewRect.height : position.height);
-            foreach (var row in _libraryView)
+            for (int i = FirstVisibleLibraryRow(top - area.y); i < _libraryView.Count; ++i)
             {
+                var row = _libraryView[i];
                 var rect = new Rect(area.x, area.y + row.Y, SidebarWidth, row.Height);
-                if (rect.yMax < top)
-                    continue;
                 if (rect.y > bottom)
                     break;
                 DrawLibraryRow(row, rect);
             }
+        }
+
+        private int FirstVisibleLibraryRow(float top)
+        {
+            int low = 0, high = _libraryView.Count;
+            while (low < high)
+            {
+                int middle = low + (high - low) / 2;
+                var row = _libraryView[middle];
+                if (row.Y + row.Height < top) low = middle + 1;
+                else high = middle;
+            }
+            return low;
         }
 
         private void DrawLibraryRow(LibraryViewRow row, Rect rect)
