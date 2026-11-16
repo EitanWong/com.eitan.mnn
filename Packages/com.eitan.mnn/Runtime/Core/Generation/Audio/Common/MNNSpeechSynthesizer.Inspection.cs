@@ -11,6 +11,25 @@ namespace MNN.Unity
         /// Detection alone does not prove that all required assets are installed.</summary>
         public static MNNSpeechModelKind DetectModelKind(string directory, string name = null) => MNNTtsModelProfiles.Detect(directory, name);
 
+        /// <summary>Discover selectable preset IDs and reference-audio requirements from local export assets.
+        /// Uses the shared model registration when present. No network requests or native model loading.
+        /// Unknown exports have no preset IDs; malformed metadata raises its read/validation error.
+        /// This snapshot does not prove a complete installation or platform support.</summary>
+        public static MNNSpeechVoiceOptions GetVoiceOptions(string directory)
+        {
+            var kind = DetectModelKind(directory);
+            bool reference = RequiresReferenceAudio(directory);
+            try
+            {
+                return new MNNSpeechVoiceOptions(kind, reference,
+                    reference ? Array.Empty<string>() : InstalledVoices(directory));
+            }
+            catch (InvalidCastException error)
+            {
+                throw new InvalidDataException("Speech voice metadata must contain string IDs.", error);
+            }
+        }
+
         /// <summary>Read installed voice identifiers without loading a model. The returned array belongs to the caller.</summary>
         public static string[] InstalledVoices(string directory)
         {

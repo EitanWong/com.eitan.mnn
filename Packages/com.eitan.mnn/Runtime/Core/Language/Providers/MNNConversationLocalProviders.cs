@@ -336,6 +336,7 @@ namespace MNN.Unity
                 : base(caps, unity, directory) { _threads = threads; _kind = kind; _requestedVoice = voice; _language = language; _precision = precision; _synthesisSteps = synthesisSteps; Backend = backend; }
             protected override void Load()
             {
+                MNNSpeechSynthesizer.GetVoiceOptions(Directory).ResolveVoice(_requestedVoice);
                 if (_kind == MNNConversationModelAdapter.Kokoro) _kokoro = MNNKokoro.Load(Directory, _threads);
                 else if (_kind == MNNConversationModelAdapter.CosyVoice) _cosy = MNNCosyVoice.Load(Directory, _threads, backendType: Backend);
                 else if (_kind == MNNConversationModelAdapter.Supertonic) _supertonic = MNNSupertonic.Load(Directory, _threads,

@@ -472,3 +472,11 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 
 补丁只适用于 sidecar 中的精确导入基线；完整版本检查后再写入，重复执行不写入。
 C930c 摄像头与自带麦克风已验证两种启动顺序，测试只记录帧数与采样数。
+
+## 本地语音模型音色选择
+
+匹配 `SiriAISpeechVoices.files.json` 基线的导入可运行 `--stage speech-voices`。
+Runtime Settings 和 Configurable Backend Inspector 使用包级 `GetVoiceOptions`，
+从当前模型导出读取音色 ID，改用选择列表；参考录音模型继续配置 WAV 和转写。
+未安装或元数据损坏时不猜测音色，旧的无效选项提示并回到模型默认。
+详见[语音合成音色选择](../../Documentation~/SpeechVoices.md)。

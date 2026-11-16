@@ -11043,6 +11043,12 @@ public void MNN.Unity.MNNSpeechSynthesizer.Dispose()
 ```
 
 ```csharp
+public static MNN.Unity.MNNSpeechVoiceOptions MNN.Unity.MNNSpeechSynthesizer.GetVoiceOptions(string directory)
+```
+
+Discover selectable preset IDs and reference-audio requirements from local export assets. Uses the shared model registration when present. No network requests or native model loading. Unknown exports have no preset IDs; malformed metadata raises its read/validation error. This snapshot does not prove a complete installation or platform support.
+
+```csharp
 public static bool MNN.Unity.MNNSpeechSynthesizer.HasProfile(string directory)
 ```
 
@@ -11111,6 +11117,22 @@ public string MNN.Unity.MNNSpeechTextCleaner.Complete()
 ```
 
 Flushes remaining prose and discards unclosed code, tags and links. Call once per response.
+
+```csharp
+public MNN.Unity.MNNSpeechVoiceAttribute.MNNSpeechVoiceAttribute(string directoryField)
+```
+
+```csharp
+public string MNN.Unity.MNNSpeechVoiceOptions.ResolveVoice(string voice)
+```
+
+Validate a selection before native loading. Returns null for the model's own default.
+
+```csharp
+public bool MNN.Unity.MNNSpeechVoiceOptions.SupportsVoice(string voice)
+```
+
+Empty means model default (or the supplied reference recording). IDs use ordinal matching.
 
 ```csharp
 public void MNN.Unity.MNNStableDiffusion.Dispose()
@@ -11561,6 +11583,24 @@ public int MNN.Unity.MNNSpeechSynthesizer.SampleRate { get; }
 ```
 
 ```csharp
+public string MNN.Unity.MNNSpeechVoiceAttribute.DirectoryField { get; }
+```
+
+```csharp
+public MNN.Unity.MNNSpeechModelKind MNN.Unity.MNNSpeechVoiceOptions.ModelKind { get; }
+```
+
+```csharp
+public bool MNN.Unity.MNNSpeechVoiceOptions.RequiresReferenceAudio { get; }
+```
+
+```csharp
+public string[] MNN.Unity.MNNSpeechVoiceOptions.VoiceIds { get; }
+```
+
+Preset IDs to pass unchanged to MNNSpeechSynthesisOptions.Voice. Reference audio is not a preset.
+
+```csharp
 public System.Collections.Generic.IReadOnlyDictionary<string, MNN.Unity.MNNBackendType> MNN.Unity.MNNStableDiffusion.StageBackends { get; }
 ```
 
@@ -11799,6 +11839,18 @@ class MNN.Unity.MNNSpeechTextCleaner
 ```
 
 Per-response speech filter. Feed model deltas before sentence segmentation.
+
+```csharp
+class MNN.Unity.MNNSpeechVoiceAttribute
+```
+
+Display a serialized voice string as installed choices from a sibling model directory string.
+
+```csharp
+class MNN.Unity.MNNSpeechVoiceOptions
+```
+
+A snapshot of voice IDs accepted by one installed speech export. Does not load native models.
 
 ```csharp
 class MNN.Unity.MNNStableDiffusion

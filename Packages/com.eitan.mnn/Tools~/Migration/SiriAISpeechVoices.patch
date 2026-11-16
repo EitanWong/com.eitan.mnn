@@ -1,0 +1,276 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAISpeechVoices.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAISpeechVoices.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAISpeechVoices.cs
+@@ -0,0 +1,17 @@
++using System.Linq;
++using MNN.Unity;
++
++namespace MNN.Samples.SiriAI
++{
++    internal static class SiriAISpeechVoices
++    {
++        internal static string DirectoryFor(string root, SiriAIEndpointConfiguration endpoint, SiriAIModelCatalog catalog)
++        {
++            var entry = catalog?.Entries.FirstOrDefault(item => item.modelId == endpoint.model);
++            if (entry?.installedDirectory != null) return entry.installedDirectory;
++            var remote = endpoint.HasRemoteModel ? endpoint.localModel : entry?.remote;
++            if (remote != null) return SiriAIModelInstallation.DirectoryFor(root, remote);
++            return string.IsNullOrWhiteSpace(endpoint.model) ? null : MNNModelAssetDownloader.ResolvePath(root, endpoint.model);
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAISpeechVoices.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAISpeechVoices.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAISpeechVoices.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: e6c0ce444c95430d8a25610d30980530
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.SpeechVoices.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.SpeechVoices.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.SpeechVoices.cs
+@@ -0,0 +1,48 @@
++using System;
++using System.IO;
++using MNN.Unity;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private Func<string> _speechModelsDirectory = () => SiriAIModelInstallation.ModelsDirectory;
++
++        private void BuildLocalSpeechVoiceSettings(SiriAIEndpointConfiguration endpoint)
++        {
++            MNNSpeechVoiceOptions options;
++            try
++            {
++                string directory = SiriAISpeechVoices.DirectoryFor(_speechModelsDirectory(), endpoint, _settingsDraft.Catalog);
++                options = MNNSpeechSynthesizer.GetVoiceOptions(directory);
++            }
++            catch (Exception error) when (error is InvalidDataException || error is IOException || error is ArgumentException || error is UnauthorizedAccessException)
++            {
++                SettingsDescription("Voice metadata unavailable. Verify or reinstall the selected model.");
++                return;
++            }
++            if (options.ModelKind == MNNSpeechModelKind.Unknown)
++            {
++                SettingsDescription("Install the selected model, then reopen these settings to choose its voices.");
++                return;
++            }
++            if (!options.SupportsVoice(endpoint.voice))
++            {
++                endpoint.voice = "";
++                SetSettingsNotice("The previous voice is unavailable. The model default is selected.");
++            }
++            if (options.RequiresReferenceAudio)
++            {
++                SettingsDescription("This model uses your reference recording as its voice.");
++                return;
++            }
++            string[] ids = options.VoiceIds;
++            var labels = new string[ids.Length + 1];
++            labels[0] = "Model default";
++            Array.Copy(ids, 0, labels, 1, ids.Length);
++            AddEnumField("Voice", "Choose a voice provided by the selected model.",
++                () => string.IsNullOrWhiteSpace(endpoint.voice) ? 0 : Array.IndexOf(ids, endpoint.voice) + 1,
++                selected => endpoint.voice = selected == 0 ? "" : ids[selected - 1], labels);
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.SpeechVoices.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.SpeechVoices.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.SpeechVoices.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: cabb6d29117443fea8412e648a4eb62f
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
+@@ -186,7 +186,7 @@
+             }
+             if (_settingsProvider == 1 && endpoint.location != SiriAIProviderLocation.Custom)
+             {
+-                AddTextField("Voice", "Leave empty for the model's default voice.", () => endpoint.voice, value => endpoint.voice = value.Trim());
++                BuildLocalSpeechVoiceSettings(endpoint);
+                 if (endpoint.location == SiriAIProviderLocation.LocalMnn && MNN.Unity.MNNSpeechSynthesizer.RequiresReferenceAudio(endpoint.localModel))
+                 {
+                     AddTextField("Reference WAV", "Choose a local voice recording, 0.5 to 15 seconds. Use an absolute path or a path inside the model folder.",
+diff --git a/Assets/Samples/SiriAI/Scripts/Editor/Backends/SiriAIConfigurableBackendEditor.cs b/Assets/Samples/SiriAI/Scripts/Editor/Backends/SiriAIConfigurableBackendEditor.cs
+--- a/Assets/Samples/SiriAI/Scripts/Editor/Backends/SiriAIConfigurableBackendEditor.cs
++++ b/Assets/Samples/SiriAI/Scripts/Editor/Backends/SiriAIConfigurableBackendEditor.cs
+@@ -215,9 +215,9 @@
+                 {
+                     if (field == "tts")
+                     {
+-                        Property(endpoint, "voice");
+                         var selected = ((SiriAIConfigurableBackend)target).CreateModelCatalog().Entries.FirstOrDefault(
+                             entry => entry.modelId == endpoint.FindPropertyRelative("model").stringValue);
++                        LocalSpeechVoice(endpoint);
+                         if (selected != null && selected.adapter == SiriAIModelAdapter.Supertonic)
+                         {
+                             Property(endpoint, "precision");
+@@ -229,6 +229,29 @@
+                 }
+             }
+         }
++        private void LocalSpeechVoice(SerializedProperty endpoint)
++        {
++            var catalog = ((SiriAIConfigurableBackend)target).CreateModelCatalog();
++            string id = endpoint.FindPropertyRelative("model").stringValue;
++            var entry = catalog.Entries.FirstOrDefault(item => item.modelId == id);
++            try
++            {
++                var settings = new SiriAIEndpointConfiguration { model = id, localModel = entry?.remote };
++                string directory = SiriAISpeechVoices.DirectoryFor(SiriAIConfigurableBackend.ModelsDirectory, settings, catalog);
++                MNN.Unity.Editor.MNNSpeechVoiceField.Draw(EditorGUILayout.GetControlRect(), endpoint.FindPropertyRelative("voice"),
++                    new GUIContent(SiriAIEditorLocalization.Translate("Voice")), directory);
++                if (MNNSpeechSynthesizer.RequiresReferenceAudio(entry?.remote))
++                {
++                    Property(endpoint, "referenceWavePath");
++                    if (MNNSpeechSynthesizer.RequiresReferenceText(entry.remote)) Property(endpoint, "referenceText");
++                }
++            }
++            catch (Exception error) when (error is System.IO.InvalidDataException || error is System.IO.IOException || error is ArgumentException || error is UnauthorizedAccessException)
++            {
++                EditorGUILayout.HelpBox(SiriAIEditorLocalization.Translate("Voice metadata unavailable. Verify or reinstall the selected model."), MessageType.Info);
++            }
++        }
++
+         private void CloudSettings(SerializedProperty endpoint, SiriAICloudTask task)
+         {
+             var settings = new SiriAIEndpointConfiguration {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -8,9 +8,15 @@
+     {
+         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
+         {
++            { "Voice metadata unavailable. Verify or reinstall the selected model.", "无法读取音色信息，请验证或重新安装所选模型。" },
++            { "Install the selected model, then reopen these settings to choose its voices.", "安装所选模型后，重新打开设置即可选择其音色。" },
++            { "The previous voice is unavailable. The model default is selected.", "原音色已不可用，已选择模型默认音色。" },
++            { "This model uses your reference recording as its voice.", "此模型使用参考录音中的声音。" },
++            { "Choose a voice provided by the selected model.", "请选择所选模型提供的音色。" },
+             { "Vision", "视觉" },
+             { "Enable vision", "启用视觉" },
+             { "Require visible face for voice", "仅在人脸可见时接受语音" },
++            { "Presence controls realtime listening only. Space and hold-to-talk always work without a visible target.", "存在感知仅控制实时语音。空格键和长按录音无需目标进入画面。" },
+             { "Off: camera and microphone work independently. Identity and audio-visual pickup still require a visible target.", "关闭时摄像头与麦克风独立工作。身份验证和视听拾音仍要求目标可见。" },
+             { "Waiting for visual presence…", "正在等待目标进入画面…" },
+             { "Off also disables identity gating, image context and audio-visual pickup. Audio-only settings stay unchanged.", "关闭时同时停用身份门控、图像上下文和视听融合拾音；纯音频功能不受影响。" },
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISpeechVoiceSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISpeechVoiceSettingsTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISpeechVoiceSettingsTests.cs
+@@ -0,0 +1,100 @@
++using System;
++using System.IO;
++using System.Linq;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.UI;
++using Object = UnityEngine.Object;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAISpeechVoiceSettingsTests
++    {
++        private GameObject _root;
++        private SiriAIChatView _view;
++        private string _models;
++        private RectTransform Content => SiriAITestAccess.Field<RectTransform>(_view, "_settingsContent");
++        private SiriAIEndpointConfiguration Endpoint => _view.SettingsDraft.Configuration.tts;
++
++        [SetUp]
++        public void Open()
++        {
++            _models = Path.GetFullPath(Path.Combine("TestArtifacts~", "SpeechVoiceSettings", Guid.NewGuid().ToString("N")));
++            Directory.CreateDirectory(Path.Combine(_models, "voice-fixture"));
++            _root = new GameObject("Voice selection");
++            var backend = _root.AddComponent<SiriAIConfigurableBackend>();
++            _root.AddComponent<SiriAIChat>().SetBackend(backend);
++            _view = _root.AddComponent<SiriAIChatView>();
++            _view.TickEditorPreview(new Rect(0, 0, 390, 844), 1);
++            _view.OpenSettings();
++            _view.SettingsDraft.Appearance.language = SiriAILanguage.English;
++            SiriAITestAccess.Field<SiriAIChatViewPreferences>(_view, "_viewPreferences").language = SiriAILanguage.English;
++            SiriAITestAccess.Set(_view, "_speechModelsDirectory", (Func<string>)(() => _models));
++            Endpoint.model = "voice-fixture";
++            Endpoint.localModel = null;
++            Endpoint.voice = "";
++        }
++
++        [TearDown]
++        public void Close()
++        {
++            Object.DestroyImmediate(_root);
++            Directory.Delete(_models, true);
++        }
++
++        private void Metadata(string name, string text) => File.WriteAllText(Path.Combine(_models, "voice-fixture", name), text);
++        private void Build() => SiriAITestAccess.Call(_view, "BuildLocalSpeechVoiceSettings", Endpoint);
++
++        [Test]
++        public void LocalVoiceIsAChoiceAndSelectionUsesTheExactModelId()
++        {
++            Metadata("mnn_hojo_tts.json", "{\"voices\":[\"hojo_zh_f_01\",\"hojo_en_m_02\"]}");
++            Build();
++            var field = Content.Find("Voice");
++            Assert.NotNull(field);
++            Assert.IsNull(field.GetComponentInChildren<InputField>(), "Local voices must not accept free text.");
++            field.GetComponentInChildren<Button>().onClick.Invoke();
++            var choices = SiriAITestAccess.Field<RectTransform>(_view, "_settingsOptionsContent");
++            Assert.False(choices.GetComponentsInChildren<Text>().Any(text => text.text.Contains("Custom value")));
++            choices.GetComponentsInChildren<Button>().First(button => button.GetComponentInChildren<Text>().text == "hojo_en_m_02").onClick.Invoke();
++            Assert.AreEqual("hojo_en_m_02", Endpoint.voice);
++        }
++
++        [Test]
++        public void SavedUnsupportedVoiceReturnsToModelDefault()
++        {
++            Metadata("mnn_hojo_tts.json", "{\"voices\":[\"hojo_zh_f_01\"]}");
++            Endpoint.voice = "voice-from-another-model";
++            Build();
++            Assert.AreEqual("", Endpoint.voice);
++            Assert.NotNull(Content.Find("Voice"));
++        }
++
++        [Test]
++        public void ReferenceModelHasNoPretendPresetPicker()
++        {
++            Metadata("gpt_prefill_fp16.mnn", "");
++            Build();
++            Assert.IsNull(Content.Find("Voice"));
++            Assert.True(Content.GetComponentsInChildren<Text>().Any(text => text.text.Contains("reference recording")));
++        }
++
++        [Test]
++        public void MissingExportDoesNotOfferOtherModelsVoicesOrEraseSavedSelection()
++        {
++            Endpoint.voice = "previous-choice";
++            Build();
++            Assert.IsNull(Content.Find("Voice"));
++            Assert.AreEqual("previous-choice", Endpoint.voice);
++        }
++
++        [Test]
++        public void CorruptMetadataShowsARecoveryMessageWithoutATextInput()
++        {
++            Metadata("mnn_hojo_tts.json", "{}");
++            Build();
++            Assert.IsNull(Content.Find("Voice"));
++            Assert.True(Content.GetComponentsInChildren<Text>().Any(text => text.text.Contains("Voice metadata unavailable")));
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISpeechVoiceSettingsTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISpeechVoiceSettingsTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISpeechVoiceSettingsTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 66ca944d525941a7956561e3894269be

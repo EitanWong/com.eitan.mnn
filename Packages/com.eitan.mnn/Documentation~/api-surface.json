@@ -17642,6 +17642,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNSpeechSynthesizer.GetVoiceOptions(System.String)",
+    "Signature": "public static MNN.Unity.MNNSpeechVoiceOptions MNN.Unity.MNNSpeechSynthesizer.GetVoiceOptions(string directory)",
+    "Summary": "Discover selectable preset IDs and reference-audio requirements from local export assets. Uses the shared model registration when present. No network requests or native model loading. Unknown exports have no preset IDs; malformed metadata raises its read/validation error. This snapshot does not prove a complete installation or platform support."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
     "Id": "M:MNN.Unity.MNNSpeechSynthesizer.HasProfile(System.String)",
     "Signature": "public static bool MNN.Unity.MNNSpeechSynthesizer.HasProfile(string directory)",
     "Summary": "Check the detected frontend\u0027s required local assets without loading weights."
@@ -17736,6 +17743,27 @@
     "Id": "M:MNN.Unity.MNNSpeechTextCleaner.Complete",
     "Signature": "public string MNN.Unity.MNNSpeechTextCleaner.Complete()",
     "Summary": "Flushes remaining prose and discards unclosed code, tags and links. Call once per response."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNSpeechVoiceAttribute.#ctor(System.String)",
+    "Signature": "public MNN.Unity.MNNSpeechVoiceAttribute.MNNSpeechVoiceAttribute(string directoryField)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNSpeechVoiceOptions.ResolveVoice(System.String)",
+    "Signature": "public string MNN.Unity.MNNSpeechVoiceOptions.ResolveVoice(string voice)",
+    "Summary": "Validate a selection before native loading. Returns null for the model\u0027s own default."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNSpeechVoiceOptions.SupportsVoice(System.String)",
+    "Signature": "public bool MNN.Unity.MNNSpeechVoiceOptions.SupportsVoice(string voice)",
+    "Summary": "Empty means model default (or the supplied reference recording). IDs use ordinal matching."
   },
   {
     "Assembly": "MNN.Unity",
@@ -18482,6 +18510,34 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Generation",
+    "Id": "P:MNN.Unity.MNNSpeechVoiceAttribute.DirectoryField",
+    "Signature": "public string MNN.Unity.MNNSpeechVoiceAttribute.DirectoryField { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "P:MNN.Unity.MNNSpeechVoiceOptions.ModelKind",
+    "Signature": "public MNN.Unity.MNNSpeechModelKind MNN.Unity.MNNSpeechVoiceOptions.ModelKind { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "P:MNN.Unity.MNNSpeechVoiceOptions.RequiresReferenceAudio",
+    "Signature": "public bool MNN.Unity.MNNSpeechVoiceOptions.RequiresReferenceAudio { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "P:MNN.Unity.MNNSpeechVoiceOptions.VoiceIds",
+    "Signature": "public string[] MNN.Unity.MNNSpeechVoiceOptions.VoiceIds { get; }",
+    "Summary": "Preset IDs to pass unchanged to MNNSpeechSynthesisOptions.Voice. Reference audio is not a preset."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
     "Id": "P:MNN.Unity.MNNStableDiffusion.StageBackends",
     "Signature": "public System.Collections.Generic.IReadOnlyDictionary\u003Cstring, MNN.Unity.MNNBackendType\u003E MNN.Unity.MNNStableDiffusion.StageBackends { get; }",
     "Summary": "Current stage backends; native unsupported operations may still run on CPU."
@@ -18779,6 +18835,20 @@
     "Id": "T:MNN.Unity.MNNSpeechTextCleaner",
     "Signature": "class MNN.Unity.MNNSpeechTextCleaner",
     "Summary": "Per-response speech filter. Feed model deltas before sentence segmentation."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "T:MNN.Unity.MNNSpeechVoiceAttribute",
+    "Signature": "class MNN.Unity.MNNSpeechVoiceAttribute",
+    "Summary": "Display a serialized voice string as installed choices from a sibling model directory string."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "T:MNN.Unity.MNNSpeechVoiceOptions",
+    "Signature": "class MNN.Unity.MNNSpeechVoiceOptions",
+    "Summary": "A snapshot of voice IDs accepted by one installed speech export. Does not load native models."
   },
   {
     "Assembly": "MNN.Unity",

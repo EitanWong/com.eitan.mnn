@@ -48,6 +48,7 @@ namespace MNN.Unity
             options = new MNNSpeechSynthesisOptions { Voice = requested.Voice, Language = requested.Language,
                 Precision = requested.Precision, ReferenceWavePath = requested.ReferenceWavePath, ReferenceText = requested.ReferenceText,
                 Steps = requested.Steps, Seed = requested.Seed, Speed = requested.Speed };
+            options.Voice = GetVoiceOptions(directory).ResolveVoice(options.Voice);
             var registration = MNNModelRegistry.FindSpeech(directory);
             if (registration != null) return registration.Speech.Load(directory, options, threadCount, backendType);
             var profile = MNNTtsModelProfiles.Detect(directory);
@@ -115,8 +116,9 @@ namespace MNN.Unity
                     var bert = MNNBertVits2.Load(directory, threadCount, backendType: backendType);
                     return new MNNSpeechSynthesizer(bert, bert.SampleRate, new[] { "zh", "en" }, bert.Synthesize);
                 case MNNSpeechModelKind.SherpaVitsChinese:
+                    int sherpaSpeaker = voice == null ? 0 : Array.IndexOf(InstalledVoices(directory), voice);
                     var sherpa = MNNSherpaVitsChinese.Load(directory, threadCount);
-                    return new MNNSpeechSynthesizer(sherpa, sherpa.SampleRate, new[] { "zh" }, (text, token) => sherpa.Synthesize(text, 0, options.Speed, token));
+                    return new MNNSpeechSynthesizer(sherpa, sherpa.SampleRate, new[] { "zh" }, (text, token) => sherpa.Synthesize(text, sherpaSpeaker, options.Speed, token));
                 case MNNSpeechModelKind.MossNano:
                     var moss = MNNMossNano.Load(directory, threadCount);
                     return new MNNSpeechSynthesizer(moss, 48000, new[] { "zh", "en" }, (text, token) => moss.Synthesize(text, voice ?? "Junhao", options.Seed, cancellationToken: token));

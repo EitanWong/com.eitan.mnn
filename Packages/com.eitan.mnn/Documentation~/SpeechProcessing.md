@@ -1,5 +1,7 @@
 # 语音处理模型与验证范围
 
+语音合成的模型音色查询、下拉选择与组件接入见[语音合成音色选择](SpeechVoices.md)。
+
 模型目录使用 `Assets/StreamingAssets/MNN/Models/<名称>-MNN`，每个目录独立保存 MNN 图、必要配置、README、许可证和 SHA-256 清单。
 原始权重在 `Assets/StreamingAssets/MNN/Models/.conversion-source` 临时取得，消费者完成后校验并清理；来源收据、参考输出、候选图和日志保存在 `TestArtifacts~/SpeechModels`。
 Player 打包在 `Project Settings > MNN` 选择需要的目录；默认 `None` 不打包任何模型。

@@ -11,7 +11,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
     parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'background-tasks', 'background-hot-switch', 'comfort', 'minimind-o', 'omni-turns', 'onboarding', 'multimodal', 'conversation-reset', 'vision-switch', 'voice-input'], default='conversation',
-                        help='Apply conversation, reuse, full capability, acceptance-contract, recording-gate, glass-continuity, source-reflection, optical-detail, fold-caustics, soft-endpoint, glass-refraction, Pocket-model, product-interaction, task-settings, background-task-switch, background-hot-switch, desktop-comfort, MiniMind-o, Omni endpointing, or onboarding-experience migration')
+                        help='Apply conversation, reuse, full capability, acceptance-contract, recording-gate, glass-continuity, source-reflection, optical-detail, fold-caustics, soft-endpoint, glass-refraction, Pocket-model, product-interaction, task-settings, background-task-switch, background-hot-switch, desktop-comfort, MiniMind-o, Omni endpointing, onboarding-experience, or speech-voice-selection migration')
     args = parser.parse_args()
     root = args.root.resolve()
     patch = Path(__file__).with_name({'conversation': 'SiriAISharedConversation.patch',
