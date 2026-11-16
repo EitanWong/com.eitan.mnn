@@ -39,6 +39,10 @@ internal static class Program
     }
     private static async Task RunAsync()
     {
+        var presentation = new HarnessTaskPresentationTests();
+        presentation.ControlsReflectConfirmedStateAndBackendCapability();
+        presentation.AttentionAndLiveWorkPrecedeRecentFinishedTasksWithoutInventingProgress();
+        Console.WriteLine("PASS task presentation: truthful progress, attention ordering and capability-aware controls");
         new SiriAIHarnessFrontendSessionTests().ConversationAndInputHaveIndependentLifetimes();
         Console.WriteLine("PASS frontend conversation generations, input snapshots and stable turn admission");
         await new SiriAIHarnessDeliveryFailureTests().VerifyAsync();
