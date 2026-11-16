@@ -1,0 +1,429 @@
+diff --git a/Assets/Samples/SiriAI/README.md b/Assets/Samples/SiriAI/README.md
+--- a/Assets/Samples/SiriAI/README.md
++++ b/Assets/Samples/SiriAI/README.md
+@@ -274,3 +274,5 @@
+ 原生验收：显式运行 `SiriAIMiniMindONativeVoiceTests`，它把真实语音 PCM 注入麦克风同一
+ 捕获接口，经过 VAD/断句、SiriAI 后端、MiniMind-o 推理和播放队列，检查两轮语音响应。
+ 这是软件捕获/播放链路验证；设备麦克风权限及物理扬声器仍按现有 SiriAI 音频后端处理。
++
++启用 Vision 默认只开启摄像头、检测和预览，不等待人脸确认，也不关闭麦克风或持续语音。需要按人脸在场控制语音时，单独开启“仅在人脸可见时接受语音”；身份验证和视听目标拾音始终保留目标在场检查。关闭 Vision 后，预览、摄像头参数、视觉模型和相关视觉开关隐藏；音频设备和纯音频设置继续可用。C930c 等一体式 USB 设备的摄像头和麦克风分别选择各自设备列表中的条目。
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -85,7 +85,7 @@
+                 Observe(() => _presenceChange);
+             }
+             _context.Interaction = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers ? _interaction : null;
+-            if (_interaction == null || !settings.visualPresence) return;
++            if (_interaction == null || !settings.RequiresPresenceForVoice) return;
+             _interaction.Presence.SetInteractionBusy(IsProcessing || IsRecordingVoice);
+             var snapshot = _interaction.Presence.Current;
+             bool entered = snapshot.CanStartInteraction && !_lastPresenceAdmission;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Input.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Input.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Input.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Input.cs
+@@ -20,7 +20,8 @@
+         private bool CanRecordVoice => !TaskUIOwnsInput && !SetupOwnsStartup && !_conversationContextDirty && !_conversationSwitchBusy && _chat != null && _chat.SessionComponent != null &&
+             (_chat.SessionComponent.State == MNN.Unity.MNNRealtimeSessionState.Running ||
+              _chat.SessionComponent.State == MNN.Unity.MNNRealtimeSessionState.Recovering) &&
+-            !_chat.IsResettingConversation && _chat.SupportsRecordedVoice;
++            !_chat.IsResettingConversation && _chat.SupportsRecordedVoice && VoicePresenceReady;
++        private bool VoicePresenceReady => _chat?.Interaction == null || _chat.Interaction.CanStartInteraction;
+         private int _voiceGesture;
+         private VoiceRelease _voiceRelease;
+         private enum VoiceRelease { Send, Cancel, Transcribe, Outside }
+@@ -197,7 +198,7 @@
+             bool narrow = _panelContentWidth > 0 && _panelContentWidth < 280f;
+             SetTextIfChanged(_composerHint, CanShowCompletion && !string.IsNullOrEmpty(_completionText) ? "Tab ↹  " + _completionText : _voiceHeld ? VoiceGestureHint(narrow) :
+                 realtime ? narrow ? _chat.CanInterruptVoice ? "Live voice" : "Your turn" : "Tap to type" :
+-                narrow ? "Hold to talk" : "Tap to type · Hold to speak");
++                !VoicePresenceReady ? "Waiting for visual presence…" : narrow ? "Hold to talk" : "Tap to type · Hold to speak");
+             SetActiveIfChanged(_voiceHint, voice && !(_voiceHeld && narrow));
+             bool preparing = realtime && _chat.IsPreparingRealtime && !_chat.IsListeningRealtime;
+             bool showWaveform = _voiceHeld || realtime && !preparing && (!_chat.IsProcessing || _chat.IsUserSpeaking);
+@@ -258,7 +259,7 @@
+                 if (!started)
+                 {
+                     CancelVoiceGesture();
+-                    SetError("Voice input is not ready. Try again in a moment.");
++                    if (CanRecordVoice) SetError("Voice input is not ready. Try again in a moment.");
+                 }
+             }
+             catch (Exception error)
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+@@ -17,7 +17,7 @@
+                 Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand))) OpenSettings();
+             TickCameraSettings();
+             var interaction = _chat?.Interaction;
+-            bool enabled = interaction != null && interaction.ReadSettings().visualPresence;
++            bool enabled = interaction != null && interaction.ReadSettings().RequiresPresenceForVoice;
+             if (!enabled && !_presencePresentationActive) return;
+             if (_presenceCanvas == null && _canvasRoot != null)
+             {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+@@ -20,13 +20,16 @@
+                     value.visualPresence = enabled;
+                     if (!enabled)
+                     {
++                        value.requirePresenceForVoice = false;
+                         value.faceRecognition = false;
+                         value.imageContext = false;
+                         value.audioVisualSpeech = false;
+                     }
+                 }));
++            if (!value.visualPresence) return;
+             BuildCameraPreview();
+-            SettingsDescription("Allow new voice interactions only while a confirmed target is visible.");
++            AddBoolField("Require visible face for voice", "Off: camera and microphone work independently. Identity and audio-visual pickup still require a visible target.",
++                () => value.requirePresenceForVoice, enabled => UpdateAudioSettings(() => value.requirePresenceForVoice = enabled));
+             AddBoolField("Recognized identities only", "Requires enrolled identities and a ready recognition provider.",
+                 () => value.faceRecognition, enabled => UpdateAudioSettings(() => value.faceRecognition = enabled), value.visualPresence);
+             AddBoolField("Image context", "Use a fresh target image for supported multimodal requests.",
+@@ -58,8 +61,9 @@
+             if (acoustics == null) return;
+             var value = acoustics.interaction ?? (acoustics.interaction = new MNNInteractionSettings());
+             AddSettingsTitle("Target speech pickup", "Audio-visual pickup uses the camera configured in Vision.");
+-            AddBoolField("Audio-visual target speech", "Enable vision first. Requires a synchronized visual speech provider; stale video is rejected.",
+-                () => value.audioVisualSpeech, enabled => UpdateAudioSettings(() => value.audioVisualSpeech = enabled), value.visualPresence);
++            if (value.visualPresence)
++                AddBoolField("Audio-visual target speech", "Enable vision first. Requires a synchronized visual speech provider; stale video is rejected.",
++                    () => value.audioVisualSpeech, enabled => UpdateAudioSettings(() => value.audioVisualSpeech = enabled));
+             AddBoolField("Reference speaker extraction", "Requires an enrolled voice and a target extraction provider.",
+                 () => value.referenceSpeaker, enabled => UpdateAudioSettings(() => value.referenceSpeaker = enabled));
+             AddBoolField("Overlapping speaker separation", "Requires a separator and target identity selector; ambiguity is rejected.",
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+@@ -93,7 +93,15 @@
+             return Acoustics == null ? samples : await Acoustics.PrepareVoiceAsync(samples, token).ConfigureAwait(false);
+         }
+         // Utterance-level selection cannot qualify a live interrupter's identity.
+-        internal bool RequiresUtteranceSpeakerSelection => Acoustics?.AutomaticSpeaker == true || Interaction != null;
++        internal bool RequiresUtteranceSpeakerSelection
++        {
++            get
++            {
++                var settings = Interaction?.ReadSettings();
++                return Acoustics?.AutomaticSpeaker == true || settings != null &&
++                    (settings.RequiresPresenceForVoice || settings.referenceSpeaker || settings.separateSpeakers);
++            }
++        }
+         internal bool AllowUnverifiedBargeIn => !RequiresUtteranceSpeakerSelection;
+         public SiriAIInputState Input { get; } = new SiriAIInputState();
+         public MNNConversationRecording Recording { get; }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -10,6 +10,9 @@
+         {
+             { "Vision", "视觉" },
+             { "Enable vision", "启用视觉" },
++            { "Require visible face for voice", "仅在人脸可见时接受语音" },
++            { "Off: camera and microphone work independently. Identity and audio-visual pickup still require a visible target.", "关闭时摄像头与麦克风独立工作。身份验证和视听拾音仍要求目标可见。" },
++            { "Waiting for visual presence…", "正在等待目标进入画面…" },
+             { "Off also disables identity gating, image context and audio-visual pickup. Audio-only settings stay unchanged.", "关闭时同时停用身份门控、图像上下文和视听融合拾音；纯音频功能不受影响。" },
+             { "Enable vision first. Requires a synchronized visual speech provider; stale video is rejected.", "请先启用视觉。需要同步的视听拾音适配器，过期画面会被拒绝。" },
+             { "Enable vision and save to see live detection.", "启用视觉并保存后即可查看实时检测。" },
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIUnityRecordingTests.cs
+@@ -36,6 +36,70 @@
+             yield return new EnterPlayMode();
+             yield return RunPhysicalRecordings();
+             yield return new ExitPlayMode();
++        }
++
++        [UnityTest, Explicit("Uses the connected C930c camera and its microphone together; stores counters only, no recordings.")]
++        public IEnumerator C930cCameraAndMicrophoneCaptureTogether()
++        {
++            yield return new EnterPlayMode();
++            foreach (bool microphoneFirst in new[] { true, false })
++                yield return CaptureC930c(microphoneFirst);
++            yield return new ExitPlayMode();
++        }
++
++        private static IEnumerator CaptureC930c(bool microphoneFirst)
++        {
++            string cameraName = Array.Find(Array.ConvertAll(WebCamTexture.devices, camera => camera.name),
++                name => name.IndexOf("C930", StringComparison.OrdinalIgnoreCase) >= 0);
++            string microphoneName = Array.Find(Microphone.devices,
++                name => name.IndexOf("C930", StringComparison.OrdinalIgnoreCase) >= 0);
++            Assert.IsNotNull(cameraName, "Connect the C930c camera.");
++            Assert.IsNotNull(microphoneName, "Connect the C930c microphone.");
++            var root = new GameObject("C930c simultaneous capture");
++            var microphone = root.AddComponent<MNNUnityMicrophoneCapture>();
++            var device = root.AddComponent<MNNRealtimeAudioDevice>();
++            var output = new MNNRealtimeOutputPipeline(new MNNPcmFormat(48000, 2), 480);
++            var camera = new WebCamTexture(cameraName, 1280, 720, 30);
++            try
++            {
++                Action startMicrophone = () => microphone.StartCaptureNegotiated(device,
++                    (format, capacity) => device.Bind(output, format, 64, capacity), microphoneName);
++                if (microphoneFirst) startMicrophone(); else camera.Play();
++                double deadline = Time.realtimeSinceStartupAsDouble + 15;
++                while ((microphoneFirst ? !microphone.IsCapturing : camera.width <= 16) &&
++                    Time.realtimeSinceStartupAsDouble < deadline) yield return null;
++                if (microphoneFirst) camera.Play(); else startMicrophone();
++                deadline = Time.realtimeSinceStartupAsDouble + 15;
++                while ((!microphone.IsCapturing || camera.width <= 16) &&
++                    Time.realtimeSinceStartupAsDouble < deadline) yield return null;
++                Assert.IsTrue(microphone.IsCapturing, microphone.Fault?.ToString());
++                Assert.Greater(camera.width, 16);
++                var pcm = new float[device.MaximumCaptureSamples];
++                for (int window = 0; window < 3; ++window)
++                {
++                    long samples = 0; int videoFrames = 0;
++                    deadline = Time.realtimeSinceStartupAsDouble + 1;
++                    while (Time.realtimeSinceStartupAsDouble < deadline)
++                    {
++                        while (device.TryReadCapture(pcm, 0, out _, out int count)) samples += count;
++                        if (camera.didUpdateThisFrame) ++videoFrames;
++                        yield return null;
++                    }
++                    TestContext.WriteLine("C930c microphoneFirst=" + microphoneFirst + " window=" + window +
++                        " videoFrames=" + videoFrames + " audioSamples=" + samples + " format=" + device.CaptureFormat);
++                    Assert.Greater(videoFrames, 0, "Camera frames stopped while microphone was active.");
++                    Assert.Greater(samples, 0, "Microphone stopped while the camera was active.");
++                    Assert.IsTrue(Microphone.IsRecording(microphoneName));
++                    Assert.IsNull(microphone.Fault);
++                }
++            }
++            finally
++            {
++                camera.Stop();
++                microphone.StopCapture();
++                UnityEngine.Object.DestroyImmediate(camera);
++                UnityEngine.Object.DestroyImmediate(root);
++            }
+         }
+ 
+         private static IEnumerator RunPhysicalRecordings()
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+@@ -32,6 +32,12 @@
+             return null;
+         }
+ 
++        private static void EnableVision(SiriAIChatView view)
++        {
++            var draft = (SiriAISettingsDraft)typeof(SiriAIChatView).GetProperty("SettingsDraft", Private).GetValue(view);
++            draft.Acoustics.interaction.visualPresence = true;
++        }
++
+         [Test]
+         public void DisablingVisionClearsVisualDependenciesAndPreservesAudioAndCameraSettings()
+         {
+@@ -49,7 +55,7 @@
+                 var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
+                 draft.Acoustics.enabled = false;
+                 var value = draft.Acoustics.interaction;
+-                value.visualPresence = value.faceRecognition = value.imageContext = value.audioVisualSpeech = true;
++                value.visualPresence = value.requirePresenceForVoice = value.faceRecognition = value.imageContext = value.audioVisualSpeech = true;
+                 value.allowedIdentities = new[] {"enrolled-person"};
+                 value.referenceSpeaker = value.separateSpeakers = true;
+                 value.camera.deviceName = "Saved camera";
+@@ -59,6 +65,7 @@
+                 var master = Active(content, "Enable vision") ?? Active(content, "Visual presence");
+                 master.GetComponentInChildren<Button>().onClick.Invoke();
+                 Assert.That(value.visualPresence, Is.False);
++                Assert.That(value.requirePresenceForVoice, Is.False);
+                 Assert.That(value.faceRecognition, Is.False, "Disabling vision must also disable identity gating.");
+                 Assert.That(value.imageContext, Is.False);
+                 Assert.That(value.audioVisualSpeech, Is.False);
+@@ -69,9 +76,9 @@
+                 Assert.That(value.allowedIdentities, Is.EqualTo(new[] {"enrolled-person"}));
+                 Assert.DoesNotThrow(() => value.Validate());
+                 foreach (string label in new[] {"Recognized identities only", "Image context"})
+-                    Assert.That(Active(content, label).GetComponentInChildren<Button>().interactable, Is.False, label);
++                    Assert.That(Active(content, label), Is.Null, label);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {11, true});
+-                Assert.That(Active(content, "Audio-visual target speech").GetComponentInChildren<Button>().interactable, Is.False);
++                Assert.That(Active(content, "Audio-visual target speech"), Is.Null);
+                 Assert.That(Active(content, "Reference speaker extraction").GetComponentInChildren<Button>().interactable, Is.True);
+                 Assert.That(Active(content, "Overlapping speaker separation").GetComponentInChildren<Button>().interactable, Is.True);
+                 SiriAIAcousticPreferencesStore.Save(key, draft.Acoustics);
+@@ -88,7 +95,7 @@
+                 var interaction = root.AddComponent<MNNInteractionComponent>();
+                 interaction.Configure(new MNNInteractionSettings {visualPresence = value.visualPresence});
+                 Assert.That(interaction.Camera.enabled, Is.True);
+-                Assert.That(interaction.CanStartInteraction, Is.False, "Enabling vision waits for confirmed presence.");
++                Assert.That(interaction.CanStartInteraction, Is.True, "Camera startup must leave audio available by default.");
+                 restored.referenceSpeaker = restored.separateSpeakers = false;
+                 interaction.Configure(restored);
+                 Assert.That(interaction.Camera.enabled, Is.False);
+@@ -101,21 +108,27 @@
+         }
+ 
+         [Test]
+-        public void VisionShowsCameraPreviewDirectlyWithoutAnExtraToggle()
+-        {
+-            var root = new GameObject("Direct visual feedback");
+-            try
+-            {
+-                CreateChat(root).enabled = false;
+-                var view = root.AddComponent<SiriAIChatView>();
+-                typeof(SiriAIChatView).GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+-                view.OpenSettings();
+-                typeof(SiriAIChatView).GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
+-                var content = (RectTransform)typeof(SiriAIChatView).GetField("_settingsContent", Private).GetValue(view);
+-                var preview = Active(content, "Camera Preview");
+-                Assert.That(preview, Is.Not.Null, "Vision should directly show the live preview surface without another switch.");
+-                Assert.That(preview.GetComponentInChildren<RawImage>(), Is.Not.Null);
+-                Assert.That(Active(content, "Camera preview"), Is.Null, "A second preview switch hides the requested immediate feedback.");
++        public void VisionSwitchShowsPreviewAndDependentSettingsOnlyWhenEnabled()
++        {
++            var root = new GameObject("Conditional visual settings");
++            try
++            {
++                CreateChat(root).enabled = false;
++                var view = root.AddComponent<SiriAIChatView>();
++                var type = typeof(SiriAIChatView);
++                type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
++                view.OpenSettings();
++                var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
++                draft.Acoustics.interaction.visualPresence = false;
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
++                foreach (string label in new[] {"Camera Preview", "Image context", "Recognized identities only", "Face detection model", "Camera"})
++                    Assert.That(Active(content, label), Is.Null, label + " should be hidden with vision off.");
++                Active(content, "Enable vision").GetComponentInChildren<Button>().onClick.Invoke();
++                Assert.That(Active(content, "Camera Preview").GetComponentInChildren<RawImage>(), Is.Not.Null);
++                Assert.That(Active(content, "Image context"), Is.Not.Null);
++                Active(content, "Enable vision").GetComponentInChildren<Button>().onClick.Invoke();
++                Assert.That(Active(content, "Camera Preview"), Is.Null);
+             }
+             finally { UnityEngine.Object.DestroyImmediate(root); }
+         }
+@@ -131,6 +144,7 @@
+                 var type = typeof(SiriAIChatView);
+                 type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+                 view.OpenSettings();
++                EnableVision(view);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
+                 var constructor = typeof(MNNDetection).GetConstructors(Private)[0];
+                 var box = (MNNDetection)constructor.Invoke(new object[] {0, "face", .9f, 160f, 120f, 320f, 240f});
+@@ -178,6 +192,7 @@
+                 var type = typeof(SiriAIChatView);
+                 type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+                 view.OpenSettings();
++                EnableVision(view);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
+                 var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
+                 foreach (string label in new[] { "Camera", "Automatic camera quality", "Camera Preview", "Refresh cameras" })
+@@ -258,7 +273,7 @@
+                 var type = typeof(SiriAIChatView);
+                 type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+                 var interaction = root.AddComponent<MNNInteractionComponent>();
+-                interaction.Configure(new MNNInteractionSettings { visualPresence = true });
++                interaction.Configure(new MNNInteractionSettings { visualPresence = true, requirePresenceForVoice = true });
+                 chat.ConfigureInteraction(interaction);
+                 type.GetMethod("TickInteractionPresentation", Private).Invoke(view, null);
+                 var canvas = (CanvasGroup)type.GetField("_presenceCanvas", Private).GetValue(view);
+@@ -293,10 +308,11 @@
+                 type.GetField("_acousticModelsDirectory", Private).SetValue(view, (Func<string>)(() => directory));
+                 view.TickEditorPreview(new Rect(0, 0, 844, 800), 1);
+                 view.OpenSettings();
++                EnableVision(view);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
+                 var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
+                 var row = Active(content, label);
+-                Assert.That(row, Is.Not.Null, "Visual models must use the existing model picker even when detection is off.");
++                Assert.That(row, Is.Not.Null, "Visual models must use the existing model picker when vision is enabled.");
+                 Assert.That(row.GetComponentInChildren<InputField>(), Is.Null);
+                 row.GetComponentInChildren<Button>().onClick.Invoke();
+                 Assert.That((bool)type.GetField("_settingsOptionsCatalog", Private).GetValue(view), Is.True);
+@@ -308,7 +324,7 @@
+                 choices[0].onClick.Invoke();
+                 var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
+                 Assert.That(stage == 20 ? draft.Acoustics.interaction.detectorDirectory : draft.Acoustics.interaction.recognizerDirectory, Is.EqualTo("local-visual-model"), ((Text)type.GetField("_settingsNotice", Private).GetValue(view)).text);
+-                Assert.That(draft.Acoustics.interaction.visualPresence, Is.False, "Choosing a model must not enable the camera.");
++                Assert.That(draft.Acoustics.interaction.visualPresence, Is.True, "Choosing a model preserves the vision setting.");
+                 // Real selection must reject the deliberately non-publisher fixture graph.
+                 type.GetField("_editorPreview", Private).SetValue(view, false);
+                 bool acceptedInvalidGraph = false;
+@@ -345,10 +361,12 @@
+                 Assert.That(icon.Glyph.ToString(), Is.EqualTo("Eye"));
+                 tabs[vision].onClick.Invoke();
+                 var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
+-                foreach (string label in new[] { "Enable vision", "Recognized identities only", "Image context" })
+-                    Assert.That(Active(content, label), Is.Not.Null, label);
++                Assert.That(Active(content, "Enable vision"), Is.Not.Null);
++                Assert.That(Active(content, "Image context"), Is.Null);
+                 Assert.That(Active(content, "Reference speaker extraction"), Is.Null);
+                 Active(content, "Enable vision").GetComponentInChildren<Button>().onClick.Invoke();
++                foreach (string label in new[] { "Recognized identities only", "Image context", "Require visible face for voice" })
++                    Assert.That(Active(content, label), Is.Not.Null, label);
+                 Assert.That(Active(content, "Sleep display"), Is.Not.Null);
+                 Assert.That(Active(content, "Face detection model"), Is.Not.Null);
+                 var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIVoiceGestureTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIVoiceGestureTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIVoiceGestureTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIVoiceGestureTests.cs
+@@ -72,6 +72,62 @@
+ 
+         [TestCase(false)]
+         [TestCase(true)]
++        public void CameraAndVoiceCanRecordWithoutWaitingForFaceDetection(bool vision)
++        {
++            var interaction = _root.AddComponent<MNNInteractionComponent>();
++            var settings = new MNNInteractionSettings { visualPresence = vision };
++            interaction.Configure(settings);
++            _chat.ConfigureInteraction(interaction);
++            TestContext.WriteLine("vision=" + vision + " admitted=" + interaction.CanStartInteraction);
++            SiriAITestAccess.Call(_view, "BeginVoiceGesture", ChoicePosition("Send"));
++            TestContext.WriteLine("recording=" + _chat.IsRecordingVoice + " error=" +
++                (SiriAITestAccess.Field<string>(_view, "_errorDetails") ?? "none"));
++            Assert.IsTrue(_chat.IsRecordingVoice, "Camera startup and face detection must not disable the microphone.");
++            Assert.IsNull(SiriAITestAccess.Field<string>(_view, "_errorDetails"));
++            // Presence updates must not stop a user-owned recording or continuous listening.
++            SiriAITestAccess.Set(_chat, "_interactionSettings", settings);
++            SiriAITestAccess.Set(_chat, "_interactionConfiguration", JsonUtility.ToJson(settings));
++            SiriAITestAccess.Set(_chat, "_nextInteractionSettingsRead", double.MaxValue);
++            SiriAITestAccess.Call(_chat, "UpdateInteractionPresence");
++            Assert.IsTrue(_chat.IsRecordingVoice);
++            var pcm = new float[4000]; System.Array.Fill(pcm, .125f);
++            _context.Input.Consume(pcm);
++            SiriAITestAccess.Call(_view, "ReleaseVoiceGesture", ChoicePosition("Send"));
++            Assert.AreEqual(1, _sendCount);
++            CollectionAssert.AreEqual(pcm, _submitted);
++            _context.Input.SetRealtime(true);
++            _context.SetCaptureEnabled(true);
++            SiriAITestAccess.Call(_chat, "UpdateInteractionPresence");
++            Assert.IsTrue(_chat.IsRealtimeConversation);
++            Assert.IsTrue(_root.GetComponent<SiriAIRecordingAudioEndpoint>().CaptureOpen);
++            TestContext.WriteLine("recorded and submitted once; continuous capture stayed open");
++        }
++
++        [Test]
++        public void ExplicitPresenceGateWaitsWithoutReadinessErrorAndRecoversAfterDetection()
++        {
++            var interaction = _root.AddComponent<MNNInteractionComponent>();
++            interaction.Configure(new MNNInteractionSettings
++                { visualPresence = true, requirePresenceForVoice = true, confirmationSeconds = 0 });
++            _chat.ConfigureInteraction(interaction);
++            SiriAITestAccess.Call(_view, "RefreshInputModes");
++            SiriAITestAccess.Call(_view, "BeginVoiceGesture", ChoicePosition("Send"));
++            Assert.IsFalse(_chat.IsRecordingVoice);
++            Assert.IsNull(SiriAITestAccess.Field<string>(_view, "_errorDetails"));
++            Assert.AreEqual(SiriAITestAccess.Call(_view, "Localize", "Waiting for visual presence…"),
++                SiriAITestAccess.Field<Text>(_view, "_composerHint").text);
++            // EditMode fixtures drive the runtime component's subscription lifecycle explicitly.
++            SiriAITestAccess.Call(interaction, "OnEnable");
++            interaction.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble,
++                MNNPresenceKind.Face, "voice-user", .9f));
++            Assert.IsTrue(interaction.CanStartInteraction, "The zero-delay face observation must admit the configured target.");
++            SiriAITestAccess.Call(_view, "BeginVoiceGesture", ChoicePosition("Send"));
++            Assert.IsTrue(_chat.IsRecordingVoice, "admitted=" + interaction.CanStartInteraction + " held=" +
++                SiriAITestAccess.Field<bool>(_view, "_voiceHeld") + " error=" + SiriAITestAccess.Field<string>(_view, "_errorDetails"));
++        }
++
++        [TestCase(false)]
++        [TestCase(true)]
+         public void SettingsOpenCloseAndReopenPreserveRealtimeCapture(bool desktop)
+         {
+             SiriAITestAccess.Field<SiriAIChatViewPreferences>(_view, "_viewPreferences").desktopMode = desktop;

@@ -11,6 +11,7 @@ namespace MNN.Unity
     {
         public MNNCameraSettings camera = new MNNCameraSettings();
         public bool visualPresence;
+        public bool requirePresenceForVoice;
         public bool faceRecognition;
         public bool imageContext;
         public bool audioVisualSpeech;
@@ -25,6 +26,9 @@ namespace MNN.Unity
         public string detectorDirectory = "budaoshou--InsightFace-Det500M-MNN";
         public string recognizerDirectory = "budaoshou--InsightFace-MobileFaceNet-MNN";
         public string measuredConfigurationId;
+
+        /// <summary>Camera preview alone never gates microphone input. Target-specific features retain presence checks.</summary>
+        public bool RequiresPresenceForVoice => visualPresence && (requirePresenceForVoice || faceRecognition || audioVisualSpeech);
 
         public MNNInteractionSettings Snapshot()
         {

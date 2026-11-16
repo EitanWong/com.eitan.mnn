@@ -25,7 +25,7 @@ namespace MNN.Unity
         public MNNPresenceComponent Presence => _presence != null ? _presence : (_presence = GetComponent<MNNPresenceComponent>());
         public MNNFaceCameraComponent Camera => _camera != null ? _camera : (_camera = GetComponent<MNNFaceCameraComponent>());
         public MNNInteractionSettings ReadSettings() { lock (_gate) return _settings.Snapshot(); }
-        public bool CanStartInteraction { get { lock (_gate) return !_settings.visualPresence || _snapshot.CanStartInteraction; } }
+        public bool CanStartInteraction { get { lock (_gate) return !_settings.RequiresPresenceForVoice || _snapshot.CanStartInteraction; } }
         public event Action<MNNPresenceSnapshot> Changed;
 
         public void StartCamera(WebCamTexture camera, IMNNPresenceSource source) => Camera.StartTracking(camera, source);
@@ -63,7 +63,7 @@ namespace MNN.Unity
                 _captureInput = captureInput ?? throw new ArgumentNullException(nameof(captureInput));
                 _speech = MNNMultimodalSpeechModels.CreateFromProviders(_settings.audioVisualSpeech ? audioVisual : null,
                     _settings.referenceSpeaker ? reference : null, _settings.separateSpeakers ? separate : null,
-                    _settings.separateSpeakers ? select : null, _settings.visualPresence);
+                    _settings.separateSpeakers ? select : null, _settings.RequiresPresenceForVoice);
             }
         }
 
@@ -81,7 +81,7 @@ namespace MNN.Unity
                 now = _clockSeconds + (double)(System.Diagnostics.Stopwatch.GetTimestamp() - _clockTicks) / System.Diagnostics.Stopwatch.Frequency;
             }
             token.ThrowIfCancellationRequested();
-            if (settings.visualPresence && (!snapshot.CanStartInteraction || now - snapshot.EvaluatedAt > .75)) return Task.FromResult<float[]>(null);
+            if (settings.RequiresPresenceForVoice && (!snapshot.CanStartInteraction || now - snapshot.EvaluatedAt > .75)) return Task.FromResult<float[]>(null);
             if (!settings.audioVisualSpeech && !settings.referenceSpeaker && !settings.separateSpeakers) return Task.FromResult(samples);
             if (speech == null || capture == null) throw new InvalidOperationException("Configure synchronized speech providers before enabling target pickup.");
             var input = capture(samples, token);

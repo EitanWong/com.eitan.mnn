@@ -20,6 +20,32 @@ namespace MNN.Unity.Tests
             public float[] Extract(MNNMultimodalSpeechInput input, CancellationToken token) => input.CopyAudio();
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CameraOnlyGatesVoiceWhenPresenceIsExplicitlyRequired(bool required)
+        {
+            var root = new GameObject("independent-camera-microphone");
+            try
+            {
+                var owner = root.AddComponent<MNNInteractionComponent>();
+                owner.Configure(new MNNInteractionSettings { visualPresence = true, requirePresenceForVoice = required });
+                Assert.That(owner.Camera.enabled, Is.True);
+                Assert.That(owner.CanStartInteraction, Is.EqualTo(!required));
+                var samples = new[] { .1f, -.2f };
+                Assert.That(owner.PrepareVoiceAsync(samples, CancellationToken.None).GetAwaiter().GetResult(),
+                    required ? Is.Null : Is.SameAs(samples));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
+        }
+
+        [Test]
+        public void TargetIdentityAndVisualSpeechAlwaysRequirePresence()
+        {
+            Assert.That(new MNNInteractionSettings { visualPresence = true, faceRecognition = true }.RequiresPresenceForVoice, Is.True);
+            Assert.That(new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true }.RequiresPresenceForVoice, Is.True);
+            Assert.That(new MNNInteractionSettings { imageContext = true, visualPresence = true }.RequiresPresenceForVoice, Is.False);
+        }
+
         [Test]
         public void AlternateModelControlsItsOwnVisualGeometryWithoutChangingComponents()
         {

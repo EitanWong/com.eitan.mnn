@@ -459,3 +459,16 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 54 项 Editor 行为回归通过，覆盖视觉开关、纯音频独立性、保存恢复、视觉源释放、模型选择、
 中文文案及设置事务。原始与回滚源码在同输入下复现关闭后身份门控残留的问题，修改后通过。
 测试使用托管夹具，未验证物理摄像头采集或原生模型推理。
+
+## 摄像头与语音独立采集
+
+`voice-input` 将摄像头预览与人脸语音门控分开：启用视觉默认保留麦克风和持续语音；
+可单独开启“仅在人脸可见时接受语音”。身份验证和视听目标拾音继续要求目标在场。
+关闭视觉时隐藏预览和相关设置，保存后释放摄像头。
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage voice-input
+```
+
+补丁只适用于 sidecar 中的精确导入基线；完整版本检查后再写入，重复执行不写入。
+C930c 摄像头与自带麦克风已验证两种启动顺序，测试只记录帧数与采样数。

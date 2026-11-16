@@ -40812,6 +40812,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.requirePresenceForVoice",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.requirePresenceForVoice",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "F:MNN.Unity.MNNInteractionSettings.separateSpeakers",
     "Signature": "public bool MNN.Unity.MNNInteractionSettings.separateSpeakers",
     "Summary": ""
@@ -42334,6 +42341,13 @@
     "Id": "P:MNN.Unity.MNNImageTaskResult.Vector",
     "Signature": "public float[] MNN.Unity.MNNImageTaskResult.Vector { get; internal set; }",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNInteractionSettings.RequiresPresenceForVoice",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.RequiresPresenceForVoice { get; }",
+    "Summary": "Camera preview alone never gates microphone input. Target-specific features retain presence checks."
   },
   {
     "Assembly": "MNN.Unity",

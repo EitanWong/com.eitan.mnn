@@ -25305,6 +25305,10 @@ public bool MNN.Unity.MNNInteractionSettings.requireFace
 ```
 
 ```csharp
+public bool MNN.Unity.MNNInteractionSettings.requirePresenceForVoice
+```
+
+```csharp
 public bool MNN.Unity.MNNInteractionSettings.separateSpeakers
 ```
 
@@ -26195,6 +26199,12 @@ public MNN.Unity.MNNImageSegmentationResult MNN.Unity.MNNImageTaskResult.Segment
 ```csharp
 public float[] MNN.Unity.MNNImageTaskResult.Vector { get; internal set; }
 ```
+
+```csharp
+public bool MNN.Unity.MNNInteractionSettings.RequiresPresenceForVoice { get; }
+```
+
+Camera preview alone never gates microphone input. Target-specific features retain presence checks.
 
 ```csharp
 public float MNN.Unity.MNNOcrResult.Confidence { get; }
