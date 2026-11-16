@@ -3243,6 +3243,41 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNMultimodalSpeechRoute.AudioVisualTarget",
+    "Signature": "MNN.Unity.MNNMultimodalSpeechRoute.AudioVisualTarget = 2",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNMultimodalSpeechRoute.ReferenceTarget",
+    "Signature": "MNN.Unity.MNNMultimodalSpeechRoute.ReferenceTarget = 3",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNMultimodalSpeechRoute.Rejected",
+    "Signature": "MNN.Unity.MNNMultimodalSpeechRoute.Rejected = 0",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNMultimodalSpeechRoute.SeparatedTarget",
+    "Signature": "MNN.Unity.MNNMultimodalSpeechRoute.SeparatedTarget = 4",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "F:MNN.Unity.MNNMultimodalSpeechRoute.SingleSpeaker",
+    "Signature": "MNN.Unity.MNNMultimodalSpeechRoute.SingleSpeaker = 1",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "F:MNN.Unity.MNNNamoTurnDetector.MaximumTokens",
     "Signature": "public const int MNN.Unity.MNNNamoTurnDetector.MaximumTokens = 8192",
     "Summary": ""
@@ -5100,6 +5135,20 @@
     "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.IMNNRealtimeVoiceInputProcessor.Reset",
     "Signature": "void MNN.Unity.IMNNRealtimeVoiceInputProcessor.Reset()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.IMNNTargetSpeechExtractor.Extract(MNN.Unity.MNNMultimodalSpeechInput,System.Threading.CancellationToken)",
+    "Signature": "float[] MNN.Unity.IMNNTargetSpeechExtractor.Extract(MNN.Unity.MNNMultimodalSpeechInput input, System.Threading.CancellationToken cancellationToken)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.IMNNTargetSpeechExtractor.Supports(MNN.Unity.MNNMultimodalSpeechInput)",
+    "Signature": "bool MNN.Unity.IMNNTargetSpeechExtractor.Supports(MNN.Unity.MNNMultimodalSpeechInput input)",
     "Summary": ""
   },
   {
@@ -7170,6 +7219,55 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNMultimodalSpeechInput.#ctor(System.Single[],System.Int32,System.Double,System.String,System.Int32,MNN.Unity.MNNVisualSpeechFrames)",
+    "Signature": "public MNN.Unity.MNNMultimodalSpeechInput.MNNMultimodalSpeechInput(float[] audio, int sampleRate, double startedAt, string trackId, int speakerCount = 0, MNN.Unity.MNNVisualSpeechFrames visual = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNMultimodalSpeechInput.CopyAudio",
+    "Signature": "public float[] MNN.Unity.MNNMultimodalSpeechInput.CopyAudio()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNMultimodalSpeechModels.Create(MNN.Unity.MNNAvMossFormer2Tse,MNN.Unity.MNNSpeechSeparator,System.Func{MNN.Unity.MNNSeparatedAudio,System.String,System.Int32},System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Threading.CancellationToken,System.Single[]},System.Boolean)",
+    "Signature": "public static MNN.Unity.MNNMultimodalSpeechProcessor MNN.Unity.MNNMultimodalSpeechModels.Create(MNN.Unity.MNNAvMossFormer2Tse audioVisual = null, MNN.Unity.MNNSpeechSeparator separator = null, System.Func\u003CMNN.Unity.MNNSeparatedAudio, string, int\u003E selectSpeaker = null, System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, float[]\u003E referenceTarget = null, bool requirePresence = true)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNMultimodalSpeechModels.CreateFromProviders(MNN.Unity.IMNNTargetSpeechExtractor,MNN.Unity.IMNNTargetSpeechExtractor,System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Threading.CancellationToken,MNN.Unity.MNNSeparatedAudio},System.Func{MNN.Unity.MNNSeparatedAudio,System.String,System.Int32},System.Boolean)",
+    "Signature": "public static MNN.Unity.MNNMultimodalSpeechProcessor MNN.Unity.MNNMultimodalSpeechModels.CreateFromProviders(MNN.Unity.IMNNTargetSpeechExtractor audioVisual = null, MNN.Unity.IMNNTargetSpeechExtractor referenceTarget = null, System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, MNN.Unity.MNNSeparatedAudio\u003E separate = null, System.Func\u003CMNN.Unity.MNNSeparatedAudio, string, int\u003E selectSpeaker = null, bool requirePresence = true)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNMultimodalSpeechProcessor.#ctor(System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Threading.CancellationToken,System.Single[]},System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Threading.CancellationToken,System.Single[]},System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Threading.CancellationToken,MNN.Unity.MNNSeparatedAudio},System.Func{MNN.Unity.MNNSeparatedAudio,System.String,System.Int32},System.Boolean,System.Double,System.Double,System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Boolean},System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Boolean})",
+    "Signature": "public MNN.Unity.MNNMultimodalSpeechProcessor.MNNMultimodalSpeechProcessor(System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, float[]\u003E audioVisual = null, System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, float[]\u003E referenceTarget = null, System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, MNN.Unity.MNNSeparatedAudio\u003E separate = null, System.Func\u003CMNN.Unity.MNNSeparatedAudio, string, int\u003E selectSpeaker = null, bool requirePresence = true, double maximumAgeSeconds = 0.75, double synchronizationToleranceSeconds = 0.08, System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, bool\u003E visualSupports = null, System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, bool\u003E referenceSupports = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNMultimodalSpeechProcessor.Process(MNN.Unity.MNNMultimodalSpeechInput,MNN.Unity.MNNPresenceSnapshot,System.Double,System.Threading.CancellationToken)",
+    "Signature": "public MNN.Unity.MNNMultimodalSpeechResult MNN.Unity.MNNMultimodalSpeechProcessor.Process(MNN.Unity.MNNMultimodalSpeechInput input, MNN.Unity.MNNPresenceSnapshot presence, double now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNMultimodalSpeechRoute.#ctor",
+    "Signature": "public MNN.Unity.MNNMultimodalSpeechRoute.MNNMultimodalSpeechRoute()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNNamoTurnDetector.Dispose",
     "Signature": "public void MNN.Unity.MNNNamoTurnDetector.Dispose()",
     "Summary": ""
@@ -8143,6 +8241,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNRealtimeUtteranceBuffer.Snapshot(System.Int32)",
+    "Signature": "public float[] MNN.Unity.MNNRealtimeUtteranceBuffer.Snapshot(int maximumTrailingSilenceSamples)",
+    "Summary": "Keep speech and internal pauses, bounding only the final VAD-silent tail."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNRealtimeVadUpdate.#ctor",
     "Signature": "public MNN.Unity.MNNRealtimeVadUpdate.MNNRealtimeVadUpdate()",
     "Summary": ""
@@ -8209,6 +8314,41 @@
     "Id": "M:MNN.Unity.MNNRealtimeVoiceInputProcessor.Reset",
     "Signature": "public void MNN.Unity.MNNRealtimeVoiceInputProcessor.Reset()",
     "Summary": "Resets filter, frame and recurrent VAD state after a discontinuity or for a new stream."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNRecognitionDefaults.#ctor(System.Collections.Generic.IEnumerable{MNN.Unity.MNNRecognitionPreset})",
+    "Signature": "public MNN.Unity.MNNRecognitionDefaults.MNNRecognitionDefaults(System.Collections.Generic.IEnumerable\u003CMNN.Unity.MNNRecognitionPreset\u003E presets)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNRecognitionDefaults.Select(System.String,System.String,System.String,System.String,System.Double)",
+    "Signature": "public MNN.Unity.MNNRecognitionPreset MNN.Unity.MNNRecognitionDefaults.Select(string corpusId, string deviceId, string language, string metric, double maximumP95Milliseconds)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNRecognitionPreset.#ctor(MNN.Unity.MNNRecognitionQuality,MNN.Unity.MNNAcousticSettings,MNN.Unity.MNNInteractionSettings)",
+    "Signature": "public MNN.Unity.MNNRecognitionPreset.MNNRecognitionPreset(MNN.Unity.MNNRecognitionQuality quality, MNN.Unity.MNNAcousticSettings acoustics, MNN.Unity.MNNInteractionSettings interaction)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNRecognitionQuality.#ctor(System.String,System.String,System.String,System.String,System.String,System.Int64,System.Int64,System.Double,System.Boolean)",
+    "Signature": "public MNN.Unity.MNNRecognitionQuality.MNNRecognitionQuality(string configurationId, string corpusId, string deviceId, string language, string metric, long errors, long referenceUnits, double p95LatencyMilliseconds, bool nativeInferenceVerified)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNRecognitionQuality.Select(System.Collections.Generic.IEnumerable{MNN.Unity.MNNRecognitionQuality},System.String,System.String,System.String,System.String,System.Double)",
+    "Signature": "public static MNN.Unity.MNNRecognitionQuality MNN.Unity.MNNRecognitionQuality.Select(System.Collections.Generic.IEnumerable\u003CMNN.Unity.MNNRecognitionQuality\u003E results, string corpusId, string deviceId, string language, string metric, double maximumP95Milliseconds)",
+    "Summary": "Returns the lowest measured error rate among comparable native runs within the latency budget. A tie prefers lower latency, then stable configuration ID. Null means no evidence-backed default exists."
   },
   {
     "Assembly": "MNN.Unity",
@@ -9041,6 +9181,20 @@
     "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNVbxEmbedding.Similarity(System.Single[],System.Single[])",
     "Signature": "public static float MNN.Unity.MNNVbxEmbedding.Similarity(float[] left, float[] right)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNVisualSpeechFrames.#ctor(System.Single[],System.Int32,System.Double,System.String,System.Int32,System.Int32,System.Double)",
+    "Signature": "public MNN.Unity.MNNVisualSpeechFrames.MNNVisualSpeechFrames(float[] frames, int frameCount, double startedAt, string trackId, int width = 112, int height = 112, double framesPerSecond = 25)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "M:MNN.Unity.MNNVisualSpeechFrames.CopyFrames",
+    "Signature": "public float[] MNN.Unity.MNNVisualSpeechFrames.CopyFrames()",
     "Summary": ""
   },
   {
@@ -10369,6 +10523,83 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechInput.EndedAt",
+    "Signature": "public double MNN.Unity.MNNMultimodalSpeechInput.EndedAt { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechInput.SampleCount",
+    "Signature": "public int MNN.Unity.MNNMultimodalSpeechInput.SampleCount { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechInput.SampleRate",
+    "Signature": "public int MNN.Unity.MNNMultimodalSpeechInput.SampleRate { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechInput.SpeakerCount",
+    "Signature": "public int MNN.Unity.MNNMultimodalSpeechInput.SpeakerCount { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechInput.StartedAt",
+    "Signature": "public double MNN.Unity.MNNMultimodalSpeechInput.StartedAt { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechInput.TrackId",
+    "Signature": "public string MNN.Unity.MNNMultimodalSpeechInput.TrackId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechInput.Visual",
+    "Signature": "public MNN.Unity.MNNVisualSpeechFrames MNN.Unity.MNNMultimodalSpeechInput.Visual { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechResult.Audio",
+    "Signature": "public float[] MNN.Unity.MNNMultimodalSpeechResult.Audio { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechResult.Reason",
+    "Signature": "public string MNN.Unity.MNNMultimodalSpeechResult.Reason { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechResult.Route",
+    "Signature": "public MNN.Unity.MNNMultimodalSpeechRoute MNN.Unity.MNNMultimodalSpeechResult.Route { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNMultimodalSpeechResult.SampleRate",
+    "Signature": "public int MNN.Unity.MNNMultimodalSpeechResult.SampleRate { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "P:MNN.Unity.MNNNamoTurnDetector.Backend",
     "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNNamoTurnDetector.Backend { get; }",
     "Summary": "The backend used by the latest call; long Metal requests run on CPU."
@@ -11195,6 +11426,97 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionPreset.AcousticSettings",
+    "Signature": "public MNN.Unity.MNNAcousticSettings MNN.Unity.MNNRecognitionPreset.AcousticSettings { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionPreset.InteractionSettings",
+    "Signature": "public MNN.Unity.MNNInteractionSettings MNN.Unity.MNNRecognitionPreset.InteractionSettings { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionPreset.Quality",
+    "Signature": "public MNN.Unity.MNNRecognitionQuality MNN.Unity.MNNRecognitionPreset.Quality { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.ConfigurationId",
+    "Signature": "public string MNN.Unity.MNNRecognitionQuality.ConfigurationId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.CorpusId",
+    "Signature": "public string MNN.Unity.MNNRecognitionQuality.CorpusId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.DeviceId",
+    "Signature": "public string MNN.Unity.MNNRecognitionQuality.DeviceId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.ErrorRate",
+    "Signature": "public double MNN.Unity.MNNRecognitionQuality.ErrorRate { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.Errors",
+    "Signature": "public long MNN.Unity.MNNRecognitionQuality.Errors { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.Language",
+    "Signature": "public string MNN.Unity.MNNRecognitionQuality.Language { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.Metric",
+    "Signature": "public string MNN.Unity.MNNRecognitionQuality.Metric { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.NativeInferenceVerified",
+    "Signature": "public bool MNN.Unity.MNNRecognitionQuality.NativeInferenceVerified { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.P95LatencyMilliseconds",
+    "Signature": "public double MNN.Unity.MNNRecognitionQuality.P95LatencyMilliseconds { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNRecognitionQuality.ReferenceUnits",
+    "Signature": "public long MNN.Unity.MNNRecognitionQuality.ReferenceUnits { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "P:MNN.Unity.MNNResembleDenoiser.Backend",
     "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNResembleDenoiser.Backend { get; }",
     "Summary": ""
@@ -11552,6 +11874,55 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNVisualSpeechFrames.EndedAt",
+    "Signature": "public double MNN.Unity.MNNVisualSpeechFrames.EndedAt { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNVisualSpeechFrames.FrameCount",
+    "Signature": "public int MNN.Unity.MNNVisualSpeechFrames.FrameCount { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNVisualSpeechFrames.FramesPerSecond",
+    "Signature": "public double MNN.Unity.MNNVisualSpeechFrames.FramesPerSecond { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNVisualSpeechFrames.Height",
+    "Signature": "public int MNN.Unity.MNNVisualSpeechFrames.Height { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNVisualSpeechFrames.StartedAt",
+    "Signature": "public double MNN.Unity.MNNVisualSpeechFrames.StartedAt { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNVisualSpeechFrames.TrackId",
+    "Signature": "public string MNN.Unity.MNNVisualSpeechFrames.TrackId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "P:MNN.Unity.MNNVisualSpeechFrames.Width",
+    "Signature": "public int MNN.Unity.MNNVisualSpeechFrames.Width { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "P:MNN.Unity.MNNVoiceActivityDetector.Backend",
     "Signature": "public MNN.Unity.MNNBackendType MNN.Unity.MNNVoiceActivityDetector.Backend { get; }",
     "Summary": ""
@@ -11800,6 +12171,13 @@
     "Id": "T:MNN.Unity.IMNNRealtimeVoiceInputProcessor",
     "Signature": "interface MNN.Unity.IMNNRealtimeVoiceInputProcessor",
     "Summary": "Worker-owned streaming audio processor that emits fixed VAD frames from bounded PCM blocks."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.IMNNTargetSpeechExtractor",
+    "Signature": "interface MNN.Unity.IMNNTargetSpeechExtractor",
+    "Summary": "Borrowed, worker-owned target extraction model. Supports checks frame shape/rate and required conditioning. Implementations may use vision, reference voice, or other validated target evidence."
   },
   {
     "Assembly": "MNN.Unity",
@@ -12448,6 +12826,41 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNMultimodalSpeechInput",
+    "Signature": "class MNN.Unity.MNNMultimodalSpeechInput",
+    "Summary": "Owned mono PCM, at most three seconds. SpeakerCount=0 means unknown, never single speaker. All timestamps share the presence controller\u0027s monotonic clock; this is a worker block, not a device callback."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNMultimodalSpeechModels",
+    "Signature": "class MNN.Unity.MNNMultimodalSpeechModels",
+    "Summary": "Connects existing model instances to target routing. Caller owns and disposes the models."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNMultimodalSpeechProcessor",
+    "Signature": "class MNN.Unity.MNNMultimodalSpeechProcessor",
+    "Summary": "Worker-owned target routing before acoustic enhancement, VAD and ASR. Inject already-loaded providers; this class owns no models and adds no native ABI. Model exceptions propagate. No failure silently falls back to unseparated mixture."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNMultimodalSpeechResult",
+    "Signature": "class MNN.Unity.MNNMultimodalSpeechResult",
+    "Summary": "Owns the accepted waveform. A rejected block contains no audio and must not reach ASR."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNMultimodalSpeechRoute",
+    "Signature": "enum MNN.Unity.MNNMultimodalSpeechRoute",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
     "Id": "T:MNN.Unity.MNNNamoTurnDetector",
     "Signature": "class MNN.Unity.MNNNamoTurnDetector",
     "Summary": "Multilingual transcript end-of-turn probability from the author-published NAMO v1 classifier."
@@ -12647,6 +13060,27 @@
     "Id": "T:MNN.Unity.MNNRealtimeVoiceInputProcessor",
     "Signature": "class MNN.Unity.MNNRealtimeVoiceInputProcessor",
     "Summary": "Composes streaming resampling, fixed-frame assembly and recurrent Silero VAD for one mono input stream. Process on a dedicated audio-processing worker, never from a device callback."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNRecognitionDefaults",
+    "Signature": "class MNN.Unity.MNNRecognitionDefaults",
+    "Summary": "Application-owned immutable candidate catalog. Install evaluated candidates once, select at first-run setup. Users\u0027 saved overrides take precedence. Missing comparable evidence returns null."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNRecognitionPreset",
+    "Signature": "class MNN.Unity.MNNRecognitionPreset",
+    "Summary": "Complete measured pipeline preset. Supply pinned model paths/revisions through its configuration ID. Reports must come from real recognition evaluation; no preset is manufactured from tensor parity or model size."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNRecognitionQuality",
+    "Signature": "class MNN.Unity.MNNRecognitionQuality",
+    "Summary": "Measured error counts for one exact pipeline configuration and pinned evaluation corpus. ConfigurationId must identify model revisions, preprocessing, toggles and thresholds together. Conversion tensor agreement is not recognition error-rate evidence."
   },
   {
     "Assembly": "MNN.Unity",
@@ -12934,6 +13368,13 @@
     "Id": "T:MNN.Unity.MNNVbxEmbedding",
     "Signature": "class MNN.Unity.MNNVbxEmbedding",
     "Summary": "Author VBx ResNet101 direct utterance entry, returning the original raw 256-dimensional x-vector."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "AudioProcessing",
+    "Id": "T:MNN.Unity.MNNVisualSpeechFrames",
+    "Signature": "class MNN.Unity.MNNVisualSpeechFrames",
+    "Summary": "Owned, uniformly sampled, one-track ClearerVoice face crops: 25 FPS, grayscale [frame,112,112]. Capture must align/crop and normalize with MNNClearerVoiceFaceFrames; do not pass full camera images."
   },
   {
     "Assembly": "MNN.Unity",
@@ -14238,10 +14679,38 @@
     "Summary": ""
   },
   {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "E:MNN.Unity.MNNFaceCameraComponent.Failed",
+    "Signature": "public System.Action\u003CSystem.Exception\u003E MNN.Unity.MNNFaceCameraComponent.Failed",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "E:MNN.Unity.MNNFaceCameraComponent.FrameCaptured",
+    "Signature": "public System.Action\u003CMNN.Unity.MNNRgbImage, double\u003E MNN.Unity.MNNFaceCameraComponent.FrameCaptured",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "E:MNN.Unity.MNNFaceCameraComponent.Observation",
+    "Signature": "public System.Action\u003CMNN.Unity.MNNPresenceObservation\u003E MNN.Unity.MNNFaceCameraComponent.Observation",
+    "Summary": ""
+  },
+  {
     "Assembly": "MNN.Unity.Harnesses.Components",
     "Domain": "Components",
     "Id": "E:MNN.Unity.MNNHarnessBackendSetup.Changed",
     "Signature": "public System.Action MNN.Unity.MNNHarnessBackendSetup.Changed",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "E:MNN.Unity.MNNInteractionComponent.Changed",
+    "Signature": "public System.Action\u003CMNN.Unity.MNNPresenceSnapshot\u003E MNN.Unity.MNNInteractionComponent.Changed",
     "Summary": ""
   },
   {
@@ -14263,6 +14732,13 @@
     "Domain": "Components",
     "Id": "E:MNN.Unity.MNNModelManager.OnModelUnloaded",
     "Signature": "public static System.Action\u003Cstring\u003E MNN.Unity.MNNModelManager.OnModelUnloaded",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "E:MNN.Unity.MNNPresenceComponent.Changed",
+    "Signature": "public System.Action\u003CMNN.Unity.MNNPresenceSnapshot\u003E MNN.Unity.MNNPresenceComponent.Changed",
     "Summary": ""
   },
   {
@@ -14490,6 +14966,69 @@
     "Summary": ""
   },
   {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNAcousticProcessing.#ctor",
+    "Signature": "public MNN.Unity.MNNAcousticProcessing.MNNAcousticProcessing()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNAcousticProcessing.CreateVoiceInputProcessor(MNN.Unity.MNNPcmFormat,System.Int32,MNN.Unity.IMNNRealtimeVoiceActivity)",
+    "Signature": "public MNN.Unity.IMNNRealtimeVoiceInputProcessor MNN.Unity.MNNAcousticProcessing.CreateVoiceInputProcessor(MNN.Unity.MNNPcmFormat format, int capacity, MNN.Unity.IMNNRealtimeVoiceActivity vad)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNAcousticProcessing.PrepareAsync(MNN.Unity.MNNAcousticSettings,System.String,System.Threading.CancellationToken,MNN.Unity.IMNNAcousticModelFactory)",
+    "Signature": "public System.Threading.Tasks.Task MNN.Unity.MNNAcousticProcessing.PrepareAsync(MNN.Unity.MNNAcousticSettings settings, string modelsDirectory, System.Threading.CancellationToken token, MNN.Unity.IMNNAcousticModelFactory factory = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNAcousticProcessing.PrepareVoiceAsync(System.Single[],System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003Cfloat[]\u003E MNN.Unity.MNNAcousticProcessing.PrepareVoiceAsync(float[] samples, System.Threading.CancellationToken token)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNAcousticProcessing.Release",
+    "Signature": "public void MNN.Unity.MNNAcousticProcessing.Release()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNAcousticProcessing.ReleaseAsync",
+    "Signature": "public System.Threading.Tasks.Task MNN.Unity.MNNAcousticProcessing.ReleaseAsync()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNFaceCameraComponent.#ctor",
+    "Signature": "public MNN.Unity.MNNFaceCameraComponent.MNNFaceCameraComponent()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNFaceCameraComponent.StartTracking(UnityEngine.WebCamTexture,MNN.Unity.IMNNPresenceSource)",
+    "Signature": "public void MNN.Unity.MNNFaceCameraComponent.StartTracking(UnityEngine.WebCamTexture camera, MNN.Unity.IMNNPresenceSource pipeline)",
+    "Summary": "Main thread only. Does not request permissions, start the camera, load or dispose models."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNFaceCameraComponent.StopAsync",
+    "Signature": "public System.Threading.Tasks.Task MNN.Unity.MNNFaceCameraComponent.StopAsync()",
+    "Summary": ""
+  },
+  {
     "Assembly": "MNN.Unity.Harnesses.Components",
     "Domain": "Components",
     "Id": "M:MNN.Unity.MNNHarnessBackendSetup.#ctor",
@@ -14593,6 +15132,55 @@
     "Id": "M:MNN.Unity.MNNInferenceComponent.SetInput(UnityEngine.Texture2D)",
     "Signature": "public void MNN.Unity.MNNInferenceComponent.SetInput(UnityEngine.Texture2D texture)",
     "Summary": "\u624B\u52A8\u8BBE\u7F6E\u8F93\u5165"
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNInteractionComponent.#ctor",
+    "Signature": "public MNN.Unity.MNNInteractionComponent.MNNInteractionComponent()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNInteractionComponent.Configure(MNN.Unity.MNNInteractionSettings)",
+    "Signature": "public void MNN.Unity.MNNInteractionComponent.Configure(MNN.Unity.MNNInteractionSettings settings)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNInteractionComponent.ConfigureSpeech(MNN.Unity.IMNNTargetSpeechExtractor,MNN.Unity.IMNNTargetSpeechExtractor,System.Func{MNN.Unity.MNNMultimodalSpeechInput,System.Threading.CancellationToken,MNN.Unity.MNNSeparatedAudio},System.Func{MNN.Unity.MNNSeparatedAudio,System.String,System.Int32},System.Func{System.Single[],System.Threading.CancellationToken,MNN.Unity.MNNMultimodalSpeechInput})",
+    "Signature": "public void MNN.Unity.MNNInteractionComponent.ConfigureSpeech(MNN.Unity.IMNNTargetSpeechExtractor audioVisual, MNN.Unity.IMNNTargetSpeechExtractor reference, System.Func\u003CMNN.Unity.MNNMultimodalSpeechInput, System.Threading.CancellationToken, MNN.Unity.MNNSeparatedAudio\u003E separate, System.Func\u003CMNN.Unity.MNNSeparatedAudio, string, int\u003E select, System.Func\u003Cfloat[], System.Threading.CancellationToken, MNN.Unity.MNNMultimodalSpeechInput\u003E captureInput)",
+    "Summary": "Model and synchronized capture ownership stays with the caller. Reconfigure after settings change. Capture must return the actual original timestamps/track; never stamp old audio as fresh at recognition time."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNInteractionComponent.PrepareVoiceAsync(System.Single[],System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003Cfloat[]\u003E MNN.Unity.MNNInteractionComponent.PrepareVoiceAsync(float[] samples, System.Threading.CancellationToken token)",
+    "Summary": "Recognition-worker entry. Null rejects a turn before ASR; a missing enabled provider is an error."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNInteractionComponent.ReadSettings",
+    "Signature": "public MNN.Unity.MNNInteractionSettings MNN.Unity.MNNInteractionComponent.ReadSettings()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNInteractionComponent.StartCamera(UnityEngine.WebCamTexture,MNN.Unity.IMNNPresenceSource)",
+    "Signature": "public void MNN.Unity.MNNInteractionComponent.StartCamera(UnityEngine.WebCamTexture camera, MNN.Unity.IMNNPresenceSource source)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNInteractionComponent.StopCameraAsync",
+    "Signature": "public System.Threading.Tasks.Task MNN.Unity.MNNInteractionComponent.StopCameraAsync()",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Unity",
@@ -14740,6 +15328,55 @@
     "Id": "M:MNN.Unity.MNNModelManager.UnloadModel(System.String)",
     "Signature": "public void MNN.Unity.MNNModelManager.UnloadModel(string modelId)",
     "Summary": "\u5378\u8F7D\u6A21\u578B"
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNPresenceComponent.#ctor",
+    "Signature": "public MNN.Unity.MNNPresenceComponent.MNNPresenceComponent()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNPresenceComponent.AdmissionEvent.#ctor",
+    "Signature": "public MNN.Unity.MNNPresenceComponent.AdmissionEvent.AdmissionEvent()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNPresenceComponent.Configure(MNN.Unity.MNNPresenceOptions,System.String[])",
+    "Signature": "public void MNN.Unity.MNNPresenceComponent.Configure(MNN.Unity.MNNPresenceOptions options, string[] allowedIdentities = null)",
+    "Summary": "Configure on the Unity main thread. An empty allow-list admits nobody; null accepts any qualifying face."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNPresenceComponent.ConfigurePresentation(UnityEngine.CanvasGroup,UnityEngine.CanvasGroup,MNN.Unity.MNNPresenceSleepDisplay)",
+    "Signature": "public void MNN.Unity.MNNPresenceComponent.ConfigurePresentation(UnityEngine.CanvasGroup content, UnityEngine.CanvasGroup blackScreen, MNN.Unity.MNNPresenceSleepDisplay sleepDisplay)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNPresenceComponent.ConfigureVisualRoot(UnityEngine.Transform)",
+    "Signature": "public void MNN.Unity.MNNPresenceComponent.ConfigureVisualRoot(UnityEngine.Transform visualRoot)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNPresenceComponent.Report(MNN.Unity.MNNPresenceObservation)",
+    "Signature": "public void MNN.Unity.MNNPresenceComponent.Report(MNN.Unity.MNNPresenceObservation observation)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNPresenceComponent.SetInteractionBusy(System.Boolean)",
+    "Signature": "public void MNN.Unity.MNNPresenceComponent.SetInteractionBusy(bool busy)",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Unity",
@@ -15092,6 +15729,27 @@
     "Summary": ""
   },
   {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNAcousticProcessing.Frontend",
+    "Signature": "public MNN.Unity.MNNAcousticFrontend MNN.Unity.MNNAcousticProcessing.Frontend { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNAcousticProcessing.WakeAllowed",
+    "Signature": "public System.Func\u003Cbool\u003E MNN.Unity.MNNAcousticProcessing.WakeAllowed { get; set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNFaceCameraComponent.Completion",
+    "Signature": "public System.Threading.Tasks.Task MNN.Unity.MNNFaceCameraComponent.Completion { get; }",
+    "Summary": ""
+  },
+  {
     "Assembly": "MNN.Unity.Harnesses.Components",
     "Domain": "Components",
     "Id": "P:MNN.Unity.MNNHarnessBackendSetup.AutomaticDetection",
@@ -15171,6 +15829,34 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNInteractionComponent.Camera",
+    "Signature": "public MNN.Unity.MNNFaceCameraComponent MNN.Unity.MNNInteractionComponent.Camera { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNInteractionComponent.CanStartInteraction",
+    "Signature": "public bool MNN.Unity.MNNInteractionComponent.CanStartInteraction { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNInteractionComponent.Presence",
+    "Signature": "public MNN.Unity.MNNPresenceComponent MNN.Unity.MNNInteractionComponent.Presence { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNInteractionComponent.VisionContext",
+    "Signature": "public MNN.Unity.MNNVisionContext MNN.Unity.MNNInteractionComponent.VisionContext { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
     "Id": "P:MNN.Unity.MNNModelLoader.Interpreter",
     "Signature": "public MNN.Unity.MNNInterpreter MNN.Unity.MNNModelLoader.Interpreter { get; }",
     "Summary": ""
@@ -15195,6 +15881,13 @@
     "Id": "P:MNN.Unity.MNNModelManager.Instance",
     "Signature": "public static MNN.Unity.MNNModelManager MNN.Unity.MNNModelManager.Instance { get; }",
     "Summary": "\u5355\u4F8B\u5B9E\u4F8B"
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNPresenceComponent.Current",
+    "Signature": "public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceComponent.Current { get; }",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Unity",
@@ -15463,6 +16156,20 @@
     "Summary": ""
   },
   {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "T:MNN.Unity.MNNAcousticProcessing",
+    "Signature": "class MNN.Unity.MNNAcousticProcessing",
+    "Summary": "Reusable acoustic model lifetime for any audio transport/application. Uses the task model factory rather than concrete model names. Stop and join capture before release."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "T:MNN.Unity.MNNFaceCameraComponent",
+    "Signature": "class MNN.Unity.MNNFaceCameraComponent",
+    "Summary": "Main-thread camera polling with one bounded inference job and no queued frames. Borrow a playing, permission-approved WebCamTexture and caller-owned pipeline. StopAsync before disposing either."
+  },
+  {
     "Assembly": "MNN.Unity.Harnesses.Components",
     "Domain": "Components",
     "Id": "T:MNN.Unity.MNNHarnessBackendSetup",
@@ -15479,6 +16186,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Components",
+    "Id": "T:MNN.Unity.MNNInteractionComponent",
+    "Signature": "class MNN.Unity.MNNInteractionComponent",
+    "Summary": "Shared capability owner. Applications inject models/capture and supply presentation groups; no application-specific state machine, UI, microphone transport or model-name routing is required."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
     "Id": "T:MNN.Unity.MNNModelLoader",
     "Signature": "class MNN.Unity.MNNModelLoader",
     "Summary": "MNN\u6A21\u578B\u52A0\u8F7D\u5668\uFF08\u8FD0\u884C\u65F6\uFF09 \u63D0\u4F9B\u6A21\u578B\u4E0B\u8F7D\u3001\u7F13\u5B58\u548C\u52A0\u8F7D\u529F\u80FD \u5065\u58EE\u6027\u8BBE\u8BA1\uFF1A\u5373\u4F7F\u7F3A\u5C11UnityWebRequest\u4E5F\u80FD\u57FA\u672C\u5DE5\u4F5C"
@@ -15489,6 +16203,20 @@
     "Id": "T:MNN.Unity.MNNModelManager",
     "Signature": "class MNN.Unity.MNNModelManager",
     "Summary": "MNN\u6A21\u578B\u7BA1\u7406\u5668\uFF08\u8FD0\u884C\u65F6\uFF09 \u96C6\u4E2D\u7BA1\u7406\u6240\u6709\u6A21\u578B\u7684\u751F\u547D\u5468\u671F\u3001\u8DEF\u5F84\u548C\u72B6\u6001"
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "T:MNN.Unity.MNNPresenceComponent",
+    "Signature": "class MNN.Unity.MNNPresenceComponent",
+    "Summary": "Opt-in main-thread adapter. Keep this component outside the UI it fades. Feed timestamped results from a camera/tracker; never run model inference in Update or an audio callback."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "T:MNN.Unity.MNNPresenceComponent.AdmissionEvent",
+    "Signature": "class MNN.Unity.MNNPresenceComponent.AdmissionEvent",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Unity",
@@ -15635,6 +16363,13 @@
     "Domain": "Generation",
     "Id": "F:MNN.Unity.MNNSpeechModelKind.FireRedTts3",
     "Signature": "MNN.Unity.MNNSpeechModelKind.FireRedTts3 = 8",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "F:MNN.Unity.MNNSpeechModelKind.Hojo",
+    "Signature": "MNN.Unity.MNNSpeechModelKind.Hojo = 17",
     "Summary": ""
   },
   {
@@ -15916,6 +16651,41 @@
     "Id": "M:MNN.Unity.MNNGeneratedImage.#ctor(System.Byte[],System.Int32,System.Int32,System.String,System.Int32)",
     "Signature": "public MNN.Unity.MNNGeneratedImage.MNNGeneratedImage(byte[] rgb, int width, int height, string prompt, int seed)",
     "Summary": "Create an RGB24 result. The caller transfers ownership of the supplied pixel array."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNHojoTts.Dispose",
+    "Signature": "public void MNN.Unity.MNNHojoTts.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNHojoTts.InstalledVoices(System.String)",
+    "Signature": "public static string[] MNN.Unity.MNNHojoTts.InstalledVoices(string directory)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNHojoTts.IsComplete(System.String)",
+    "Signature": "public static bool MNN.Unity.MNNHojoTts.IsComplete(string directory)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNHojoTts.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
+    "Signature": "public static MNN.Unity.MNNHojoTts MNN.Unity.MNNHojoTts.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "M:MNN.Unity.MNNHojoTts.Synthesize(System.String,System.String,System.Int32,System.Single,System.Int32,System.Threading.CancellationToken,System.Single,System.Boolean)",
+    "Signature": "public MNN.Unity.MNNGeneratedAudio MNN.Unity.MNNHojoTts.Synthesize(string text, string voice = null, int seed = 42, float temperature = 0.8, int maximumTokens = 2048, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), float speed = 1, bool naturalTiming = true)",
+    "Summary": "Synthesize with a language-matched default voice and natural timing (1.15x model tempo, trimmed boundary silence). Speed multiplies that tempo without changing pitch. Set naturalTiming=false and speed=1 to retain the original model waveform."
   },
   {
     "Assembly": "MNN.Unity",
@@ -17019,6 +17789,27 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Generation",
+    "Id": "P:MNN.Unity.MNNHojoTts.SampleRate",
+    "Signature": "public int MNN.Unity.MNNHojoTts.SampleRate { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "P:MNN.Unity.MNNHojoTts.StageBackends",
+    "Signature": "public System.Collections.Generic.IReadOnlyDictionary\u003Cstring, MNN.Unity.MNNBackendType\u003E MNN.Unity.MNNHojoTts.StageBackends { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "P:MNN.Unity.MNNHojoTts.Voices",
+    "Signature": "public string[] MNN.Unity.MNNHojoTts.Voices { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
     "Id": "P:MNN.Unity.MNNIndicVits.InstalledSpeakers",
     "Signature": "public static string[] MNN.Unity.MNNIndicVits.InstalledSpeakers { get; }",
     "Summary": "Installed frontend speaker identifiers; each call returns an independent snapshot."
@@ -17519,6 +18310,13 @@
     "Id": "T:MNN.Unity.MNNGeneratedImage",
     "Signature": "class MNN.Unity.MNNGeneratedImage",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Generation",
+    "Id": "T:MNN.Unity.MNNHojoTts",
+    "Signature": "class MNN.Unity.MNNHojoTts",
+    "Summary": "Hojo V2 24 kHz speech over the package\u0027s pinned official MNN C\u002B\u002B ABI. All sampling, tokenization, speaker injection, cache ownership and ISTFT are managed."
   },
   {
     "Assembly": "MNN.Unity",
@@ -18398,6 +19196,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessCapabilities.Continue",
+    "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessCapabilities.Continue = 64",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessCapabilities.Input",
     "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessCapabilities.Input = 2",
     "Summary": ""
@@ -19182,6 +19987,34 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.Allow",
+    "Signature": "public bool? MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.Allow",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.RequestId",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.RequestId",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.TaskId",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.TaskId",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.Text",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.Text",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Cancelled",
     "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskState.Cancelled = 5",
     "Summary": ""
@@ -19245,8 +20078,22 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Continue",
+    "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Continue = 7",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Pause",
     "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Pause = 4",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Respond",
+    "Signature": "MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation.Respond = 6",
     "Summary": ""
   },
   {
@@ -19357,6 +20204,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.ResultReceiptRequest.Error",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.ResultReceiptRequest.Error",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.ResultReceiptRequest.LeaseId",
     "Signature": "public string MNN.Samples.SiriAI.Harnesses.ResultReceiptRequest.LeaseId",
     "Summary": ""
@@ -19380,6 +20234,13 @@
     "Domain": "Language",
     "Id": "F:MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest.Attachments",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest.Attachments",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "F:MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest.ContinuedFromTaskId",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest.ContinuedFromTaskId",
     "Summary": ""
   },
   {
@@ -19569,6 +20430,20 @@
     "Domain": "Language",
     "Id": "F:MNN.Unity.MNNAgentOptions.UseRouter",
     "Signature": "public bool MNN.Unity.MNNAgentOptions.UseRouter",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNAgentPlan.MaximumJsonCharacters",
+    "Signature": "public const int MNN.Unity.MNNAgentPlan.MaximumJsonCharacters = 49664",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNAgentPlan.MaximumToolInputCharacters",
+    "Signature": "public const int MNN.Unity.MNNAgentPlan.MaximumToolInputCharacters = 8192",
     "Summary": ""
   },
   {
@@ -19875,6 +20750,20 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNConversationEventKind.Request",
+    "Signature": "MNN.Unity.MNNConversationEventKind.Request = 1",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNConversationEventKind.Result",
+    "Signature": "MNN.Unity.MNNConversationEventKind.Result = 0",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
     "Id": "F:MNN.Unity.MNNConversationInputState.MaximumSamples",
     "Signature": "public const int MNN.Unity.MNNConversationInputState.MaximumSamples = 960000",
     "Summary": ""
@@ -20109,6 +20998,13 @@
     "Id": "F:MNN.Unity.MNNConversationOptions.maximumResponseSeconds",
     "Signature": "public int MNN.Unity.MNNConversationOptions.maximumResponseSeconds",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "F:MNN.Unity.MNNConversationOptions.maximumTurnSilenceMilliseconds",
+    "Signature": "public int MNN.Unity.MNNConversationOptions.maximumTurnSilenceMilliseconds",
+    "Summary": "Continuous VAD silence that releases a negative semantic decision; voice validation still applies. The effective limit is at least silenceMilliseconds. Does not limit inference execution time."
   },
   {
     "Assembly": "MNN.Unity",
@@ -22045,6 +22941,41 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.#ctor",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.HarnessFrontendSession()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindConversation(System.String)",
+    "Signature": "public void MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindConversation(string conversationId)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindInput(System.String,System.String,MNN.Samples.SiriAI.Harnesses.HarnessContentPart[])",
+    "Signature": "public void MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindInput(string inputId, string context = null, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindInputSnapshot(System.String,System.String,System.String[],MNN.Samples.SiriAI.Harnesses.HarnessContentPart[])",
+    "Signature": "public void MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.BindInputSnapshot(string inputId, string currentInput, string[] recentMessages, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null)",
+    "Summary": "Preserves exact current input separately from the model-written objective. Recent context includes whole messages only and explicitly records budget omissions."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.CreateSubmission(System.String,System.String,System.String)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.CreateSubmission(string objective, string harnessId, string workspaceKey)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessHostAddress.Parse(System.String,System.Boolean)",
     "Signature": "public static System.Uri MNN.Samples.SiriAI.Harnesses.HarnessHostAddress.Parse(string value, bool mobile = false)",
     "Summary": ""
@@ -22332,6 +23263,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.#ctor(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient,MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.HarnessResultConnection(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient client, MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope scope)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.#ctor(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient,System.String)",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.HarnessResultConnection(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient client, string conversationId)",
     "Summary": ""
@@ -22535,8 +23473,50 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.#ctor(MNN.Samples.SiriAI.Harnesses.HarnessTask,MNN.Samples.SiriAI.Harnesses.HarnessCapabilities)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.HarnessTaskPresentation(MNN.Samples.SiriAI.Harnesses.HarnessTask task, MNN.Samples.SiriAI.Harnesses.HarnessCapabilities capabilities)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Active(System.Collections.Generic.IEnumerable{MNN.Samples.SiriAI.Harnesses.HarnessTask})",
+    "Signature": "public static MNN.Samples.SiriAI.Harnesses.HarnessTask[] MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Active(System.Collections.Generic.IEnumerable\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E tasks)",
+    "Summary": "Desktop activity strips retain queued/paused requests and remove every terminal task."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Order(System.Collections.Generic.IEnumerable{MNN.Samples.SiriAI.Harnesses.HarnessTask})",
+    "Signature": "public static MNN.Samples.SiriAI.Harnesses.HarnessTask[] MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Order(System.Collections.Generic.IEnumerable\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E tasks)",
+    "Summary": "Attention first, then all live work, then finished work. Most recent updates break ties."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.#ctor",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.HarnessTaskReply()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.CreateRequest(MNN.Samples.SiriAI.Harnesses.HarnessTask,System.String)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.TaskControlRequest MNN.Samples.SiriAI.Harnesses.HarnessTaskReply.CreateRequest(MNN.Samples.SiriAI.Harnesses.HarnessTask task, string conversationId)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessTaskState.#ctor",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTaskState.HarnessTaskState()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.HarnessTaskTool.#ctor(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient,System.Func{MNN.Samples.SiriAI.Harnesses.SubmitTaskRequest,System.Threading.CancellationToken,System.Threading.Tasks.Task{MNN.Samples.SiriAI.Harnesses.HarnessTask}},MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession,MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation,System.String,System.String,System.Boolean,System.String)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTaskTool.HarnessTaskTool(MNN.Samples.SiriAI.Harnesses.RemoteTaskClient client, System.Func\u003CMNN.Samples.SiriAI.Harnesses.SubmitTaskRequest, System.Threading.CancellationToken, System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E\u003E submit, MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession session, MNN.Samples.SiriAI.Harnesses.HarnessTaskToolOperation operation, string harness, string workspace, bool network, string unavailableMessage = null)",
     "Summary": ""
   },
   {
@@ -22612,6 +23592,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.IHarnessContinuationAdapter.CreateContinuationCheckpoint(MNN.Samples.SiriAI.Harnesses.HarnessTask)",
+    "Signature": "string MNN.Samples.SiriAI.Harnesses.IHarnessContinuationAdapter.CreateContinuationCheckpoint(MNN.Samples.SiriAI.Harnesses.HarnessTask completed)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.IHarnessInputActionAdapter.RespondInputAsync(MNN.Samples.SiriAI.Harnesses.HarnessTask,System.String,System.String,MNN.Samples.SiriAI.Harnesses.HarnessInputAction,System.Threading.CancellationToken)",
     "Signature": "System.Threading.Tasks.Task MNN.Samples.SiriAI.Harnesses.IHarnessInputActionAdapter.RespondInputAsync(MNN.Samples.SiriAI.Harnesses.HarnessTask task, string requestId, string reply, MNN.Samples.SiriAI.Harnesses.HarnessInputAction action, System.Threading.CancellationToken cancellation)",
     "Summary": ""
@@ -22628,6 +23615,13 @@
     "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.IHarnessInstructionAdapter.ValidateInstruction(MNN.Samples.SiriAI.Harnesses.HarnessTask,MNN.Samples.SiriAI.Harnesses.HarnessInstruction)",
     "Signature": "void MNN.Samples.SiriAI.Harnesses.IHarnessInstructionAdapter.ValidateInstruction(MNN.Samples.SiriAI.Harnesses.HarnessTask task, MNN.Samples.SiriAI.Harnesses.HarnessInstruction instruction)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.IHarnessRequestPresenter.TryBeginRequestReply(System.String,System.String,System.Threading.CancellationToken)",
+    "Signature": "MNN.Samples.SiriAI.Harnesses.IHarnessResultReply MNN.Samples.SiriAI.Harnesses.IHarnessRequestPresenter.TryBeginRequestReply(string eventId, string context, System.Threading.CancellationToken cancellation)",
     "Summary": ""
   },
   {
@@ -22759,6 +23753,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.FailResultDelivery(System.String,System.String,System.String,System.String)",
+    "Signature": "public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.FailResultDelivery(string taskId, string ownerId, string leaseId, string error)",
+    "Summary": "Presentation failure never changes execution or fabricates a presentation receipt."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Get(System.String,System.String)",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Get(string taskId, string ownerId)",
     "Summary": ""
@@ -22810,6 +23811,13 @@
     "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Resume(System.String,System.String)",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessTask MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.Resume(string taskId, string ownerId)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RetryResultDelivery(System.String,System.String)",
+    "Signature": "public void MNN.Samples.SiriAI.Harnesses.PersistentTaskRuntime.RetryResultDelivery(string taskId, string ownerId)",
     "Summary": ""
   },
   {
@@ -22880,6 +23888,13 @@
     "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.Dispose",
     "Signature": "public void MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.FailDeliveryAsync(System.String,System.String,System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.FailDeliveryAsync(string taskId, string leaseId, System.Threading.CancellationToken cancellation)",
     "Summary": ""
   },
   {
@@ -22999,6 +24014,13 @@
     "Domain": "Language",
     "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ResumeAsync(System.String,System.Threading.CancellationToken)",
     "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.ResumeAsync(string taskId, System.Threading.CancellationToken cancellation)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RetryDeliveryAsync(System.String,System.Threading.CancellationToken)",
+    "Signature": "public System.Threading.Tasks.Task\u003CMNN.Samples.SiriAI.Harnesses.HarnessTask\u003E MNN.Samples.SiriAI.Harnesses.RemoteTaskClient.RetryDeliveryAsync(string taskId, System.Threading.CancellationToken cancellation)",
     "Summary": ""
   },
   {
@@ -23130,8 +24152,8 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
-    "Id": "M:MNN.Samples.SiriAI.Harnesses.TaskSubmission.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,MNN.Samples.SiriAI.Harnesses.HarnessContentPart[],System.String,System.String,System.Boolean)",
-    "Signature": "public MNN.Samples.SiriAI.Harnesses.TaskSubmission.TaskSubmission(string ownerId, string conversationId, string submissionKey, string harnessId, string workspaceKey, string objective, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null, string resultConversationId = null, string title = null, bool isolatedContext = false)",
+    "Id": "M:MNN.Samples.SiriAI.Harnesses.TaskSubmission.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,MNN.Samples.SiriAI.Harnesses.HarnessContentPart[],System.String,System.String,System.Boolean,System.String)",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.TaskSubmission.TaskSubmission(string ownerId, string conversationId, string submissionKey, string harnessId, string workspaceKey, string objective, MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] attachments = null, string resultConversationId = null, string title = null, bool isolatedContext = false, string continuedFromTaskId = null)",
     "Summary": ""
   },
   {
@@ -23949,8 +24971,8 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Language",
-    "Id": "M:MNN.Unity.MNNConversationEvent.#ctor(System.String,System.String)",
-    "Signature": "public MNN.Unity.MNNConversationEvent.MNNConversationEvent(string id, string text)",
+    "Id": "M:MNN.Unity.MNNConversationEvent.#ctor(System.String,System.String,MNN.Unity.MNNConversationEventKind)",
+    "Signature": "public MNN.Unity.MNNConversationEvent.MNNConversationEvent(string id, string text, MNN.Unity.MNNConversationEventKind kind = MNN.Unity.MNNConversationEventKind.Result)",
     "Summary": ""
   },
   {
@@ -23958,6 +24980,13 @@
     "Domain": "Language",
     "Id": "M:MNN.Unity.MNNConversationEvent.CreateHistory(System.Collections.Generic.IReadOnlyList{MNN.Unity.MNNOpenAIMessage},System.Int32)",
     "Signature": "public System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNOpenAIMessage\u003E MNN.Unity.MNNConversationEvent.CreateHistory(System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNOpenAIMessage\u003E history, int maximumCharacters = 65536)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "M:MNN.Unity.MNNConversationEventKind.#ctor",
+    "Signature": "public MNN.Unity.MNNConversationEventKind.MNNConversationEventKind()",
     "Summary": ""
   },
   {
@@ -24811,7 +25840,7 @@
     "Assembly": "MNN.Unity",
     "Domain": "Language",
     "Id": "M:MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(System.Single[],System.Boolean,System.String,System.Threading.CancellationToken)",
-    "Signature": "protected System.Threading.Tasks.Task\u003CMNN.Unity.MNNConversationRuntime.VoiceCandidate\u003E MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(float[] audio, bool full, string echo, System.Threading.CancellationToken token)",
+    "Signature": "protected System.Threading.Tasks.Task\u003CMNN.Unity.MNNConversationRuntime.VoiceCandidate\u003E MNN.Unity.MNNConversationRuntime.EvaluateVoiceCandidateAsync(float[] audio, bool silenceExpired, string echo, System.Threading.CancellationToken token)",
     "Summary": ""
   },
   {
@@ -27057,6 +28086,20 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope.ConversationId",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope.ConversationId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.Scope",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession.Scope { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessHostHealth.HostId",
     "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessHostHealth.HostId { get; set; }",
     "Summary": ""
@@ -27337,6 +28380,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.Scope",
+    "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope MNN.Samples.SiriAI.Harnesses.HarnessResultConnection.Scope { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessSkillClient.PendingCount",
     "Signature": "public int MNN.Samples.SiriAI.Harnesses.HarnessSkillClient.PendingCount { get; }",
     "Summary": ""
@@ -27386,6 +28436,20 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.ContinuationState",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTask.ContinuationState { get; internal set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.ContinuedFromTaskId",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTask.ContinuedFromTaskId { get; internal set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.ConversationId",
     "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTask.ConversationId { get; internal set; }",
     "Summary": ""
@@ -27400,8 +28464,29 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryAttempts",
+    "Signature": "public int MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryAttempts { get; internal set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryConversationId",
     "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryConversationId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryError",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryError { get; internal set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryExhausted",
+    "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessTask.DeliveryExhausted { get; }",
     "Summary": ""
   },
   {
@@ -27479,6 +28564,13 @@
     "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.NativeTools",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessNativeToolState MNN.Samples.SiriAI.Harnesses.HarnessTask.NativeTools { get; internal set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTask.NextDeliveryUtcTicks",
+    "Signature": "public long MNN.Samples.SiriAI.Harnesses.HarnessTask.NextDeliveryUtcTicks { get; internal set; }",
     "Summary": ""
   },
   {
@@ -27680,6 +28772,62 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanCancel",
+    "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanCancel { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanPause",
+    "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanPause { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanResume",
+    "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.CanResume { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.NeedsAttention",
+    "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.NeedsAttention { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.PauseHintKey",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.PauseHintKey { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.ProgressText",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.ProgressText { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.StatusKey",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.StatusKey { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Title",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation.Title { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.HarnessTaskTool.CanUseNetwork",
     "Signature": "public bool MNN.Samples.SiriAI.Harnesses.HarnessTaskTool.CanUseNetwork { get; }",
     "Summary": ""
@@ -27843,6 +28991,13 @@
     "Domain": "Language",
     "Id": "P:MNN.Samples.SiriAI.Harnesses.TaskSubmission.Attachments",
     "Signature": "public MNN.Samples.SiriAI.Harnesses.HarnessContentPart[] MNN.Samples.SiriAI.Harnesses.TaskSubmission.Attachments { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "P:MNN.Samples.SiriAI.Harnesses.TaskSubmission.ContinuedFromTaskId",
+    "Signature": "public string MNN.Samples.SiriAI.Harnesses.TaskSubmission.ContinuedFromTaskId { get; }",
     "Summary": ""
   },
   {
@@ -28627,6 +29782,13 @@
     "Domain": "Language",
     "Id": "P:MNN.Unity.MNNConversationEvent.Id",
     "Signature": "public string MNN.Unity.MNNConversationEvent.Id { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "P:MNN.Unity.MNNConversationEvent.Kind",
+    "Signature": "public MNN.Unity.MNNConversationEventKind MNN.Unity.MNNConversationEvent.Kind { get; }",
     "Summary": ""
   },
   {
@@ -31033,6 +32195,20 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessFrontendScope",
+    "Summary": "An immutable frontend conversation generation; returning to a conversation creates a new scope."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessFrontendSession",
+    "Summary": "Thread-safe application boundary for conversation identity and explicit input provenance. A draft has no scope and cannot submit or claim work. Binding never cancels admitted work."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessHostAddress",
     "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessHostAddress",
     "Summary": ""
@@ -31313,6 +32489,20 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessTaskPresentation",
+    "Summary": "UI-independent task status and controls. Keys may be localized by any frontend. Execution records describe observed work; their count is not a completion percentage."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessTaskReply",
+    "Signature": "class MNN.Samples.SiriAI.Harnesses.HarnessTaskReply",
+    "Summary": "Explicit frontend reply. Missing permission decisions never become approvals."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "T:MNN.Samples.SiriAI.Harnesses.HarnessTaskState",
     "Signature": "enum MNN.Samples.SiriAI.Harnesses.HarnessTaskState",
     "Summary": ""
@@ -31362,6 +32552,13 @@
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
     "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.IHarnessContinuationAdapter",
+    "Signature": "interface MNN.Samples.SiriAI.Harnesses.IHarnessContinuationAdapter",
+    "Summary": "Returns a verified original native-session checkpoint. Never substitutes a fresh context."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
     "Id": "T:MNN.Samples.SiriAI.Harnesses.IHarnessInputActionAdapter",
     "Signature": "interface MNN.Samples.SiriAI.Harnesses.IHarnessInputActionAdapter",
     "Summary": ""
@@ -31372,6 +32569,13 @@
     "Id": "T:MNN.Samples.SiriAI.Harnesses.IHarnessInstructionAdapter",
     "Signature": "interface MNN.Samples.SiriAI.Harnesses.IHarnessInstructionAdapter",
     "Summary": "Supports exact durable instruction identities and new bounded content. Validation has no side effects. Delivery must report uncertainty rather than replay unknown work."
+  },
+  {
+    "Assembly": "MNN.Samples.SiriAI.Harnesses",
+    "Domain": "Language",
+    "Id": "T:MNN.Samples.SiriAI.Harnesses.IHarnessRequestPresenter",
+    "Signature": "interface MNN.Samples.SiriAI.Harnesses.IHarnessRequestPresenter",
+    "Summary": "Optional presentation port for real pending questions, separate from terminal results."
   },
   {
     "Assembly": "MNN.Samples.SiriAI.Harnesses",
@@ -31876,6 +33080,13 @@
     "Id": "T:MNN.Unity.MNNConversationEvent",
     "Signature": "class MNN.Unity.MNNConversationEvent",
     "Summary": "An application event, separate from a user turn and never a tool-planning request."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Language",
+    "Id": "T:MNN.Unity.MNNConversationEventKind",
+    "Signature": "enum MNN.Unity.MNNConversationEventKind",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Unity",
@@ -36017,6 +37228,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelCatalog.IncludeRegisteredProfiles",
+    "Signature": "public void MNN.Unity.MNNModelCatalog.IncludeRegisteredProfiles()",
+    "Summary": "Refresh shared deployment registrations without duplicating catalog rows."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
     "Id": "M:MNN.Unity.MNNModelCatalog.InstallFolderName(MNN.Unity.MNNRemoteModel)",
     "Signature": "public static string MNN.Unity.MNNModelCatalog.InstallFolderName(MNN.Unity.MNNRemoteModel model)",
     "Summary": ""
@@ -36600,6 +37818,41 @@
     "Domain": "Models",
     "Id": "M:MNN.Unity.MNNModelRecommendationTask.#ctor",
     "Signature": "public MNN.Unity.MNNModelRecommendationTask.MNNModelRecommendationTask()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelRegistration.CreateModel",
+    "Signature": "public MNN.Unity.MNNRemoteModel MNN.Unity.MNNModelRegistration.CreateModel()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelRegistration.Files",
+    "Signature": "public MNN.Unity.MNNModelRepositoryFile[] MNN.Unity.MNNModelRegistration.Files()",
+    "Summary": "Returns a caller-owned pinned download plan."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelRegistration.IsComplete(System.String)",
+    "Signature": "public bool MNN.Unity.MNNModelRegistration.IsComplete(string directory)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelRegistration.ResolveRevision(System.String)",
+    "Signature": "public string MNN.Unity.MNNModelRegistration.ResolveRevision(string requested = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "M:MNN.Unity.MNNModelRegistry.Find(MNN.Unity.MNNModelSource,System.String)",
+    "Signature": "public static MNN.Unity.MNNModelRegistration MNN.Unity.MNNModelRegistry.Find(MNN.Unity.MNNModelSource source, string repository)",
     "Summary": ""
   },
   {
@@ -37256,6 +38509,41 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNModelRegistration.InstallationName",
+    "Signature": "public string MNN.Unity.MNNModelRegistration.InstallationName { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNModelRegistration.Repository",
+    "Signature": "public string MNN.Unity.MNNModelRegistration.Repository { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNModelRegistration.Revision",
+    "Signature": "public string MNN.Unity.MNNModelRegistration.Revision { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNModelRegistration.Source",
+    "Signature": "public MNN.Unity.MNNModelSource MNN.Unity.MNNModelRegistration.Source { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "P:MNN.Unity.MNNModelRegistry.All",
+    "Signature": "public static System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNModelRegistration\u003E MNN.Unity.MNNModelRegistry.All { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
     "Id": "P:MNN.Unity.MNNModelRepositoryIdentity.Repository",
     "Signature": "public string MNN.Unity.MNNModelRepositoryIdentity.Repository { get; }",
     "Summary": ""
@@ -37749,6 +39037,20 @@
     "Id": "T:MNN.Unity.MNNModelRecommendationTask",
     "Signature": "enum MNN.Unity.MNNModelRecommendationTask",
     "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "T:MNN.Unity.MNNModelRegistration",
+    "Signature": "class MNN.Unity.MNNModelRegistration",
+    "Summary": "One deployment contract shared by catalog, installer and task adapters."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Models",
+    "Id": "T:MNN.Unity.MNNModelRegistry",
+    "Signature": "class MNN.Unity.MNNModelRegistry",
+    "Summary": "Immutable shared registration table. New deployments add one entry here."
   },
   {
     "Assembly": "MNN.Unity",
@@ -39055,6 +40357,111 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.allowedIdentities",
+    "Signature": "public string[] MNN.Unity.MNNInteractionSettings.allowedIdentities",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.audioVisualSpeech",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.audioVisualSpeech",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.confirmationSeconds",
+    "Signature": "public float MNN.Unity.MNNInteractionSettings.confirmationSeconds",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.detectorDirectory",
+    "Signature": "public string MNN.Unity.MNNInteractionSettings.detectorDirectory",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.faceRecognition",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.faceRecognition",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.graceSeconds",
+    "Signature": "public float MNN.Unity.MNNInteractionSettings.graceSeconds",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.imageContext",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.imageContext",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.measuredConfigurationId",
+    "Signature": "public string MNN.Unity.MNNInteractionSettings.measuredConfigurationId",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.recognizerDirectory",
+    "Signature": "public string MNN.Unity.MNNInteractionSettings.recognizerDirectory",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.referenceSpeaker",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.referenceSpeaker",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.requireFace",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.requireFace",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.separateSpeakers",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.separateSpeakers",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.sleepDisplay",
+    "Signature": "public MNN.Unity.MNNPresenceSleepDisplay MNN.Unity.MNNInteractionSettings.sleepDisplay",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.sleepSeconds",
+    "Signature": "public float MNN.Unity.MNNInteractionSettings.sleepSeconds",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.visualPresence",
+    "Signature": "public bool MNN.Unity.MNNInteractionSettings.visualPresence",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "F:MNN.Unity.MNNPaddleOcrConfig.FileName",
     "Signature": "public const string MNN.Unity.MNNPaddleOcrConfig.FileName = \u0022mnn_paddle_ocr.json\u0022",
     "Summary": ""
@@ -39342,6 +40749,83 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceKind.Face",
+    "Signature": "MNN.Unity.MNNPresenceKind.Face = 2",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceKind.None",
+    "Signature": "MNN.Unity.MNNPresenceKind.None = 0",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceKind.Person",
+    "Signature": "MNN.Unity.MNNPresenceKind.Person = 1",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceSleepDisplay.BlackScreen",
+    "Signature": "MNN.Unity.MNNPresenceSleepDisplay.BlackScreen = 2",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceSleepDisplay.Dimmed",
+    "Signature": "MNN.Unity.MNNPresenceSleepDisplay.Dimmed = 1",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceSleepDisplay.Hidden",
+    "Signature": "MNN.Unity.MNNPresenceSleepDisplay.Hidden = 0",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceState.Acquiring",
+    "Signature": "MNN.Unity.MNNPresenceState.Acquiring = 1",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceState.Grace",
+    "Signature": "MNN.Unity.MNNPresenceState.Grace = 3",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceState.Present",
+    "Signature": "MNN.Unity.MNNPresenceState.Present = 2",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceState.Sleeping",
+    "Signature": "MNN.Unity.MNNPresenceState.Sleeping = 0",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNPresenceState.Standby",
+    "Signature": "MNN.Unity.MNNPresenceState.Standby = 4",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "F:MNN.Unity.MNNYoloV8BoxEncoding.AnchorDistances",
     "Signature": "MNN.Unity.MNNYoloV8BoxEncoding.AnchorDistances = 1",
     "Summary": ""
@@ -39419,6 +40903,20 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "M:MNN.Unity.IMNNPresenceSource.Process(MNN.Unity.MNNRgbImage,System.Double,System.Threading.CancellationToken)",
+    "Signature": "MNN.Unity.MNNPresenceObservation MNN.Unity.IMNNPresenceSource.Process(MNN.Unity.MNNRgbImage image, double capturedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.IMNNPresenceSource.Reset",
+    "Signature": "void MNN.Unity.IMNNPresenceSource.Reset()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNDocumentLayout.Analyze(MNN.Unity.MNNRgbImage,System.Single,System.Threading.CancellationToken)",
     "Signature": "public MNN.Unity.MNNDocumentLayoutResult MNN.Unity.MNNDocumentLayout.Analyze(MNN.Unity.MNNRgbImage image, float scoreThreshold = 0.5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
     "Summary": "Stretch RGB to 800x800 with pixel/255 normalization. Native execution is synchronous; cancellation is observed before and after that call. This returns regions, not text or table cells."
@@ -39442,6 +40940,111 @@
     "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNDocumentLayout.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
     "Signature": "public static MNN.Unity.MNNDocumentLayout MNN.Unity.MNNDocumentLayout.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.Auto)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceGallery.#ctor(System.Single,System.Single)",
+    "Signature": "public MNN.Unity.MNNFaceGallery.MNNFaceGallery(float minimumSimilarity = 0.65, float ambiguityMargin = 0.1)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceGallery.Clear",
+    "Signature": "public void MNN.Unity.MNNFaceGallery.Clear()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceGallery.Enroll(System.String,System.Single[])",
+    "Signature": "public void MNN.Unity.MNNFaceGallery.Enroll(string identity, float[] embedding)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceGallery.Recognize(System.Single[])",
+    "Signature": "public string MNN.Unity.MNNFaceGallery.Recognize(float[] embedding)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceGallery.Remove(System.String)",
+    "Signature": "public bool MNN.Unity.MNNFaceGallery.Remove(string identity)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFacePresencePipeline.#ctor(MNN.Unity.MNNImageTask,MNN.Unity.MNNImageTask,MNN.Unity.MNNFaceGallery,MNN.Unity.MNNFaceTargetTracker)",
+    "Signature": "public MNN.Unity.MNNFacePresencePipeline.MNNFacePresencePipeline(MNN.Unity.MNNImageTask detector, MNN.Unity.MNNImageTask recognizer = null, MNN.Unity.MNNFaceGallery gallery = null, MNN.Unity.MNNFaceTargetTracker tracker = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFacePresencePipeline.Process(MNN.Unity.MNNRgbImage,System.Double,System.Threading.CancellationToken)",
+    "Signature": "public MNN.Unity.MNNPresenceObservation MNN.Unity.MNNFacePresencePipeline.Process(MNN.Unity.MNNRgbImage image, double capturedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFacePresencePipeline.Reset",
+    "Signature": "public void MNN.Unity.MNNFacePresencePipeline.Reset()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFacePresenceSource.Dispose",
+    "Signature": "public void MNN.Unity.MNNFacePresenceSource.Dispose()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFacePresenceSource.Load(System.String,System.String,MNN.Unity.MNNFaceGallery,System.Int32,MNN.Unity.MNNBackendType)",
+    "Signature": "public static MNN.Unity.MNNFacePresenceSource MNN.Unity.MNNFacePresenceSource.Load(string detectorDirectory, string recognizerDirectory = null, MNN.Unity.MNNFaceGallery gallery = null, int threadCount = 4, MNN.Unity.MNNBackendType backend = MNN.Unity.MNNBackendType.Auto)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFacePresenceSource.Process(MNN.Unity.MNNRgbImage,System.Double,System.Threading.CancellationToken)",
+    "Signature": "public MNN.Unity.MNNPresenceObservation MNN.Unity.MNNFacePresenceSource.Process(MNN.Unity.MNNRgbImage image, double capturedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFacePresenceSource.Reset",
+    "Signature": "public void MNN.Unity.MNNFacePresenceSource.Reset()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceTargetTracker.#ctor(System.Single,System.Double)",
+    "Signature": "public MNN.Unity.MNNFaceTargetTracker.MNNFaceTargetTracker(float minimumScore = 0.6, double maximumGapSeconds = 0.75)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceTargetTracker.Reset",
+    "Signature": "public void MNN.Unity.MNNFaceTargetTracker.Reset()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNFaceTargetTracker.Select(System.Collections.Generic.IReadOnlyList{MNN.Unity.MNNDetection},System.Double)",
+    "Signature": "public int MNN.Unity.MNNFaceTargetTracker.Select(System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNDetection\u003E faces, double capturedAt)",
     "Summary": ""
   },
   {
@@ -39554,6 +41157,34 @@
     "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNImageTaskResult.#ctor",
     "Signature": "public MNN.Unity.MNNImageTaskResult.MNNImageTaskResult()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNInteractionSettings.#ctor",
+    "Signature": "public MNN.Unity.MNNInteractionSettings.MNNInteractionSettings()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNInteractionSettings.Snapshot",
+    "Signature": "public MNN.Unity.MNNInteractionSettings MNN.Unity.MNNInteractionSettings.Snapshot()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNInteractionSettings.ToPresenceOptions",
+    "Signature": "public MNN.Unity.MNNPresenceOptions MNN.Unity.MNNInteractionSettings.ToPresenceOptions()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNInteractionSettings.Validate",
+    "Signature": "public void MNN.Unity.MNNInteractionSettings.Validate()",
     "Summary": ""
   },
   {
@@ -39720,6 +41351,83 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceController.#ctor(MNN.Unity.MNNPresenceOptions,System.Collections.Generic.IEnumerable{System.String})",
+    "Signature": "public MNN.Unity.MNNPresenceController.MNNPresenceController(MNN.Unity.MNNPresenceOptions options = null, System.Collections.Generic.IEnumerable\u003Cstring\u003E allowedIdentities = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceController.Observe(MNN.Unity.MNNPresenceObservation,System.Double,System.Boolean)",
+    "Signature": "public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Observe(MNN.Unity.MNNPresenceObservation observation, double now, bool interactionBusy = false)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceController.Tick(System.Double,System.Boolean)",
+    "Signature": "public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Tick(double now, bool interactionBusy = false)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceKind.#ctor",
+    "Signature": "public MNN.Unity.MNNPresenceKind.MNNPresenceKind()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceObservation.#ctor",
+    "Signature": "public MNN.Unity.MNNPresenceObservation.MNNPresenceObservation()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceObservation.#ctor(System.Double,MNN.Unity.MNNPresenceKind,System.String,System.Single,System.String)",
+    "Signature": "public MNN.Unity.MNNPresenceObservation.MNNPresenceObservation(double capturedAt, MNN.Unity.MNNPresenceKind kind, string trackId, float confidence, string identity = null)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceObservation.Absent(System.Double)",
+    "Signature": "public static MNN.Unity.MNNPresenceObservation MNN.Unity.MNNPresenceObservation.Absent(double capturedAt)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceOptions.#ctor(System.Double,System.Double,System.Double,System.Double,System.Double,System.Single,System.Boolean)",
+    "Signature": "public MNN.Unity.MNNPresenceOptions.MNNPresenceOptions(double confirmationSeconds = 0.35, double freshnessSeconds = 0.75, double graceSeconds = 3, double sleepSeconds = 15, double maximumBusyHoldSeconds = 30, float minimumConfidence = 0.6, bool requireFace = true)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceSleepDisplay.#ctor",
+    "Signature": "public MNN.Unity.MNNPresenceSleepDisplay.MNNPresenceSleepDisplay()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceSnapshot.#ctor",
+    "Signature": "public MNN.Unity.MNNPresenceSnapshot.MNNPresenceSnapshot()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceState.#ctor",
+    "Signature": "public MNN.Unity.MNNPresenceState.MNNPresenceState()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNRgbImage.#ctor(System.Byte[],System.Int32,System.Int32)",
     "Signature": "public MNN.Unity.MNNRgbImage.MNNRgbImage(byte[] pixels, int width, int height)",
     "Summary": ""
@@ -39736,6 +41444,34 @@
     "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNTextRecognition.#ctor(System.String,System.Single)",
     "Signature": "public MNN.Unity.MNNTextRecognition.MNNTextRecognition(string text, float confidence)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNVisionContext.#ctor(System.Double,System.Int32)",
+    "Signature": "public MNN.Unity.MNNVisionContext.MNNVisionContext(double maximumAgeSeconds = 0.75, int maximumPixels = 2073600)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNVisionContext.Clear",
+    "Signature": "public void MNN.Unity.MNNVisionContext.Clear()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNVisionContext.TryGet(System.String,System.Double,MNN.Unity.MNNRgbImage@)",
+    "Signature": "public bool MNN.Unity.MNNVisionContext.TryGet(string trackId, double now, out MNN.Unity.MNNRgbImage image)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNVisionContext.Update(MNN.Unity.MNNRgbImage,System.Double,System.String)",
+    "Signature": "public void MNN.Unity.MNNVisionContext.Update(MNN.Unity.MNNRgbImage image, double capturedAt, string trackId)",
     "Summary": ""
   },
   {
@@ -39898,6 +41634,13 @@
     "Id": "P:MNN.Unity.MNNDocumentRegion.ReadingOrder",
     "Signature": "public int MNN.Unity.MNNDocumentRegion.ReadingOrder { get; }",
     "Summary": "Model-predicted reading order. Gaps can remain after confidence filtering."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNFaceTargetTracker.TrackId",
+    "Signature": "public string MNN.Unity.MNNFaceTargetTracker.TrackId { get; private set; }",
+    "Summary": ""
   },
   {
     "Assembly": "MNN.Unity",
@@ -40224,6 +41967,146 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceController.Current",
+    "Signature": "public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Current { get; private set; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceObservation.CapturedAt",
+    "Signature": "public double MNN.Unity.MNNPresenceObservation.CapturedAt { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceObservation.Confidence",
+    "Signature": "public float MNN.Unity.MNNPresenceObservation.Confidence { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceObservation.Identity",
+    "Signature": "public string MNN.Unity.MNNPresenceObservation.Identity { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceObservation.Kind",
+    "Signature": "public MNN.Unity.MNNPresenceKind MNN.Unity.MNNPresenceObservation.Kind { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceObservation.TrackId",
+    "Signature": "public string MNN.Unity.MNNPresenceObservation.TrackId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceOptions.ConfirmationSeconds",
+    "Signature": "public double MNN.Unity.MNNPresenceOptions.ConfirmationSeconds { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceOptions.FreshnessSeconds",
+    "Signature": "public double MNN.Unity.MNNPresenceOptions.FreshnessSeconds { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceOptions.GraceSeconds",
+    "Signature": "public double MNN.Unity.MNNPresenceOptions.GraceSeconds { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceOptions.MaximumBusyHoldSeconds",
+    "Signature": "public double MNN.Unity.MNNPresenceOptions.MaximumBusyHoldSeconds { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceOptions.MinimumConfidence",
+    "Signature": "public float MNN.Unity.MNNPresenceOptions.MinimumConfidence { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceOptions.RequireFace",
+    "Signature": "public bool MNN.Unity.MNNPresenceOptions.RequireFace { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceOptions.SleepSeconds",
+    "Signature": "public double MNN.Unity.MNNPresenceOptions.SleepSeconds { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceSnapshot.CanStartInteraction",
+    "Signature": "public bool MNN.Unity.MNNPresenceSnapshot.CanStartInteraction { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceSnapshot.ConfirmedAt",
+    "Signature": "public double MNN.Unity.MNNPresenceSnapshot.ConfirmedAt { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceSnapshot.EvaluatedAt",
+    "Signature": "public double MNN.Unity.MNNPresenceSnapshot.EvaluatedAt { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceSnapshot.KeepCurrentInteraction",
+    "Signature": "public bool MNN.Unity.MNNPresenceSnapshot.KeepCurrentInteraction { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceSnapshot.PresentationTarget",
+    "Signature": "public float MNN.Unity.MNNPresenceSnapshot.PresentationTarget { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceSnapshot.State",
+    "Signature": "public MNN.Unity.MNNPresenceState MNN.Unity.MNNPresenceSnapshot.State { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceSnapshot.TrackId",
+    "Signature": "public string MNN.Unity.MNNPresenceSnapshot.TrackId { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "P:MNN.Unity.MNNRgbImage.Height",
     "Signature": "public int MNN.Unity.MNNRgbImage.Height { get; }",
     "Summary": ""
@@ -40301,6 +42184,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "T:MNN.Unity.IMNNPresenceSource",
+    "Signature": "interface MNN.Unity.IMNNPresenceSource",
+    "Summary": "Worker-owned visual detection/recognition task, independent of a model family. Implement with any validated person/face detector and tracker. Never equate a track with an identity."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "T:MNN.Unity.MNNDetection",
     "Signature": "class MNN.Unity.MNNDetection",
     "Summary": "One immutable detection in source-image pixels, with top-left origin."
@@ -40325,6 +42215,34 @@
     "Id": "T:MNN.Unity.MNNDocumentRegion",
     "Signature": "class MNN.Unity.MNNDocumentRegion",
     "Summary": "A page region in source-image pixels, with top-left origin."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNFaceGallery",
+    "Signature": "class MNN.Unity.MNNFaceGallery",
+    "Summary": "In-memory cosine matching for MobileFaceNet\u0027s aligned 512-D embeddings. Thresholds require application calibration. This is neither liveness nor an access-control credential."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNFacePresencePipeline",
+    "Signature": "class MNN.Unity.MNNFacePresencePipeline",
+    "Summary": "Worker-owned SCRFD -\u003E stable target -\u003E five-point alignment -\u003E optional MobileFaceNet/gallery. Caller owns the supplied models. A missing/ambiguous face produces an absent observation. Capture and UI clocks must agree. Pass the result to MNNPresenceController or MNNPresenceComponent."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNFacePresenceSource",
+    "Signature": "class MNN.Unity.MNNFacePresenceSource",
+    "Summary": "Owned convenience adapter for the existing SCRFD/MobileFaceNet task APIs. Other model families implement IMNNPresenceSource; the camera/controller never inspect model names."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNFaceTargetTracker",
+    "Signature": "class MNN.Unity.MNNFaceTargetTracker",
+    "Summary": "Single-owner geometric face continuity. Keeps the current face ahead of larger newcomers. Crossing/ambiguous matches invalidate the track. Geometry is not biometric identity."
   },
   {
     "Assembly": "MNN.Unity",
@@ -40381,6 +42299,13 @@
     "Id": "T:MNN.Unity.MNNImageTaskResult",
     "Signature": "class MNN.Unity.MNNImageTaskResult",
     "Summary": "Task data, not just a visualization. Alpha has source-image dimensions. Face vectors are unit normalized; recognition expects an aligned 112x112 face. Segmentation classes/confidence and its colored image use source-image dimensions."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNInteractionSettings",
+    "Signature": "class MNN.Unity.MNNInteractionSettings",
+    "Summary": "Independent opt-in capabilities. Enabling a capability requires a ready provider; defaults never infer camera consent, identity or a lowest-error model without measurement."
   },
   {
     "Assembly": "MNN.Unity",
@@ -40448,6 +42373,55 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceController",
+    "Signature": "class MNN.Unity.MNNPresenceController",
+    "Summary": "Single-owner policy, independent of camera, inference, UI and Unity time scale. Observe on new sensor results; Tick even if the camera stalls. Busy means an existing turn, never new admission."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceKind",
+    "Signature": "enum MNN.Unity.MNNPresenceKind",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceObservation",
+    "Signature": "readonly struct MNN.Unity.MNNPresenceObservation",
+    "Summary": "One sensor result in the caller\u0027s monotonic clock. TrackId is continuity, Identity is recognition. A face does not prove identity, liveness, profession or authorization."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceOptions",
+    "Signature": "class MNN.Unity.MNNPresenceOptions",
+    "Summary": "Immutable presence timing. Defaults confirm for 350 ms, retain UI for 3 s, sleep after 15 s."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceSleepDisplay",
+    "Signature": "enum MNN.Unity.MNNPresenceSleepDisplay",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceSnapshot",
+    "Signature": "readonly struct MNN.Unity.MNNPresenceSnapshot",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceState",
+    "Signature": "enum MNN.Unity.MNNPresenceState",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "T:MNN.Unity.MNNRgbImage",
     "Signature": "class MNN.Unity.MNNRgbImage",
     "Summary": "Owned RGB24 pixels, row-major from the top left; safe to share with inference workers."
@@ -40472,6 +42446,13 @@
     "Id": "T:MNN.Unity.MNNTextRegion",
     "Signature": "class MNN.Unity.MNNTextRegion",
     "Summary": "One detected text region and its CTC recognition result."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNVisionContext",
+    "Signature": "class MNN.Unity.MNNVisionContext",
+    "Summary": "Single-owner latest image for explicit multimodal requests. No history, disk storage or upload. Get it again for each turn; do not reuse a previously returned image for another person."
   },
   {
     "Assembly": "MNN.Unity",
