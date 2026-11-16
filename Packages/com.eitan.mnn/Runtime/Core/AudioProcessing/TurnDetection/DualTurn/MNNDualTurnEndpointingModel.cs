@@ -12,9 +12,11 @@ namespace MNN.Unity
         {
             try
             {
-                return IsProfileValid(MNNDualTurnEndpointingConfig.Read(directory)) &&
-                    Matches(directory, Graph, 620344, "7adbd866711d96dc028efed15e35c27bd9c252c963f4931d24f6f2acfb1e4a11") &&
-                    Matches(directory, Weights, 161380012, "57ee670f09318a789157ab9d596850689e4ec77f88ce4716486a0f1d832485cf");
+                if (!IsProfileValid(MNNDualTurnEndpointingConfig.Read(directory))) return false;
+                return (Matches(directory, Graph, 620344, "7adbd866711d96dc028efed15e35c27bd9c252c963f4931d24f6f2acfb1e4a11") &&
+                    Matches(directory, Weights, 161380012, "57ee670f09318a789157ab9d596850689e4ec77f88ce4716486a0f1d832485cf")) ||
+                    (Matches(directory, Graph, 647168, "d8846e630f53e8a2c9fcc9d71f5dbf8f1a0335f8c6d151d05757992974b3e0e9") &&
+                    Matches(directory, Weights, 262256300, "e3889903498299efeab92a65e06750cccb0ba2aabff30149bca60a9fb5e9bd65"));
             }
             catch (Exception error) when (error is IOException || error is ArgumentException || error is UnauthorizedAccessException)
             {

@@ -16,15 +16,31 @@ namespace MNN.Unity
         private readonly Regex _words, _addedPattern;
         private readonly Dictionary<string, int> _added;
         private readonly bool _byteRanks, _normalize;
+        private readonly Lazy<Dictionary<int, string>> _pieces;
 
         internal MNNBytePairTokenizer(Dictionary<string, int> vocabulary, Dictionary<string, int> ranks, char[] bytes,
             Regex words, bool byteRanks = false, Dictionary<string, int> added = null, bool normalize = false, HashSet<string> leftStrip = null)
         {
             _vocabulary = vocabulary; _ranks = ranks; _bytes = bytes; _words = words; _byteRanks = byteRanks;
             _added = added; _normalize = normalize;
+            _pieces = new Lazy<Dictionary<int, string>>(() => vocabulary.ToDictionary(p => p.Value, p => p.Key));
             if (added != null && added.Count > 0)
                 _addedPattern = new Regex(string.Join("|", added.Keys.OrderByDescending(s => leftStrip?.Contains(s) == true).ThenByDescending(s => s.Length).ThenBy(s => s, StringComparer.Ordinal)
                     .Select(s => (leftStrip?.Contains(s) == true ? @"\s*" : "") + Regex.Escape(s))), RegexOptions.CultureInvariant);
+        }
+
+        internal string Decode(IEnumerable<int> tokens)
+        {
+            var inverse = Enumerable.Range(0, 256).ToDictionary(i => _bytes[i], i => (byte)i);
+            var special = new HashSet<int>(_added?.Values ?? Enumerable.Empty<int>());
+            var bytes = new List<byte>();
+            foreach (int id in tokens)
+            {
+                if (special.Contains(id)) continue;
+                if (!_pieces.Value.TryGetValue(id, out string piece)) throw new InvalidDataException("Unknown byte BPE token.");
+                foreach (char value in piece) bytes.Add(inverse[value]);
+            }
+            return new UTF8Encoding(false, true).GetString(bytes.ToArray());
         }
 
         internal static MNNBytePairTokenizer ReadModernBert(string path)

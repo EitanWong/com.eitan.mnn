@@ -78,6 +78,7 @@ namespace MNN.Unity.Editor
         private MNNVoxTurn _voxTurn;
         private MNNKeywordSpotter _keywordSpotter;
         private MNNSmartTurn _smartTurn;
+        private MNNTurnDetector _registeredTurn;
         private MNNDtlnAec _dtlnAec;
         private string _cache;
         private MNNStudioLlmCache _cacheLease;
@@ -110,6 +111,8 @@ namespace MNN.Unity.Editor
             _pageRecognizer = null;
             _senseVoice?.Dispose();
             _senseVoice = null;
+            _registeredTurn?.Dispose();
+            _registeredTurn = null;
             _smartTurn?.Dispose();
             _smartTurn = null;
             _fsmnVad?.Dispose();

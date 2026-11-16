@@ -9,8 +9,10 @@ namespace MNN.Unity
     internal sealed class MNNLiveKitTokenizer
     {
         private readonly MNNBytePairTokenizer _tokenizer;
-        internal MNNLiveKitTokenizer(string directory)
+        private readonly bool _qwen;
+        internal MNNLiveKitTokenizer(string directory, bool qwen = false)
         {
+            _qwen = qwen;
             var vocabulary = MNNModelData.Object(MNNModelData.Read(Path.Combine(directory, "vocab.json")))
                 .ToDictionary(pair => pair.Key, pair => MNNModelData.Integer(pair.Value), StringComparer.Ordinal);
             var added = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -32,9 +34,12 @@ namespace MNN.Unity
             // Digits(individual_digits=true) runs before ByteLevel in this model.
             // A preceding space is its own pretoken, and digits cannot merge.
             var words = new Regex(@"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+", RegexOptions.CultureInvariant);
-            _tokenizer = new MNNBytePairTokenizer(vocabulary, ranks, bytes, words, added: added);
+            if (qwen) words = new Regex(@"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+", RegexOptions.CultureInvariant);
+            _tokenizer = new MNNBytePairTokenizer(vocabulary, ranks, bytes, words, added: added, normalize: qwen);
         }
 
-        internal int[] Encode(string text) => _tokenizer.Encode(Regex.Replace(text, @"\s+", " ").Trim());
+        internal string Decode(System.Collections.Generic.IEnumerable<int> tokens) => _tokenizer.Decode(tokens);
+
+        internal int[] Encode(string text) => _tokenizer.Encode(_qwen ? text : Regex.Replace(text, @"\s+", " ").Trim());
     }
 }

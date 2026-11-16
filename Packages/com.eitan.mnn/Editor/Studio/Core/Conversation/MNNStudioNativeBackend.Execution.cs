@@ -12,6 +12,19 @@ namespace MNN.Unity.Editor
     {
         public MNNStudioResult Run(MNNStudioRequest request)
         {
+            if (_registeredTurn != null)
+            {
+                float[] pcm = null; int rate = 16000;
+                if (!_registeredTurn.RequiresTranscript)
+                {
+                    if (string.IsNullOrWhiteSpace(request.Audio)) throw new ArgumentException("Choose a WAV to evaluate turn completion.");
+                    pcm = MNNWaveAudio.Read(request.Audio, out rate);
+                }
+                else if (string.IsNullOrWhiteSpace(request.Prompt)) throw new ArgumentException("Supply a transcript to evaluate turn completion.");
+                bool complete = _registeredTurn.IsComplete(pcm, rate, request.Prompt, request.TurnLanguage, request.Cancellation);
+                return new MNNStudioResult { Text = complete ? "Turn complete." : "Turn incomplete.",
+                    BackendDescription = "MNN turn detection · " + _registeredTurn.Backend };
+            }
             if (_dualTurn != null) return RunDualTurn(request);
             if (_turnSense != null) return RunTurnSense(request);
             if (_vbx != null) return RunVbx(request);

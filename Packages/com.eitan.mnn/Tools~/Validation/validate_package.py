@@ -91,7 +91,7 @@ AUDIO_TASK_MODELS = {
     "SpeakerDiarization": {"FsEend", "LsEend", "Sortformer"},
     "SpeakerEmbedding": {"Vbx"},
     "VoiceActivityDetection": {"FsmnVad", "MarbleNetVad", "SileroVad"},
-    "TurnDetection": {"CueLight", "DualTurn", "LiveKitTurnDetector", "Namo", "SmartTurn", "TurnSense", "VoxTurn"},
+    "TurnDetection": {"BairongTurnSense", "CueLight", "DualTurn", "EasyTurn", "LiveKitTurnDetector", "LiveKitMultilingual", "Namo", "SmartTurn", "Ten", "TurnSense", "VoxTurn"},
 }
 INFERENCE_RESPONSIBILITIES = {
     "Backend": {"MNNAcceleration.cs", "MNNNeuralDevice.cs"},

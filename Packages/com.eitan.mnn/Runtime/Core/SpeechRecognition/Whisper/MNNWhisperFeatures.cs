@@ -62,6 +62,14 @@ namespace MNN.Unity
         internal static float[] ExtractCentered(float[] samples, CancellationToken token) =>
             ExtractCore(samples, 800, 800, true, token);
 
+        internal static float[] ExtractUnpaddedCentered(float[] samples, out int frames, CancellationToken token)
+        {
+            if (samples == null || samples.Length < 400 || samples.Length > 128000)
+                throw new ArgumentException("Expected 25 ms to eight seconds of 16 kHz PCM.", nameof(samples));
+            frames = samples.Length / 160;
+            return ExtractCore(samples, frames, frames, true, token);
+        }
+
         private static float[] ExtractCore(float[] samples, int frames, int paddedFrames, bool centered, CancellationToken token)
         {
             var result = new float[checked(paddedFrames * 80)];

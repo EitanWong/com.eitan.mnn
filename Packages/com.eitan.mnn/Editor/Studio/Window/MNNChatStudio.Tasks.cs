@@ -39,7 +39,7 @@ namespace MNN.Unity.Editor
             window.UseModelForTask(directory, task);
         }
 
-        private string TaskExample => Selected?.IsTurnSense == true ? "I am finished." : Selected?.IsVoxTurn == true ? "I am finished." : Selected?.IsIndicF5 == true ? "नमस्ते, यह आवाज़ का परीक्षण है।" : Selected?.IsQwen3Explicit == true ? (_speechLanguage == 1 ? "Paris is the capital of France." : "你好，这是语音合成测试。") : (Selected?.IsDhVaani == true || Selected?.IsPocket == true) ? "The capital of France is Paris." : Selected?.TtsProfile == MNNSpeechModelKind.MossNano ? (_ttsVoice >= 6 && _ttsVoice < 11 ? "The capital of France is Paris." : _ttsVoice >= 11 ? "こんにちは、これは音声合成のテストです。" : "你好，这是语音合成测试。") : Selected?.TtsProfile == MNNSpeechModelKind.SherpaVitsChinese ? "你好，这是语音合成测试。" : Selected?.TtsProfile == MNNSpeechModelKind.MmsTamil ? "வணக்கம் உலகம். இது ஒரு குரல் தொகுப்பு சோதனை." : Selected?.TtsProfile == MNNSpeechModelKind.Kokoro ? (Selected.TtsVoices.ElementAtOrDefault(_ttsVoice)?.StartsWith("z", StringComparison.Ordinal) == true ? "你好，欢迎使用语音合成。" : "The capital of France is Paris.") : Selected?.TtsProfile == MNNSpeechModelKind.IndicVits ? MNNIndicVits.SpeakerExampleTexts[Mathf.Clamp(_ttsVoice, 0, MNNIndicVits.SpeakerExampleTexts.Length - 1)] : Selected?.IsPaddlePage == true && !_ocrCroppedLine ? "Read all visible text in this image." : Selected?.IsPaddleText == true ? "Recognize this upright cropped text line." : (Selected?.TtsProfile == MNNSpeechModelKind.Kokoro || Selected?.IsBertVits2 == true || Selected?.IsCosyVoice == true || Selected?.IsCosyVoice300M == true || Selected?.RequiresReferenceAudio == true) ? "你好，欢迎使用语音合成。" : CurrentTask.Example;
+        private string TaskExample => (Selected?.IsTurnSense == true || Selected?.RegisteredTurnRequiresTranscript == true) ? "I am finished." : Selected?.IsVoxTurn == true ? "I am finished." : Selected?.IsIndicF5 == true ? "नमस्ते, यह आवाज़ का परीक्षण है।" : Selected?.IsQwen3Explicit == true ? (_speechLanguage == 1 ? "Paris is the capital of France." : "你好，这是语音合成测试。") : (Selected?.IsDhVaani == true || Selected?.IsPocket == true) ? "The capital of France is Paris." : Selected?.TtsProfile == MNNSpeechModelKind.MossNano ? (_ttsVoice >= 6 && _ttsVoice < 11 ? "The capital of France is Paris." : _ttsVoice >= 11 ? "こんにちは、これは音声合成のテストです。" : "你好，这是语音合成测试。") : Selected?.TtsProfile == MNNSpeechModelKind.SherpaVitsChinese ? "你好，这是语音合成测试。" : Selected?.TtsProfile == MNNSpeechModelKind.MmsTamil ? "வணக்கம் உலகம். இது ஒரு குரல் தொகுப்பு சோதனை." : Selected?.TtsProfile == MNNSpeechModelKind.Kokoro ? (Selected.TtsVoices.ElementAtOrDefault(_ttsVoice)?.StartsWith("z", StringComparison.Ordinal) == true ? "你好，欢迎使用语音合成。" : "The capital of France is Paris.") : Selected?.TtsProfile == MNNSpeechModelKind.IndicVits ? MNNIndicVits.SpeakerExampleTexts[Mathf.Clamp(_ttsVoice, 0, MNNIndicVits.SpeakerExampleTexts.Length - 1)] : Selected?.IsPaddlePage == true && !_ocrCroppedLine ? "Read all visible text in this image." : Selected?.IsPaddleText == true ? "Recognize this upright cropped text line." : (Selected?.TtsProfile == MNNSpeechModelKind.Kokoro || Selected?.IsBertVits2 == true || Selected?.IsCosyVoice == true || Selected?.IsCosyVoice300M == true || Selected?.RequiresReferenceAudio == true) ? "你好，欢迎使用语音合成。" : CurrentTask.Example;
         private void UseModelForTask(string directory, MNNStudioTask task)
         {
             if (Busy)
@@ -302,9 +302,11 @@ namespace MNN.Unity.Editor
                                 _taskExampleScreenRect = GUIUtility.GUIToScreenRect(GUILayoutUtility.GetLastRect());
                             GUILayout.Space(12);
                         }
+                        if (Selected?.RegisteredTurnRequiresTranscript == true)
+                            _voxTurnLanguage = EditorGUILayout.Popup("Transcript language", _voxTurnLanguage, new[] { "English", "Chinese" });
                         if ((CurrentTask.Required & MNNModelCapabilities.Vision) != 0)
                             DrawTaskAttachment(true);
-                        if ((CurrentTask.Required & MNNModelCapabilities.AudioInput) != 0)
+                        if ((CurrentTask.Required & MNNModelCapabilities.AudioInput) != 0 && Selected?.RegisteredTurnRequiresTranscript != true)
                             DrawTaskAttachment(false);
                         if (Selected.IsDualTurn) EditorGUILayout.HelpBox("DualTurn: mono is the user with a silent agent; stereo CH0 is the user and CH1 is the agent. The final 80 ms frame is padded with silence when needed.", MessageType.Info);
                         if (Selected.IsVoxTurn) DrawVoxTurnSettings();
@@ -428,7 +430,7 @@ namespace MNN.Unity.Editor
                     if (Selected.IsKeywordSpotter)
                         DrawKeywordListening();
 
-                    if ((CurrentTask.Required & MNNModelCapabilities.AudioInput) != 0)
+                    if ((CurrentTask.Required & MNNModelCapabilities.AudioInput) != 0 && Selected?.RegisteredTurnRequiresTranscript != true)
                     {
                         using (new EditorGUI.DisabledScope(Busy))
                         using (new EditorGUILayout.HorizontalScope())
@@ -580,7 +582,7 @@ namespace MNN.Unity.Editor
                 return "Choose a reference image to enable image editing.";
             if ((CurrentTask.Required & MNNModelCapabilities.Vision) != 0 && CurrentTask.Task != MNNStudioTask.Omni && !File.Exists(_imagePath))
                 return "Choose an image to run this request.";
-            if (Selected.IsTurnSense) return null;
+            if (Selected.IsTurnSense || Selected.RegisteredTurnRequiresTranscript) return null;
             if ((CurrentTask.Required & MNNModelCapabilities.AudioInput) != 0 && CurrentTask.Task != MNNStudioTask.Omni && !Selected.IsVoxTurn && !File.Exists(_audioPath))
                 return "Choose or record audio to run this request.";
             if (Selected.IsVoxTurn) return VoxTurnValidation();

@@ -53,7 +53,7 @@ namespace MNN.Unity
                 case MNNConversationModelAdapter.Silero: return new Vad(caps, null, directory, settings.Threads, settings.Backend);
                 case MNNConversationModelAdapter.AudioTurn:
                 case MNNConversationModelAdapter.TextTurn:
-                case MNNConversationModelAdapter.SmartTurn: return new Turn(caps, null, directory, settings.Threads, settings.Backend);
+                case MNNConversationModelAdapter.SmartTurn: return new Turn(caps, null, directory, settings.TurnThreads, settings.Backend, settings.Language);
                 default: throw new NotSupportedException("Unsupported local conversation task: " + kind);
             }
         }
@@ -459,14 +459,15 @@ namespace MNN.Unity
             protected override string ReadBackend() => _model == null ? "Not loaded" : "Turn detection: " + _model.Backend;
             private readonly int _threads;
             private MNNTurnDetector _model;
-            internal Turn(MNNRealtimeCapabilities caps, SynchronizationContext unity, string directory, int threads, MNNBackendType backend)
-                : base(caps, unity, directory) { _threads = threads; Backend = backend; }
+            private readonly string _language;
+            internal Turn(MNNRealtimeCapabilities caps, SynchronizationContext unity, string directory, int threads, MNNBackendType backend, string language)
+                : base(caps, unity, directory) { _threads = threads; Backend = backend; _language = string.IsNullOrWhiteSpace(language) ? "en" : language; }
             protected override void Load() => _model = MNNTurnDetector.Load(Directory, _threads, Backend);
             public bool RequiresTranscript => _model.RequiresTranscript;
             public Task<bool> IsTurnCompleteAsync(float[] audio, int rate, CancellationToken token) =>
                 IsTurnCompleteAsync(audio, rate, null, token);
             public Task<bool> IsTurnCompleteAsync(float[] audio, int rate, string transcript, CancellationToken token) =>
-                Task.Run(() => _model.IsComplete(audio, rate, transcript, token), token);
+                Task.Run(() => _model.IsComplete(audio, rate, transcript, _language, token), token);
             protected override void ReleaseModels() { _model?.Dispose(); _model = null; }
         }
     }

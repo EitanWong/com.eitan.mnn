@@ -76,6 +76,8 @@ namespace MNN.Unity
         {
             if (!Directory.Exists(directory) || !MarkerMatches(directory, model, true) ||
                 !MNNConversationModelCatalog.TryGetAdapter(model, out var adapter)) return false;
+            var registration = MNNModelRegistry.Find(model.provider, model.repositoryId ?? model.modelScopeId);
+            if (registration != null) return registration.IsComplete(directory);
             bool Has(params string[] files) => files.All(file =>
             {
                 if (string.IsNullOrEmpty(file) || Path.IsPathRooted(file)) return false;

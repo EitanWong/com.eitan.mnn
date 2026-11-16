@@ -7,6 +7,14 @@ namespace MNN.Unity.Tests
 {
     public sealed class LocalConversationProviderTests
     {
+        [TestCase(-1)]
+        [TestCase(65)]
+        public void TurnThreadOverrideRejectsOutOfRangeValues(int threads)
+        {
+            Assert.Throws<ArgumentException>(() => MNNConversationLocalProviders.Create(
+                MNNConversationModelAdapter.AudioTurn, "model", new MNNConversationLocalModelOptions { TurnThreads = threads }));
+        }
+
         [Test]
         public void OmniPreparationAcceptsAudioInputWhenExternalTtsProvidesSpeech()
         {

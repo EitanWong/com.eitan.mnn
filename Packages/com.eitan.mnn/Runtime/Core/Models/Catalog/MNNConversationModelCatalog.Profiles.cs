@@ -66,7 +66,9 @@ namespace MNN.Unity
 
         public static string DefaultRevision(MNNModelSource source) => source == MNNModelSource.ModelScope ? "master" : "main";
 
-        public static string DefaultInstallationName(MNNRemoteModel model) => model != null && model.provider == MNNModelSource.ModelScope &&
+        public static string DefaultInstallationName(MNNRemoteModel model) => model != null &&
+            MNNModelRegistry.Find(model.provider, model.repositoryId ?? model.modelScopeId) is MNNModelRegistration registered
+            ? registered.InstallationName : model != null && model.provider == MNNModelSource.ModelScope &&
             MNNEnglishKwsModel.IsModelScopeRepository(model.repositoryId ?? model.modelScopeId)
             ? MNNKeywordSpotterConfig.EnglishDirectoryName : model != null && model.provider == MNNModelSource.ModelScope &&
             MNNPocketModel.IsRepository(model.repositoryId ?? model.modelScopeId) && model.revision == MNNPocketModel.Revision
@@ -80,6 +82,9 @@ namespace MNN.Unity
             adapter = default;
             if (!IsCatalogModel(model) || !model.runtimeAvailable) return false;
             string repository = model.repositoryId ?? model.modelScopeId;
+            var registration = MNNModelRegistry.Find(model.provider, repository);
+            if (registration?.ConversationAdapter is MNNConversationModelAdapter registeredAdapter)
+            { adapter = registeredAdapter; return true; }
             if (model.provider == MNNModelSource.ModelScope && repository == MNNMiniMindO.Repository)
             { adapter = MNNConversationModelAdapter.MiniMindO; return true; }
             // Speech graphs have task-specific tokenizers, preprocessing and installation plans.
@@ -214,6 +219,11 @@ namespace MNN.Unity
 
         private void AddDefaults()
         {
+            foreach (var registration in MNNModelRegistry.All.Where(r => r.ConversationAdapter.HasValue))
+            {
+                var entry = AddCatalogModelCore(registration.CreateModel());
+                if (registration.ConversationAlias != null) entry.modelId = registration.ConversationAlias;
+            }
             foreach (var profile in DtlnProfiles)
             {
                 var remote = MNNRemoteModelSnapshot.Copy(profile);
@@ -277,7 +287,6 @@ namespace MNN.Unity
             new DefaultModel { Id = "Supertonic-3-INT8-MNN", Repository = "yunfengwang/supertonic-tts-mnn", Revision = "c0425ea0b5884cdb9c23a99b2373dcdb47f142fa", Source = MNNModelSource.HuggingFace, Adapter = MNNConversationModelAdapter.Supertonic, Bytes = 111036647L },
             new DefaultModel { Id = "supertonic-tts-mnn", Repository = "yunfengwang/supertonic-tts-mnn", Revision = "c0425ea0b5884cdb9c23a99b2373dcdb47f142fa", Source = MNNModelSource.HuggingFace, Adapter = MNNConversationModelAdapter.Supertonic, Bytes = 134056954L },
             new DefaultModel { Id = "Qwen3.5-0.8B-MNN", Repository = "MNN/Qwen3.5-0.8B-MNN", Revision = "594e8d3c5dcdd8ae7ff488a3ba5920c503721fe6", Source = MNNModelSource.ModelScope, Adapter = MNNConversationModelAdapter.Language, Bytes = 484349697L },
-            new DefaultModel { Id = "SmartTurn-v3.2-MNN", Repository = "Jeryuk/smart-turn-v3.2-gpu-MNN", Revision = "1cc21f7b6f904eb1a5daadc27c6f4931d1f78794", Source = MNNModelSource.HuggingFace, Adapter = MNNConversationModelAdapter.SmartTurn, Bytes = 9061752L },
             new DefaultModel { Id = "Silero-v5-MNN", Repository = "Jeryuk/silero_vad-MNN", Revision = "e2502b184542017860ab1ca83c18f8742b221ecd", Source = MNNModelSource.HuggingFace, Adapter = MNNConversationModelAdapter.Silero, Bytes = 1486656L },
             new DefaultModel { Id = "Silero-v5.1-MNN", Repository = "EitanWang/Silero-v5.1-MNN", Revision = "master", Source = MNNModelSource.ModelScope, Adapter = MNNConversationModelAdapter.Silero, Bytes = 1266761L },
         };

@@ -18,10 +18,13 @@ namespace MNN.Unity
         internal const string OfficialRepository = "pipecat-ai/smart-turn-v3";
         internal const string OfficialRevision = "f766f81d3cfdf7737ac64aad813d91bbfd56bf93";
         internal const string OfficialGraph = "smart_turn_v32_fp32.mnn";
+        internal const string OptimizedGraph = "smart_turn_v32_fp16.mnn";
+        private const long OptimizedBytes = 16103848;
+        private const string OptimizedHash = "770e733e261874bd88986d4939e0ac25f16bdb2d2c101744d195704d2b960eac";
         private const long OfficialBytes = 32061112;
         private const string OfficialHash = "defa0e643e16dc7226fa5f80b5d07d813769df323423387ec3cfd01f78aa91cc";
         internal static bool IsOfficialProfile(MNNSmartTurnConfig config) => config.repository == OfficialRepository &&
-            config.source_revision == OfficialRevision && config.graph == OfficialGraph;
+            config.source_revision == OfficialRevision && (config.graph == OfficialGraph || config.graph == OptimizedGraph);
         internal static bool IsRepository(string repository) => string.Equals(repository, Repository, StringComparison.OrdinalIgnoreCase);
         internal static string ResolveRevision(string revision)
         {
@@ -32,7 +35,9 @@ namespace MNN.Unity
         {
             if (IsOfficialProfile(MNNSmartTurnConfig.Read(directory)))
             {
-                VerifyGraph(directory, OfficialGraph, OfficialBytes, OfficialHash);
+                var profile = MNNSmartTurnConfig.Read(directory);
+                if (profile.graph == OptimizedGraph) VerifyGraph(directory, OptimizedGraph, OptimizedBytes, OptimizedHash);
+                else VerifyGraph(directory, OfficialGraph, OfficialBytes, OfficialHash);
                 return;
             }
             VerifyGraph(directory, Graph, Bytes, Hash);
@@ -41,7 +46,8 @@ namespace MNN.Unity
         }
         internal static string PreferredGraph(string directory, MNNBackendType backend)
         {
-            if (IsOfficialProfile(MNNSmartTurnConfig.Read(directory))) return OfficialGraph;
+            var profile = MNNSmartTurnConfig.Read(directory);
+            if (IsOfficialProfile(profile)) return profile.graph;
             return backend != MNNBackendType.CPU && backend != MNNBackendType.Auto && File.Exists(Path.Combine(directory, GraphFp16)) ? GraphFp16 : Graph;
         }
         internal static void Prepare(string directory)

@@ -76,7 +76,7 @@ namespace MNN.Unity
         public bool IsEndOfTurn(string currentText, float threshold = .5f, CancellationToken cancellationToken = default) =>
             Predict(currentText, threshold, cancellationToken) >= threshold;
 
-        internal static string FormatChatContext(IReadOnlyList<MNNLiveKitTurnMessage> messages)
+        internal static string FormatChatContext(IReadOnlyList<MNNLiveKitTurnMessage> messages, bool qwen = false)
         {
             var normalized = new List<MNNLiveKitTurnMessage>();
             for (int i = Math.Max(0, messages.Count - MaxHistoryTurns); i < messages.Count; ++i)
@@ -92,7 +92,7 @@ namespace MNN.Unity
             }
             var builder = new StringBuilder();
             foreach (var message in normalized)
-                builder.Append("<|im_start|><|").Append(message.Role).Append("|>").Append(message.Content).Append("<|im_end|>");
+                builder.Append("<|im_start|>").Append(qwen ? message.Role + "\n" : "<|" + message.Role + "|>").Append(message.Content).Append(qwen ? "<|im_end|>\n" : "<|im_end|>");
             int end = builder.ToString().LastIndexOf("<|im_end|>", StringComparison.Ordinal);
             return end >= 0 ? builder.ToString(0, end) : builder.ToString();
         }

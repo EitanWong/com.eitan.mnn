@@ -80,6 +80,8 @@ namespace MNN.Unity.Editor
                     case MNNStudioTask.AudioProcessing:
                         if (File.Exists(Path.Combine(model.Directory, MNNDualTurnEndpointingConfig.FileName)))
                             backend._dualTurn = MNNDualTurnEndpointing.Load(model.Directory, threads);
+                        else if (model.RegisteredTurn != null)
+                            backend._registeredTurn = MNNTurnDetector.Load(model.Directory);
                         else if (File.Exists(Path.Combine(model.Directory, MNNTurnSenseConfig.FileName)))
                             backend._turnSense = MNNTurnSense.Load(model.Directory);
                         else if (File.Exists(Path.Combine(model.Directory, MNNVoxTurn.ConfigFileName)))

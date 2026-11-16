@@ -15,13 +15,16 @@ namespace MNN.Unity
         public string Revision { get; }
         public string InstallationName { get; }
         internal MNNRegisteredSpeechAdapter Speech { get; }
+        internal MNNConversationModelAdapter? ConversationAdapter { get; }
+        internal string ConversationAlias { get; }
+        internal string TurnMarker { get; }
 
         internal MNNModelRegistration(MNNModelSource source, string repository, string revision, string installationName,
             Func<MNNRemoteModel> metadata, Func<MNNModelRepositoryFile[]> files, Func<string, bool> complete,
-            MNNRegisteredSpeechAdapter speech)
+            MNNRegisteredSpeechAdapter speech, MNNConversationModelAdapter? conversationAdapter = null, string conversationAlias = null, string turnMarker = null)
         {
             Source = source; Repository = repository; Revision = revision; InstallationName = installationName;
-            _metadata = metadata; _files = files; _complete = complete; Speech = speech;
+            _metadata = metadata; _files = files; _complete = complete; Speech = speech; ConversationAdapter = conversationAdapter; ConversationAlias = conversationAlias; TurnMarker = turnMarker;
         }
 
         public string ResolveRevision(string requested = null)
