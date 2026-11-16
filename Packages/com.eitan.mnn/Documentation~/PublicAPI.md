@@ -10003,6 +10003,12 @@ public System.Threading.Tasks.Task MNN.Unity.MNNFaceCameraComponent.Completion {
 ```
 
 ```csharp
+public MNN.Unity.MNNPresenceObservation? MNN.Unity.MNNFaceCameraComponent.LatestObservation { get; private set; }
+```
+
+Latest completed observation on the main thread; cleared on stop, failure or replacement. Consumers must check CapturedAt before displaying geometry over a live frame.
+
+```csharp
 public bool MNN.Unity.MNNHarnessBackendSetup.AutomaticDetection { get; set; }
 ```
 
@@ -25180,6 +25186,8 @@ public int MNN.Unity.MNNCameraSettings.maximumImageEdge
 public bool MNN.Unity.MNNCameraSettings.showPreview
 ```
 
+Legacy persisted preference. SiriAI now always previews its active camera in Vision settings.
+
 ```csharp
 public int MNN.Unity.MNNCameraSettings.sleepFramesPerSecond
 ```
@@ -25871,6 +25879,10 @@ public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Tick(double
 ```
 
 ```csharp
+public MNN.Unity.MNNPresenceDetectionFrame.MNNPresenceDetectionFrame(int width, int height, System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNDetection> detections, int selectedIndex = -1)
+```
+
+```csharp
 public MNN.Unity.MNNPresenceKind.MNNPresenceKind()
 ```
 
@@ -25883,7 +25895,15 @@ public MNN.Unity.MNNPresenceObservation.MNNPresenceObservation(double capturedAt
 ```
 
 ```csharp
+public MNN.Unity.MNNPresenceObservation.MNNPresenceObservation(double capturedAt, MNN.Unity.MNNPresenceKind kind, string trackId, float confidence, string identity, MNN.Unity.MNNPresenceDetectionFrame detectionFrame)
+```
+
+```csharp
 public static MNN.Unity.MNNPresenceObservation MNN.Unity.MNNPresenceObservation.Absent(double capturedAt)
+```
+
+```csharp
+public static MNN.Unity.MNNPresenceObservation MNN.Unity.MNNPresenceObservation.Absent(double capturedAt, MNN.Unity.MNNPresenceDetectionFrame detectionFrame)
 ```
 
 ```csharp
@@ -26241,11 +26261,31 @@ public MNN.Unity.MNNPresenceSnapshot MNN.Unity.MNNPresenceController.Current { g
 ```
 
 ```csharp
+public System.Collections.Generic.IReadOnlyList<MNN.Unity.MNNDetection> MNN.Unity.MNNPresenceDetectionFrame.Detections { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNPresenceDetectionFrame.Height { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNPresenceDetectionFrame.SelectedIndex { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNPresenceDetectionFrame.Width { get; }
+```
+
+```csharp
 public double MNN.Unity.MNNPresenceObservation.CapturedAt { get; }
 ```
 
 ```csharp
 public float MNN.Unity.MNNPresenceObservation.Confidence { get; }
+```
+
+```csharp
+public MNN.Unity.MNNPresenceDetectionFrame MNN.Unity.MNNPresenceObservation.DetectionFrame { get; }
 ```
 
 ```csharp
@@ -26531,6 +26571,12 @@ class MNN.Unity.MNNPresenceController
 ```
 
 Single-owner policy, independent of camera, inference, UI and Unity time scale. Observe on new sensor results; Tick even if the camera stalls. Busy means an existing turn, never new admission.
+
+```csharp
+class MNN.Unity.MNNPresenceDetectionFrame
+```
+
+Owned detection geometry in the upright RGB image's top-left pixel coordinates. Carries display evidence only; boxes never grant presence or identity admission.
 
 ```csharp
 enum MNN.Unity.MNNPresenceKind

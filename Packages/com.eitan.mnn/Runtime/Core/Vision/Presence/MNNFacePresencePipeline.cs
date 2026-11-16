@@ -30,7 +30,8 @@ namespace MNN.Unity
             var result = _detector.Process(image, cancellationToken);
             if (result.Detections == null) throw new InvalidDataException("Face detector returned no detection list.");
             int selected = _tracker.Select(result.Detections, capturedAt);
-            if (selected < 0) return MNNPresenceObservation.Absent(capturedAt);
+            var geometry = new MNNPresenceDetectionFrame(image.Width, image.Height, result.Detections, selected);
+            if (selected < 0) return MNNPresenceObservation.Absent(capturedAt, geometry);
             string identity = null;
             if (_recognizer != null)
             {
@@ -41,7 +42,7 @@ namespace MNN.Unity
             }
             cancellationToken.ThrowIfCancellationRequested();
             return new MNNPresenceObservation(capturedAt, MNNPresenceKind.Face, _tracker.TrackId,
-                result.Detections[selected].Score, identity);
+                result.Detections[selected].Score, identity, geometry);
         }
 
         public void Reset() => _tracker.Reset();

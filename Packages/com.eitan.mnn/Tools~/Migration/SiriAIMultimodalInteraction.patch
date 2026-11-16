@@ -111,7 +111,7 @@
              SupportsRecordedVoice = () => SupportsRecordedVoice,
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
-@@ -0,0 +1,201 @@
+@@ -0,0 +1,232 @@
 +using System;
 +using System.Threading.Tasks;
 +using System.Threading;
@@ -260,14 +260,14 @@
 +                        settings.faceRecognition ? Path.Combine(root, settings.recognizerDirectory) : null,
 +                        settings.faceRecognition ? EnrolledFaces : null), lifetime.Token);
 +                lifetime.Token.ThrowIfCancellationRequested();
-+                double deadline = Time.realtimeSinceStartupAsDouble + camera.startupTimeoutSeconds;
-+                while (_interactionCamera != null && (!_interactionCamera.didUpdateThisFrame || _interactionCamera.width <= 16 || _interactionCamera.height <= 16))
++                // Verify readable camera pixels in the player loop; a transient new-frame flag is not a startup handshake.
++                var frameReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
++                var frameWait = StartCoroutine(WaitForVisualCameraFrame(_interactionCamera, camera.startupTimeoutSeconds, frameReady));
++                try
 +                {
-+                    lifetime.Token.ThrowIfCancellationRequested();
-+                    if (Time.realtimeSinceStartupAsDouble >= deadline) throw new TimeoutException("Camera did not deliver frames. Check device access and retry.");
-+                    // didUpdateThisFrame is a per-Unity-frame flag; a wall-clock delay can miss every update.
-+                    await Task.Yield();
++                    using (lifetime.Token.Register(() => frameReady.TrySetCanceled())) await frameReady.Task;
 +                }
++                finally { if (frameWait != null) StopCoroutine(frameWait); }
 +                lifetime.Token.ThrowIfCancellationRequested();
 +                _interaction.StartCamera(_interactionCamera, source);
 +                _presenceSource = source; source = null;
@@ -279,6 +279,37 @@
 +                throw;
 +            }
 +            finally { (source as IDisposable)?.Dispose(); _visualStarting = false; }
++        }
++
++        private static IEnumerator WaitForVisualCameraFrame(WebCamTexture camera, float timeoutSeconds, TaskCompletionSource<bool> completion)
++        {
++            double deadline = Time.realtimeSinceStartupAsDouble + timeoutSeconds;
++            while (!completion.Task.IsCompleted)
++            {
++                // A camera may deliver its first frame while models load. Accept its readable buffer
++                // even when didUpdateThisFrame is false in this phase; tracking still requires new frames.
++                yield return null;
++                if (camera == null)
++                {
++                    completion.TrySetException(new InvalidOperationException("Camera was released before delivering a frame."));
++                    yield break;
++                }
++                if (HasReadableVisualCameraFrame(camera))
++                    completion.TrySetResult(true);
++                else if (Time.realtimeSinceStartupAsDouble >= deadline)
++                    completion.TrySetException(new TimeoutException("Camera did not deliver frames. Check device access and retry."));
++            }
++        }
++
++        private static bool HasReadableVisualCameraFrame(WebCamTexture camera)
++        {
++            if (!camera.isPlaying || camera.width <= 16 || camera.height <= 16) return false;
++            try
++            {
++                var pixels = camera.GetPixels32();
++                return pixels != null && pixels.LongLength == (long)camera.width * camera.height;
++            }
++            catch (UnityException) { return false; } // Device may be negotiating its first readable buffer.
 +        }
 +
 +        private void ReleaseVisualCamera()
@@ -479,7 +510,7 @@
          private int _wakePreviewRevision;
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,77 @@
 +using System;
 +using MNN.Unity;
 +using UnityEngine;
@@ -531,23 +562,11 @@
 +            }
 +            new SettingsForm(this).Number("Camera startup timeout (s)", "Keep the loading interface visible while waiting for camera frames.",
 +                () => camera.startupTimeoutSeconds, value => camera.startupTimeoutSeconds = value, 1, 120);
-+            AddBoolField("Camera preview", "Show the active camera here. Opening settings never starts capture; enable visual presence and save first.",
-+                () => camera.showPreview, enabled => UpdateAudioSettings(() => camera.showPreview = enabled));
 +            _cameraSettingsStatus = Label(_settingsContent, "", 16, Muted);
 +            _cameraSettingsStatus.name = "Camera Status";
 +            _cameraSettingsStatus.gameObject.AddComponent<LayoutElement>().minHeight = 64;
 +            var retry = SettingsButton(_settingsContent, "Retry camera", GlassInset, Ink, 17);
 +            FixedHeight(retry.gameObject, 44); retry.onClick.AddListener(() => { if (!_editorPreview) _chat?.RetryVisualCamera(); });
-+            _cameraSettingsPreview = null; _cameraSettingsAspect = null;
-+            if (camera.showPreview)
-+            {
-+                var frame = RectObject("Camera Preview", _settingsContent);
-+                FixedHeight(frame.gameObject, 200);
-+                var preview = RectObject("Live Camera", frame);
-+                _cameraSettingsPreview = preview.gameObject.AddComponent<RawImage>(); _cameraSettingsPreview.raycastTarget = false;
-+                _cameraSettingsAspect = preview.gameObject.AddComponent<AspectRatioFitter>();
-+                _cameraSettingsAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-+            }
 +            TickCameraSettings();
 +        }
 +
@@ -561,10 +580,11 @@
 +            bool ready = !_editorPreview && camera != null && camera.isPlaying && camera.width > 16;
 +            _cameraSettingsPreview.enabled = ready;
 +            _cameraSettingsPreview.texture = ready ? camera : null;
-+            if (!ready) return;
-+            _cameraSettingsPreview.uvRect = camera.videoVerticallyMirrored ? new Rect(0, 1, 1, -1) : new Rect(0, 0, 1, 1);
-+            _cameraSettingsPreview.rectTransform.localEulerAngles = new Vector3(0, 0, -camera.videoRotationAngle);
-+            _cameraSettingsAspect.aspectRatio = (float)camera.width / camera.height;
++            if (ready) LayoutCameraPreview(camera.width, camera.height, camera.videoRotationAngle, camera.videoVerticallyMirrored);
++            var interaction = _chat?.Interaction;
++            bool detecting = interaction != null && interaction.ReadSettings().visualPresence;
++            UpdateCameraOverlay(ready && detecting ? interaction.Camera.LatestObservation : null,
++                detecting ? interaction.Presence.Current : default, Time.realtimeSinceStartupAsDouble, ready && detecting);
 +        }
 +    }
 +}
@@ -583,8 +603,160 @@
 +  assetBundleName: 
 +  assetBundleVariant: 
 --- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs
+@@ -0,0 +1,135 @@
++using System.Collections.Generic;
++using MNN.Unity;
++using UnityEngine;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private sealed class CameraDetectionBox
++        {
++            public RectTransform Root;
++            public Text Caption;
++            public Image[] Edges;
++        }
++
++        private RectTransform _cameraPreviewSurface;
++        private Text _cameraPresenceStatus;
++        private readonly List<CameraDetectionBox> _cameraDetectionBoxes = new List<CameraDetectionBox>();
++        private static readonly Color CameraConfirmed = new Color(.22f, 1, .58f);
++        private static readonly Color CameraPending = new Color(1, .78f, .25f);
++        private static readonly Color CameraDetected = new Color(.3f, .8f, 1);
++
++        private void BuildCameraPreview()
++        {
++            _cameraDetectionBoxes.Clear();
++            var frame = RectObject("Camera Preview", _settingsContent);
++            FixedHeight(frame.gameObject, 260);
++            var background = frame.gameObject.AddComponent<Image>();
++            background.color = new Color(.035f, .045f, .06f); background.raycastTarget = false;
++            _cameraPreviewSurface = RectObject("Upright Camera Surface", frame);
++            Stretch(_cameraPreviewSurface);
++            _cameraSettingsAspect = _cameraPreviewSurface.gameObject.AddComponent<AspectRatioFitter>();
++            _cameraSettingsAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
++            _cameraSettingsAspect.aspectRatio = 16f / 9;
++            var preview = RectObject("Live Camera", _cameraPreviewSurface);
++            _cameraSettingsPreview = preview.gameObject.AddComponent<RawImage>();
++            _cameraSettingsPreview.raycastTarget = false; _cameraSettingsPreview.enabled = false;
++            _cameraPresenceStatus = Label(frame, "Enable visual presence and save to see live detection.", 15, Color.white);
++            _cameraPresenceStatus.name = "Presence Preview Status";
++            var badge = _cameraPresenceStatus.rectTransform;
++            badge.anchorMin = new Vector2(0, 1); badge.anchorMax = Vector2.one; badge.pivot = new Vector2(.5f, 1);
++            badge.offsetMin = new Vector2(12, -58); badge.offsetMax = new Vector2(-12, -8);
++            _cameraPresenceStatus.alignment = TextAnchor.UpperLeft;
++            _cameraPresenceStatus.gameObject.AddComponent<Shadow>().effectColor = Color.black;
++            Label(_settingsContent, "Live applied settings. Save changes to update detection.", 14, Muted);
++        }
++
++        private void LayoutCameraPreview(int width, int height, int rotation, bool mirrored)
++        {
++            bool quarterTurn = rotation % 180 != 0;
++            _cameraSettingsAspect.aspectRatio = quarterTurn ? (float)height / width : (float)width / height;
++            var raw = _cameraSettingsPreview.rectTransform;
++            raw.anchorMin = raw.anchorMax = raw.pivot = new Vector2(.5f, .5f);
++            raw.anchoredPosition = Vector2.zero;
++            var size = _cameraPreviewSurface.rect.size;
++            raw.sizeDelta = quarterTurn ? new Vector2(size.y, size.x) : size;
++            raw.localEulerAngles = new Vector3(0, 0, -rotation);
++            _cameraSettingsPreview.uvRect = mirrored ? new Rect(0, 1, 1, -1) : new Rect(0, 0, 1, 1);
++        }
++
++        private void UpdateCameraOverlay(MNNPresenceObservation? observation, MNNPresenceSnapshot presence, double now, bool ready)
++        {
++            for (int i = 0; i < _cameraDetectionBoxes.Count; ++i) _cameraDetectionBoxes[i].Root.gameObject.SetActive(false);
++            bool fresh = ready && observation.HasValue && now >= observation.Value.CapturedAt && now - observation.Value.CapturedAt <= .75;
++            var frame = fresh ? observation.Value.DetectionFrame : null;
++            bool admitted = fresh && presence.CanStartInteraction && presence.TrackId == observation.Value.TrackId;
++            _cameraPresenceStatus.color = admitted ? CameraConfirmed : CameraPending;
++            if (!ready)
++            {
++                _cameraPresenceStatus.text = Localize(_editorPreview ? "Preview only. Camera is not started." :
++                    _chat != null && _chat.IsVisualLoading ? _chat.VisualCameraStatus : "Enable visual presence and save to see live detection.");
++                return;
++            }
++            string state = PresencePreviewState(presence.State, admitted);
++            if (!fresh) { _cameraPresenceStatus.text = Localize("Waiting for fresh detection…") + " · " + state; return; }
++            _cameraPresenceStatus.text = (frame == null ? Localize("Detection boxes unavailable") :
++                frame.Detections.Count == 0 ? Localize("No face detected") : Localize("Faces") + ": " + frame.Detections.Count) + " · " + state;
++            if (frame == null) return;
++            for (int i = 0; i < System.Math.Min(32, frame.Detections.Count); ++i)
++            {
++                var detection = frame.Detections[i];
++                float left = Mathf.Clamp01(detection.X / frame.Width), right = Mathf.Clamp01((detection.X + detection.Width) / frame.Width);
++                float top = Mathf.Clamp01(detection.Y / frame.Height), bottom = Mathf.Clamp01((detection.Y + detection.Height) / frame.Height);
++                if (right <= left || bottom <= top) continue;
++                while (_cameraDetectionBoxes.Count <= i) _cameraDetectionBoxes.Add(CreateCameraDetectionBox());
++                var box = _cameraDetectionBoxes[i];
++                box.Root.gameObject.SetActive(true);
++                box.Root.anchorMin = new Vector2(left, 1 - bottom); box.Root.anchorMax = new Vector2(right, 1 - top);
++                box.Root.offsetMin = box.Root.offsetMax = Vector2.zero;
++                bool target = frame.SelectedIndex == i;
++                Color color = target ? admitted ? CameraConfirmed : CameraPending : CameraDetected;
++                foreach (var edge in box.Edges) edge.color = color;
++                box.Caption.color = color;
++                box.Caption.text = Localize(target ? "Target" : "Face") + " " + detection.Score.ToString("P0");
++            }
++        }
++
++        private string PresencePreviewState(MNNPresenceState state, bool admitted)
++        {
++            switch (state)
++            {
++                case MNNPresenceState.Present: return Localize(admitted ? "Ready to interact" : "Interaction not admitted");
++                case MNNPresenceState.Acquiring: return Localize("Confirming presence…");
++                case MNNPresenceState.Grace: return Localize("Brief absence · keeping interface");
++                case MNNPresenceState.Standby: return Localize("Standby");
++                default: return Localize("Sleeping · watching for return");
++            }
++        }
++
++        private CameraDetectionBox CreateCameraDetectionBox()
++        {
++            var root = RectObject("Detection Box", _cameraPreviewSurface);
++            var edges = new Image[4];
++            for (int i = 0; i < edges.Length; ++i)
++            {
++                var rect = RectObject("Box Edge", root);
++                bool horizontal = i < 2;
++                rect.anchorMin = horizontal ? new Vector2(0, i) : new Vector2(i - 2, 0);
++                rect.anchorMax = horizontal ? new Vector2(1, i) : new Vector2(i - 2, 1);
++                rect.sizeDelta = horizontal ? new Vector2(0, 2) : new Vector2(2, 0);
++                rect.anchoredPosition = Vector2.zero;
++                edges[i] = rect.gameObject.AddComponent<Image>(); edges[i].raycastTarget = false;
++            }
++            var caption = Label(root, "", 13, CameraDetected, false);
++            caption.name = "Detection Caption"; caption.raycastTarget = false;
++            caption.alignment = TextAnchor.UpperLeft;
++            caption.rectTransform.anchorMin = new Vector2(0, 1); caption.rectTransform.anchorMax = Vector2.one;
++            caption.rectTransform.pivot = Vector2.up;
++            caption.rectTransform.offsetMin = new Vector2(4, -24); caption.rectTransform.offsetMax = new Vector2(-4, -3);
++            caption.gameObject.AddComponent<Shadow>().effectColor = Color.black;
++            return new CameraDetectionBox {Root = root, Edges = edges, Caption = caption};
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: f4fc65a510fe4d189f1d4f6e9064fd6d
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+--- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,62 @@
 +using System;
 +using MNN.Unity;
 +
@@ -601,6 +773,7 @@
 +            { SettingsDescription("Add Acoustic Processing to configure visual interaction."); return; }
 +            var value = acoustics.interaction ?? (acoustics.interaction = new MNNInteractionSettings());
 +            AddSettingsTitle("Vision", "Changes apply after saving and restarting the conversation.");
++            BuildCameraPreview();
 +            AddBoolField("Visual presence", "Allow new voice interactions only while a confirmed target is visible.",
 +                () => value.visualPresence, enabled => UpdateAudioSettings(() => value.visualPresence = enabled));
 +            AddBoolField("Recognized identities only", "Requires enrolled identities and a ready recognition provider.",
@@ -985,11 +1158,26 @@
          public MNNConversationRecording Recording { get; }
 --- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
-@@ -8,6 +8,81 @@
+@@ -8,6 +8,96 @@
      {
          private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
          {
 +            { "Vision", "视觉" },
++            { "Enable visual presence and save to see live detection.", "开启视觉在场感知并保存，即可查看实时检测画面。" },
++            { "Live applied settings. Save changes to update detection.", "画面显示当前生效的检测效果；修改设置后请保存。" },
++            { "Waiting for fresh detection…", "正在等待新的检测结果…" },
++            { "Detection boxes unavailable", "当前模型未提供检测框" },
++            { "No face detected", "未检测到人脸" },
++            { "Faces", "人脸数" },
++            { "Target", "当前目标" },
++            { "Face", "人脸" },
++            { "Ready to interact", "已确认在场 · 可以对话" },
++            { "Interaction not admitted", "尚未允许交互" },
++            { "Confirming presence…", "正在确认在场…" },
++            { "Brief absence · keeping interface", "短暂离开 · 保持界面" },
++            { "Standby", "待机中" },
++            { "Sleeping · watching for return", "休眠中 · 等待返回" },
++
 +            { "Camera is off. Enable visual presence and save.", "摄像头已关闭。开启视觉在场感知并保存后会自动启动。" },
 +            { "Starting camera and visual models…", "正在启动摄像头并加载视觉模型…" },
 +            { "Waiting for camera and first visual observation…", "正在等待摄像头和首次视觉检测结果…" },
@@ -1157,7 +1345,7 @@
 +  assetBundleVariant: 
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,264 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Reflection;
@@ -1185,6 +1373,73 @@
 +            return null;
 +        }
 +        [Test]
++        public void VisionShowsCameraPreviewDirectlyWithoutAnExtraToggle()
++        {
++            var root = new GameObject("Direct visual feedback");
++            try
++            {
++                root.AddComponent<SiriAIChat>().enabled = false;
++                var view = root.AddComponent<SiriAIChatView>();
++                typeof(SiriAIChatView).GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
++                view.OpenSettings();
++                typeof(SiriAIChatView).GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                var content = (RectTransform)typeof(SiriAIChatView).GetField("_settingsContent", Private).GetValue(view);
++                var preview = Active(content, "Camera Preview");
++                Assert.That(preview, Is.Not.Null, "Vision should directly show the live preview surface without another switch.");
++                Assert.That(preview.GetComponentInChildren<RawImage>(), Is.Not.Null);
++                Assert.That(Active(content, "Camera preview"), Is.Null, "A second preview switch hides the requested immediate feedback.");
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void PreviewOverlaysUprightTargetAndExpiresStaleEvidence()
++        {
++            var root = new GameObject("Camera overlay feedback");
++            try
++            {
++                root.AddComponent<SiriAIChat>().enabled = false;
++                var view = root.AddComponent<SiriAIChatView>();
++                var type = typeof(SiriAIChatView);
++                type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
++                view.OpenSettings();
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                var constructor = typeof(MNNDetection).GetConstructors(Private)[0];
++                var box = (MNNDetection)constructor.Invoke(new object[] {0, "face", .9f, 160f, 120f, 320f, 240f});
++                var frame = new MNNPresenceDetectionFrame(640, 480, new[] {box}, 0);
++                var gate = new MNNPresenceController();
++                gate.Observe(new MNNPresenceObservation(1, MNNPresenceKind.Face, "target", .9f), 1);
++                var observation = new MNNPresenceObservation(1.4, MNNPresenceKind.Face, "target", .9f, null, frame);
++                var present = gate.Observe(observation, 1.4);
++                var update = type.GetMethod("UpdateCameraOverlay", Private);
++                update.Invoke(view, new object[] {observation, present, 1.4, true});
++                var surface = (RectTransform)type.GetField("_cameraPreviewSurface", Private).GetValue(view);
++                var outline = surface.Find("Detection Box") as RectTransform;
++                Assert.That(outline.gameObject.activeSelf, Is.True);
++                Assert.That(outline.anchorMin, Is.EqualTo(new Vector2(.25f, .25f)));
++                Assert.That(outline.anchorMax, Is.EqualTo(new Vector2(.75f, .75f)));
++                var status = (Text)type.GetField("_cameraPresenceStatus", Private).GetValue(view);
++                StringAssert.Contains("Ready to interact", status.text);
++                StringAssert.Contains("Target", outline.GetComponentInChildren<Text>().text);
++                Assert.That(outline.GetComponentInChildren<Image>().color.g, Is.EqualTo(1));
++                type.GetMethod("LayoutCameraPreview", Private).Invoke(view, new object[] {640, 480, 90, true});
++                var aspect = (AspectRatioFitter)type.GetField("_cameraSettingsAspect", Private).GetValue(view);
++                Assert.That(aspect.aspectRatio, Is.EqualTo(.75f));
++                var preview = (RawImage)type.GetField("_cameraSettingsPreview", Private).GetValue(view);
++                Assert.That(preview.uvRect, Is.EqualTo(new Rect(0, 1, 1, -1)));
++                update.Invoke(view, new object[] {observation, gate.Tick(1.5), 2.2, true});
++                Assert.That(outline.gameObject.activeSelf, Is.False, "Do not draw stale boxes over live video.");
++                StringAssert.Contains("Waiting for fresh detection", status.text);
++                var absent = MNNPresenceObservation.Absent(2.3, new MNNPresenceDetectionFrame(640, 480, new MNNDetection[0]));
++                update.Invoke(view, new object[] {absent, gate.Observe(absent, 2.3), 2.3, true});
++                StringAssert.Contains("No face detected", status.text);
++                update.Invoke(view, new object[] {null, gate.Tick(18), 18d, false});
++                Assert.That(outline.gameObject.activeSelf, Is.False);
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        [Test]
 +        public void VisionOffersCameraDeviceQualityTimingAndPreviewSettings()
 +        {
 +            var root = new GameObject("Visual camera settings");
@@ -1197,7 +1452,7 @@
 +                view.OpenSettings();
 +                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
 +                var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
-+                foreach (string label in new[] { "Camera", "Automatic camera quality", "Camera preview", "Refresh cameras" })
++                foreach (string label in new[] { "Camera", "Automatic camera quality", "Camera Preview", "Refresh cameras" })
 +                    Assert.That(Active(content, label), Is.Not.Null, label);
 +                Active(content, "Automatic camera quality").GetComponentInChildren<Button>().onClick.Invoke();
 +                foreach (string label in new[] { "Camera resolution", "Camera frame rate", "Detection frame rate", "Sleep detection frame rate", "Detection image size", "Camera startup timeout (s)" })

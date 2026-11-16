@@ -16,6 +16,7 @@ namespace MNN.Unity
         public int sleepFramesPerSecond = 2;
         public int maximumImageEdge = 640;
         public float startupTimeoutSeconds = 15;
+        /// <summary>Legacy persisted preference. SiriAI now always previews its active camera in Vision settings.</summary>
         public bool showPreview;
         public int RequestedWidth => automaticQuality ? 1280 : width;
         public int RequestedHeight => automaticQuality ? 720 : height;

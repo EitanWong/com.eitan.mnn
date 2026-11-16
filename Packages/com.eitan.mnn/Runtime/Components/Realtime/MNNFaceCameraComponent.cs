@@ -27,6 +27,9 @@ namespace MNN.Unity
         public event Action<MNNRgbImage, double> FrameCaptured;
         public event Action<Exception> Failed;
         public Task Completion => _pending ?? Task.CompletedTask;
+        /// <summary>Latest completed observation on the main thread; cleared on stop, failure or replacement.
+        /// Consumers must check CapturedAt before displaying geometry over a live frame.</summary>
+        public MNNPresenceObservation? LatestObservation { get; private set; }
 
         /// <summary>Main thread only. Does not request permissions, start the camera, load or dispose models.</summary>
         public void StartTracking(WebCamTexture camera, IMNNPresenceSource pipeline)
@@ -64,6 +67,7 @@ namespace MNN.Unity
 
         private void StopTracking()
         {
+            LatestObservation = null;
             var cancellation = _cancellation;
             _cancellation = null;
             _camera = null;
@@ -92,6 +96,7 @@ namespace MNN.Unity
                 if (!completed.IsCanceled && _pipeline != null)
                 {
                     var result = completed.Result;
+                    LatestObservation = result;
                     if (_presence != null) _presence.Report(result);
                     Observation?.Invoke(result);
                 }

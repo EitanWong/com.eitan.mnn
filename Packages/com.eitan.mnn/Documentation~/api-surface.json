@@ -16030,6 +16030,13 @@
     "Summary": ""
   },
   {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNFaceCameraComponent.LatestObservation",
+    "Signature": "public MNN.Unity.MNNPresenceObservation? MNN.Unity.MNNFaceCameraComponent.LatestObservation { get; private set; }",
+    "Summary": "Latest completed observation on the main thread; cleared on stop, failure or replacement. Consumers must check CapturedAt before displaying geometry over a live frame."
+  },
+  {
     "Assembly": "MNN.Unity.Harnesses.Components",
     "Domain": "Components",
     "Id": "P:MNN.Unity.MNNHarnessBackendSetup.AutomaticDetection",
@@ -40597,7 +40604,7 @@
     "Domain": "Vision",
     "Id": "F:MNN.Unity.MNNCameraSettings.showPreview",
     "Signature": "public bool MNN.Unity.MNNCameraSettings.showPreview",
-    "Summary": ""
+    "Summary": "Legacy persisted preference. SiriAI now always previews its active camera in Vision settings."
   },
   {
     "Assembly": "MNN.Unity",
@@ -41778,6 +41785,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceDetectionFrame.#ctor(System.Int32,System.Int32,System.Collections.Generic.IReadOnlyList{MNN.Unity.MNNDetection},System.Int32)",
+    "Signature": "public MNN.Unity.MNNPresenceDetectionFrame.MNNPresenceDetectionFrame(int width, int height, System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNDetection\u003E detections, int selectedIndex = -1)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNPresenceKind.#ctor",
     "Signature": "public MNN.Unity.MNNPresenceKind.MNNPresenceKind()",
     "Summary": ""
@@ -41799,8 +41813,22 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceObservation.#ctor(System.Double,MNN.Unity.MNNPresenceKind,System.String,System.Single,System.String,MNN.Unity.MNNPresenceDetectionFrame)",
+    "Signature": "public MNN.Unity.MNNPresenceObservation.MNNPresenceObservation(double capturedAt, MNN.Unity.MNNPresenceKind kind, string trackId, float confidence, string identity, MNN.Unity.MNNPresenceDetectionFrame detectionFrame)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNPresenceObservation.Absent(System.Double)",
     "Signature": "public static MNN.Unity.MNNPresenceObservation MNN.Unity.MNNPresenceObservation.Absent(double capturedAt)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNPresenceObservation.Absent(System.Double,MNN.Unity.MNNPresenceDetectionFrame)",
+    "Signature": "public static MNN.Unity.MNNPresenceObservation MNN.Unity.MNNPresenceObservation.Absent(double capturedAt, MNN.Unity.MNNPresenceDetectionFrame detectionFrame)",
     "Summary": ""
   },
   {
@@ -42422,6 +42450,34 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceDetectionFrame.Detections",
+    "Signature": "public System.Collections.Generic.IReadOnlyList\u003CMNN.Unity.MNNDetection\u003E MNN.Unity.MNNPresenceDetectionFrame.Detections { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceDetectionFrame.Height",
+    "Signature": "public int MNN.Unity.MNNPresenceDetectionFrame.Height { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceDetectionFrame.SelectedIndex",
+    "Signature": "public int MNN.Unity.MNNPresenceDetectionFrame.SelectedIndex { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceDetectionFrame.Width",
+    "Signature": "public int MNN.Unity.MNNPresenceDetectionFrame.Width { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "P:MNN.Unity.MNNPresenceObservation.CapturedAt",
     "Signature": "public double MNN.Unity.MNNPresenceObservation.CapturedAt { get; }",
     "Summary": ""
@@ -42431,6 +42487,13 @@
     "Domain": "Vision",
     "Id": "P:MNN.Unity.MNNPresenceObservation.Confidence",
     "Signature": "public float MNN.Unity.MNNPresenceObservation.Confidence { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNPresenceObservation.DetectionFrame",
+    "Signature": "public MNN.Unity.MNNPresenceDetectionFrame MNN.Unity.MNNPresenceObservation.DetectionFrame { get; }",
     "Summary": ""
   },
   {
@@ -42831,6 +42894,13 @@
     "Id": "T:MNN.Unity.MNNPresenceController",
     "Signature": "class MNN.Unity.MNNPresenceController",
     "Summary": "Single-owner policy, independent of camera, inference, UI and Unity time scale. Observe on new sensor results; Tick even if the camera stalls. Busy means an existing turn, never new admission."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNPresenceDetectionFrame",
+    "Signature": "class MNN.Unity.MNNPresenceDetectionFrame",
+    "Summary": "Owned detection geometry in the upright RGB image\u0027s top-left pixel coordinates. Carries display evidence only; boxes never grant presence or identity admission."
   },
   {
     "Assembly": "MNN.Unity",

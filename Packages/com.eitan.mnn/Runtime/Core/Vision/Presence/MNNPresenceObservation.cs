@@ -14,9 +14,14 @@ namespace MNN.Unity
         public string TrackId { get; }
         public string Identity { get; }
         public float Confidence { get; }
+        public MNNPresenceDetectionFrame DetectionFrame { get; }
 
         public MNNPresenceObservation(double capturedAt, MNNPresenceKind kind, string trackId,
             float confidence, string identity = null)
+            : this(capturedAt, kind, trackId, confidence, identity, null) { }
+
+        public MNNPresenceObservation(double capturedAt, MNNPresenceKind kind, string trackId,
+            float confidence, string identity, MNNPresenceDetectionFrame detectionFrame)
         {
             MNNPresenceOptions.RequireTime(capturedAt, nameof(capturedAt));
             if (kind < MNNPresenceKind.None || kind > MNNPresenceKind.Face)
@@ -30,10 +35,14 @@ namespace MNN.Unity
             TrackId = trackId;
             Confidence = confidence;
             Identity = identity;
+            DetectionFrame = detectionFrame;
         }
 
         public static MNNPresenceObservation Absent(double capturedAt) =>
             new MNNPresenceObservation(capturedAt, MNNPresenceKind.None, null, 0);
+
+        public static MNNPresenceObservation Absent(double capturedAt, MNNPresenceDetectionFrame detectionFrame) =>
+            new MNNPresenceObservation(capturedAt, MNNPresenceKind.None, null, 0, null, detectionFrame);
     }
 
     public readonly struct MNNPresenceSnapshot
