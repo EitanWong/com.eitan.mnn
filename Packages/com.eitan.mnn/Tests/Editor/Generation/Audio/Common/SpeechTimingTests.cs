@@ -67,6 +67,34 @@ namespace MNN.Unity.Tests
         }
 
         [Test]
+        public void DecoderDcBiasDoesNotHideBoundarySilence()
+        {
+            var input = new float[Rate];
+            // Hojo's decoder starts with a small, slowly decaying DC offset. Its
+            // absolute RMS exceeds the silence gate before speech actually starts.
+            for (int i = 0; i < Rate / 3; ++i)
+                input[i] = .0023f * (float)Math.Exp(-i / (Rate * .025));
+            var speech = Tone(Rate / 3, 220);
+            Array.Copy(speech, 0, input, Rate / 3, speech.Length);
+            var output = MNNSpeechDsp.TrimSpeechEdges(input, Rate, default);
+            Assert.AreEqual(Rate * 44 / 100, output.Length);
+            CollectionAssert.AreEqual(input.Skip(Rate * 31 / 100).Take(output.Length), output);
+            CollectionAssert.AreEqual(speech, output.Skip(Rate / 3 - Rate * 31 / 100).Take(speech.Length));
+        }
+
+        [Test]
+        public void DcBiasTrimmingPreservesSoftOnsetAndRelease()
+        {
+            var input = Enumerable.Repeat(.002f, Rate).ToArray();
+            var soft = Tone(Rate / 10, 330).Select(x => x * .01f).ToArray();
+            Array.Copy(soft, 0, input, Rate * 3 / 10, soft.Length);
+            Array.Copy(Tone(Rate / 5, 220), 0, input, Rate * 4 / 10, Rate / 5);
+            Array.Copy(soft, 0, input, Rate * 6 / 10, soft.Length);
+            var output = MNNSpeechDsp.TrimSpeechEdges(input, Rate, default);
+            CollectionAssert.AreEqual(input.Skip(Rate * 28 / 100).Take(Rate / 2), output);
+        }
+
+        [Test]
         public void TimingOperationsHonorCancellation()
         {
             var token = new CancellationToken(true);

@@ -30,14 +30,20 @@ namespace MNN.Unity
 
         private static bool IsSpeechWindow(float[] audio, int first, int last)
         {
-            double energy = 0;
-            float peak = 0;
+            double energy = 0, sum = 0;
+            float minimum = float.PositiveInfinity, maximum = float.NegativeInfinity;
             for (int i = first; i < last; ++i)
             {
+                sum += audio[i];
                 energy += (double)audio[i] * audio[i];
-                peak = Math.Max(peak, Math.Abs(audio[i]));
+                minimum = Math.Min(minimum, audio[i]);
+                maximum = Math.Max(maximum, audio[i]);
             }
-            return peak > .003162278f || energy > (last - first) * 1e-6;
+            // Decoder DC bias is not speech. Classify the AC signal without
+            // altering PCM, so a biased quiet onset cannot hide the leading pad.
+            double mean = sum / (last - first);
+            double peak = Math.Max(maximum - mean, mean - minimum);
+            return peak > .003162278f || energy - sum * mean > (last - first) * 1e-6;
         }
 
         // Waveform similarity overlap-add (WSOLA). Analysis advances at the requested

@@ -41,20 +41,41 @@ namespace MNN.Unity.Tests
                 var actual = runner.Synthesize(text);
                 Assert.AreEqual(24000, actual.SampleRate);
                 Assert.Less(actual.Waveform.Length, original.Waveform.Length * .9);
-                Assert.Greater(actual.Waveform.Length, original.Waveform.Length * .7);
+                Assert.Greater(actual.Waveform.Length, 24000, "Speech output must remain nontrivial.");
+                // The decoder's initial DC offset must not retain its silent pad.
+                // Use AC energy so the test measures speech onset rather than bias.
+                int onset = actual.Waveform.Length;
+                for (int i = 0; i + 240 <= actual.Waveform.Length; i += 240)
+                {
+                    double sum = 0, energy = 0;
+                    for (int j = i; j < i + 240; ++j)
+                    {
+                        sum += actual.Waveform[j];
+                        energy += (double)actual.Waveform[j] * actual.Waveform[j];
+                    }
+                    if (energy - sum * sum / 240 <= 240e-6) continue;
+                    onset = i;
+                    break;
+                }
+                Assert.LessOrEqual(onset / 24000d, .04, "Each segment must begin speaking promptly.");
                 // Last audible 10 ms window must have a short, nonzero release for joining.
                 int last = 0;
                 for (int i = 0; i < actual.Waveform.Length; i += 240)
                 {
                     int count = Math.Min(240, actual.Waveform.Length - i);
-                    double energy = 0;
-                    float peak = 0;
+                    double energy = 0, sum = 0;
+                    float minimum = float.PositiveInfinity, maximum = float.NegativeInfinity;
                     for (int j = i; j < i + count; ++j)
                     {
-                        energy += (double)actual.Waveform[j] * actual.Waveform[j];
-                        peak = Math.Max(peak, Math.Abs(actual.Waveform[j]));
+                        float value = actual.Waveform[j];
+                        sum += value;
+                        energy += (double)value * value;
+                        minimum = Math.Min(minimum, value);
+                        maximum = Math.Max(maximum, value);
                     }
-                    if (peak > .003162278f || energy > count * 1e-6) last = i + count;
+                    double mean = sum / count;
+                    double peak = Math.Max(maximum - mean, mean - minimum);
+                    if (peak > .003162278f || energy - sum * mean > count * 1e-6) last = i + count;
                 }
                 double release = (actual.Waveform.Length - last) / 24000d;
                 TestContext.WriteLine("RAW_SECONDS=" + original.Waveform.Length / 24000d + ";NATURAL_SECONDS=" + actual.Waveform.Length / 24000d +
