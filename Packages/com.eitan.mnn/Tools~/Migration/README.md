@@ -391,3 +391,24 @@ Turn Detection 的 Provider；旧 profile 中错误的 false 标志会修复并�
 Omni 表示模型直接接受音频并生成语音，不等于模型原生 Full-duplex。MiniMind-o
 发布权重仍按完整轮次推理；此补丁不会把它升级为持续输入输出的全双工模型。
 详见 [MiniMind-o](../../Documentation~/MiniMindO.md)。
+
+## 2026-11-16：初始化引导体验
+
+本地 SiriAI 已改为复用共享安装清单判断所选模型文件是否完整：权限通过且模型完整时，
+跳过下载页直接进入主界面初始化；仍缺少模型时提供明确下载、后台继续和重试操作。
+文件检查不代表模型已通过原生加载验证；完整性校验和加载仍由正常启动流程执行。
+已运行的会话跳过准备页。必要权限仍须先授予。
+
+引导加入四阶段矢量图标、模式选择卡片、阶段淡入、初始化呼吸/旋转反馈、真实下载进度，
+以及深浅主题、中文和减少动态效果支持。新的图标与动画均使用现有 Unity UI，无额外依赖。
+
+匹配 `SiriAIOnboardingExperience.files.json` 基线的导入版本可运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage onboarding
+```
+
+补丁保留现有 GUID；脚本逐文件验证修改前后 SHA-256，重复运行不写入，版本不符拒绝修改。
+验证包括 Unity 引导行为与 GPU 界面检查、同输入修改前/修改后/回滚对照和补丁重建。
+测试不下载模型；安装检查使用固定文件夹具，运行时交接使用托管云端/音频替身，
+不作为原生推理或设备授权的验证。

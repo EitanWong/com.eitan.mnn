@@ -1,0 +1,834 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.cs
+@@ -350,9 +350,17 @@
+ 
+         private void BeginPreparationProgress(SiriAIBackendConfiguration config, MNNRealtimeRoute? route = null)
+         {
++            Volatile.Write(ref _preparationDownloads, ReadPreparationFiles(config, ModelsDirectory, route));
++            Volatile.Write(ref _preparationStatus, "Preparing model and audio…");
++        }
++
++        // The guide and preparation share the exact same stage/file inventory.
++        // This checks file presence and size; startup still verifies and loads the models.
++        internal bool HasConfiguredModelFiles(string root) => ReadPreparationFiles(configuration, root).Read().DownloadModels == 0;
++
++        private SiriAIModelDownloadProgress ReadPreparationFiles(SiriAIBackendConfiguration config, string root, MNNRealtimeRoute? route = null)
++        {
+             var downloads = new SiriAIModelDownloadProgress();
+-            Volatile.Write(ref _preparationDownloads, downloads);
+-            Volatile.Write(ref _preparationStatus, "Preparing model and audio…");
+             var plan = route.HasValue ? SiriAIStagePlan.ForRoute(config, route.Value) : SiriAIStagePlan.ForRoutes(config, Excluded(config));
+             foreach (var stage in plan.Endpoints(config))
+             {
+@@ -362,7 +370,7 @@
+                 var manifest = endpoint.HasRemoteModel ? null : FindAssignedManifest(endpoint);
+                 if (manifest != null)
+                 {
+-                    string directory = MNNModelAssetDownloader.ResolvePath(ModelsDirectory, manifest.modelId);
++                    string directory = MNNModelAssetDownloader.ResolvePath(root, manifest.modelId);
+                     bool exists = manifest.files != null && manifest.files.Length > 0 &&
+                         Array.TrueForAll(manifest.files, file => file != null && File.Exists(MNNModelAssetDownloader.ResolvePath(directory, file.path)) &&
+                             new FileInfo(MNNModelAssetDownloader.ResolvePath(directory, file.path)).Length == file.bytes);
+@@ -371,11 +379,12 @@
+                 else
+                 {
+                     var entry = SiriAIModelCatalog.Resolve(endpoint);
+-                    string key = SiriAIModelInstallation.DirectoryFor(ModelsDirectory, entry.remote);
++                    string key = SiriAIModelInstallation.DirectoryFor(root, entry.remote);
+                     downloads.Add(key, entry.modelId, ModelSource(entry), entry.bytes,
+-                        SiriAIModelInstallation.HasLocalFiles(ModelsDirectory, entry.remote) ? key : null);
+-                }
+-            }
++                        SiriAIModelInstallation.HasLocalFiles(root, entry.remote) ? key : null);
++                }
++            }
++            return downloads;
+         }
+ 
+         private static long ManifestBytes(SiriAIModelManifest manifest)
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs
+@@ -39,6 +39,7 @@
+                 () => { _setupDragging = false; });
+             _setupTitle = Label(_setupCard, "Welcome to SiriAI", 26, Ink);
+             _setupStepLabel = Label(_setupCard, "", 15, Muted);
++            BuildSetupVisuals();
+             _setupScrollRect = RectObject("Setup Scroll", _setupCard);
+             _setupScroll = _setupScrollRect.gameObject.AddComponent<ScrollRect>();
+             _setupScroll.horizontal = false; _setupScroll.movementType = ScrollRect.MovementType.Clamped;
+@@ -59,6 +60,7 @@
+             _setupBack = SetupButton(_setupFooter, "Back");
+             _setupBack.onClick.AddListener(() => { if (_setupFlow.MoveBack()) RenderSetupWizard(); });
+             _setupNext = SetupButton(_setupFooter, "Continue");
++            StyleSetupPrimary(_setupNext);
+             _setupNext.onClick.AddListener(NextSetupStep);
+             LayoutSetupWizard();
+         }
+@@ -72,7 +74,8 @@
+             _setupTransition.UnifiedContentReveal = true;
+             _setupRoot.GetComponent<Image>().color = new Color(0, .01f, .03f, IsDesktopMode ? 0f : .42f);
+             _setupTransition.Configure(null, () => SettingsMotion, SettingsSheetRadius, _setupRoot.GetComponent<Image>(),
+-                _setupTitle.rectTransform, _setupStepLabel.rectTransform, _setupScrollRect, _setupFooter);
++                _setupHero, _setupTitle.rectTransform, _setupStepLabel.rectTransform, _setupStageRail,
++                _setupStageProgress, _setupScrollRect, _setupFooter);
+         }
+ 
+         private void AnimateSetupClose(Action complete)
+@@ -106,6 +109,7 @@
+         private Button SetupButton(Transform parent, string title, int size = 17)
+         {
+             var button = ButtonObject(parent, title, GlassInset, Ink, size);
++            button.GetComponentInChildren<Text>().fontStyle = FontStyle.Normal;
+             if (_setupControlMaterial != null) button.targetGraphic.material = _setupControlMaterial;
+             return button;
+         }
+@@ -123,14 +127,18 @@
+             _setupOffset.y = Mathf.Clamp(_setupOffset.y, -(available.height - height) * .5f + inset, (available.height - height) * .5f - inset);
+             Place(_setupCard, new Rect(available.center.x - width * .5f + _setupOffset.x, available.center.y - height * .5f + _setupOffset.y, width, height));
+             Place(_setupDragHeader, new Rect(0, height - 96, width, 96));
+-            Place(_setupTitle.rectTransform, new Rect(20, height - 60, width - 40, 36));
+-            _setupTitle.fontSize = width < 360 ? 22 : 26;
+-            Place(_setupStepLabel.rectTransform, new Rect(20, height - 88, width - 40, 24));
+-            Place(_setupScrollRect, new Rect(16, 84, width - 32, Mathf.Max(0, height - 180)));
++            Place(_setupTitle.rectTransform, new Rect(96, height - 60, width - 116, 36));
++            _setupTitle.fontSize = width < 420 ? 20 : 26;
++            _setupTitle.resizeTextForBestFit = true; _setupTitle.resizeTextMinSize = 15; _setupTitle.resizeTextMaxSize = _setupTitle.fontSize;
++            Place(_setupStepLabel.rectTransform, new Rect(96, height - 88, width - 116, 24));
++            LayoutSetupVisuals(width, height);
++            Place(_setupScrollRect, new Rect(20, 84, width - 40, Mathf.Max(0, height - 240)));
+             Place(_setupFooter, new Rect(20, 20, width - 40, 44));
+             float buttonWidth = Mathf.Max(0, (width - 52) * .5f);
+             Place((RectTransform)_setupBack.transform, new Rect(0, 0, buttonWidth, 44));
+             Place((RectTransform)_setupNext.transform, new Rect(buttonWidth + 12, 0, buttonWidth, 44));
++            if (_setupFlow?.Step == SiriAISetupStep.Welcome)
++                Place((RectTransform)_setupNext.transform, new Rect(0, 0, width - 40, 44));
+             _setupTransition?.CaptureExpandedBounds();
+             _setupRoot.SetAsLastSibling();
+         }
+@@ -159,20 +167,19 @@
+                 child.gameObject.SetActive(false); Release(child.gameObject);
+             }
+             Array.Clear(_setupPermissionStatus, 0, 4); Array.Clear(_setupPermissionRequest, 0, 4);
+-            _setupDetails = null; _setupPrepare = null;
++            _setupDetails = null; _setupPrepare = null; _setupTransferFill = null; _setupProgressLabel = null;
+             switch (_setupFlow.Step)
+             {
+                 case SiriAISetupStep.Welcome:
+-                    SetupDescription("Choose how SiriAI answers. Local uses the recommended model; Cloud API starts with text without local model downloads; Hybrid combines local and cloud answers. You can enable voice later in Settings.");
+-                    SetupAction("Local model", () => SelectSetupMode(0));
+-                    SetupAction("Cloud API", () => SelectSetupMode(1));
+-                    SetupAction("Hybrid", () => SelectSetupMode(2));
++                    SetupDescription("A few simple steps, then make yourself at home.", 20);
+                     int selected = _chat.Backend is SiriAIConfigurableBackend backend ? SiriAIAnswerProcessing.Selected(backend.GetConfiguration()) : 0;
+-                    SetupDescription(LocalizeFormat("Selected: {0}", Localize(new[] { "Local model", "Cloud API", "Hybrid" }[selected])));
++                    SetupModeAction("Local model", "Private, on-device conversations", SiriAIActionGlyph.Models, 0, selected);
++                    SetupModeAction("Cloud API", "Connect your service and start with text", SiriAIActionGlyph.Conversation, 1, selected);
++                    SetupModeAction("Hybrid", "Local and cloud, working together", SiriAIActionGlyph.Orb, 2, selected);
+                     if (selected != 1 && _chat.Backend is SiriAIConfigurableBackend recommended)
+                         SetupDescription(LocalizeFormat("Recommended local model: {0}. You can change it later in Settings.", recommended.GetConfiguration().model.model));
+                     SetupAction("Configure cloud API", ConfigureSetup);
+-                    SetupDescription("You can return to this guide from Settings at any time. Your configuration is saved on this device.");
++                    SetupDescription("Already downloaded? We will reuse your models and take you straight in.", 15);
+                     break;
+                 case SiriAISetupStep.Configuration:
+                     SetupDescription("Choose local models or a cloud service in Settings. Review the model, audio device, language and API credentials, then save and return here.");
+@@ -182,10 +189,12 @@
+                 case SiriAISetupStep.Permissions:
+                     BuildSetupPermissions(); break;
+                 case SiriAISetupStep.Preparation:
+-                    SetupDescription("Prepare now, or skip this step. Preparation can continue in the main window; completed downloads are reused after a retry.");
+-                    SetupDescription("Cloud API text does not need local models. Hybrid needs its local model before hybrid routing is available. Configure the cloud service and API key in Settings.");
++                    SetupDescription("Let's get your assistant ready.", 20);
++                    SetupDescription("Only missing models need downloading. You can enter the app while preparation continues.");
++                    BuildSetupTransferProgress();
+                     _setupDetails = SetupDescription("Ready to prepare");
+                     _setupPrepare = SetupAction("Download and initialize", PrepareSetup);
++                    StyleSetupPrimary(_setupPrepare);
+                     SetupAction("Review configuration", ConfigureSetup);
+                     SetupAction("Skip download and continue", SkipSetupDownload);
+                     break;
+@@ -195,10 +204,12 @@
+             }
+             _setupError = SetupDescription("", 15);
+             _setupRenderedStep = _setupFlow.Step;
++            BeginSetupStepReveal();
+             BindGlassLayers(_setupRoot);
+             if (!_editorPreview && !_setupPermissionsOnly && !SiriAISetupStore.Completed) SiriAISetupStore.SaveStep(_setupFlow.Step);
+             _setupScroll.verticalNormalizedPosition = 1;
+             LayoutRebuilder.ForceRebuildLayoutImmediate(_setupContent);
++            LayoutSetupWizard();
+         }
+ 
+         private void BuildSetupPermissions()
+@@ -246,14 +257,16 @@
+             string[] titles = { "Welcome to SiriAI", "Models and services", "Permissions", "Download and initialize", "Setup complete" };
+             bool macPermissions = _setupFlow.Step == SiriAISetupStep.Permissions && Application.platform == RuntimePlatform.OSXPlayer;
+             SetTextIfChanged(_setupTitle, macPermissions ? "macOS permissions" : titles[(int)_setupFlow.Step]);
+-            SetTextIfChanged(_setupStepLabel, LocalizeFormat("Step {0} of {1}", _setupFlow.Step == SiriAISetupStep.Welcome ? 1 : (int)_setupFlow.Step, 4));
++            SetTextIfChanged(_setupStepLabel, LocalizeFormat("Step {0} of {1}", SetupStageIndex + 1, 4));
++            _setupBack.gameObject.SetActive(_setupFlow.Step > SiriAISetupStep.Welcome);
+             _setupBack.interactable = !_setupPreparing && !_setupRequestBusy && _setupFlow.Step > SiriAISetupStep.Welcome;
+             _setupNext.interactable = !_setupRequestBusy && (_setupFlow.CanFinish || (!_setupPreparing || _setupFlow.Step != SiriAISetupStep.Preparation) && _setupFlow.CanAdvance);
+-            SetTextIfChanged(_setupNext.GetComponentInChildren<Text>(), _setupFlow.CanFinish ? "Finish setup" : "Continue");
++            SetTextIfChanged(_setupNext.GetComponentInChildren<Text>(), _setupFlow.CanFinish ? "Start using SiriAI" :
++                _setupPreparing ? "Preparing…" : _setupRequestBusy ? "Checking access…" : "Continue");
+             for (int i = 0; i < 4; ++i) RefreshSetupPermissionRow(i);
+             RefreshSetupPreparation();
+             SetTextIfChanged(_setupError, _setupFailure ?? "");
+-            _setupError.gameObject.SetActive(false);
++            _setupError.gameObject.SetActive(!string.IsNullOrEmpty(_setupFailure));
+             PresentSetupFailure(_setupFailure);
+             AutoRequestSetupPermissions();
+         }
+@@ -277,9 +290,15 @@
+                 ? _chat.AudioEndpoint?.AudioPreparationDownloads ?? backend?.PreparationDownloads : backend?.PreparationDownloads;
+             string details = SetupRuntimeReady ? Localize("Ready") : _setupPreparing ? Localize(backend?.PreparationStatus ?? "Preparing model") : Localize("Ready to prepare");
+             if (downloads != null && downloads.TotalModels > 0)
+-                details += "\n\n" + LocalizedDownloadSummary(downloads) + "\n" + LocalizedDownloadDetails(downloads);
++                details += "\n\n" + LocalizedDownloadSummary(downloads) + "\n" +
++                    Localize(SiriAIModelDownloadProgress.PhaseText(downloads.State)) + " · " + downloads.ModelName;
++            _setupTransferTarget = SetupRuntimeReady ? 1 : downloads?.Fraction ?? (_setupPreparing ? -1 : 0);
++            bool loading = downloads != null && downloads.CompleteModels == downloads.TotalModels && _setupPreparing;
++            SetTextIfChanged(_setupProgressLabel, SetupRuntimeReady ? "Ready" : loading ? "Initializing your assistant…" :
++                _setupPreparing ? "Preparing your assistant…" : _chat.CanRetryPreparation ? "Preparation needs attention" : "Ready to prepare");
+             SetTextIfChanged(_setupDetails, details);
+-            SetTextIfChanged(_setupPrepare.GetComponentInChildren<Text>(), _chat.CanRetryPreparation ? "Retry preparation" : "Download and initialize");
++            SetTextIfChanged(_setupPrepare.GetComponentInChildren<Text>(), _setupPreparing ? "Preparing…" :
++                _chat.CanRetryPreparation ? "Retry preparation" : "Download and initialize");
+         }
+     }
+ }
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.Visuals.cs
+@@ -0,0 +1,171 @@
++using UnityEngine;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private static readonly Color SetupTint = new Color(.48f, .65f, 1f, 1f);
++        private RectTransform _setupHero, _setupStageRail, _setupStageProgress, _setupTransferFill;
++        private SiriAIActionIcon _setupHeroIcon;
++        private SiriAIRoundedRect _setupStageFill;
++        private readonly SiriAIActionIcon[] _setupStageIcons = new SiriAIActionIcon[4];
++        private readonly Text[] _setupStageNames = new Text[4];
++        private CanvasGroup _setupContentReveal;
++        private Text _setupProgressLabel;
++        private float _setupReveal = 1f, _setupStageAmount, _setupTransferAmount;
++        private float _setupTransferTarget = -1f;
++        private static readonly string[] SetupStageNames = { "Welcome", "Permissions", "Models", "Ready" };
++        private static readonly SiriAIActionGlyph[] SetupStageGlyphs = {
++            SiriAIActionGlyph.Orb, SiriAIActionGlyph.Keyboard, SiriAIActionGlyph.Models, SiriAIActionGlyph.Check };
++
++        private int SetupStageIndex => _setupFlow.Step == SiriAISetupStep.Welcome ? 0 :
++            _setupFlow.Step == SiriAISetupStep.Ready ? 3 : _setupFlow.Step == SiriAISetupStep.Preparation ? 2 : 1;
++
++        private void StyleSetupPrimary(Button button)
++        {
++            if (_primaryGlassMaterial != null) button.targetGraphic.material = _primaryGlassMaterial;
++            SetAppearanceColor(button.targetGraphic, new Color(.25f, .43f, .92f, .94f));
++            SetAppearanceColor(button.GetComponentInChildren<Text>(), Ink);
++        }
++
++        private void BuildSetupVisuals()
++        {
++            _setupHero = RectObject("Setup Hero", _setupCard);
++            var halo = _setupHero.gameObject.AddComponent<SiriAIRoundedRect>();
++            halo.Radius = 20; halo.raycastTarget = false;
++            SetAppearanceColor(halo, new Color(SetupTint.r, SetupTint.g, SetupTint.b, .16f));
++            var symbol = RectObject("Setup Hero Icon", _setupHero); Stretch(symbol);
++            symbol.offsetMin = Vector2.one * 13; symbol.offsetMax = -Vector2.one * 13;
++            _setupHeroIcon = symbol.gameObject.AddComponent<SiriAIActionIcon>();
++            _setupHeroIcon.raycastTarget = false; SetAppearanceColor(_setupHeroIcon, SetupTint);
++            _setupStageRail = RectObject("Setup Stages", _setupCard);
++            for (int i = 0; i < 4; ++i)
++            {
++                var cell = RectObject("Stage " + i, _setupStageRail);
++                cell.anchorMin = new Vector2(i / 4f, 0); cell.anchorMax = new Vector2((i + 1) / 4f, 1);
++                cell.offsetMin = cell.offsetMax = Vector2.zero;
++                var icon = RectObject("Stage Icon", cell);
++                Place(icon, new Rect(0, 5, 20, 20));
++                _setupStageIcons[i] = icon.gameObject.AddComponent<SiriAIActionIcon>();
++                _setupStageIcons[i].raycastTarget = false;
++                _setupStageNames[i] = Label(cell, SetupStageNames[i], 13, Muted);
++                var label = _setupStageNames[i].rectTransform;
++                Stretch(label); label.offsetMin = new Vector2(27, 0); label.offsetMax = new Vector2(-4, 0);
++            }
++            _setupStageProgress = RectObject("Setup Stage Progress", _setupCard);
++            var track = _setupStageProgress.gameObject.AddComponent<SiriAIRoundedRect>();
++            track.Radius = 2; track.raycastTarget = false;
++            SetAppearanceColor(track, new Color(.6f, .7f, .9f, .14f));
++            var fill = RectObject("Completed stages", _setupStageProgress); Stretch(fill);
++            _setupStageFill = fill.gameObject.AddComponent<SiriAIRoundedRect>();
++            _setupStageFill.Radius = 2; _setupStageFill.raycastTarget = false;
++            SetAppearanceColor(_setupStageFill, SetupTint);
++        }
++
++        private void LayoutSetupVisuals(float width, float height)
++        {
++            Place(_setupHero, new Rect(22, height - 85, 58, 58));
++            Place(_setupStageRail, new Rect(24, height - 126, width - 48, 30));
++            Place(_setupStageProgress, new Rect(24, height - 139, width - 48, 3));
++            foreach (var label in _setupStageNames) label.gameObject.SetActive(width >= 420);
++        }
++
++        private void BeginSetupStepReveal()
++        {
++            _setupEntryChecked = false;
++            _setupReveal = SettingsMotion ? .2f : 1f;
++            if (_setupContentReveal == null) _setupContentReveal = _setupContent.gameObject.AddComponent<CanvasGroup>();
++            _setupContentReveal.alpha = _setupReveal;
++            _setupHeroIcon.Glyph = SetupStageGlyphs[SetupStageIndex];
++            for (int i = 0; i < 4; ++i)
++            {
++                _setupStageIcons[i].Glyph = i < SetupStageIndex ? SiriAIActionGlyph.Check : SetupStageGlyphs[i];
++                SetAppearanceColor(_setupStageIcons[i], i <= SetupStageIndex ? SetupTint : Muted);
++                SetAppearanceColor(_setupStageNames[i], i == SetupStageIndex ? Ink : Muted);
++                _setupStageNames[i].fontStyle = FontStyle.Normal;
++            }
++            TickSetupVisuals(0);
++        }
++
++        private void TickSetupVisuals(float deltaTime)
++        {
++            if (_setupFlow == null || _setupHero == null) return;
++            bool motion = SettingsMotion && SiriAIGraphicsQuality.Current.UiAnimations;
++            float blend = motion ? 1f - Mathf.Exp(-14f * Mathf.Max(0, deltaTime)) : 1f;
++            _setupReveal = Mathf.Lerp(_setupReveal, 1f, blend);
++            if (_setupContentReveal != null) _setupContentReveal.alpha = _setupReveal;
++            _setupStageAmount = Mathf.Lerp(_setupStageAmount, (SetupStageIndex + 1) / 4f, blend);
++            _setupStageFill.rectTransform.anchorMax = new Vector2(_setupStageAmount, 1);
++            bool busy = _setupPreparing || _setupRequestBusy;
++            float pulse = motion && busy ? Mathf.Sin(Time.unscaledTime * 2.4f) : 0;
++            _setupHero.localScale = Vector3.one * (1f + pulse * .035f);
++            _setupHeroIcon.Glyph = !string.IsNullOrEmpty(_setupFailure) ? SiriAIActionGlyph.Alert :
++                busy ? SiriAIActionGlyph.Reload : SetupStageGlyphs[SetupStageIndex];
++            _setupHeroIcon.rectTransform.localRotation = busy && motion ?
++                Quaternion.Euler(0, 0, -Time.unscaledTime * 90f) : Quaternion.identity;
++            if (_setupTransferFill == null) return;
++            if (_setupTransferTarget < 0)
++            {
++                float start = motion && busy ? Mathf.PingPong(Time.unscaledTime * .4f, .72f) : .36f;
++                _setupTransferFill.anchorMin = new Vector2(start, 0);
++                _setupTransferFill.anchorMax = new Vector2(start + .28f, 1);
++            }
++            else
++            {
++                _setupTransferAmount = Mathf.Lerp(_setupTransferAmount, _setupTransferTarget, blend);
++                _setupTransferFill.anchorMin = Vector2.zero;
++                _setupTransferFill.anchorMax = new Vector2(_setupTransferAmount, 1);
++            }
++        }
++
++        private void BuildSetupTransferProgress()
++        {
++            _setupProgressLabel = SetupDescription("Ready to prepare", 16);
++            var track = RectObject("Setup Transfer Progress", _setupContent);
++            FixedHeight(track.gameObject, 6);
++            var background = track.gameObject.AddComponent<SiriAIRoundedRect>();
++            background.Radius = 3; background.raycastTarget = false;
++            SetAppearanceColor(background, new Color(.6f, .7f, .9f, .16f));
++            _setupTransferFill = RectObject("Transfer Fill", track); Stretch(_setupTransferFill);
++            var fill = _setupTransferFill.gameObject.AddComponent<SiriAIRoundedRect>();
++            fill.Radius = 3; fill.raycastTarget = false; SetAppearanceColor(fill, SetupTint);
++            _setupTransferAmount = 0; _setupTransferTarget = 0;
++        }
++
++        private void SetupModeAction(string title, string detail, SiriAIActionGlyph glyph, int value, int selected)
++        {
++            var button = SetupAction(title, () => SelectSetupMode(value));
++            FixedHeight(button.gameObject, 76);
++            var heading = button.GetComponentInChildren<Text>();
++            heading.alignment = TextAnchor.MiddleLeft;
++            Stretch(heading.rectTransform);
++            heading.rectTransform.offsetMin = new Vector2(54, 30);
++            heading.rectTransform.offsetMax = new Vector2(-42, -8);
++            heading.fontStyle = FontStyle.Normal;
++            var hint = Label(button.transform, detail, 13, Muted);
++            hint.alignment = TextAnchor.MiddleLeft; hint.horizontalOverflow = HorizontalWrapMode.Wrap;
++            Stretch(hint.rectTransform);
++            hint.rectTransform.offsetMin = new Vector2(54, 8); hint.rectTransform.offsetMax = new Vector2(-12, -36);
++            hint.resizeTextForBestFit = true; hint.resizeTextMinSize = 11; hint.resizeTextMaxSize = 13;
++            var icon = RectObject("Mode Icon", button.transform);
++            Place(icon, new Rect(16, 25, 26, 26));
++            var graphic = icon.gameObject.AddComponent<SiriAIActionIcon>(); graphic.Glyph = glyph;
++            graphic.raycastTarget = false; SetAppearanceColor(graphic, value == selected ? SetupTint : Muted);
++            if (value != selected) return;
++            var check = RectObject("Selected mode", button.transform);
++            check.anchorMin = check.anchorMax = new Vector2(1, 1); check.pivot = Vector2.one;
++            check.anchoredPosition = new Vector2(-14, -12); check.sizeDelta = Vector2.one * 20;
++            var mark = check.gameObject.AddComponent<SiriAIActionIcon>(); mark.Glyph = SiriAIActionGlyph.Check;
++            mark.raycastTarget = false; SetAppearanceColor(mark, SetupTint);
++        }
++
++        private void ResetSetupVisuals()
++        {
++            _setupHero = _setupStageRail = _setupStageProgress = _setupTransferFill = null;
++            _setupHeroIcon = null; _setupStageFill = null; _setupContentReveal = null; _setupProgressLabel = null;
++            _setupStageAmount = _setupTransferAmount = 0; _setupReveal = 1;
++            System.Array.Clear(_setupStageIcons, 0, 4); System.Array.Clear(_setupStageNames, 0, 4);
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.Visuals.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 90dc92cdeffc487e8de3b9345320d09c
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs
+@@ -15,6 +15,7 @@
+         private bool _setupPermissionsOnly, _setupResumeAfterSettings, _setupAwayForSettings;
+         private bool _setupPreparing, _setupRequestBusy, _setupRestartNeeded, _setupPreparationStarted;
+         private bool _setupStorageReady;
++        private bool _setupEntryChecked;
+         private SiriAISetupPermission _setupPermissionAttempted;
+         private float _setupNextCheck;
+         private bool SetupTextOnly => (_chat?.Backend as SiriAIConfigurableBackend)?.GetConfiguration().textOnly == true;
+@@ -131,7 +132,12 @@
+                 _setupResumeAfterSettings = false; _setupRoot.gameObject.SetActive(true);
+                 ReadSetupPermissions(); RefreshSetupFlow(); SetSetupInteraction(true); AnimateSetupOpen();
+             }
+-            if (IsSetupOpen) { LayoutSetupWizard(); RenderSetupWizard(); UpdateSetupKeyboard(); }
++            if (IsSetupOpen)
++            {
++                TryEnterSetupWithLocalFiles();
++                if (_setupFlow == null || _setupClosing) return;
++                LayoutSetupWizard(); RenderSetupWizard(); TickSetupVisuals(Time.unscaledDeltaTime); UpdateSetupKeyboard();
++            }
+         }
+ 
+         private void NextSetupStep()
+@@ -152,7 +158,31 @@
+                 AnimateSetupClose(() => { ResetSetupWizard(); SetSetupInteraction(false); });
+                 return;
+             }
+-            _setupFlow.MoveNext(); RenderSetupWizard();
++            _setupFlow.MoveNext(); TryEnterSetupWithLocalFiles();
++            if (_setupFlow != null && !_setupClosing) RenderSetupWizard();
++        }
++
++        private void TryEnterSetupWithLocalFiles()
++        {
++            if (_editorPreview || _setupFlow == null || _setupClosing || _setupRequestBusy || _setupPreparing) return;
++            if (_setupFlow.CanFinish && !_setupFlow.PreparationDeferred) { NextSetupStep(); return; }
++            if (_setupFlow.Step != SiriAISetupStep.Preparation || _setupEntryChecked || _chat.CanRetryPreparation) return;
++            _setupEntryChecked = true;
++            try
++            {
++                if (!(_chat.Backend is SiriAIConfigurableBackend backend) ||
++                    !backend.HasConfiguredModelFiles(SiriAIConfigurableBackend.ModelsDirectory)) return;
++                if (!SetupTextOnly)
++                {
++                    if (!SiriAIAcousticPreflight.Check(_chat.GetAcousticSettings(), SiriAIConfigurableBackend.ModelsDirectory).CanAttemptPreparation) return;
++                    var audio = _chat.AudioEndpoint?.ReadAudioSettings();
++                    if (audio?.dtlnAec == true && !SiriAIModelInstallation.HasLocalFiles(SiriAIConfigurableBackend.ModelsDirectory,
++                        SiriAIAudioEndpoint.ResolveDtlnModel(audio).remote)) return;
++                }
++                // Installed files permit background initialization, not a claim that the runtime is ready.
++                if (_setupFlow.DeferPreparation()) NextSetupStep();
++            }
++            catch (Exception error) { _setupFailure = error.Message; RenderSetupWizard(); }
+         }
+ 
+         private void ConfigureSetup()
+@@ -253,7 +283,11 @@
+             finally
+             {
+                 if (this != null && _setupCancellation == lifetime)
+-                { _setupRequestBusy = false; _setupNextCheck = 0; ReadSetupPermissions(); RefreshSetupFlow(); RenderSetupWizard(); }
++                {
++                    _setupRequestBusy = false; _setupNextCheck = 0; ReadSetupPermissions(); RefreshSetupFlow();
++                    TryEnterSetupWithLocalFiles();
++                    if (_setupFlow != null && !_setupClosing) RenderSetupWizard();
++                }
+             }
+         }
+ 
+@@ -317,6 +351,8 @@
+             _setupGlassMaterial = _setupControlMaterial = null;
+             _setupRoot = _setupCard = _setupContent = null; _setupFlow = null;
+             _setupResumeAfterSettings = _setupAwayForSettings = _setupPreparing = _setupRequestBusy = false;
++            _setupEntryChecked = false;
++            ResetSetupVisuals();
+             _setupFailure = null; _lastSetupFeedback = null; _setupRenderedStep = null; _setupOffset = Vector2.zero;
+             _setupBacking = _setupOptics = null; _setupDragHeader = null; _setupDragging = _setupClosing = false; _setupTransition = null;
+         }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -136,6 +136,21 @@
+             { "macOS could not reset this app's permissions. Retry the repair or review Privacy & Security.", "macOS 未能清除本应用的旧权限。请重试修复，或检查系统“隐私与安全性”设置。" },
+             { "Restart after granting access", "授权后重新启动" },
+             { "Setup guide", "首次使用引导" },
++            { "A few simple steps, then make yourself at home.", "简单几步，开启你的专属 AI 体验。" },
++            { "Private, on-device conversations", "在设备上运行，对话更私密" },
++            { "Connect your service and start with text", "连接云端服务，即刻开始文字对话" },
++            { "Local and cloud, working together", "本地与云端协作，灵活回答" },
++            { "Already downloaded? We will reuse your models and take you straight in.", "模型已下载？我们会直接复用，带你进入应用。" },
++            { "Let's get your assistant ready.", "让你的助手准备就绪。" },
++            { "Only missing models need downloading. You can enter the app while preparation continues.", "只下载缺失的模型。你也可以先进入应用，在后台继续准备。" },
++            { "Start using SiriAI", "开始使用 SiriAI" },
++            { "Preparing…", "正在准备…" },
++            { "Checking access…", "正在检查权限…" },
++            { "Initializing your assistant…", "正在初始化你的助手…" },
++            { "Preparing your assistant…", "正在准备你的助手…" },
++            { "Preparation needs attention", "准备未完成，请重试或检查配置" },
++            { "Models", "模型" },
++            { "Welcome", "欢迎" },
+             { "Welcome to SiriAI", "欢迎使用 SiriAI" },
+             { "Models and services", "模型与服务" },
+             { "Permissions", "权限检查" },
+@@ -197,7 +212,7 @@
+             { "Adjust the shared light or dark backing of chat, settings and popups. Preview immediately; save to keep.", "统一调整对话、设置和弹窗的背景深浅。即时预览，保存后保留。" },
+             { "Background tasks", "后台任务" },
+             { "Use background tasks", "使用后台任务" },
+-            { "Off: chat with AI only. On: combine conversation with background agents. Applies immediately.", "关闭后仅与 AI 对话；开启后可结合前台聊天与后台 Agent。立即生效。" },
++            { "Off: chat with AI only. On: combine conversation with background agents. Tools update for your next message.", "关闭后仅与 AI 对话；开启后可结合前台聊天与后台 Agent。新的工具列表将在下一轮对话生效。" },
+             { "Background tasks are disabled.", "后台任务已关闭。" },
+             { "The task icon is hidden. Tasks already accepted by a host continue there.", "任务图标已隐藏。主机已受理的任务仍会继续执行。" },
+             { "Active tasks: {0}", "进行中的任务：{0}" },
+@@ -231,7 +246,7 @@
+             { "Updating local host…", "正在更新本机宿主…" },
+             { "Local host status", "本机宿主状态" },
+             { "Cancelling", "正在取消" },
+-            { "Connect saves host settings and reloads an active foreground session. Task controls apply immediately.", "连接后保存宿主设置；已有前台会话会重新加载，任务操作立即生效。" },
++            { "Host settings apply immediately. Background tools update for your next message.", "主机设置立即生效，后台工具将在下一轮对话更新。" },
+             { "Enter Play mode with a Harness Controller to configure background tasks.", "进入运行模式后，使用 Harness Controller 配置后台任务。" },
+             { "Tasks continue on the selected host when this app is suspended.", "应用挂起后，任务仍在所选宿主上继续执行。" },
+             { "Connect a host to use background tasks.", "连接宿主后即可使用后台任务。" },
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupFlow.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupFlow.cs
+@@ -42,6 +42,8 @@
+             if (Step >= SiriAISetupStep.Preparation && MissingPermissions != 0) Step = SiriAISetupStep.Permissions;
+             else if (Step == SiriAISetupStep.Permissions && _permissionsObserved && MissingPermissions == 0) Step = SiriAISetupStep.Preparation;
+             else if (Step == SiriAISetupStep.Ready && !PreparationDeferred && (!RuntimeReady || PreparationFailed)) Step = SiriAISetupStep.Preparation;
++            if (Step == SiriAISetupStep.Preparation && MissingPermissions == 0 && RuntimeReady && !PreparationFailed)
++                Step = SiriAISetupStep.Ready;
+         }
+ 
+         public bool MoveNext()
+@@ -50,6 +52,7 @@
+             ++Step;
+             if (Step == SiriAISetupStep.Configuration) ++Step;
+             if (Step == SiriAISetupStep.Permissions && MissingPermissions == 0) ++Step;
++            RefreshStep();
+             return true;
+         }
+ 
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs
+@@ -57,7 +57,7 @@
+         {
+             var flow = Flow(); Refresh(flow, 1, 1); Next(flow); Next(flow);
+             Refresh(flow, 1, 1, true, true); Assert.IsFalse(Next(flow));
+-            Refresh(flow, 1, 1, true); Assert.IsTrue(Next(flow));
++            Refresh(flow, 1, 1, true); Assert.AreEqual("Ready", Value(flow, "Step").ToString());
+             Assert.IsTrue((bool)Value(flow, "CanFinish"));
+         }
+ 
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISetupDownloadTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISetupDownloadTests.cs
+@@ -217,6 +217,7 @@
+                 SiriAITestAccess.Call(view,"ResetSetupWizard"); view.OpenSetupWizard();
+                 Assert.AreEqual(SiriAISetupStep.Preparation,SiriAITestAccess.Field<SiriAISetupFlow>(view,"_setupFlow").Step);
+                 SiriAITestAccess.Set(view,"_setupPermissionsOnly",true);
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view,"_viewPreferences").reduceMotion=true;
+                 SiriAITestAccess.Call(view,"SkipSetupDownload"); SiriAITestAccess.Call(view,"NextSetupStep");
+                 Assert.False(view.IsSetupOpen,"A slow model operation must not hold the wizard open.");
+                 Assert.False(start.IsCompleted); Assert.AreEqual(1,backend.Attempts);
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISetupExperienceTests.cs
+@@ -0,0 +1,286 @@
++using System;
++using System.IO;
++using System.Linq;
++using System.Reflection;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.Rendering;
++using UnityEngine.UI;
++using Object = UnityEngine.Object;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAISetupExperienceTests
++    {
++        [TestCase(-1, false)] [TestCase(2, false)] [TestCase(4, true)]
++        public void InstalledModelProbeRejectsMissingAndTruncatedFiles(int bytes, bool installed)
++        {
++            var owner = new GameObject("Installed setup model");
++            var manifest = ScriptableObject.CreateInstance<SiriAIModelManifest>();
++            string root = Path.GetFullPath("TestArtifacts~/SiriAITests/SetupFiles/" + Guid.NewGuid().ToString("N"));
++            try
++            {
++                var backend = SiriAITestAccess.CreateBackend(owner);
++                var config = backend.GetConfiguration();
++                config.textOnly = true; config.speechOutput = false;
++                config.model = new SiriAIEndpointConfiguration { location = SiriAIProviderLocation.LocalMnn,
++                    model = "setup-fixture", localManifestId = "setup-fixture" };
++                backend.ApplyConfiguration(config);
++                manifest.modelId = "setup-fixture";
++                manifest.files = new[] { new MNNModelAssetFile { path = "model.mnn", bytes = 4 } };
++                SiriAITestAccess.Set(backend, "modelManifests", new[] { manifest });
++                Directory.CreateDirectory(Path.Combine(root, manifest.modelId));
++                if (bytes >= 0) File.WriteAllBytes(Path.Combine(root, manifest.modelId, "model.mnn"), new byte[bytes]);
++                var probe = typeof(SiriAIConfigurableBackend).GetMethod("HasConfiguredModelFiles", BindingFlags.Instance | BindingFlags.NonPublic);
++                Assert.NotNull(probe);
++                Assert.AreEqual(installed, probe.Invoke(backend, new object[] { root }));
++                Assert.IsNull(backend.PreparationStatus, "A file check must not download or initialize models.");
++            }
++            finally
++            {
++                Object.DestroyImmediate(manifest); Object.DestroyImmediate(owner);
++                if (Directory.Exists(root)) Directory.Delete(root, true);
++            }
++        }
++
++        [Test]
++        public void ReadyRuntimeSkipsPreparationAfterWelcome()
++        {
++            var flow = new SiriAISetupFlow();
++            flow.Refresh(0, 0, true, false);
++            Assert.AreEqual(SiriAISetupStep.Welcome, flow.Step);
++            Assert.True(flow.MoveNext());
++            Assert.AreEqual(SiriAISetupStep.Ready, flow.Step);
++            Assert.True(flow.CanFinish);
++        }
++
++        [Test]
++        public void LastPermissionGrantSkipsPreparationForRunningRuntime()
++        {
++            var flow = new SiriAISetupFlow();
++            flow.Refresh(SiriAISetupPermission.Microphone, 0, true, false);
++            flow.MoveNext();
++            flow.Refresh(SiriAISetupPermission.Microphone, SiriAISetupPermission.Microphone, true, false);
++            Assert.AreEqual(SiriAISetupStep.Ready, flow.Step);
++            Assert.True(flow.CanFinish);
++        }
++
++        [Test]
++        public void FailedRuntimeStillOffersPreparation()
++        {
++            var flow = new SiriAISetupFlow();
++            flow.Refresh(0, 0, true, true);
++            flow.MoveNext();
++            Assert.AreEqual(SiriAISetupStep.Preparation, flow.Step);
++            Assert.False(flow.CanFinish);
++        }
++
++        [Test]
++        public void CloudTextNeedsNoLocalFilesAndProbeDoesNotStartPreparation()
++        {
++            var root = new GameObject("Cloud setup files");
++            try
++            {
++                var backend = SiriAITestAccess.CreateBackend(root);
++                var config = backend.GetConfiguration();
++                config.textOnly = true; config.speechOutput = false;
++                config.model = new SiriAIEndpointConfiguration { location = SiriAIProviderLocation.OpenAICompatible,
++                    endpoint = "https://example.invalid/v1", model = "fixture" };
++                backend.ApplyConfiguration(config);
++                var probe = typeof(SiriAIConfigurableBackend).GetMethod("HasConfiguredModelFiles", BindingFlags.Instance | BindingFlags.NonPublic);
++                Assert.NotNull(probe, "Onboarding must inspect installation without starting downloads.");
++                Assert.True((bool)probe.Invoke(backend, new object[] { Application.dataPath }));
++                Assert.IsNull(backend.PreparationStatus);
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void AvailableCloudTextEntersTheAppWithoutBuildingADownloadPage()
++        {
++            var owner = new GameObject("No download onboarding handoff");
++            try
++            {
++                var view = owner.AddComponent<SiriAIChatView>();
++                view.TickEditorPreview(new Rect(0, 0, 800, 760), 1f);
++                var backend = SiriAITestAccess.CreateBackend(owner);
++                var config = backend.GetConfiguration(); config.textOnly = true; config.speechOutput = false;
++                config.model = new SiriAIEndpointConfiguration { location = SiriAIProviderLocation.OpenAICompatible,
++                    endpoint = "https://example.invalid/v1", model = "fixture", credential = "" };
++                backend.ApplyConfiguration(config);
++                var chat = SiriAITestAccess.Field<SiriAIChat>(view, "_chat"); chat.SetBackend(backend);
++                view.OpenSetupWizard();
++                // Keep presentation motion off while exercising the actual runtime handoff.
++                SiriAITestAccess.Field<SiriAIInteractionSettings>(view, "interactionFeedback").reducedMotion = true;
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").reduceMotion = true;
++                SiriAITestAccess.Set(view, "_editorPreview", false);
++                SiriAITestAccess.Set(view, "_setupPermissionsOnly", true);
++                SiriAITestAccess.Call(view, "NextSetupStep");
++                Assert.False(view.IsSetupOpen, "An available setup must enter the app in this interaction.");
++                Assert.IsNull(SiriAITestAccess.Field<Button>(view, "_setupPrepare"), "Do not flash a download page for an available setup.");
++                Assert.False(chat.DeferAutomaticStartup);
++            }
++            finally { Object.DestroyImmediate(owner); }
++        }
++
++        [Test]
++        public void GuideHasStageIconsAndSelectedModeFeedback()
++        {
++            var root = new GameObject("Setup experience");
++            try
++            {
++                var view = root.AddComponent<SiriAIChatView>();
++                view.TickEditorPreview(new Rect(0, 0, 800, 760), 1f);
++                view.OpenSetupWizard();
++                var modal = SiriAITestAccess.Field<RectTransform>(view, "_setupRoot");
++                Assert.GreaterOrEqual(modal.GetComponentsInChildren<SiriAIActionIcon>().Length, 5);
++                Assert.IsNotNull(modal.Find("Setup Window/Setup Stage Progress"));
++                var next = SiriAITestAccess.Field<Button>(view, "_setupNext");
++                Assert.True(next.interactable);
++                Assert.False(SiriAITestAccess.Field<Button>(view, "_setupBack").gameObject.activeSelf);
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void PreparationShowsRealProgressAndKeepsBackgroundChoiceAvailable()
++        {
++            var root = new GameObject("Setup progress");
++            try
++            {
++                var view = root.AddComponent<SiriAIChatView>();
++                view.TickEditorPreview(new Rect(0, 0, 800, 760), 1f); view.OpenSetupWizard();
++                var flow = SiriAITestAccess.Field<SiriAISetupFlow>(view, "_setupFlow");
++                flow.Refresh(0, 0, false, false); flow.MoveNext();
++                SiriAITestAccess.Set(view, "_setupPreparing", true);
++                SiriAITestAccess.Call(view, "RenderSetupWizard");
++                var modal = SiriAITestAccess.Field<RectTransform>(view, "_setupRoot");
++                Assert.IsNotNull(modal.GetComponentsInChildren<RectTransform>().FirstOrDefault(x => x.name == "Setup Transfer Progress"));
++                var skip = modal.GetComponentsInChildren<Button>().Single(x => x.GetComponentInChildren<Text>()?.text == "Skip download and continue");
++                Assert.True(skip.interactable);
++                Assert.False(SiriAITestAccess.Field<Button>(view, "_setupPrepare").interactable);
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void DisablingMotionSettlesStageAndTransferFeedbackImmediately()
++        {
++            var owner = new GameObject("Reduced motion setup");
++            try
++            {
++                var view = owner.AddComponent<SiriAIChatView>();
++                view.TickEditorPreview(new Rect(0, 0, 800, 760), 1f); view.OpenSetupWizard();
++                var flow = SiriAITestAccess.Field<SiriAISetupFlow>(view, "_setupFlow");
++                flow.Refresh(0, 0, false, false); flow.MoveNext();
++                SiriAITestAccess.Call(view, "RenderSetupWizard");
++                SiriAITestAccess.Set(view, "_setupTransferTarget", .5f);
++                SiriAITestAccess.Call(view, "TickSetupVisuals", 0f);
++                var fill = SiriAITestAccess.Field<RectTransform>(view, "_setupTransferFill");
++                Assert.AreEqual(.5f, fill.anchorMax.x, .001f);
++                Assert.AreEqual(1f, SiriAITestAccess.Field<CanvasGroup>(view, "_setupContentReveal").alpha);
++                Assert.AreEqual(Vector3.one, SiriAITestAccess.Field<RectTransform>(view, "_setupHero").localScale);
++            }
++            finally { Object.DestroyImmediate(owner); }
++        }
++
++        [TestCase(false, 800, 760)] [TestCase(true, 800, 760)]
++        [TestCase(true, 320, 568)] [TestCase(false, 568, 320)]
++        public void GuideRendersEachStageWithinTheViewport(bool dark, int width, int height)
++        {
++            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) Assert.Ignore("Requires GPU.");
++            var owner = new GameObject("Setup stage rendering"); var cameraOwner = new GameObject("Setup camera");
++            var target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
++            var pixels = new Texture2D(width, height, TextureFormat.RGBA32, false);
++            var previous = RenderTexture.active;
++            try
++            {
++                var camera = cameraOwner.AddComponent<Camera>(); camera.transform.position = new Vector3(0, 0, -10);
++                camera.targetTexture = target; camera.clearFlags = CameraClearFlags.SolidColor;
++                camera.backgroundColor = dark ? new Color(.04f, .05f, .09f) : new Color(.75f, .81f, .9f);
++                var view = owner.AddComponent<SiriAIChatView>(); SiriAITestAccess.Set(view, "siriOrbCamera", camera);
++                view.TickEditorPreview(new Rect(0, 0, width, height), 1f);
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").language = SiriAILanguage.SimplifiedChinese;
++                SiriAITestAccess.Call(view, "ApplySystemAppearance", dark); view.OpenSetupWizard();
++                var canvas = SiriAITestAccess.Field<GameObject>(view, "_canvasRoot").GetComponent<Canvas>();
++                canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 1;
++                canvas.scaleFactor = canvas.GetComponent<CanvasScaler>().scaleFactor;
++                var modal = SiriAITestAccess.Field<RectTransform>(view, "_setupRoot");
++                foreach (Transform child in canvas.transform) child.gameObject.SetActive(child == modal);
++                var flow = SiriAITestAccess.Field<SiriAISetupFlow>(view, "_setupFlow");
++                foreach (string stage in new[] { "welcome", "permissions", "preparation", "ready" })
++                {
++                    if (stage == "permissions") { flow.Refresh(SiriAISetupPermission.Microphone, 0, false, false); flow.MoveNext(); }
++                    if (stage == "preparation") flow.Refresh(SiriAISetupPermission.Microphone, SiriAISetupPermission.Microphone, false, false);
++                    if (stage == "ready") flow.Refresh(0, 0, true, false);
++                    SiriAITestAccess.Call(view, "RenderSetupWizard"); SiriAITestAccess.Call(view, "LayoutSetupWizard");
++                    if (stage == "preparation")
++                    {
++                        SiriAITestAccess.Set(view, "_setupPreparing", true);
++                        SiriAITestAccess.Set(view, "_setupTransferTarget", .55f);
++                    }
++                    SiriAITestAccess.Call(view, "TickSetupVisuals", 0f);
++                    Canvas.ForceUpdateCanvases();
++                    foreach (var shadow in canvas.GetComponentsInChildren<SiriAIComposerShadow>(true)) shadow.FollowTarget();
++                    Canvas.ForceUpdateCanvases(); camera.Render(); RenderTexture.active = target;
++                    pixels.ReadPixels(new Rect(0, 0, width, height), 0, 0); pixels.Apply();
++                    var card = SiriAITestAccess.Field<RectTransform>(view, "_setupCard");
++                    var available = SiriAITestAccess.Field<Rect>(view, "_availableViewport");
++                    Assert.LessOrEqual(card.rect.width, available.width); Assert.LessOrEqual(card.rect.height, available.height);
++                    Assert.GreaterOrEqual(SiriAITestAccess.Field<Button>(view, "_setupNext").GetComponent<RectTransform>().rect.height, 44);
++                    string directory = Environment.GetEnvironmentVariable("SIRIAI_SETUP_EXPERIENCE_ARTIFACTS");
++                    if (!string.IsNullOrEmpty(directory))
++                    {
++                        Directory.CreateDirectory(directory);
++                        File.WriteAllBytes(Path.Combine(directory, stage + "-" + (dark ? "dark" : "light") + "-" + width + ".png"), pixels.EncodeToPNG());
++                    }
++                }
++            }
++            finally
++            {
++                RenderTexture.active = previous; Object.DestroyImmediate(owner); Object.DestroyImmediate(cameraOwner);
++                Object.DestroyImmediate(target); Object.DestroyImmediate(pixels);
++            }
++        }
++
++        [Test]
++        public void StageAndTransferAnimateWithoutBlockingTheBackgroundChoice()
++        {
++            var owner = new GameObject("Animated setup");
++            var quality = SiriAIGraphicsQuality.Selection; var tone = SiriAIGraphicsQuality.TonemappingMode;
++            try
++            {
++                SiriAIGraphicsQuality.Apply(SiriAIQualityTier.High, SiriAITonemappingMode.Off);
++                var view = owner.AddComponent<SiriAIChatView>();
++                view.TickEditorPreview(new Rect(0, 0, 800, 760), 1f); view.OpenSetupWizard();
++                SiriAITestAccess.Field<SiriAIInteractionSettings>(view, "interactionFeedback").animations = true;
++                SiriAITestAccess.Field<SiriAIInteractionSettings>(view, "interactionFeedback").reducedMotion = false;
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").reduceMotion = false;
++                // Editor previews deliberately omit the runtime feedback owner.
++                var feedback = owner.AddComponent<SiriAIInteractionFeedback>();
++                feedback.Configure(SiriAITestAccess.Field<SiriAIInteractionSettings>(view, "interactionFeedback"));
++                SiriAITestAccess.Set(view, "_interactionFeedback", feedback);
++                SiriAITestAccess.Set(feedback, "_systemReduceMotion", false);
++                feedback.SetPreferences(SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences"));
++                SiriAITestAccess.Set(view, "_editorPreview", false);
++                var flow = SiriAITestAccess.Field<SiriAISetupFlow>(view, "_setupFlow");
++                flow.Refresh(0, 0, false, false); flow.MoveNext();
++                SiriAITestAccess.Call(view, "RenderSetupWizard");
++                SiriAITestAccess.Set(view, "_setupPreparing", true);
++                SiriAITestAccess.Set(view, "_setupTransferTarget", .5f);
++                SiriAITestAccess.Call(view, "TickSetupVisuals", .05f);
++                float alpha = SiriAITestAccess.Field<CanvasGroup>(view, "_setupContentReveal").alpha;
++                float progress = SiriAITestAccess.Field<RectTransform>(view, "_setupTransferFill").anchorMax.x;
++                Assert.That(alpha, Is.GreaterThan(.2f).And.LessThan(1f));
++                Assert.That(progress, Is.GreaterThan(0f).And.LessThan(.5f));
++                SiriAITestAccess.Call(view, "TickSetupVisuals", .05f);
++                Assert.Greater(SiriAITestAccess.Field<CanvasGroup>(view, "_setupContentReveal").alpha, alpha);
++                var modal = SiriAITestAccess.Field<RectTransform>(view, "_setupRoot");
++                Assert.True(modal.GetComponentsInChildren<Button>().Single(x =>
++                    x.GetComponentInChildren<Text>()?.text == "Skip download and continue").interactable);
++            }
++            finally { Object.DestroyImmediate(owner); SiriAIGraphicsQuality.Apply(quality, tone); }
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAISetupExperienceTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: c3106761e7864390b719319c8638067a
