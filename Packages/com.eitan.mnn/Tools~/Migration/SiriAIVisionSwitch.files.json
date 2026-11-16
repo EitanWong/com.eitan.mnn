@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs",
+      "before": "289e75f9135e393a570a227a4035d2d8bfd4764e7cbe8264f77377a21fa9c83c",
+      "after": "3a447cf44bf465484870e3f6878b0d0792a949c1066269ce2dca34fd88adddb3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs",
+      "before": "8efd70117ea72d1f1ee8d2b05b02df54ae9be39981c54dd434b24d1436947970",
+      "after": "76c38106912c549068ecc8bda3913cd48bfbba166405a5258139688aa998ee33"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs",
+      "before": "9ce1d9991e880480f088ccdfe8ebdbe21d4ef7954b84468b0bf855743ff7cc95",
+      "after": "9d425e5abc52f675fd4055333647a506d9b10dd6a37bf1547b03210997e4b5b4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs",
+      "before": "57c9b7f773e08be4fe9e231b69fb5cd7a9a42b96c3149db00b94f09bf5df5273",
+      "after": "67a00c3b81c14b4735ae1073c07fc2f7aa43dbf46ed68457b91f208c01fd779e"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs",
+      "before": "79045bf95b598131fe4be8582866636c519847a8d69cdbd36ee03accbeb8b085",
+      "after": "381f1bfa6533dc7111cef35a05c18de1913b5b21f4727a33f23261192b0ca159"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs",
+      "before": "15952db359b3dd68270ead8eb085cfd8a6e3be9069d01e140e505acbcd496b8d",
+      "after": "a7833e11dcffe7f2fb75b6d3edb70b92741a77b8177a1bdd2462898018c339c3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/README.md",
+      "before": "434c37e8141fa69f510471d742cff92919ed6f7c4aabcbe3999f190d53d92383",
+      "after": "f8b28243f6e49089ca6f7cb56120a0016d0003ee6148317500a12b746061dfed"
+    }
+  ]
+}

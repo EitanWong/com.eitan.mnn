@@ -1,0 +1,324 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+@@ -14,13 +14,23 @@
+             { SettingsDescription("Add Acoustic Processing to configure visual interaction."); return; }
+             var value = acoustics.interaction ?? (acoustics.interaction = new MNNInteractionSettings());
+             AddSettingsTitle("Vision", "Changes apply after saving and restarting the conversation.");
++            AddBoolField("Enable vision", "Off also disables identity gating, image context and audio-visual pickup. Audio-only settings stay unchanged.",
++                () => value.visualPresence, enabled => UpdateAudioSettings(() =>
++                {
++                    value.visualPresence = enabled;
++                    if (!enabled)
++                    {
++                        value.faceRecognition = false;
++                        value.imageContext = false;
++                        value.audioVisualSpeech = false;
++                    }
++                }));
+             BuildCameraPreview();
+-            AddBoolField("Visual presence", "Allow new voice interactions only while a confirmed target is visible.",
+-                () => value.visualPresence, enabled => UpdateAudioSettings(() => value.visualPresence = enabled));
++            SettingsDescription("Allow new voice interactions only while a confirmed target is visible.");
+             AddBoolField("Recognized identities only", "Requires enrolled identities and a ready recognition provider.",
+-                () => value.faceRecognition, enabled => UpdateAudioSettings(() => value.faceRecognition = enabled));
++                () => value.faceRecognition, enabled => UpdateAudioSettings(() => value.faceRecognition = enabled), value.visualPresence);
+             AddBoolField("Image context", "Use a fresh target image for supported multimodal requests.",
+-                () => value.imageContext, enabled => UpdateAudioSettings(() => value.imageContext = enabled));
++                () => value.imageContext, enabled => UpdateAudioSettings(() => value.imageContext = enabled), value.visualPresence);
+             BuildVisionModelSelection("Face detection model", "Choose an installed model or download a supported detector.",
+                 FaceDetectionModelStage, () => value.detectorDirectory, directory => value.detectorDirectory = directory);
+             BuildVisionModelSelection("Face recognition model", "Used only when identity matching is enabled.",
+@@ -48,8 +58,8 @@
+             if (acoustics == null) return;
+             var value = acoustics.interaction ?? (acoustics.interaction = new MNNInteractionSettings());
+             AddSettingsTitle("Target speech pickup", "Audio-visual pickup uses the camera configured in Vision.");
+-            AddBoolField("Audio-visual target speech", "Requires a synchronized visual speech provider; stale video is rejected.",
+-                () => value.audioVisualSpeech, enabled => UpdateAudioSettings(() => value.audioVisualSpeech = enabled));
++            AddBoolField("Audio-visual target speech", "Enable vision first. Requires a synchronized visual speech provider; stale video is rejected.",
++                () => value.audioVisualSpeech, enabled => UpdateAudioSettings(() => value.audioVisualSpeech = enabled), value.visualPresence);
+             AddBoolField("Reference speaker extraction", "Requires an enrolled voice and a target extraction provider.",
+                 () => value.referenceSpeaker, enabled => UpdateAudioSettings(() => value.referenceSpeaker = enabled));
+             AddBoolField("Overlapping speaker separation", "Requires a separator and target identity selector; ambiguity is rejected.",
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
+@@ -15,7 +15,7 @@
+         private void BuildCameraSettings(MNNInteractionSettings interaction)
+         {
+             var camera = interaction.camera ?? (interaction.camera = new MNNCameraSettings());
+-            AddSettingsTitle("Camera", "Visual presence automatically opens the camera after permission is granted. Save to apply camera changes.");
++            AddSettingsTitle("Camera", "Enable vision and save to start the camera after permission is granted. Disable vision and save to release it.");
+             var devices = _cameraDevices();
+             var names = new string[devices.Length + 1]; names[0] = "Automatic (prefer front camera)";
+             for (int i = 0; i < devices.Length; ++i) names[i + 1] = devices[i].name;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs
+@@ -36,7 +36,7 @@
+             var preview = RectObject("Live Camera", _cameraPreviewSurface);
+             _cameraSettingsPreview = preview.gameObject.AddComponent<RawImage>();
+             _cameraSettingsPreview.raycastTarget = false; _cameraSettingsPreview.enabled = false;
+-            _cameraPresenceStatus = Label(frame, "Enable visual presence and save to see live detection.", 15, Color.white);
++            _cameraPresenceStatus = Label(frame, "Enable vision and save to see live detection.", 15, Color.white);
+             _cameraPresenceStatus.name = "Presence Preview Status";
+             var badge = _cameraPresenceStatus.rectTransform;
+             badge.anchorMin = new Vector2(0, 1); badge.anchorMax = Vector2.one; badge.pivot = new Vector2(.5f, 1);
+@@ -69,7 +69,7 @@
+             if (!ready)
+             {
+                 _cameraPresenceStatus.text = Localize(_editorPreview ? "Preview only. Camera is not started." :
+-                    _chat != null && _chat.IsVisualLoading ? _chat.VisualCameraStatus : "Enable visual presence and save to see live detection.");
++                    _chat != null && _chat.IsVisualLoading ? _chat.VisualCameraStatus : "Enable vision and save to see live detection.");
+                 return;
+             }
+             string state = PresencePreviewState(presence.State, admitted);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -27,7 +27,7 @@
+         public bool IsVisualLoading => !_visualReady || _visualStarting || !_presenceChange.IsCompleted || IsPreparingConversation ||
+             _interactionCamera == null || !_interactionCamera.isPlaying;
+         public string VisualCameraStatus => !string.IsNullOrEmpty(_visualCameraError) ? _visualCameraError :
+-            _interaction == null || !_interaction.ReadSettings().visualPresence ? "Camera is off. Enable visual presence and save." :
++            _interaction == null || !_interaction.ReadSettings().visualPresence ? "Vision is off. Enable vision and save to start the camera." :
+             _visualStarting ? "Starting camera and visual models…" : !_visualReady ? "Waiting for camera and first visual observation…" :
+             _interactionCamera == null ? "Camera unavailable" : _interactionCamera.deviceName + " · " + _interactionCamera.width + " × " +
+                 _interactionCamera.height + " · " + _interactionCamera.requestedFPS + " FPS requested";
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -9,6 +9,12 @@
+         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
+         {
+             { "Vision", "视觉" },
++            { "Enable vision", "启用视觉" },
++            { "Off also disables identity gating, image context and audio-visual pickup. Audio-only settings stay unchanged.", "关闭时同时停用身份门控、图像上下文和视听融合拾音；纯音频功能不受影响。" },
++            { "Enable vision first. Requires a synchronized visual speech provider; stale video is rejected.", "请先启用视觉。需要同步的视听拾音适配器，过期画面会被拒绝。" },
++            { "Enable vision and save to see live detection.", "启用视觉并保存后即可查看实时检测。" },
++            { "Vision is off. Enable vision and save to start the camera.", "视觉已关闭。启用视觉并保存后会启动摄像头。" },
++            { "Enable vision and save to start the camera after permission is granted. Disable vision and save to release it.", "启用视觉并保存后，授权即可启动摄像头；关闭视觉并保存后释放摄像头。" },
+             { "Enable visual presence and save to see live detection.", "开启视觉在场感知并保存，即可查看实时检测画面。" },
+             { "Live applied settings. Save changes to update detection.", "画面显示当前生效的检测效果；修改设置后请保存。" },
+             { "Waiting for fresh detection…", "正在等待新的检测结果…" },
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+@@ -15,6 +15,13 @@
+     public sealed class VisionSettingsTests
+     {
+         private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
++        private static SiriAIChat CreateChat(GameObject root)
++        {
++            var acoustics = root.AddComponent<SiriAIAcousticProcessing>();
++            SiriAITestAccess.Set(acoustics, "preferencesKey", "");
++            return root.AddComponent<SiriAIChat>();
++        }
++
+         private static Transform Active(Transform root, string name)
+         {
+             for (int i = 0; i < root.childCount; ++i)
+@@ -24,13 +31,82 @@
+             }
+             return null;
+         }
++
++        [Test]
++        public void DisablingVisionClearsVisualDependenciesAndPreservesAudioAndCameraSettings()
++        {
++            var root = new GameObject("Independent vision switch");
++            string key = "SiriAI.Vision.Switch." + Guid.NewGuid().ToString("N");
++            try
++            {
++                CreateChat(root).enabled = false;
++                var view = root.AddComponent<SiriAIChatView>();
++                var type = typeof(SiriAIChatView);
++                type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
++                view.OpenSettings();
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
++                var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
++                draft.Acoustics.enabled = false;
++                var value = draft.Acoustics.interaction;
++                value.visualPresence = value.faceRecognition = value.imageContext = value.audioVisualSpeech = true;
++                value.allowedIdentities = new[] {"enrolled-person"};
++                value.referenceSpeaker = value.separateSpeakers = true;
++                value.camera.deviceName = "Saved camera";
++                string detector = value.detectorDirectory, recognizer = value.recognizerDirectory;
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, false});
++                // Exercise the existing control too, so the baseline fails on behavior rather than its label.
++                var master = Active(content, "Enable vision") ?? Active(content, "Visual presence");
++                master.GetComponentInChildren<Button>().onClick.Invoke();
++                Assert.That(value.visualPresence, Is.False);
++                Assert.That(value.faceRecognition, Is.False, "Disabling vision must also disable identity gating.");
++                Assert.That(value.imageContext, Is.False);
++                Assert.That(value.audioVisualSpeech, Is.False);
++                Assert.That(value.referenceSpeaker && value.separateSpeakers, Is.True, "Audio-only capabilities stay independent.");
++                Assert.That(value.camera.deviceName, Is.EqualTo("Saved camera"));
++                Assert.That(value.detectorDirectory, Is.EqualTo(detector));
++                Assert.That(value.recognizerDirectory, Is.EqualTo(recognizer));
++                Assert.That(value.allowedIdentities, Is.EqualTo(new[] {"enrolled-person"}));
++                Assert.DoesNotThrow(() => value.Validate());
++                foreach (string label in new[] {"Recognized identities only", "Image context"})
++                    Assert.That(Active(content, label).GetComponentInChildren<Button>().interactable, Is.False, label);
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {11, true});
++                Assert.That(Active(content, "Audio-visual target speech").GetComponentInChildren<Button>().interactable, Is.False);
++                Assert.That(Active(content, "Reference speaker extraction").GetComponentInChildren<Button>().interactable, Is.True);
++                Assert.That(Active(content, "Overlapping speaker separation").GetComponentInChildren<Button>().interactable, Is.True);
++                SiriAIAcousticPreferencesStore.Save(key, draft.Acoustics);
++                var restored = SiriAIAcousticPreferencesStore.Read(key).interaction;
++                Assert.That(restored.visualPresence || restored.faceRecognition || restored.imageContext || restored.audioVisualSpeech, Is.False);
++                Assert.That(restored.referenceSpeaker && restored.separateSpeakers, Is.True);
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                Active(content, "Enable vision").GetComponentInChildren<Button>().onClick.Invoke();
++                Assert.That(value.visualPresence, Is.True);
++                Assert.That(draft.Acoustics.enabled, Is.False, "Vision must work independently of the acoustic processing switch.");
++                Assert.That(value.faceRecognition || value.imageContext || value.audioVisualSpeech, Is.False);
++                Assert.That(Active(content, "Image context").GetComponentInChildren<Button>().interactable, Is.True);
++                Assert.DoesNotThrow(() => value.Validate());
++                var interaction = root.AddComponent<MNNInteractionComponent>();
++                interaction.Configure(new MNNInteractionSettings {visualPresence = value.visualPresence});
++                Assert.That(interaction.Camera.enabled, Is.True);
++                Assert.That(interaction.CanStartInteraction, Is.False, "Enabling vision waits for confirmed presence.");
++                restored.referenceSpeaker = restored.separateSpeakers = false;
++                interaction.Configure(restored);
++                Assert.That(interaction.Camera.enabled, Is.False);
++                Assert.That(interaction.Presence.enabled, Is.False);
++                Assert.That(interaction.CanStartInteraction, Is.True, "Vision off must admit ordinary audio without a visible face.");
++                var samples = new[] {.1f, -.2f};
++                Assert.That(interaction.PrepareVoiceAsync(samples, System.Threading.CancellationToken.None).Result, Is.SameAs(samples));
++            }
++            finally { PlayerPrefs.DeleteKey(key); UnityEngine.Object.DestroyImmediate(root); }
++        }
++
+         [Test]
+         public void VisionShowsCameraPreviewDirectlyWithoutAnExtraToggle()
+         {
+             var root = new GameObject("Direct visual feedback");
+             try
+             {
+-                root.AddComponent<SiriAIChat>().enabled = false;
++                CreateChat(root).enabled = false;
+                 var view = root.AddComponent<SiriAIChatView>();
+                 typeof(SiriAIChatView).GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+                 view.OpenSettings();
+@@ -50,7 +126,7 @@
+             var root = new GameObject("Camera overlay feedback");
+             try
+             {
+-                root.AddComponent<SiriAIChat>().enabled = false;
++                CreateChat(root).enabled = false;
+                 var view = root.AddComponent<SiriAIChatView>();
+                 var type = typeof(SiriAIChatView);
+                 type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+@@ -97,7 +173,7 @@
+             var root = new GameObject("Visual camera settings");
+             try
+             {
+-                root.AddComponent<SiriAIChat>().enabled = false;
++                CreateChat(root).enabled = false;
+                 var view = root.AddComponent<SiriAIChatView>();
+                 var type = typeof(SiriAIChatView);
+                 type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+@@ -123,12 +199,42 @@
+         }
+ 
+         [UnityTest]
++        public IEnumerator ApplyingVisionOffDisposesVisualSourceWithoutLoadingModels()
++        {
++            var root = new GameObject("Disable visual resources");
++            try
++            {
++                var chat = CreateChat(root); chat.enabled = false;
++                var interaction = root.AddComponent<MNNInteractionComponent>();
++                chat.ConfigureInteraction(interaction);
++                interaction.Configure(new MNNInteractionSettings {visualPresence = true});
++                var source = new OwnedVisualSource();
++                typeof(SiriAIChat).GetField("_presenceSource", Private).SetValue(chat, source);
++                int loads = 0;
++                chat.PresenceSourceFactory = (settings, token) => { ++loads; return new OwnedVisualSource(); };
++                var disabled = new MNNInteractionSettings();
++                interaction.Configure(disabled);
++                var apply = (Task)typeof(SiriAIChat).GetMethod("ApplyPresenceSettingsAsync", Private)
++                    .Invoke(chat, new object[] {disabled, Task.CompletedTask, 0});
++                while (!apply.IsCompleted) yield return null;
++                Assert.That(apply.IsFaulted, Is.False);
++                Assert.That(source.Disposed, Is.True);
++                Assert.That(loads, Is.Zero, "Vision off must not load a model or request a camera.");
++                Assert.That(chat.VisualCamera, Is.Null);
++                Assert.That(interaction.Camera.enabled, Is.False);
++                Assert.That(interaction.CanStartInteraction, Is.True);
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++
++        [UnityTest]
+         public IEnumerator StoppingConversationReleasesOwnedVisualProvider()
+         {
+             var root = new GameObject("Visual provider session ownership");
+             try
+             {
+-                var chat = root.AddComponent<SiriAIChat>(); chat.enabled = false;
++                var chat = CreateChat(root); chat.enabled = false;
+                 // OnDisable has already stopped the empty fixture. Begin a new owned session state.
+                 typeof(SiriAIChat).GetField("_stopTask", Private).SetValue(chat, null);
+                 var source = new OwnedVisualSource();
+@@ -147,7 +253,7 @@
+             var root = new GameObject("Presence loading presentation");
+             try
+             {
+-                var chat = root.AddComponent<SiriAIChat>(); chat.enabled = false;
++                var chat = CreateChat(root); chat.enabled = false;
+                 var view = root.AddComponent<SiriAIChatView>();
+                 var type = typeof(SiriAIChatView);
+                 type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+@@ -180,7 +286,7 @@
+                 Directory.CreateDirectory(model);
+                 File.WriteAllText(Path.Combine(model, MNNImageTaskConfig.FileName), JsonUtility.ToJson(new MNNImageTaskConfig { profile = profile }));
+                 File.WriteAllBytes(Path.Combine(model, graph), new byte[] {1}); // File-presence UI fixture; not inference validation.
+-                root.AddComponent<SiriAIChat>().enabled = false;
++                CreateChat(root).enabled = false;
+                 var view = root.AddComponent<SiriAIChatView>();
+                 var type = typeof(SiriAIChatView);
+                 type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
+@@ -226,7 +332,7 @@
+             var root = new GameObject("Vision settings navigation");
+             try
+             {
+-                root.AddComponent<SiriAIChat>();
++                CreateChat(root);
+                 var view = root.AddComponent<SiriAIChatView>();
+                 view.TickEditorPreview(new Rect(0, 0, 844, 800), 1);
+                 view.OpenSettings();
+@@ -239,10 +345,10 @@
+                 Assert.That(icon.Glyph.ToString(), Is.EqualTo("Eye"));
+                 tabs[vision].onClick.Invoke();
+                 var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
+-                foreach (string label in new[] { "Visual presence", "Recognized identities only", "Image context" })
++                foreach (string label in new[] { "Enable vision", "Recognized identities only", "Image context" })
+                     Assert.That(Active(content, label), Is.Not.Null, label);
+                 Assert.That(Active(content, "Reference speaker extraction"), Is.Null);
+-                Active(content, "Visual presence").GetComponentInChildren<Button>().onClick.Invoke();
++                Active(content, "Enable vision").GetComponentInChildren<Button>().onClick.Invoke();
+                 Assert.That(Active(content, "Sleep display"), Is.Not.Null);
+                 Assert.That(Active(content, "Face detection model"), Is.Not.Null);
+                 var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
+@@ -252,7 +358,7 @@
+                 Assert.That(Active(content, "Sleep after absence (s)"), Is.Not.Null);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {11, true});
+                 Assert.That(draft.Acoustics.interaction.confirmationSeconds, Is.EqualTo(1.2f));
+-                Assert.That(Active(content, "Visual presence"), Is.Null);
++                Assert.That(Active(content, "Enable vision"), Is.Null);
+                 Assert.That(Active(content, "Reference speaker extraction"), Is.Not.Null);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {ids[vision], true});
+                 Assert.That(draft.Acoustics.interaction.visualPresence, Is.True, "Navigating categories preserves the unsaved visual draft.");
+diff --git a/Assets/Samples/SiriAI/README.md b/Assets/Samples/SiriAI/README.md
+--- a/Assets/Samples/SiriAI/README.md
++++ b/Assets/Samples/SiriAI/README.md
+@@ -1,3 +1,5 @@
+ # SiriAI
++
++**独立视觉开关**：设置 → 视觉 → **启用视觉**，保存后生效。关闭时释放摄像头及视觉模型，并同时关闭身份门控、图像上下文、视听融合拾音；普通语音、唤醒、参考说话人提取与重叠语音分离保持各自配置。摄像头选择、视觉模型与已登记身份保留；再次开启后可重新选择所需的视觉子功能。视觉开启不依赖声学处理总开关。
+ 
+ 默认本地语言模型为 `MNN/MNN-Pocket-0.3B`；实际使用官方 `MNN/MNN-Pocket-0.3B-MNN` 的固定版本 INT4 W4A16 导出，包含原生 `.mtok` 分词器和 ChatML 模板。场景与新配置一致，首次运行不会按硬件换成其他模型，已有保存设置及手动选择继续生效。新安装使用此默认项；已有设备请在 Providers 选择 Pocket 后保存。模型位于 `Assets/StreamingAssets/MNN/Models/MNN-Pocket-0.3B-MNN/`，其余系列权重的格式与转换说明见包内 `Documentation~/MNNPocket.md`。
