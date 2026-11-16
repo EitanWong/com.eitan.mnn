@@ -44,6 +44,16 @@ namespace MNN.Unity
             _nextCapture = 0;
         }
 
+        /// <summary>Apply bounded analysis polling independently of the negotiated camera capture rate.</summary>
+        public void Configure(MNNCameraSettings settings)
+        {
+            if (settings == null) throw new ArgumentNullException(nameof(settings));
+            settings.Validate();
+            _framesPerSecond = settings.DetectionFramesPerSecond;
+            _sleepFramesPerSecond = settings.SleepFramesPerSecond;
+            _maximumImageEdge = settings.MaximumImageEdge;
+        }
+
         public async Task StopAsync()
         {
             var pending = _pending;
@@ -91,7 +101,7 @@ namespace MNN.Unity
             double now = Time.realtimeSinceStartupAsDouble;
             if (now < _nextCapture || _camera.width <= 16 || _camera.height <= 16) return;
             bool awake = _presence == null || _presence.Current.State != MNNPresenceState.Sleeping;
-            _nextCapture = now + 1.0 / Mathf.Max(2, awake ? _framesPerSecond : _sleepFramesPerSecond);
+            _nextCapture = now + 1.0 / Mathf.Max(1, awake ? _framesPerSecond : _sleepFramesPerSecond);
             try
             {
                 _pixels = _camera.GetPixels32(_pixels);

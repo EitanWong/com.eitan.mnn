@@ -9,6 +9,7 @@ namespace MNN.Unity
     [Serializable]
     public sealed class MNNInteractionSettings
     {
+        public MNNCameraSettings camera = new MNNCameraSettings();
         public bool visualPresence;
         public bool faceRecognition;
         public bool imageContext;
@@ -28,12 +29,14 @@ namespace MNN.Unity
         public MNNInteractionSettings Snapshot()
         {
             var copy = (MNNInteractionSettings)MemberwiseClone();
+            copy.camera = (camera ?? new MNNCameraSettings()).Snapshot();
             copy.allowedIdentities = allowedIdentities == null ? Array.Empty<string>() : (string[])allowedIdentities.Clone();
             return copy;
         }
 
         public void Validate()
         {
+            (camera ?? new MNNCameraSettings()).Validate();
             ToPresenceOptions();
             if (!Enum.IsDefined(typeof(MNNPresenceSleepDisplay), sleepDisplay)) throw new ArgumentException("Select a sleep display mode.");
             if (faceRecognition && (!visualPresence || allowedIdentities == null || allowedIdentities.Length == 0))

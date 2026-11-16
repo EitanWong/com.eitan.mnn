@@ -9489,6 +9489,12 @@ public MNN.Unity.MNNFaceCameraComponent.MNNFaceCameraComponent()
 ```
 
 ```csharp
+public void MNN.Unity.MNNFaceCameraComponent.Configure(MNN.Unity.MNNCameraSettings settings)
+```
+
+Apply bounded analysis polling independently of the negotiated camera capture rate.
+
+```csharp
 public void MNN.Unity.MNNFaceCameraComponent.StartTracking(UnityEngine.WebCamTexture camera, MNN.Unity.IMNNPresenceSource pipeline)
 ```
 
@@ -25147,6 +25153,46 @@ Zipformer v1 greedy ASR for the 2023-02-20 bilingual and 2023-02-21 English grap
 ## Vision
 
 ```csharp
+public bool MNN.Unity.MNNCameraSettings.automaticQuality
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.detectionFramesPerSecond
+```
+
+```csharp
+public string MNN.Unity.MNNCameraSettings.deviceName
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.framesPerSecond
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.height
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.maximumImageEdge
+```
+
+```csharp
+public bool MNN.Unity.MNNCameraSettings.showPreview
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.sleepFramesPerSecond
+```
+
+```csharp
+public float MNN.Unity.MNNCameraSettings.startupTimeoutSeconds
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.width
+```
+
+```csharp
 public const string MNN.Unity.MNNImageTaskConfig.FileName = "mnn_image_task.json"
 ```
 
@@ -25208,6 +25254,10 @@ public string[] MNN.Unity.MNNInteractionSettings.allowedIdentities
 
 ```csharp
 public bool MNN.Unity.MNNInteractionSettings.audioVisualSpeech
+```
+
+```csharp
+public MNN.Unity.MNNCameraSettings MNN.Unity.MNNInteractionSettings.camera
 ```
 
 ```csharp
@@ -25520,6 +25570,24 @@ MNN.Unity.MNNPresenceObservation MNN.Unity.IMNNPresenceSource.Process(MNN.Unity.
 
 ```csharp
 void MNN.Unity.IMNNPresenceSource.Reset()
+```
+
+```csharp
+public MNN.Unity.MNNCameraSettings.MNNCameraSettings()
+```
+
+```csharp
+public static int MNN.Unity.MNNCameraSettings.SelectDevice(string[] names, bool[] frontFacing, string requested)
+```
+
+Exact saved choice wins; a disconnected explicit choice is not silently replaced.
+
+```csharp
+public MNN.Unity.MNNCameraSettings MNN.Unity.MNNCameraSettings.Snapshot()
+```
+
+```csharp
+public void MNN.Unity.MNNCameraSettings.Validate()
 ```
 
 ```csharp
@@ -25892,6 +25960,30 @@ public static MNN.Unity.MNNYoloV8Config MNN.Unity.MNNYoloV8Config.Read(string di
 
 ```csharp
 public string MNN.Unity.MNNYoloV8Config.ResolveGraph(string directory)
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.DetectionFramesPerSecond { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.MaximumImageEdge { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.RequestedFramesPerSecond { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.RequestedHeight { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.RequestedWidth { get; }
+```
+
+```csharp
+public int MNN.Unity.MNNCameraSettings.SleepFramesPerSecond { get; }
 ```
 
 ```csharp
@@ -26273,6 +26365,12 @@ interface MNN.Unity.IMNNPresenceSource
 ```
 
 Worker-owned visual detection/recognition task, independent of a model family. Implement with any validated person/face detector and tracker. Never equate a track with an identity.
+
+```csharp
+class MNN.Unity.MNNCameraSettings
+```
+
+Camera requests are negotiated by the device. Automatic mode balances face detail, capture latency and inference cost; it is not a measured universal accuracy optimum.
 
 ```csharp
 class MNN.Unity.MNNDetection

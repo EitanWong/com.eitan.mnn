@@ -15290,6 +15290,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Components",
+    "Id": "M:MNN.Unity.MNNFaceCameraComponent.Configure(MNN.Unity.MNNCameraSettings)",
+    "Signature": "public void MNN.Unity.MNNFaceCameraComponent.Configure(MNN.Unity.MNNCameraSettings settings)",
+    "Summary": "Apply bounded analysis polling independently of the negotiated camera capture rate."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
     "Id": "M:MNN.Unity.MNNFaceCameraComponent.StartTracking(UnityEngine.WebCamTexture,MNN.Unity.IMNNPresenceSource)",
     "Signature": "public void MNN.Unity.MNNFaceCameraComponent.StartTracking(UnityEngine.WebCamTexture camera, MNN.Unity.IMNNPresenceSource pipeline)",
     "Summary": "Main thread only. Does not request permissions, start the camera, load or dispose models."
@@ -40546,6 +40553,76 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.automaticQuality",
+    "Signature": "public bool MNN.Unity.MNNCameraSettings.automaticQuality",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.detectionFramesPerSecond",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.detectionFramesPerSecond",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.deviceName",
+    "Signature": "public string MNN.Unity.MNNCameraSettings.deviceName",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.framesPerSecond",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.framesPerSecond",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.height",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.height",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.maximumImageEdge",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.maximumImageEdge",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.showPreview",
+    "Signature": "public bool MNN.Unity.MNNCameraSettings.showPreview",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.sleepFramesPerSecond",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.sleepFramesPerSecond",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.startupTimeoutSeconds",
+    "Signature": "public float MNN.Unity.MNNCameraSettings.startupTimeoutSeconds",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNCameraSettings.width",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.width",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
     "Id": "F:MNN.Unity.MNNImageTaskConfig.FileName",
     "Signature": "public const string MNN.Unity.MNNImageTaskConfig.FileName = \u0022mnn_image_task.json\u0022",
     "Summary": ""
@@ -40653,6 +40730,13 @@
     "Domain": "Vision",
     "Id": "F:MNN.Unity.MNNInteractionSettings.audioVisualSpeech",
     "Signature": "public bool MNN.Unity.MNNInteractionSettings.audioVisualSpeech",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "F:MNN.Unity.MNNInteractionSettings.camera",
+    "Signature": "public MNN.Unity.MNNCameraSettings MNN.Unity.MNNInteractionSettings.camera",
     "Summary": ""
   },
   {
@@ -41199,6 +41283,34 @@
     "Domain": "Vision",
     "Id": "M:MNN.Unity.IMNNPresenceSource.Reset",
     "Signature": "void MNN.Unity.IMNNPresenceSource.Reset()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNCameraSettings.#ctor",
+    "Signature": "public MNN.Unity.MNNCameraSettings.MNNCameraSettings()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNCameraSettings.SelectDevice(System.String[],System.Boolean[],System.String)",
+    "Signature": "public static int MNN.Unity.MNNCameraSettings.SelectDevice(string[] names, bool[] frontFacing, string requested)",
+    "Summary": "Exact saved choice wins; a disconnected explicit choice is not silently replaced."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNCameraSettings.Snapshot",
+    "Signature": "public MNN.Unity.MNNCameraSettings MNN.Unity.MNNCameraSettings.Snapshot()",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "M:MNN.Unity.MNNCameraSettings.Validate",
+    "Signature": "public void MNN.Unity.MNNCameraSettings.Validate()",
     "Summary": ""
   },
   {
@@ -41822,6 +41934,48 @@
     "Domain": "Vision",
     "Id": "M:MNN.Unity.MNNYoloV8Config.ResolveGraph(System.String)",
     "Signature": "public string MNN.Unity.MNNYoloV8Config.ResolveGraph(string directory)",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNCameraSettings.DetectionFramesPerSecond",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.DetectionFramesPerSecond { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNCameraSettings.MaximumImageEdge",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.MaximumImageEdge { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNCameraSettings.RequestedFramesPerSecond",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.RequestedFramesPerSecond { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNCameraSettings.RequestedHeight",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.RequestedHeight { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNCameraSettings.RequestedWidth",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.RequestedWidth { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "P:MNN.Unity.MNNCameraSettings.SleepFramesPerSecond",
+    "Signature": "public int MNN.Unity.MNNCameraSettings.SleepFramesPerSecond { get; }",
     "Summary": ""
   },
   {
@@ -42481,6 +42635,13 @@
     "Id": "T:MNN.Unity.IMNNPresenceSource",
     "Signature": "interface MNN.Unity.IMNNPresenceSource",
     "Summary": "Worker-owned visual detection/recognition task, independent of a model family. Implement with any validated person/face detector and tracker. Never equate a track with an identity."
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Vision",
+    "Id": "T:MNN.Unity.MNNCameraSettings",
+    "Signature": "class MNN.Unity.MNNCameraSettings",
+    "Summary": "Camera requests are negotiated by the device. Automatic mode balances face detail, capture latency and inference cost; it is not a measured universal accuracy optimum."
   },
   {
     "Assembly": "MNN.Unity",

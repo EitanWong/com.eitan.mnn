@@ -111,7 +111,7 @@
              SupportsRecordedVoice = () => SupportsRecordedVoice,
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,201 @@
 +using System;
 +using System.Threading.Tasks;
 +using System.Threading;
@@ -133,6 +133,26 @@
 +        private IMNNPresenceSource _presenceSource;
 +        private CancellationTokenSource _presenceLifetime;
 +        private Task _presenceChange = Task.CompletedTask;
++        private int _presenceRevision;
++        private bool _visualReady;
++        private bool _visualStarting;
++        private string _visualCameraError;
++        public WebCamTexture VisualCamera => _interactionCamera;
++        public bool IsVisualLoading => !_visualReady || _visualStarting || !_presenceChange.IsCompleted || IsPreparingConversation ||
++            _interactionCamera == null || !_interactionCamera.isPlaying;
++        public string VisualCameraStatus => !string.IsNullOrEmpty(_visualCameraError) ? _visualCameraError :
++            _interaction == null || !_interaction.ReadSettings().visualPresence ? "Camera is off. Enable visual presence and save." :
++            _visualStarting ? "Starting camera and visual models…" : !_visualReady ? "Waiting for camera and first visual observation…" :
++            _interactionCamera == null ? "Camera unavailable" : _interactionCamera.deviceName + " · " + _interactionCamera.width + " × " +
++                _interactionCamera.height + " · " + _interactionCamera.requestedFPS + " FPS requested";
++        /// <summary>Retry permission/device/model startup after the user corrects settings or reconnects the camera.</summary>
++        public void RetryVisualCamera() { _interactionConfiguration = null; _nextInteractionSettingsRead = 0; }
++        private void VisualObservation(MNNPresenceObservation observation) { _visualReady = true; }
++        private void VisualCameraFailed(Exception error)
++        {
++            _visualReady = false; _visualCameraError = error.Message;
++            if (_interactionCamera != null) _interactionCamera.Stop();
++        }
 +        /// <summary>Optional model-family adapter; invoked on a worker. Caller transfers source ownership to this session.</summary>
 +        public Func<MNNInteractionSettings, CancellationToken, IMNNPresenceSource> PresenceSourceFactory { get; set; }
 +        public MNNFaceGallery EnrolledFaces { get; } = new MNNFaceGallery();
@@ -148,7 +168,9 @@
 +
 +        private void UpdateInteractionPresence()
 +        {
-+            if (_context == null) return;
++            if (_context == null || _stopTask != null) return;
++            if (_visualReady && _interactionCamera != null && !_interactionCamera.isPlaying)
++            { _visualReady = false; RetryVisualCamera(); }
 +            if (_interactionSettings == null || Time.realtimeSinceStartupAsDouble >= _nextInteractionSettingsRead)
 +            {
 +                _interactionSettings = GetAcousticSettings().interaction ?? new MNNInteractionSettings();
@@ -159,16 +181,21 @@
 +            if (configuration != _interactionConfiguration)
 +            {
 +                _interactionConfiguration = configuration;
++                _visualReady = false; _visualCameraError = null;
 +                bool needed = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers;
 +                if (needed)
 +                {
 +                    _interaction = GetComponent<MNNInteractionComponent>() ?? gameObject.AddComponent<MNNInteractionComponent>();
++                    _interaction.Camera.Observation -= VisualObservation;
++                    _interaction.Camera.Failed -= VisualCameraFailed;
++                    _interaction.Camera.Observation += VisualObservation;
++                    _interaction.Camera.Failed += VisualCameraFailed;
 +                    _interaction.Configure(settings);
 +                }
 +                else if (_interaction != null) _interaction.Configure(settings);
 +                _context.Interaction = needed ? _interaction : null;
 +                _presenceLifetime?.Cancel();
-+                _presenceChange = ApplyPresenceSettingsAsync(settings.Snapshot(), _presenceChange);
++                _presenceChange = ApplyPresenceSettingsAsync(settings.Snapshot(), _presenceChange, ++_presenceRevision);
 +                Observe(() => _presenceChange);
 +            }
 +            _context.Interaction = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers ? _interaction : null;
@@ -197,38 +224,67 @@
 +            if (_context != null) _context.Interaction = interaction;
 +        }
 +
-+        private async Task ApplyPresenceSettingsAsync(MNNInteractionSettings settings, Task previousChange)
++        private async Task ApplyPresenceSettingsAsync(MNNInteractionSettings settings, Task previousChange, int revision)
 +        {
-+            try { await previousChange; } catch (Exception) { /* Prior failure was reported by Observe. Cleanup still must run. */ }
++            try { await previousChange; } catch (Exception) { /* Cleanup still runs after a reported failure. */ }
++            if (revision != _presenceRevision) return;
 +            var previous = _presenceLifetime;
 +            previous?.Cancel();
-+            _presenceLifetime = new CancellationTokenSource();
-+            var lifetime = _presenceLifetime;
-+            if (_interaction != null) await _interaction.StopCameraAsync();
-+            (_presenceSource as IDisposable)?.Dispose(); _presenceSource = null;
-+            if (_interactionCamera != null) { _interactionCamera.Stop(); Destroy(_interactionCamera); _interactionCamera = null; }
-+            previous?.Dispose();
-+            if (!settings.visualPresence || lifetime.IsCancellationRequested) return;
-+            if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
-+            {
-+                if (!await RequestCameraPermission(lifetime.Token)) throw new UnauthorizedAccessException("Camera permission is required for visual presence.");
-+            }
-+            lifetime.Token.ThrowIfCancellationRequested();
-+            var factory = PresenceSourceFactory;
-+            string root = SiriAIModelInstallation.ModelsDirectory;
-+            var source = await Task.Run(() => factory != null ? factory(settings, lifetime.Token) :
-+                MNNFacePresenceSource.Load(Path.Combine(root, settings.detectorDirectory),
-+                    settings.faceRecognition ? Path.Combine(root, settings.recognizerDirectory) : null,
-+                    settings.faceRecognition ? EnrolledFaces : null), lifetime.Token);
-+            if (lifetime.IsCancellationRequested) { (source as IDisposable)?.Dispose(); return; }
++            var lifetime = _presenceLifetime = new CancellationTokenSource();
++            _visualReady = false; _visualStarting = settings.visualPresence; _visualCameraError = null;
++            IMNNPresenceSource source = null;
 +            try
 +            {
-+                _interactionCamera = new WebCamTexture(640, 480, 30);
++                if (_interaction != null) await _interaction.StopCameraAsync();
++                (_presenceSource as IDisposable)?.Dispose(); _presenceSource = null;
++                ReleaseVisualCamera();
++                previous?.Dispose();
++                if (!settings.visualPresence) return;
++                var camera = settings.camera ?? new MNNCameraSettings(); camera.Validate();
++                if (!Application.HasUserAuthorization(UserAuthorization.WebCam) && !await RequestCameraPermission(lifetime.Token))
++                    throw new UnauthorizedAccessException("Camera permission is required for visual presence. Allow camera access in system settings, then retry.");
++                lifetime.Token.ThrowIfCancellationRequested();
++                var devices = WebCamTexture.devices;
++                int selected = MNNCameraSettings.SelectDevice(Array.ConvertAll(devices, device => device.name),
++                    Array.ConvertAll(devices, device => device.isFrontFacing), camera.deviceName);
++                if (selected < 0) throw new InvalidOperationException(string.IsNullOrEmpty(camera.deviceName)
++                    ? "No camera is connected. Connect a camera, then retry." : "The selected camera is disconnected. Choose another camera or retry.");
++                _interaction.Camera.Configure(camera);
++                // Start capture immediately after permission; model loading must not delay camera startup.
++                _interactionCamera = new WebCamTexture(devices[selected].name, camera.RequestedWidth, camera.RequestedHeight, camera.RequestedFramesPerSecond);
 +                _interactionCamera.Play();
++                string root = SiriAIModelInstallation.ModelsDirectory;
++                var factory = PresenceSourceFactory;
++                source = await Task.Run(() => factory != null ? factory(settings, lifetime.Token) :
++                    MNNFacePresenceSource.Load(Path.Combine(root, settings.detectorDirectory),
++                        settings.faceRecognition ? Path.Combine(root, settings.recognizerDirectory) : null,
++                        settings.faceRecognition ? EnrolledFaces : null), lifetime.Token);
++                lifetime.Token.ThrowIfCancellationRequested();
++                double deadline = Time.realtimeSinceStartupAsDouble + camera.startupTimeoutSeconds;
++                while (_interactionCamera != null && (!_interactionCamera.didUpdateThisFrame || _interactionCamera.width <= 16 || _interactionCamera.height <= 16))
++                {
++                    lifetime.Token.ThrowIfCancellationRequested();
++                    if (Time.realtimeSinceStartupAsDouble >= deadline) throw new TimeoutException("Camera did not deliver frames. Check device access and retry.");
++                    // didUpdateThisFrame is a per-Unity-frame flag; a wall-clock delay can miss every update.
++                    await Task.Yield();
++                }
++                lifetime.Token.ThrowIfCancellationRequested();
 +                _interaction.StartCamera(_interactionCamera, source);
-+                _presenceSource = source;
++                _presenceSource = source; source = null;
 +            }
-+            catch { (source as IDisposable)?.Dispose(); throw; }
++            catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { ReleaseVisualCamera(); }
++            catch (Exception error)
++            {
++                _visualCameraError = error.Message; ReleaseVisualCamera();
++                throw;
++            }
++            finally { (source as IDisposable)?.Dispose(); _visualStarting = false; }
++        }
++
++        private void ReleaseVisualCamera()
++        {
++            if (_interactionCamera == null) return;
++            _interactionCamera.Stop(); Destroy(_interactionCamera); _interactionCamera = null;
 +        }
 +
 +        private static async Task<bool> RequestCameraPermission(CancellationToken token)
@@ -243,13 +299,17 @@
 +
 +        private async Task StopInteractionAsync()
 +        {
++            ++_presenceRevision;
 +            _presenceLifetime?.Cancel();
 +            try { await _presenceChange; } catch (Exception) { }
 +            if (_interaction != null) await _interaction.StopCameraAsync();
 +            (_presenceSource as IDisposable)?.Dispose(); _presenceSource = null;
-+            if (_interactionCamera != null) { _interactionCamera.Stop(); Destroy(_interactionCamera); _interactionCamera = null; }
++            ReleaseVisualCamera();
++            if (_interaction != null)
++            { _interaction.Camera.Observation -= VisualObservation; _interaction.Camera.Failed -= VisualCameraFailed; }
 +            _presenceLifetime?.Dispose(); _presenceLifetime = null;
 +            _interactionConfiguration = null; _interactionSettings = null; _lastPresenceAdmission = false;
++            _visualReady = _visualStarting = false; _visualCameraError = null;
 +        }
 +    }
 +}
@@ -277,7 +337,16 @@
              _context.Input.SetRealtime(false);
              _registration = backend.CreateRegistration(_context) ??
                  throw new InvalidOperationException("The backend returned no registration.");
-@@ -466,6 +467,7 @@
+@@ -430,6 +431,8 @@
+             bool audioClosed = false;
+             try { if (_audio != null) await _audio.CloseAsync(); audioClosed = true; }
+             catch (Exception error) { failure = error; }
++            try { await StopInteractionAsync(); }
++            catch (Exception error) { failure = CombineFailures("Visual interaction cleanup failed.", failure, error); }
+             try { _lifetime?.Cancel(); }
+             catch (Exception error) { failure = CombineFailures("Audio close and lifetime cancellation failed.", failure, error); }
+             try { await _realtimePreparationTask; }
+@@ -466,6 +469,7 @@
          private void Update()
          {
              _backgroundReply?.ObservePresentation(_context?.Output);
@@ -285,19 +354,19 @@
              UpdateAcousticWake();
              if (_context != null && !IsResettingConversation)
              {
-@@ -543,7 +545,7 @@
+@@ -543,7 +547,7 @@
              onError.Invoke(error.Message);
          }
  
 -        private void OnDisable() => Observe(StopConversationAsync);
 -        private void OnDestroy() => Observe(StopConversationAsync);
-+        private void OnDisable() { Observe(StopInteractionAsync); Observe(StopConversationAsync); }
-+        private void OnDestroy() { Observe(StopInteractionAsync); Observe(StopConversationAsync); }
++        private void OnDisable() { Observe(StopConversationAsync); }
++        private void OnDestroy() { Observe(StopConversationAsync); }
      }
  }
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,86 @@
 +using MNN.Unity;
 +using UnityEngine;
 +using UnityEngine.UI;
@@ -309,17 +378,21 @@
 +        private MNNPresenceComponent _presencePresentation;
 +        private CanvasGroup _presenceCanvas, _presenceBlack;
 +        private Transform _presenceOrbContainer;
-+        private bool _presencePresentationActive;
++        private bool _presencePresentationActive, _presenceVisualHeld;
 +
 +        private void TickInteractionPresentation()
 +        {
 +            if (Input.GetKeyDown(KeyCode.Comma) && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) ||
 +                Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand))) OpenSettings();
++            TickCameraSettings();
 +            var interaction = _chat?.Interaction;
 +            bool enabled = interaction != null && interaction.ReadSettings().visualPresence;
 +            if (!enabled && !_presencePresentationActive) return;
 +            if (_presenceCanvas == null && _canvasRoot != null)
-+                _presenceCanvas = _canvasRoot.GetComponent<CanvasGroup>() ?? _canvasRoot.AddComponent<CanvasGroup>();
++            {
++                _presenceCanvas = _canvasRoot.GetComponent<CanvasGroup>();
++                if (_presenceCanvas == null) _presenceCanvas = _canvasRoot.AddComponent<CanvasGroup>();
++            }
 +            if (!enabled)
 +            {
 +                if (_presencePresentation != null) _presencePresentation.ConfigurePresentation(null, null, MNNPresenceSleepDisplay.Hidden);
@@ -349,7 +422,12 @@
 +            }
 +            _presencePresentation = interaction.Presence;
 +            // Keep settings usable so camera gating can always be disabled without a visible face.
-+            bool settingsOpen = IsSettingsOpen || IsSetupOpen;
++            bool settingsOpen = IsSettingsOpen || IsSetupOpen || _chat.IsVisualLoading;
++            if (_presenceVisualHeld != settingsOpen || !_presencePresentationActive)
++            {
++                _presencePresentation.ConfigureVisualRoot(settingsOpen ? null : _presenceOrbContainer);
++                _presenceVisualHeld = settingsOpen;
++            }
 +            _presencePresentation.ConfigurePresentation(settingsOpen ? null : _presenceCanvas,
 +                settingsOpen ? null : _presenceBlack, interaction.ReadSettings().sleepDisplay);
 +            if (settingsOpen)
@@ -400,8 +478,113 @@
          }
          private int _wakePreviewRevision;
 --- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
+@@ -0,0 +1,88 @@
++using System;
++using MNN.Unity;
++using UnityEngine;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private Text _cameraSettingsStatus;
++        private RawImage _cameraSettingsPreview;
++        private AspectRatioFitter _cameraSettingsAspect;
++        private Func<WebCamDevice[]> _cameraDevices = () => WebCamTexture.devices;
++
++        private void BuildCameraSettings(MNNInteractionSettings interaction)
++        {
++            var camera = interaction.camera ?? (interaction.camera = new MNNCameraSettings());
++            AddSettingsTitle("Camera", "Visual presence automatically opens the camera after permission is granted. Save to apply camera changes.");
++            var devices = _cameraDevices();
++            var names = new string[devices.Length + 1]; names[0] = "Automatic (prefer front camera)";
++            for (int i = 0; i < devices.Length; ++i) names[i + 1] = devices[i].name;
++            int missing = -1;
++            if (!string.IsNullOrEmpty(camera.deviceName) && Array.FindIndex(devices, device => device.name == camera.deviceName) < 0)
++            {
++                missing = names.Length;
++                Array.Resize(ref names, names.Length + 1); names[missing] = camera.deviceName + " · " + Localize("Disconnected");
++            }
++            AddEnumField("Camera", "The automatic choice prefers a front camera; an unavailable saved device is never silently replaced.",
++                () => string.IsNullOrEmpty(camera.deviceName) ? 0 : Math.Max(missing, Array.FindIndex(devices, device => device.name == camera.deviceName) + 1),
++                selected => { if (selected != missing) camera.deviceName = selected == 0 ? "" : devices[selected - 1].name; }, names);
++            var refresh = SettingsButton(_settingsContent, "Refresh cameras", GlassInset, Ink, 17);
++            refresh.name = "Refresh cameras"; FixedHeight(refresh.gameObject, 44);
++            refresh.onClick.AddListener(() => { if (ReadSettingsFields()) ShowSettingsTab(VisionTab, false); });
++            AddBoolField("Automatic camera quality", "Requests 1280 × 720 at 30 FPS; analyzes up to 640 pixels at 10 FPS, or 2 FPS while asleep. Actual capture depends on the camera.",
++                () => camera.automaticQuality, enabled => UpdateAudioSettings(() => camera.automaticQuality = enabled));
++            if (!camera.automaticQuality)
++            {
++                int[] widths = {640, 1280, 1920, 3840}, heights = {480, 720, 1080, 2160};
++                AddEnumField("Camera resolution", "Requested resolution; the device may negotiate another size.",
++                    () => Array.IndexOf(widths, camera.width), selected => { camera.width = widths[selected]; camera.height = heights[selected]; },
++                    new[] { "640 × 480", "1280 × 720", "1920 × 1080", "3840 × 2160" });
++                AddIntField("Camera frame rate", "Requested capture FPS.", () => camera.framesPerSecond, value => camera.framesPerSecond = value, 1, 60);
++                AddIntField("Detection frame rate", "Maximum inference FPS; busy frames are dropped.", () => camera.detectionFramesPerSecond,
++                    value => camera.detectionFramesPerSecond = value, 1, 30);
++                AddIntField("Sleep detection frame rate", "Keep low-frequency detection active to wake when a person returns.", () => camera.sleepFramesPerSecond,
++                    value => camera.sleepFramesPerSecond = value, 1, 10);
++                AddIntField("Detection image size", "Maximum image edge in pixels, before model preprocessing.", () => camera.maximumImageEdge,
++                    value => camera.maximumImageEdge = value, 160, 1280);
++            }
++            new SettingsForm(this).Number("Camera startup timeout (s)", "Keep the loading interface visible while waiting for camera frames.",
++                () => camera.startupTimeoutSeconds, value => camera.startupTimeoutSeconds = value, 1, 120);
++            AddBoolField("Camera preview", "Show the active camera here. Opening settings never starts capture; enable visual presence and save first.",
++                () => camera.showPreview, enabled => UpdateAudioSettings(() => camera.showPreview = enabled));
++            _cameraSettingsStatus = Label(_settingsContent, "", 16, Muted);
++            _cameraSettingsStatus.name = "Camera Status";
++            _cameraSettingsStatus.gameObject.AddComponent<LayoutElement>().minHeight = 64;
++            var retry = SettingsButton(_settingsContent, "Retry camera", GlassInset, Ink, 17);
++            FixedHeight(retry.gameObject, 44); retry.onClick.AddListener(() => { if (!_editorPreview) _chat?.RetryVisualCamera(); });
++            _cameraSettingsPreview = null; _cameraSettingsAspect = null;
++            if (camera.showPreview)
++            {
++                var frame = RectObject("Camera Preview", _settingsContent);
++                FixedHeight(frame.gameObject, 200);
++                var preview = RectObject("Live Camera", frame);
++                _cameraSettingsPreview = preview.gameObject.AddComponent<RawImage>(); _cameraSettingsPreview.raycastTarget = false;
++                _cameraSettingsAspect = preview.gameObject.AddComponent<AspectRatioFitter>();
++                _cameraSettingsAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
++            }
++            TickCameraSettings();
++        }
++
++        private void TickCameraSettings()
++        {
++            if (!IsSettingsOpen || _settingsTab != VisionTab || _cameraSettingsStatus == null) return;
++            string permission = Application.HasUserAuthorization(UserAuthorization.WebCam) ? "Camera permission granted" : "Camera permission required";
++            _cameraSettingsStatus.text = Localize(permission) + "\n" + (_editorPreview ? Localize("Preview only. Camera is not started.") : Localize(_chat?.VisualCameraStatus ?? "Camera unavailable"));
++            if (_cameraSettingsPreview == null) return;
++            var camera = _chat?.VisualCamera;
++            bool ready = !_editorPreview && camera != null && camera.isPlaying && camera.width > 16;
++            _cameraSettingsPreview.enabled = ready;
++            _cameraSettingsPreview.texture = ready ? camera : null;
++            if (!ready) return;
++            _cameraSettingsPreview.uvRect = camera.videoVerticallyMirrored ? new Rect(0, 1, 1, -1) : new Rect(0, 0, 1, 1);
++            _cameraSettingsPreview.rectTransform.localEulerAngles = new Vector3(0, 0, -camera.videoRotationAngle);
++            _cameraSettingsAspect.aspectRatio = (float)camera.width / camera.height;
++        }
++    }
++}
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: 48f9ecb7f92e4c3bbe0e5855542dd3f4
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+--- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,61 @@
 +using System;
 +using MNN.Unity;
 +
@@ -428,6 +611,7 @@
 +                FaceDetectionModelStage, () => value.detectorDirectory, directory => value.detectorDirectory = directory);
 +            BuildVisionModelSelection("Face recognition model", "Used only when identity matching is enabled.",
 +                FaceRecognitionModelStage, () => value.recognizerDirectory, directory => value.recognizerDirectory = directory);
++            BuildCameraSettings(value);
 +            if (value.visualPresence)
 +            {
 +                var form = new SettingsForm(this);
@@ -671,6 +855,15 @@
              else if (index == DesktopTab) { if (!Application.isMobilePlatform) BuildDesktopSettings(); BuildVoiceShortcutSettings(); }
              else if (index == GraphicsTab) BuildGraphicsSettings();
              else if (_settingsDraft.Configuration == null)
+@@ -420,7 +421,7 @@
+ 
+         private async void SaveChatSettings()
+         {
+-            if (_editorPreview || !IsSettingsOpen || _settingsSaving || _acousticModelCancellation != null || !ReadSettingsFields()) return;
++            if (_editorPreview || !IsSettingsOpen || _settingsSaving || _acousticModelCancellation != null || _visionModelCancellation != null || !ReadSettingsFields()) return;
+             int generation = _settingsGeneration;
+             bool committed = false;
+             GameObject savedCanvas = _canvasRoot;
 --- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
 @@ -289,6 +289,7 @@
@@ -792,11 +985,47 @@
          public MNNConversationRecording Recording { get; }
 --- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
 +++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
-@@ -8,6 +8,45 @@
+@@ -8,6 +8,81 @@
      {
          private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
          {
 +            { "Vision", "视觉" },
++            { "Camera is off. Enable visual presence and save.", "摄像头已关闭。开启视觉在场感知并保存后会自动启动。" },
++            { "Starting camera and visual models…", "正在启动摄像头并加载视觉模型…" },
++            { "Waiting for camera and first visual observation…", "正在等待摄像头和首次视觉检测结果…" },
++            { "Camera unavailable", "摄像头不可用" },
++            { "Camera permission is required for visual presence. Allow camera access in system settings, then retry.", "视觉在场感知需要摄像头权限。请在系统设置中允许访问后重试。" },
++            { "No camera is connected. Connect a camera, then retry.", "未检测到摄像头，请连接设备后重试。" },
++            { "The selected camera is disconnected. Choose another camera or retry.", "已选摄像头未连接，请选择其他设备或重试。" },
++            { "Camera did not deliver frames. Check device access and retry.", "摄像头未返回画面，请检查设备是否被占用后重试。" },
++
++            { "Camera", "摄像头" },
++            { "Refresh cameras", "刷新摄像头" },
++            { "Retry camera", "重试摄像头" },
++            { "Automatic (prefer front camera)", "自动（优先前置摄像头）" },
++            { "Disconnected", "未连接" },
++            { "Automatic camera quality", "自动优化摄像头配置" },
++            { "Camera resolution", "摄像头分辨率" },
++            { "Camera frame rate", "摄像头采集帧率" },
++            { "Detection frame rate", "检测帧率" },
++            { "Sleep detection frame rate", "休眠检测帧率" },
++            { "Detection image size", "检测图像大小" },
++            { "Camera startup timeout (s)", "摄像头启动超时（秒）" },
++            { "Camera preview", "摄像头预览" },
++            { "Camera permission granted", "摄像头权限已授予" },
++            { "Camera permission required", "需要摄像头权限" },
++            { "Preview only. Camera is not started.", "仅编辑器预览，未开启摄像头。" },
++            { "Visual presence automatically opens the camera after permission is granted. Save to apply camera changes.", "开启视觉在场感知后，授权即可自动开启摄像头。保存后应用摄像头设置。" },
++            { "The automatic choice prefers a front camera; an unavailable saved device is never silently replaced.", "自动优先前置摄像头；指定设备未连接时会提示，不会静默切换。" },
++            { "Requests 1280 × 720 at 30 FPS; analyzes up to 640 pixels at 10 FPS, or 2 FPS while asleep. Actual capture depends on the camera.", "默认请求 1280 × 720、30 帧/秒；检测图像最长边 640 像素、每秒 10 次，休眠时每秒 2 次。实际采集参数由设备协商。" },
++            { "Requested resolution; the device may negotiate another size.", "请求的采集分辨率，设备可能协商为其他大小。" },
++            { "Requested capture FPS.", "请求的摄像头采集帧率。" },
++            { "Maximum inference FPS; busy frames are dropped.", "最大检测频率；推理繁忙时跳过中间帧。" },
++            { "Keep low-frequency detection active to wake when a person returns.", "休眠时保持低频检测，人返回后自动唤醒。" },
++            { "Maximum image edge in pixels, before model preprocessing.", "模型预处理前图像最长边，单位为像素。" },
++            { "Keep the loading interface visible while waiting for camera frames.", "等待摄像头画面时保持加载界面可见。" },
++            { "Show the active camera here. Opening settings never starts capture; enable visual presence and save first.", "显示已运行的摄像头画面。打开设置不会启动采集，请先开启视觉在场感知并保存。" },
++
 +            { "Face detection model", "人脸检测模型" },
 +            { "Face recognition model", "人脸识别模型" },
 +            { "Choose an installed model or download a supported detector.", "选择已安装的模型，或下载支持的人脸检测模型。" },
@@ -840,7 +1069,7 @@
              { "In progress only", "只看进行中" },
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/InteractionSettingsTests.cs
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,71 @@
 +using System;
 +using System.Reflection;
 +using MNN.Unity;
@@ -859,6 +1088,9 @@
 +            {
 +                interaction = new MNNInteractionSettings { referenceSpeaker = true, separateSpeakers = true }
 +            };
++            settings.interaction.camera.deviceName = "preferred camera";
++            settings.interaction.camera.automaticQuality = false;
++            settings.interaction.camera.width = 1920; settings.interaction.camera.height = 1080;
 +            try
 +            {
 +                SiriAIAcousticPreferencesStore.Save(key, settings);
@@ -867,9 +1099,13 @@
 +                Assert.That(restored.interaction.separateSpeakers, Is.True);
 +                Assert.That(restored.interaction.audioVisualSpeech, Is.False);
 +                Assert.That(restored.interaction.visualPresence, Is.False);
++                Assert.That(restored.interaction.camera.deviceName, Is.EqualTo("preferred camera"));
++                Assert.That(restored.interaction.camera.RequestedWidth, Is.EqualTo(1920));
 +                var snapshot = restored.Snapshot();
 +                snapshot.interaction.referenceSpeaker = false;
++                snapshot.interaction.camera.deviceName = "changed";
 +                Assert.That(restored.interaction.referenceSpeaker, Is.True);
++                Assert.That(restored.interaction.camera.deviceName, Is.EqualTo("preferred camera"));
 +            }
 +            finally { PlayerPrefs.DeleteKey(key); }
 +        }
@@ -921,7 +1157,7 @@
 +  assetBundleVariant: 
 --- /dev/null
 +++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,197 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Reflection;
@@ -948,6 +1184,81 @@
 +            }
 +            return null;
 +        }
++        [Test]
++        public void VisionOffersCameraDeviceQualityTimingAndPreviewSettings()
++        {
++            var root = new GameObject("Visual camera settings");
++            try
++            {
++                root.AddComponent<SiriAIChat>().enabled = false;
++                var view = root.AddComponent<SiriAIChatView>();
++                var type = typeof(SiriAIChatView);
++                type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
++                view.OpenSettings();
++                type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
++                var content = (RectTransform)type.GetField("_settingsContent", Private).GetValue(view);
++                foreach (string label in new[] { "Camera", "Automatic camera quality", "Camera preview", "Refresh cameras" })
++                    Assert.That(Active(content, label), Is.Not.Null, label);
++                Active(content, "Automatic camera quality").GetComponentInChildren<Button>().onClick.Invoke();
++                foreach (string label in new[] { "Camera resolution", "Camera frame rate", "Detection frame rate", "Sleep detection frame rate", "Detection image size", "Camera startup timeout (s)" })
++                    Assert.That(Active(content, label), Is.Not.Null, label);
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        private sealed class OwnedVisualSource : IMNNPresenceSource, IDisposable
++        {
++            public bool Disposed;
++            public void Dispose() => Disposed = true;
++            public void Reset() { }
++            public MNNPresenceObservation Process(MNNRgbImage image, double capturedAt, System.Threading.CancellationToken token)
++                => MNNPresenceObservation.Absent(capturedAt);
++        }
++
++        [UnityTest]
++        public IEnumerator StoppingConversationReleasesOwnedVisualProvider()
++        {
++            var root = new GameObject("Visual provider session ownership");
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>(); chat.enabled = false;
++                // OnDisable has already stopped the empty fixture. Begin a new owned session state.
++                typeof(SiriAIChat).GetField("_stopTask", Private).SetValue(chat, null);
++                var source = new OwnedVisualSource();
++                typeof(SiriAIChat).GetField("_presenceSource", Private).SetValue(chat, source);
++                var stop = chat.StopConversationAsync();
++                while (!stop.IsCompleted) yield return null;
++                Assert.That(stop.IsFaulted, Is.False);
++                Assert.That(source.Disposed, Is.True, "Stopping a conversation must release its owned visual provider.");
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void PresenceLoadingKeepsApplicationVisibleWithoutAdmittingSpeech()
++        {
++            var root = new GameObject("Presence loading presentation");
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>(); chat.enabled = false;
++                var view = root.AddComponent<SiriAIChatView>();
++                var type = typeof(SiriAIChatView);
++                type.GetMethod("InitializeView", Private).Invoke(view, new object[] {true});
++                var interaction = root.AddComponent<MNNInteractionComponent>();
++                interaction.Configure(new MNNInteractionSettings { visualPresence = true });
++                chat.ConfigureInteraction(interaction);
++                type.GetMethod("TickInteractionPresentation", Private).Invoke(view, null);
++                var canvas = (CanvasGroup)type.GetField("_presenceCanvas", Private).GetValue(view);
++                for (int i = 0; i < 100; ++i)
++                    typeof(MNNPresenceComponent).GetMethod("Update", Private).Invoke(interaction.Presence, null);
++                type.GetMethod("TickInteractionPresentation", Private).Invoke(view, null);
++                Assert.That(canvas.alpha, Is.EqualTo(1), "Loading UI must stay visible before camera/model observations are ready.");
++                Assert.That(canvas.interactable, Is.True);
++                Assert.That(interaction.CanStartInteraction, Is.False, "Visibility while loading must not admit unverified audio.");
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
 +        [UnityTest]
 +        public IEnumerator DetectionUsesSharedPicker() => CheckVisualPicker("Face detection model", 20, MNNImageTaskProfile.Scrfd500M, "det_500m.mnn");
 +        [UnityTest]
