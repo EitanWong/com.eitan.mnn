@@ -72,10 +72,14 @@ namespace MNN.Unity
             }
         }
         public float[] Snapshot()
+            => Snapshot(int.MaxValue);
+        /// <summary>Keep speech and internal pauses, bounding only the final VAD-silent tail.</summary>
+        public float[] Snapshot(int maximumTrailingSilenceSamples)
         {
+            if (maximumTrailingSilenceSamples < 0) throw new ArgumentOutOfRangeException(nameof(maximumTrailingSilenceSamples));
             if (!HasSpeech) throw new InvalidOperationException("No confirmed speech.");
-            var copy = new float[_length];
-            Array.Copy(_audio, copy, _length);
+            var copy = new float[_length - Math.Max(0, _silent - maximumTrailingSilenceSamples)];
+            Array.Copy(_audio, copy, copy.Length);
             return copy;
         }
         public void Reset() { _length = _speech = _silent = _preCount = 0; ++_revision; }

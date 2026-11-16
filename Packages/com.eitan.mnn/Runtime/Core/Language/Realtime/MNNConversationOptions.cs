@@ -7,6 +7,9 @@ namespace MNN.Unity
     {
         public bool speechOutput = true, filterVoiceInput, endRealtimeOnExitIntent = true;
         public int minimumSpeechMilliseconds = 240, silenceMilliseconds = 550, turnRetryMilliseconds = 500;
+        /// <summary>Continuous VAD silence that releases a negative semantic decision; voice validation still applies.
+        /// The effective limit is at least silenceMilliseconds. Does not limit inference execution time.</summary>
+        public int maximumTurnSilenceMilliseconds = 2000;
         public int maximumUtteranceSeconds = 30, maximumHistoryMessages = 64, maximumResponseCharacters = 65536;
         public int speechSegmentCharacters = 120, maximumResponseSeconds = 600, realtimeInactivitySeconds = 60;
         public float energyThreshold = .025f;
@@ -15,7 +18,8 @@ namespace MNN.Unity
         public MNNConversationOptions Snapshot()
         {
             if (minimumSpeechMilliseconds < 20 || minimumSpeechMilliseconds > 2000 || silenceMilliseconds < 100 || silenceMilliseconds > 5000 ||
-                turnRetryMilliseconds < 100 || turnRetryMilliseconds > 5000 || maximumUtteranceSeconds < 2 || maximumUtteranceSeconds > MNNRealtimeUtteranceBuffer.MaximumSeconds ||
+                turnRetryMilliseconds < 100 || turnRetryMilliseconds > 5000 || maximumTurnSilenceMilliseconds < 100 || maximumTurnSilenceMilliseconds > 10000 ||
+                maximumUtteranceSeconds < 2 || maximumUtteranceSeconds > MNNRealtimeUtteranceBuffer.MaximumSeconds ||
                 maximumHistoryMessages < 2 || maximumHistoryMessages > 512 || maximumResponseCharacters < 128 || maximumResponseCharacters > 65536 ||
                 speechSegmentCharacters < 8 || speechSegmentCharacters > 512 || maximumResponseSeconds < 5 || maximumResponseSeconds > 1800 ||
                 realtimeInactivitySeconds < 0 || realtimeInactivitySeconds > 1800 || float.IsNaN(energyThreshold) || energyThreshold <= 0 || energyThreshold > 1 ||

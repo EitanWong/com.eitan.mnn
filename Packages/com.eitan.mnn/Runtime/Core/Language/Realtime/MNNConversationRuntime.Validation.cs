@@ -25,12 +25,12 @@ namespace MNN.Unity
             { Complete = complete; Accepted = accepted; Text = text; Audio = audio; }
         }
 
-        protected async Task<VoiceCandidate> EvaluateVoiceCandidateAsync(float[] audio, bool full, string echo, CancellationToken token)
+        protected async Task<VoiceCandidate> EvaluateVoiceCandidateAsync(float[] audio, bool silenceExpired, string echo, CancellationToken token)
         {
             audio = await _context.PrepareVoiceAsync(audio, token).ConfigureAwait(false);
             if (audio == null) return RejectVoice("No unambiguous primary speaker");
             string transcript = null;
-            if (_providers.Turn is IMNNConversationTurnProvider turn && !full)
+            if (_providers.Turn is IMNNConversationTurnProvider turn && !silenceExpired)
             {
                 bool complete;
                 if (turn is IMNNConversationTranscriptTurnProvider textTurn && textTurn.RequiresTranscript)

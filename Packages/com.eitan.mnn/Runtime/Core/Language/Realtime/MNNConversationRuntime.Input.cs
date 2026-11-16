@@ -175,15 +175,16 @@ namespace MNN.Unity
         }
         protected void BeginTurnCandidate()
         {
-            _turnAudio = _utterance.Snapshot();
+            // Repeated negative decisions must not push speech out of short acoustic contexts.
+            _turnAudio = _utterance.Snapshot(800 * 16);
             _turnRevision = _utterance.Revision;
             _turnSilenceSamples = _utterance.SilenceSamples;
             _turnCancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
             float[] audio = _turnAudio;
-            bool full = _utterance.IsFull;
+            bool silenceExpired = TurnSilenceExpired;
             string echo = SnapshotPlaybackText();
             CancellationToken token = _turnCancellation.Token;
-            _turnTask = Task.Run(() => EvaluateVoiceCandidateAsync(audio, full, echo, token), token);
+            _turnTask = Task.Run(() => EvaluateVoiceCandidateAsync(audio, silenceExpired, echo, token), token);
         }
         protected void FinishTurnCandidate()
         {
@@ -219,8 +220,10 @@ namespace MNN.Unity
             _turnAudio = null;
         }
         protected bool ShouldEvaluateTurn() => _utterance.IsCandidate &&
-            (_utterance.IsFull || _utterance.Revision != _rejectedRevision ||
+            (TurnSilenceExpired || _utterance.Revision != _rejectedRevision ||
              _utterance.SilenceSamples >= _nextTurnSilenceSamples);
+        private bool TurnSilenceExpired => _utterance.SilenceSamples >=
+            Math.Max(_config.silenceMilliseconds, _config.maximumTurnSilenceMilliseconds) * 16;
         protected void TryLaunchAccepted()
         {
             if (!_context.Input.Realtime || _acceptedAudio == null || !Volatile.Read(ref _recovery).IsCompleted) return;
