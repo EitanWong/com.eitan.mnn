@@ -65,6 +65,8 @@ namespace MNN.Unity
         private long _lastCaptureLagFrames;
         private bool _microphoneStarted;
         private Exception _fault;
+        private bool _draining;
+        private Task _drain = Task.CompletedTask;
 
         public bool IsCapturing => Volatile.Read(ref _capturing) != 0;
         public bool IsWaitingForBuffer => Volatile.Read(ref _pendingStart) != 0;
@@ -252,7 +254,7 @@ namespace MNN.Unity
                     Volatile.Write(ref _pendingStart, 0);
                     Volatile.Write(ref _capturing, 1);
                 }
-                PumpCapture(writePosition, nowTicks);
+                if (!_draining) PumpCapture(writePosition, nowTicks);
             }
             catch (Exception error)
             {
@@ -308,22 +310,74 @@ namespace MNN.Unity
 
         /// <summary>Main thread. Publish all samples captured at this recording boundary,
         /// waiting for bounded queue backpressure without stopping physical recording.</summary>
-        public async Task FlushCaptureAsync(CancellationToken token)
+        public Task FlushCaptureAsync(CancellationToken token)
         {
             EnsureMainThread();
+            if (!_drain.IsCompleted) return _drain;
+            return _drain = DrainBoundaryAsync(token);
+        }
+
+        private async Task DrainBoundaryAsync(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
             if (!IsCapturing) return;
             AudioClip recording = _microphoneClip;
-            long overruns = OverrunFrames;
-            ReadCapture(Input.GetPosition(_deviceName), Stopwatch.GetTimestamp(), true);
-            long through = _sampleClockFrames + _unreadFrames;
-            while (_sampleClockFrames < through)
+            _draining = true;
+            try
             {
-                token.ThrowIfCancellationRequested();
-                await Task.Delay(1, token);
-                if (!IsCapturing || !ReferenceEquals(recording, _microphoneClip) || OverrunFrames != overruns)
-                    throw new InvalidOperationException("Microphone recording stopped, restarted or its ring was overwritten while draining.", Fault);
                 ReadCapture(Input.GetPosition(_deviceName), Stopwatch.GetTimestamp(), true);
+                // The live ring can wrap while a consumer is busy. Own the finite boundary tail
+                // before yielding; future device samples belong to the next capture interval.
+                int frames = _unreadFrames;
+                var tail = new float[checked(frames * _captureChannels)];
+                if (frames > 0 && !recording.GetData(tail, _readPosition))
+                    throw new InvalidOperationException("Unity could not snapshot the microphone recording boundary.");
+                int offset = 0;
+                long deadline = Stopwatch.GetTimestamp() + 2 * Stopwatch.Frequency;
+                while (offset < tail.Length)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (!IsCapturing || !ReferenceEquals(recording, _microphoneClip))
+                        throw new InvalidOperationException("Microphone recording stopped or restarted while draining.", Fault);
+                    if (_device.CaptureEnabled && !_device.CanSubmitCapture)
+                    {
+                        if (Stopwatch.GetTimestamp() >= deadline)
+                            throw new TimeoutException("Microphone capture queue did not drain in time. Please record again.");
+                        await Task.Delay(1, token); continue;
+                    }
+                    int count = Math.Min(_readSamples.Length, tail.Length - offset);
+                    PublishCapture(tail, offset, count);
+                    offset += count;
+                }
             }
+            finally
+            {
+                _draining = false;
+                if (IsCapturing && ReferenceEquals(recording, _microphoneClip))
+                {
+                    // Do not publish post-boundary audio into the recording just completed.
+                    int position = Input.GetPosition(_deviceName);
+                    if (position >= 0 && position < recording.samples)
+                    {
+                        ResetRecordingRing();
+                        _readPosition = _lastWritePosition = position;
+                        _lastPollTicks = Stopwatch.GetTimestamp();
+                        _device.MarkCaptureDiscontinuity();
+                    }
+                }
+            }
+        }
+
+        private void PublishCapture(float[] samples, int offset, int count)
+        {
+            double energy = 0;
+            for (int i = offset; i < offset + count; ++i) energy += samples[i] * samples[i];
+            Volatile.Write(ref _lastBlockRms, (float)Math.Sqrt(energy / count));
+            long ticks = _sampleClockOrigin + _sampleClockFrames * Stopwatch.Frequency / _captureRate;
+            _device.TrySubmitCapture(samples, offset, count, Math.Max(0, ticks));
+            int frames = count / _captureChannels;
+            _sampleClockFrames += frames;
+            Interlocked.Add(ref _capturedFrames, frames);
         }
 
         private void ReadCapture(int writePosition, long nowTicks, bool flush)
@@ -362,13 +416,7 @@ namespace MNN.Unity
                 var samples = countFrames == blockFrames ? _readSamples : new float[countFrames * _captureChannels];
                 if (!_microphoneClip.GetData(samples, _readPosition))
                     throw new InvalidOperationException("Unity could not read microphone PCM from its recording buffer.");
-                double energy = 0;
-                for (int i = 0; i < samples.Length; ++i) energy += samples[i] * samples[i];
-                Volatile.Write(ref _lastBlockRms, (float)Math.Sqrt(energy / samples.Length));
-                long ticks = _sampleClockOrigin + _sampleClockFrames * Stopwatch.Frequency / _captureRate;
-                _device.TrySubmitCapture(samples, 0, samples.Length, Math.Max(0, ticks));
-                _sampleClockFrames += countFrames;
-                Interlocked.Add(ref _capturedFrames, countFrames);
+                PublishCapture(samples, 0, samples.Length);
                 _readPosition = (_readPosition + countFrames) % ringFrames;
                 available -= countFrames;
             }

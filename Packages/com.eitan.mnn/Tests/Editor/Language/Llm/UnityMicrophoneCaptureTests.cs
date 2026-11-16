@@ -209,6 +209,90 @@ namespace MNN.Unity.Tests
             }
         }
 
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator DrainOwnsBoundaryPcmWhenTheLiveRingAdvancesUnderBackpressure()
+        {
+            var input = StartSyntheticCapture();
+            Poll(0);
+            input.Position = 480;
+            var device = _gameObject.GetComponent<MNNRealtimeAudioDevice>();
+            using (var cancellation = new System.Threading.CancellationTokenSource())
+            {
+                Task drain = _capture.FlushCaptureAsync(cancellation.Token);
+                try
+                {
+                    Assert.False(drain.IsCompleted, "Drain is waiting for the one-block consumer queue.");
+                    Assert.AreSame(drain, _capture.FlushCaptureAsync(cancellation.Token), "A boundary has one drain owner.");
+                    var overwritten = new float[input.Clip.samples]; Array.Fill(overwritten, .75f);
+                    input.Clip.SetData(overwritten, 0);
+                    input.Position = 800;
+                    Poll(2); // Capture and camera/model work can outlive the live ring while a consumer is busy.
+                    var samples = new float[160];
+                    Assert.True(device.TryReadCapture(samples, 0, out _, out _));
+                    float deadline = Time.realtimeSinceStartup + 2;
+                    while (!drain.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
+                    Assert.True(drain.IsCompleted, "Drain must finish after the consumer makes room.");
+                    Assert.False(drain.IsFaulted, drain.Exception?.ToString());
+                    Assert.True(device.TryReadCapture(samples, 0, out _, out int count));
+                    Assert.AreEqual(160, count);
+                    Assert.That(samples, Is.All.EqualTo(.25f), "Publish owned PCM from the recording boundary, never overwritten ring data.");
+                    Assert.False(device.HasPendingCaptureFrames, "Do not chase new microphone samples after the boundary.");
+                }
+                finally { cancellation.Cancel(); }
+            }
+        }
+
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator CancelledBoundaryReleasesTheProducerForFreshCapture()
+        {
+            var input = StartSyntheticCapture();
+            Poll(0);
+            input.Position = 480;
+            var device = _gameObject.GetComponent<MNNRealtimeAudioDevice>();
+            using (var cancellation = new System.Threading.CancellationTokenSource())
+            {
+                Task drain = _capture.FlushCaptureAsync(cancellation.Token);
+                Assert.False(drain.IsCompleted);
+                cancellation.Cancel();
+                float deadline = Time.realtimeSinceStartup + 1;
+                while (!drain.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
+                Assert.True(drain.IsCanceled);
+            }
+            var samples = new float[160];
+            Assert.True(device.TryReadCapture(samples, 0, out _, out _));
+            var fresh = new float[input.Clip.samples]; Array.Fill(fresh, .75f);
+            input.Clip.SetData(fresh, 0);
+            input.Position += 160;
+            Poll(0);
+            Assert.True(device.TryReadCapture(samples, 0, out _, out int count));
+            Assert.AreEqual(160, count);
+            Assert.That(samples, Is.All.EqualTo(.75f));
+            Assert.True(_capture.IsCapturing);
+            Assert.IsNull(_capture.Fault);
+        }
+
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator BoundaryWithoutAConsumerTimesOutWithoutStoppingTheMicrophone()
+        {
+            var input = StartSyntheticCapture();
+            Poll(0);
+            input.Position = 480;
+            using (var cancellation = new System.Threading.CancellationTokenSource())
+            {
+                Task drain = _capture.FlushCaptureAsync(cancellation.Token);
+                try
+                {
+                    float deadline = Time.realtimeSinceStartup + 4;
+                    while (!drain.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
+                    Assert.True(drain.IsFaulted, "A stalled consumer must not hang the next voice gesture.");
+                    Assert.IsInstanceOf<TimeoutException>(drain.Exception.GetBaseException());
+                    Assert.True(_capture.IsCapturing);
+                    Assert.IsNull(_capture.Fault);
+                }
+                finally { cancellation.Cancel(); }
+            }
+        }
+
         private float _startedAt;
         private long _startedTicks;
 
@@ -231,6 +315,7 @@ namespace MNN.Unity.Tests
 
         private sealed class SyntheticMicrophone : MNNUnityMicrophoneCapture.MicrophoneApi
         {
+            internal AudioClip Clip;
             internal string[] Available = { "Built-in", "Headset" };
             internal bool Recording;
             internal int Position;
@@ -264,6 +349,7 @@ namespace MNN.Unity.Tests
                 var pcm = new float[clip.samples];
                 Array.Fill(pcm, Starts == 1 ? .25f : .75f);
                 clip.SetData(pcm, 0);
+                Clip = clip;
                 return clip;
             }
             internal override void End(string name) { ++Ends; LastEndedDevice = name; Recording = false; }
