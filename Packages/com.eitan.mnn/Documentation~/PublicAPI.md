@@ -3407,7 +3407,7 @@ public void MNN.Unity.MNNBairongTurnSense.Dispose()
 ```
 
 ```csharp
-public static MNN.Unity.MNNBairongTurnSense MNN.Unity.MNNBairongTurnSense.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
+public static MNN.Unity.MNNBairongTurnSense MNN.Unity.MNNBairongTurnSense.Load(string directory, int threadCount = 1, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
 ```
 
 ```csharp
@@ -3787,7 +3787,7 @@ public void MNN.Unity.MNNEasyTurn.Dispose()
 ```
 
 ```csharp
-public static MNN.Unity.MNNEasyTurn MNN.Unity.MNNEasyTurn.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
+public static MNN.Unity.MNNEasyTurn MNN.Unity.MNNEasyTurn.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
 ```
 
 ```csharp
@@ -5397,7 +5397,7 @@ public bool MNN.Unity.MNNTenTurnDetector.IsEndOfTurn(string text, System.Threadi
 ```
 
 ```csharp
-public static MNN.Unity.MNNTenTurnDetector MNN.Unity.MNNTenTurnDetector.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
+public static MNN.Unity.MNNTenTurnDetector MNN.Unity.MNNTenTurnDetector.Load(string directory, int threadCount = 1, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)
 ```
 
 ```csharp

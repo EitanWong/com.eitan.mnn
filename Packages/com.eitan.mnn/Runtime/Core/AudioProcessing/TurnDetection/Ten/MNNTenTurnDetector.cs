@@ -18,7 +18,7 @@ namespace MNN.Unity
             Verify(directory);
             _model = MNNLlm.Load(directory, threads, precisionMode: MNNPrecisionMode.High, backendType: MNNBackendType.CPU);
         }
-        public static MNNTenTurnDetector Load(string directory, int threadCount = 2, MNNBackendType backendType = MNNBackendType.CPU)
+        public static MNNTenTurnDetector Load(string directory, int threadCount = 1, MNNBackendType backendType = MNNBackendType.CPU)
         {
             if (string.IsNullOrWhiteSpace(directory)) throw new ArgumentNullException(nameof(directory));
             if (threadCount < 1 || threadCount > 64) throw new ArgumentOutOfRangeException(nameof(threadCount));

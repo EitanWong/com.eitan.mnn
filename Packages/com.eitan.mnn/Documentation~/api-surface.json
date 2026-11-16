@@ -5869,7 +5869,7 @@
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNBairongTurnSense.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
-    "Signature": "public static MNN.Unity.MNNBairongTurnSense MNN.Unity.MNNBairongTurnSense.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
+    "Signature": "public static MNN.Unity.MNNBairongTurnSense MNN.Unity.MNNBairongTurnSense.Load(string directory, int threadCount = 1, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
     "Summary": ""
   },
   {
@@ -6471,7 +6471,7 @@
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNEasyTurn.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
-    "Signature": "public static MNN.Unity.MNNEasyTurn MNN.Unity.MNNEasyTurn.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
+    "Signature": "public static MNN.Unity.MNNEasyTurn MNN.Unity.MNNEasyTurn.Load(string directory, int threadCount = 4, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
     "Summary": ""
   },
   {
@@ -9005,7 +9005,7 @@
     "Assembly": "MNN.Unity",
     "Domain": "AudioProcessing",
     "Id": "M:MNN.Unity.MNNTenTurnDetector.Load(System.String,System.Int32,MNN.Unity.MNNBackendType)",
-    "Signature": "public static MNN.Unity.MNNTenTurnDetector MNN.Unity.MNNTenTurnDetector.Load(string directory, int threadCount = 2, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
+    "Signature": "public static MNN.Unity.MNNTenTurnDetector MNN.Unity.MNNTenTurnDetector.Load(string directory, int threadCount = 1, MNN.Unity.MNNBackendType backendType = MNN.Unity.MNNBackendType.CPU)",
     "Summary": ""
   },
   {

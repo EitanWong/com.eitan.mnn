@@ -33,7 +33,7 @@ namespace MNN.Unity
             }
             catch { _audio?.Dispose(); _decoder?.Dispose(); _embeddings.Dispose(); throw; }
         }
-        public static MNNEasyTurn Load(string directory, int threadCount = 2, MNNBackendType backendType = MNNBackendType.CPU)
+        public static MNNEasyTurn Load(string directory, int threadCount = 4, MNNBackendType backendType = MNNBackendType.CPU)
         {
             MNNPlatformSupport.RequireSupported();
             if (string.IsNullOrWhiteSpace(directory)) throw new ArgumentNullException(nameof(directory));

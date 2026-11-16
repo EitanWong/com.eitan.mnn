@@ -19,7 +19,7 @@ namespace MNN.Unity
             _graph = new MNNGenerationGraph(Path.Combine(directory, "model.mnn"), threads, backendType: backend,
                 precisionMode: MNNPrecisionMode.High, gpuTuningMode: MNNGpuTuningMode.None);
         }
-        public static MNNBairongTurnSense Load(string directory, int threadCount = 2, MNNBackendType backendType = MNNBackendType.CPU)
+        public static MNNBairongTurnSense Load(string directory, int threadCount = 1, MNNBackendType backendType = MNNBackendType.CPU)
         {
             MNNPlatformSupport.RequireSupported();
             if (string.IsNullOrWhiteSpace(directory)) throw new ArgumentNullException(nameof(directory));

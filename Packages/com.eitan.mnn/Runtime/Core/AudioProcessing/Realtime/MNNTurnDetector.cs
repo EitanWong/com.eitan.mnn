@@ -28,12 +28,12 @@ namespace MNN.Unity
         public static MNNTurnDetector Load(string directory, int threadCount = 0, MNNBackendType backendType = MNNBackendType.Auto)
         {
             int threads = threadCount == 0 ? 4 : threadCount;
-            int semanticThreads = threadCount == 0 ? 2 : threadCount;
+            int semanticThreads = threadCount == 0 ? 1 : threadCount;
             int lightThreads = threadCount == 0 ? 1 : threadCount;
             switch (ProfileFile(directory))
             {
                 case MNNEasyTurn.ConfigFileName:
-                    var easy = MNNEasyTurn.Load(directory, semanticThreads, backendType);
+                    var easy = MNNEasyTurn.Load(directory, threads, backendType);
                     return new MNNTurnDetector(easy, () => easy.Backend, false, (a, r, t, c, l) => easy.Predict(a, r, c).IsComplete);
                 case MNNTenTurnDetector.ConfigFileName:
                     var ten = MNNTenTurnDetector.Load(directory, semanticThreads, backendType);

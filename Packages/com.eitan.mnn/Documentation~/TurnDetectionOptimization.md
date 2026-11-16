@@ -17,13 +17,19 @@
 | 模型 | 输入 | 部署选择 | 默认线程 | 本次样本证据 |
 | --- | --- | --- | --- | --- |
 | SmartTurn v3.2 | 音频 | FP16 | 4 | 32 条概率对照，无阈值翻转；约 13–16 ms 图执行 |
-| Bairong TurnSense 1.0 | 音频 | FP16 | 2 | 16 条，三分类无翻转；约 28 ms 图执行 |
-| Bairong TurnSense 1.1 | 音频 | FP16 | 2 | 16 条，三分类无翻转；约 91 ms 图执行 |
-| TEN Turn Detection 7B | ASR 转录 | INT4 RTN 对称 block64、INT8 head、FP16 scales、BF16 embeddings | 2 | 12 条中英文，三标签与 FP32 源一致；约 326 ms 单 token 分类 |
-| Easy-Turn | 音频 | 音频与解码器均 INT8 HQQ 非对称 block64、BF16 embeddings | 2 | 16 条，六种精度组合完整生成 token 与 FP32 源一致；选中组合约 1 s 转写加分类 |
+| Bairong TurnSense 1.0 | 音频 | FP16 | 1 | 16 条，三分类无翻转；图执行约 28 ms，完整调用约 33 ms |
+| Bairong TurnSense 1.1 | 音频 | FP16 | 1 | 16 条，三分类无翻转；图执行约 91 ms，完整调用约 111 ms |
+| TEN Turn Detection 7B | ASR 转录 | INT4 RTN 对称 block64、INT8 head、FP16 scales、BF16 embeddings | 1 | 12 条中英文，三标签与 FP32 源一致；原图计时约 326 ms，托管完整分类约 385 ms |
+| Easy-Turn | 音频 | 音频与解码器均 INT8 HQQ 非对称 block64、BF16 embeddings | 4 | 16 条，六种精度组合完整生成 token 与 FP32 源一致；完整转写加分类约 1.07 s |
 | LiveKit multilingual v0.4.1 | ASR 转录 | FP16 | 4 | 12 条，最大概率差 0.000263，官方中英文阈值下无翻转 |
 | LiveKit English v1.2.0 | ASR 转录 | 动态上下文 FP32；保留原 FP16 accelerator 资源 | 1 | 12 条，FP32 最大概率差约 1e-7；1 线程约 3.9 ms 图执行 |
 | DualTurn | 双通道音频 | FP32 | 1 | 17 流、包含 128 ticks 静音和 16 个公开语音片段；最大概率差约 0.006253，无阈值翻转 |
+
+线程复核使用实际 `MNNTurnDetector.IsComplete`，音频 16 条、转录 12 条，各两轮；
+排除加载和文件读取，共 360 次调用。Bairong 1.0/1.1 与 TEN 的 1 线程快于 2/4，
+Easy-Turn 的 4 线程最快。早期图计时的 2 线程选择保留作历史记录，运行默认以完整调用复核为准。
+14 个模型的单样本加载/调用补测另存报告；例如 TEN 首次加载加校验约 30 s，
+完整调用约 0.4 s，SmartTurn 完整调用约 65 ms，均不能等同于图执行或端到端提交耗时。
 
 FP16 不等于 FP16 累加：这些新 CPU 部署使用 High 精度运行。SmartTurn、Bairong 的 INT4
 出现判定翻转。Easy-Turn INT4 虽然更小却比 INT8 更慢。DualTurn 的 FP16、INT8、INT4
