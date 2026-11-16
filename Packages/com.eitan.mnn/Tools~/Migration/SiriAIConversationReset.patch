@@ -1,0 +1,420 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs
+@@ -39,6 +39,7 @@
+         private Task _stopTask;
+         private Task _retryTask;
+         private Task _resetTask;
++        private Task _faultCleanupTask;
+         private GameObject _retrySessionOwner;
+         private Exception _preparationFailure;
+         private bool _preparationSucceeded;
+@@ -173,6 +174,11 @@
+                 }
+                 if (!isActiveAndEnabled) throw new OperationCanceledException();
+                 if (_startTask != null) await _startTask;
++                if (_faultCleanupTask != null)
++                {
++                    await _faultCleanupTask;
++                    _faultCleanupTask = null;
++                }
+                 var clear = _registration?.ResetConversationAsync;
+                 if (_registration != null && clear == null)
+                     throw new NotSupportedException("This backend does not support clearing conversation memory without reloading models.");
+@@ -188,6 +194,14 @@
+                 // A submission already awaiting interruption must exit before memory is cleared.
+                 await InterruptAsync();
+                 if (!isActiveAndEnabled) throw new OperationCanceledException();
++                // Fault handling may have already stopped and released the factory. Recreate the
++                // session before invoking its reset delegate; a released factory cannot be reused.
++                if (_faultReported || _session == null || _session.State != MNNRealtimeSessionState.Running)
++                {
++                    await StopConversationAsync(ignoreReleasedSessionFault: true);
++                    await RecreateConversationAsync();
++                    clear = _registration?.ResetConversationAsync;
++                }
+                 if (clear != null) await clear();
+                 _context?.ClearPendingNotifications();
+                 _spokenResponse = _finishedResponse = default;
+@@ -323,34 +337,7 @@
+                 await _submissionFinished;
+                 if (beforeStart != null) await beforeStart();
+                 if (!isActiveAndEnabled) throw new OperationCanceledException();
+-                if (_audio != null) _audio.ResetForRetry();
+-                if (_session != null && _session.IsConfigured)
+-                {
+-                    var previousOwner = _retrySessionOwner;
+-                    _retrySessionOwner = new GameObject("SiriAI Retry Session");
+-                    _retrySessionOwner.transform.SetParent(transform, false);
+-                    session = _retrySessionOwner.AddComponent<MNNRealtimeSessionComponent>();
+-                    if (previousOwner != null)
+-                    {
+-                        if (Application.isPlaying) Destroy(previousOwner);
+-                        else DestroyImmediate(previousOwner);
+-                    }
+-                }
+-                _startTask = _stopTask = null;
+-                _lifetime = null;
+-                _context = null;
+-                _registration = null;
+-                Runtime = null;
+-                _preparationSucceeded = false;
+-                _preparationFailure = null;
+-                _faultReported = false;
+-                _commands = null;
+-                _lastRoute = null;
+-                _lastState = _feedbackState = MNNRealtimeSessionState.Created;
+-                _spokenResponse = _finishedResponse = default;
+-                LastError = null;
+-                onError.Invoke("");
+-                await StartConversationAsync();
++                await RecreateConversationAsync();
+                 completion.TrySetResult(true);
+             }
+             catch (Exception error)
+@@ -359,6 +346,38 @@
+                 SetStage(SiriAIChatStage.Error);
+                 completion.TrySetException(error);
+             }
++        }
++
++        private async Task RecreateConversationAsync()
++        {
++            if (_audio != null) _audio.ResetForRetry();
++            if (_session != null && _session.IsConfigured)
++            {
++                var previousOwner = _retrySessionOwner;
++                _retrySessionOwner = new GameObject("SiriAI Retry Session");
++                _retrySessionOwner.transform.SetParent(transform, false);
++                session = _retrySessionOwner.AddComponent<MNNRealtimeSessionComponent>();
++                if (previousOwner != null)
++                {
++                    if (Application.isPlaying) Destroy(previousOwner);
++                    else DestroyImmediate(previousOwner);
++                }
++            }
++            _startTask = _stopTask = null;
++            _lifetime = null;
++            _context = null;
++            _registration = null;
++            Runtime = null;
++            _preparationSucceeded = false;
++            _preparationFailure = null;
++            _faultReported = false;
++            _commands = null;
++            _lastRoute = null;
++            _lastState = _feedbackState = MNNRealtimeSessionState.Created;
++            _spokenResponse = _finishedResponse = default;
++            LastError = null;
++            onError.Invoke("");
++            await StartConversationAsync();
+         }
+ 
+         /// <summary>Can also be invoked from a Button. Model VAD shares the context fade and interruption task.</summary>
+@@ -401,7 +420,9 @@
+             }
+         }
+ 
+-        public Task StopConversationAsync()
++        public Task StopConversationAsync() => StopConversationAsync(false);
++
++        private Task StopConversationAsync(bool ignoreReleasedSessionFault)
+         {
+             if (_stopTask != null && !_stopTask.IsFaulted && !_stopTask.IsCanceled) return _stopTask;
+             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+@@ -412,20 +433,25 @@
+             _context?.Input.SetRealtime(false);
+             try { SetStage(SiriAIChatStage.Stopped); }
+             catch (Exception error) { failure = CombineFailures("Stop notification failed.", failure, error); }
+-            _ = CompleteStopAsync(completion, failure);
++            _ = CompleteStopAsync(completion, failure, ignoreReleasedSessionFault);
+             return _stopTask;
+         }
+ 
+-        private async Task CompleteStopAsync(TaskCompletionSource<bool> completion, Exception failure)
+-        {
+-            try { await StopCoreAsync().ConfigureAwait(false); }
++        private async Task CompleteStopAsync(TaskCompletionSource<bool> completion, Exception failure, bool ignoreReleasedSessionFault)
++        {
++            try { await StopCoreAsync(ignoreReleasedSessionFault).ConfigureAwait(false); }
+             catch (Exception error) { failure = CombineFailures("Conversation stop and cleanup failed.", failure, error); }
+             if (failure == null) completion.TrySetResult(true);
+             else completion.TrySetException(failure);
+         }
+ 
+-        private async Task StopCoreAsync()
+-        {
++        private async Task StopCoreAsync(bool ignoreReleasedSessionFault)
++        {
++            if (_faultCleanupTask != null)
++            {
++                await _faultCleanupTask;
++                _faultCleanupTask = null;
++            }
+             Exception failure = null;
+             // Silence first; provider cancellation callbacks are user code and may throw.
+             bool audioClosed = false;
+@@ -449,7 +475,7 @@
+             catch (Exception error) { failure = CombineFailures("Voice startup cleanup failed.", failure, error); }
+             try { await _voiceCaptureFinished; await _submissionFinished; }
+             catch (Exception error) { failure = CombineFailures("Voice submission cleanup failed.", failure, error); }
+-            try { await ReleaseSessionResourcesAsync(audioClosed); }
++            try { await ReleaseSessionResourcesAsync(audioClosed, ignoreReleasedSessionFault); }
+             catch (Exception error) { failure = CombineFailures("Siri.AI session shutdown failed.", failure, error); }
+             if (failure == null)
+             {
+@@ -496,11 +522,11 @@
+                 onStatus.Invoke(route.HasValue ? $"{state} / {route}" : state.ToString());
+             }
+             var fault = _audio?.Fault ?? _session?.Fault;
+-            if (!_faultReported && fault != null && _session != null && _session.IsConfigured)
++            if (!_faultReported && _stopTask == null && fault != null && _session != null && _session.IsConfigured)
+             {
+                 _faultReported = true;
+                 ReportError(fault);
+-                _ = ReleaseFaultedSessionAsync(fault);
++                _faultCleanupTask = ReleaseFaultedSessionAsync(fault);
+                 SetStage(SiriAIChatStage.Error);
+             }
+             UpdateStages();
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs
+@@ -11,6 +11,156 @@
+ {
+     public sealed class SiriAIChatResourceTests
+     {
++        [UnityTest]
++        public IEnumerator ResetAfterFaultCreatesUsableFactory()
++        { return ResetReleasedConversation(true, false); }
++
++        [UnityTest]
++        public IEnumerator ResetWaitsForFaultCleanupBeforeCreatingFactory()
++        { return ResetReleasedConversation(true, true); }
++
++        [UnityTest]
++        public IEnumerator ResetAfterStopCreatesUsableFactory()
++        { return ResetReleasedConversation(false, false); }
++
++        [UnityTest]
++        public IEnumerator ResetRetainsOldSessionUntilAuxiliaryCleanupSucceeds()
++        {
++            var root = new GameObject("Reset cleanup failure");
++            var chat = root.AddComponent<SiriAIChat>();
++            var audio = root.AddComponent<SiriAIRetryTestAudio>();
++            var backend = root.AddComponent<SiriAIResetTestBackend>();
++            try
++            {
++                chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>());
++                chat.SetBackend(backend);
++                chat.SetAcousticSettings(new SiriAIAcousticSettings { enabled = false });
++                Task start = chat.StartConversationAsync();
++                yield return Join(start); start.GetAwaiter().GetResult();
++                var previous = chat.SessionComponent;
++                Task failed = previous.Session.ReportFaultAsync(new InvalidOperationException("Injected model failure."));
++                yield return Join(failed); Assert.True(failed.IsFaulted);
++                backend.ReleaseFailuresRemaining = 2;
++                SiriAITestAccess.Call(chat, "Update");
++                int resets = 0;
++                chat.OnConversationReset.AddListener(() => ++resets);
++                Task reset = chat.ResetConversationAsync();
++                yield return Join(reset);
++                Assert.True(reset.IsFaulted);
++                StringAssert.Contains("Injected auxiliary cleanup failure.", reset.Exception.ToString());
++                Assert.AreSame(previous, chat.SessionComponent);
++                Assert.AreEqual(1, backend.Registrations);
++                Assert.AreEqual(0, resets);
++                reset = chat.ResetConversationAsync();
++                yield return Join(reset); reset.GetAwaiter().GetResult();
++                Assert.AreEqual(2, backend.Registrations);
++                Assert.AreEqual(1, resets);
++                Task stop = chat.StopConversationAsync();
++                yield return Join(stop); stop.GetAwaiter().GetResult();
++            }
++            finally { UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        [UnityTest]
++        public IEnumerator SwitchingAfterFaultRestoresThroughReplacementFactory()
++        {
++            var root = new GameObject("Switch released conversation");
++            var chat = root.AddComponent<SiriAIChat>();
++            var backend = root.AddComponent<SiriAIResetTestBackend>();
++            var transcript = new MNNConversationTranscriptStore(System.IO.Path.GetFullPath("TestArtifacts~/ResetTranscript"));
++            try
++            {
++                chat.Configure(root.AddComponent<SiriAIRetryTestAudio>(), root.AddComponent<MNNRealtimeSessionComponent>());
++                chat.SetBackend(backend);
++                chat.SetAcousticSettings(new SiriAIAcousticSettings { enabled = false });
++                Task start = chat.StartConversationAsync();
++                yield return Join(start); start.GetAwaiter().GetResult();
++                Task failed = chat.SessionComponent.Session.ReportFaultAsync(new InvalidOperationException("Injected model failure."));
++                yield return Join(failed); Assert.True(failed.IsFaulted);
++                SiriAITestAccess.Call(chat, "Update");
++                transcript.Add(MNNChatRole.User, "Selected context");
++                int resets = 0;
++                chat.OnConversationReset.AddListener(() => ++resets);
++                Task change = chat.SwitchConversationAsync(transcript);
++                yield return Join(change); change.GetAwaiter().GetResult();
++                Assert.AreEqual(2, backend.Registrations);
++                Assert.AreEqual(0, resets, "Switching must retain the outgoing display history.");
++                Task send = chat.SendTextAsync("New question");
++                yield return Join(send); send.GetAwaiter().GetResult();
++                StringAssert.Contains("Selected context", backend.Models[1].Prompt);
++                Task stop = chat.StopConversationAsync();
++                yield return Join(stop); stop.GetAwaiter().GetResult();
++            }
++            finally { transcript.Dispose(); UnityEngine.Object.DestroyImmediate(root); }
++        }
++
++        private static IEnumerator ResetReleasedConversation(bool fault, bool delayCleanup)
++        {
++            var root = new GameObject("Reset released conversation");
++            var chat = root.AddComponent<SiriAIChat>();
++            var audio = root.AddComponent<SiriAIRetryTestAudio>();
++            var backend = root.AddComponent<SiriAIResetTestBackend>();
++            try
++            {
++                chat.Configure(audio, root.AddComponent<MNNRealtimeSessionComponent>());
++                chat.SetBackend(backend);
++                chat.SetAcousticSettings(new SiriAIAcousticSettings { enabled = false });
++                Task start = chat.StartConversationAsync();
++                yield return Join(start); start.GetAwaiter().GetResult();
++                var oldSession = chat.SessionComponent;
++                var oldFactory = backend.Factory;
++                if (fault)
++                {
++                    Task failed = oldSession.Session.ReportFaultAsync(new InvalidOperationException("Injected model failure."));
++                    yield return Join(failed); Assert.True(failed.IsFaulted);
++                    if (delayCleanup) backend.ReleaseGate = new TaskCompletionSource<bool>();
++                    SiriAITestAccess.Call(chat, "Update");
++                    if (!delayCleanup)
++                    {
++                        Assert.Catch<ObjectDisposedException>(() => oldFactory.ResetConversationAsync());
++                    }
++                }
++                else
++                {
++                    Task stop = chat.StopConversationAsync();
++                    yield return Join(stop); stop.GetAwaiter().GetResult();
++                }
++                int resets = 0;
++                chat.OnConversationReset.AddListener(() => ++resets);
++                Task reset = chat.ResetConversationAsync();
++                if (delayCleanup)
++                {
++                    yield return null;
++                    Assert.False(reset.IsCompleted, "Reset must join cleanup before replacing its registration.");
++                    Assert.AreEqual(1, backend.Registrations);
++                    backend.ReleaseGate.SetResult(true);
++                }
++                yield return Join(reset); reset.GetAwaiter().GetResult();
++                Assert.AreEqual(1, resets);
++                Assert.AreEqual(2, backend.Registrations);
++                Assert.AreNotSame(oldSession, chat.SessionComponent);
++                Assert.AreEqual(MNNRealtimeSessionState.Running, chat.SessionComponent.State);
++                Assert.AreEqual(1, backend.Models[0].Disposals);
++                Assert.AreEqual(0, backend.Models[1].Disposals);
++                Task send = chat.SendTextAsync("Fresh question");
++                yield return Join(send); send.GetAwaiter().GetResult();
++                Assert.AreEqual("Fresh question", backend.Models[1].LastInput);
++                Assert.True(chat.SessionComponent.Output.CurrentResponse.IsValid);
++                Task again = chat.ResetConversationAsync();
++                yield return Join(again); again.GetAwaiter().GetResult();
++                Assert.AreEqual(2, resets);
++                Assert.AreEqual(2, backend.Registrations, "Healthy reset must retain the loaded model.");
++                Assert.AreEqual(2, audio.OpenCount);
++                Task stopped = chat.StopConversationAsync();
++                yield return Join(stopped); stopped.GetAwaiter().GetResult();
++            }
++            finally
++            {
++                backend.ReleaseGate?.TrySetResult(true);
++                UnityEngine.Object.DestroyImmediate(root);
++            }
++        }
++
+         [UnityTest]
+         public IEnumerator ReleasedSessionFaultStillReleasesAuxiliaryModelsAndAcoustics()
+         { return StopAfterFault(false); }
+@@ -102,4 +252,50 @@
+             public Task DisposeAsync() { ++Disposals; return Task.CompletedTask; }
+         }
+     }
++
++    public sealed class SiriAIResetTestBackend : SiriAIChatBackend
++    {
++        public MNNConversationRuntimeFactory Factory;
++        public TaskCompletionSource<bool> ReleaseGate;
++        public int Registrations, ReleaseFailuresRemaining;
++        public readonly System.Collections.Generic.List<Model> Models = new System.Collections.Generic.List<Model>();
++
++        public override SiriAIBackendRegistration CreateRegistration(SiriAIChatContext context)
++        {
++            ++Registrations;
++            var model = new Model();
++            Models.Add(model);
++            var factory = Factory = new MNNConversationRuntimeFactory(new SiriAIConversationRuntime.Context(context),
++                new MNNConversationOptions { speechOutput = false },
++                new MNNConversationRegistrations { Model = new MNNConversationStageRegistration(model.Capabilities, () => model) });
++            return new SiriAIBackendRegistration(factory, model.Capabilities, context.DeviceCapabilities,
++                submitTextAsync: factory.SubmitTextAsync, speechOutput: false, requireMeasuredSpeech: false,
++                resetConversationAsync: factory.ResetConversationAsync, restoreConversationAsync: factory.RestoreConversationAsync,
++                releaseAsync: async () =>
++                {
++                    if (ReleaseGate != null) await ReleaseGate.Task;
++                    if (ReleaseFailuresRemaining-- > 0) throw new InvalidOperationException("Injected auxiliary cleanup failure.");
++                    await factory.ReleaseAsync();
++                });
++        }
++
++        public sealed class Model : IMNNConversationTextProvider
++        {
++            public int Disposals;
++            public string LastInput;
++            public string Prompt;
++            public MNNRealtimeCapabilities Capabilities => new MNNRealtimeCapabilities(MNNRealtimeFeature.TextInput |
++                MNNRealtimeFeature.ContextRecovery | MNNRealtimeFeature.BoundedCancellation,
++                "Managed reset fixture", "No native inference.", execution: MNNRealtimeExecution.Managed);
++            public Task PrepareAsync(CancellationToken token) => Task.CompletedTask;
++            public Task GenerateAsync(System.Collections.Generic.IReadOnlyList<MNNOpenAIMessage> history,
++                float[] audio, int rate, Func<string, Task> delta, CancellationToken token)
++            {
++                LastInput = history[history.Count - 1].Text;
++                Prompt = string.Join("\n", System.Linq.Enumerable.Select(history, item => item.Text));
++                return delta("Fresh answer.");
++            }
++            public void Dispose() { ++Disposals; }
++        }
++    }
+ }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs
+@@ -5,7 +5,7 @@
+ {
+     public sealed partial class SiriAIChat
+     {
+-        private async Task ReleaseSessionResourcesAsync(bool releaseAcoustics = true)
++        private async Task ReleaseSessionResourcesAsync(bool releaseAcoustics = true, bool ignoreReleasedSessionFault = false)
+         {
+             Exception failure = null;
+             if (_session != null)
+@@ -16,7 +16,7 @@
+                     // A retained runtime fault can coexist with successful shutdown.
+                     // Failed quiescence still owns resources used by its live workers.
+                     if (_session.Session?.ResourcesReleased != true) throw;
+-                    failure = error;
++                    if (!ignoreReleasedSessionFault) failure = error;
+                 }
+             }
+             try { if (_registration?.ReleaseAsync != null) await _registration.ReleaseAsync(); }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Conversations.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Conversations.cs
+@@ -25,6 +25,9 @@
+             try
+             {
+                 await ResetConversationAsync();
++                // Reset can replace a stopped/faulted registration; restore through its new owner.
++                restore = _registration?.RestoreConversationAsync ??
++                    throw new NotSupportedException("The current backend does not support restoring conversation context.");
+                 await restore(transcript);
+             }
+             finally { _switchingConversation = false; }

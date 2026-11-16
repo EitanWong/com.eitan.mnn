@@ -1,0 +1,44 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs",
+      "before": "858e7c80d241d3b8d8719c2f538b24958f9ba6fcdcce316fc53bb9bf959cbf2f",
+      "after": "1059901bd5f46fb64b56eae78c1a7fb433036c0fb4b4a7ec5c95b513314f4682"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.cs.meta",
+      "before": "5da27609d0de55ff09bfde35c8174649f9d28cd387425ce2482c9301b8d9843c",
+      "after": "5da27609d0de55ff09bfde35c8174649f9d28cd387425ce2482c9301b8d9843c"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs",
+      "before": "86f746bffa0c910f446e6af4727d54ac4cb307c7b6e5ff1b7bad8476fdca7823",
+      "after": "3dc62faab95c7dac742db166849f1aa319d702638ea254e5d7d19b9c021c0426"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIChatResourceTests.cs.meta",
+      "before": "4d23fba5fb4cde947a15ac4f15f841c9de917463908b7a41dd2330bae90e7be9",
+      "after": "4d23fba5fb4cde947a15ac4f15f841c9de917463908b7a41dd2330bae90e7be9"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs",
+      "before": "9b35d3d7b3c1b2a910b73733d7355add39b72aa473e35a4639d53459019c0c8b",
+      "after": "98d70fb0a3940c1bdb4b6b72b3221d850da843b8c0ff0094ad2cf8f9a4fcdd66"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Resources.cs.meta",
+      "before": "1518c738f24ed307a63872bbb2de75b657227625c7b01f2cdb4ec7c1e7eddc71",
+      "after": "1518c738f24ed307a63872bbb2de75b657227625c7b01f2cdb4ec7c1e7eddc71"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Conversations.cs",
+      "before": "a08c9b923ecbb13d425ec7c0411c518c5819c78e95e97e04e6c080deaf053f7d",
+      "after": "994913d4b5081a2af52c3d0c96bc254e8b0551633080ebf2abfa14039fca2aba"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Conversations.cs.meta",
+      "before": "84dfa51da7e22635dd43f296ccbe3c8b1398cd155b413ea30536b56ce007bd76",
+      "after": "84dfa51da7e22635dd43f296ccbe3c8b1398cd155b413ea30536b56ce007bd76"
+    }
+  ]
+}

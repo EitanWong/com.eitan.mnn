@@ -1,5 +1,18 @@
 # SiriAI 共享核心迁移
 
+## 对话重置恢复
+
+`conversation-reset` 修复停止或故障清理后重置仍调用已释放工厂的问题：等待清理结束，
+确认旧资源释放后创建新会话，再清空历史。正常重置继续复用模型；清理失败时保留旧 owner，
+允许重试。切换对话通过新注册恢复选中上下文。
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage conversation-reset
+```
+
+此 stage 校验四份源码的完整字节和现有 meta GUID；不匹配时零写入，重复运行零写入。
+回归使用真实托管工厂与模型替身，不涉及原生推理。
+
 ## 后台任务独立开关
 
 本地 SiriAI 已加入“设置 → 后台任务 → 使用后台任务”。默认保留原有启用状态；
