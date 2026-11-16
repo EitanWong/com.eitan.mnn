@@ -1,0 +1,594 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.Hybrid.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.Hybrid.cs
+@@ -30,7 +30,7 @@
+                 if (document != null) documents.Add(new KeyValuePair<string, string>(document.name, document.text));
+             if (documents.Count > 0) tools.Add(new SiriAILocalKnowledgeTool(documents));
+             foreach (var component in requestTools ?? Array.Empty<SiriAIRequestToolComponent>())
+-                if (component != null) tools.Add(component.CreateTool());
++                if (component != null && component.IsAvailable) tools.Add(component.CreateTool());
+             string key = settings.allowCloud ? ReadCredential(settings.cloud.credential) : null;
+             return new SiriAIStageRegistration(local.Capabilities, () =>
+             {
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Contracts/SiriAIRequestToolComponent.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Contracts/SiriAIRequestToolComponent.cs
+@@ -5,6 +5,7 @@
+     /// <summary>Create a worker-safe, argument-validating tool. The component retains ownership of its resources.</summary>
+     public abstract class SiriAIRequestToolComponent : MonoBehaviour
+     {
++        public virtual bool IsAvailable => isActiveAndEnabled;
+         public abstract ISiriAIRequestTool CreateTool();
+     }
+ }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessConnection.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessConnection.cs
+@@ -32,6 +32,14 @@
+         private Task _pollTask = Task.CompletedTask;
+         private bool _paused;
+         private bool _externalConversation;
++        private volatile bool _backgroundTasksEnabled = true;
++        public bool BackgroundTasksEnabled => _backgroundTasksEnabled;
++        internal void SetBackgroundTasksEnabled(bool value)
++        {
++            _backgroundTasksEnabled = value;
++            if (!value) StopPolling();
++            else if (isActiveAndEnabled && !_paused) StartPolling();
++        }
+         public HarnessFrontendSession FrontendSession { get; } = new HarnessFrontendSession();
+         public void BindConversation(string id) { _externalConversation = true; FrontendSession.BindConversation(id); }
+ 
+@@ -41,7 +49,7 @@
+         public ErrorEvent OnConnectionError => onConnectionError;
+         public string ConversationId => FrontendSession.Scope?.ConversationId;
+         public string HostAddress => hostAddress;
+-        public bool IsAvailable => isActiveAndEnabled && !_paused && _client != null;
++        public bool IsAvailable => BackgroundTasksEnabled && isActiveAndEnabled && !_paused && _client != null;
+         public string ProfileId => profile;
+         public bool CanPersistCredentials => _secrets?.CanPersist == true;
+         public int PendingAdmissions => _journal?.PendingCount ?? 0;
+@@ -54,6 +62,7 @@
+ 
+         public async Task<HarnessHostCatalog> InspectHostAsync(string profileId, string address, string token, CancellationToken cancellation = default)
+         {
++            if (!BackgroundTasksEnabled) throw new InvalidOperationException("Background tasks are disabled.");
+             var endpoint = HarnessHostAddress.Parse(address, Application.isMobilePlatform);
+             var secrets = MNNSecretStore.Create(Application.identifier + ".SiriAI.Harness",
+                 Path.Combine(Application.persistentDataPath, "MNN", "SiriAI", "Harness", MNNSecretStore.AliasHash(profileId)));
+@@ -66,6 +75,7 @@
+         public async Task<HarnessHostCatalog> ApplyProfileAsync(HarnessHostProfile selected, string token, bool persistCredential,
+             CancellationToken cancellation = default)
+         {
++            if (!BackgroundTasksEnabled) throw new InvalidOperationException("Background tasks are disabled.");
+             if (selected == null) throw new ArgumentNullException(nameof(selected));
+             var address = HarnessHostAddress.Parse(selected.Address, Application.isMobilePlatform);
+             var secrets = MNNSecretStore.Create(Application.identifier + ".SiriAI.Harness",
+@@ -121,6 +131,7 @@
+ 
+         private void Awake()
+         {
++            _backgroundTasksEnabled = PlayerPrefs.GetInt(SiriAIHarnessController.BackgroundTasksPreferenceKey, 1) != 0;
+             string key = "MNN.SiriAI.Harness." + MNNSecretStore.AliasHash(profile);
+             if (string.IsNullOrWhiteSpace(conversationId))
+             {
+@@ -194,11 +205,13 @@
+         {
+             get
+             {
++                if (!BackgroundTasksEnabled) throw new InvalidOperationException("Background tasks are disabled.");
+                 lock (_sync) return _client ?? throw new InvalidOperationException("Configure the harness host connection first.");
+             }
+         }
+         internal void EnsureConfigured()
+         {
++            if (!BackgroundTasksEnabled) throw new InvalidOperationException("Background tasks are disabled.");
+             lock (_sync)
+             {
+                 if (_client != null) return;
+@@ -226,7 +239,8 @@
+             {
+                 var client = _client ?? throw new InvalidOperationException("Configure the harness connection first.");
+                 var journal = _journal;
+-                return (request, token) => journal.SubmitAsync(request, client.SubmitAsync, token);
++                return (request, token) => BackgroundTasksEnabled ? journal.SubmitAsync(request, client.SubmitAsync, token) :
++                    Task.FromException<HarnessTask>(new InvalidOperationException("Background tasks are disabled."));
+             }
+         }
+         private void OnEnable() => StartPolling();
+@@ -238,7 +252,7 @@
+         }
+         private void StartPolling()
+         {
+-            if (_polling != null) return;
++            if (!BackgroundTasksEnabled || _polling != null) return;
+             try { EnsureConfigured(); }
+             catch (InvalidOperationException) { return; }
+             _polling = new CancellationTokenSource();
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.Setup.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.Setup.cs
+@@ -33,6 +33,7 @@
+                 Task.FromException<HarnessHostCatalog>(new InvalidOperationException("Assign a harness connection."));
+         public async Task ConnectLocalAsync(string backend, string workspace, string endpoint = null, string model = null, string apiKey = null)
+         {
++            if (!BackgroundTasksEnabled) throw new InvalidOperationException("Background tasks are disabled.");
+             if (IsBusy) throw new InvalidOperationException("Wait for backend setup to finish.");
+             _localConnecting = true; Notify();
+             try
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.cs
+@@ -23,6 +23,7 @@
+         private readonly HarnessTaskDashboard _dashboard = new HarnessTaskDashboard();
+         private CancellationTokenSource _lifetime;
+         private bool _busy, _refreshing, _changing;
++        private bool? _speakResults;
+         private float _nextRefresh;
+         public event Action Changed;
+         public string Notice { get; private set; } = "Connect a host to use background tasks.";
+@@ -37,15 +38,48 @@
+         public Task SuspendConversationDeliveryAsync() => feedback?.SuspendDeliveryAsync() ?? Task.CompletedTask;
+         public void ResumeConversationDelivery() => feedback?.ResumeDelivery();
+         public bool CanPersistCredentials => connection != null && connection.CanPersistCredentials;
++        public const string BackgroundTasksPreferenceKey = "MNN.SiriAI.Harness.Enabled";
++        public bool BackgroundTasksEnabled => connection != null ? connection.BackgroundTasksEnabled :
++            PlayerPrefs.GetInt(BackgroundTasksPreferenceKey, 1) != 0;
+         public bool SpeakResults
+         {
+-            get => feedback != null && feedback.enabled;
++            get
++            {
++                if (!_speakResults.HasValue) _speakResults = PlayerPrefs.GetInt("MNN.SiriAI.Harness.SpeakResults", feedback != null && feedback.enabled ? 1 : 0) != 0;
++                return _speakResults.Value;
++            }
+             set
+             {
+-                if (feedback != null) feedback.enabled = value;
++                _speakResults = value;
++                if (feedback != null) feedback.enabled = BackgroundTasksEnabled && value;
+                 PlayerPrefs.SetInt("MNN.SiriAI.Harness.SpeakResults", value ? 1 : 0);
+                 PlayerPrefs.Save();
+             }
++        }
++
++        public async Task SetBackgroundTasksEnabledAsync(bool value)
++        {
++            if (value == BackgroundTasksEnabled) return;
++            if (IsBusy) throw new InvalidOperationException("Wait for the current task control operation.");
++            _busy = _changing = true; Notify();
++            try
++            {
++                Func<Task> apply = () =>
++                {
++                    bool speak = SpeakResults;
++                    PlayerPrefs.SetInt(BackgroundTasksPreferenceKey, value ? 1 : 0);
++                    PlayerPrefs.Save();
++                    connection?.SetBackgroundTasksEnabled(value);
++                    if (feedback != null) feedback.enabled = value && speak;
++                    _dashboard.ResetScope(); Catalog = null; LastTaskRefreshUtcTicks = 0; TaskRefreshError = null; ResetSkills();
++                    Notice = value ? "Connect a host to use background tasks." : "Background tasks are disabled.";
++                    return Task.CompletedTask;
++                };
++                // Rebuild the active planner's tool catalog using the same saved conversation settings.
++                if (chat != null && (chat.IsPreparingConversation || chat.Runtime != null)) await chat.RestartConversationAsync(apply);
++                else await apply();
++            }
++            finally { _busy = _changing = false; Notify(); }
+         }
+ 
+         public void Configure(SiriAIHarnessConnection host, SiriAIHarnessResultFeedback replies, SiriAIChat foreground,
+@@ -72,9 +106,10 @@
+             try
+             {
+                 Initialize();
+-                if (!Application.isMobilePlatform) _ = LocalSetup;
+-                if (feedback != null) feedback.enabled = PlayerPrefs.GetInt("MNN.SiriAI.Harness.SpeakResults", feedback.enabled ? 1 : 0) != 0;
+-                if (_profiles.SelectedId != null)
++                if (BackgroundTasksEnabled && !Application.isMobilePlatform) _ = LocalSetup;
++                bool speak = SpeakResults;
++                if (feedback != null) feedback.enabled = BackgroundTasksEnabled && speak;
++                if (BackgroundTasksEnabled && _profiles.SelectedId != null)
+                 {
+                     try
+                     {
+@@ -90,7 +125,7 @@
+         }
+         private void Update()
+         {
+-            if (_busy || _refreshing || connection == null || !connection.IsAvailable || Time.unscaledTime < _nextRefresh) return;
++            if (!BackgroundTasksEnabled || _busy || _refreshing || connection == null || !connection.IsAvailable || Time.unscaledTime < _nextRefresh) return;
+             _nextRefresh = Time.unscaledTime + 2f;
+             _ = RefreshObservedAsync();
+         }
+@@ -102,6 +137,7 @@
+         }
+         public async Task ConnectAsync(HarnessHostProfile selected, string token, bool persistCredential, bool restartForeground = true)
+         {
++            if (!BackgroundTasksEnabled) throw new InvalidOperationException("Background tasks are disabled.");
+             Initialize();
+             HarnessHostAddress.Parse(selected.Address, Application.isMobilePlatform);
+             if (_busy) throw new InvalidOperationException("Wait for the current task control operation.");
+@@ -137,7 +173,7 @@
+         }
+         public async Task RefreshAsync()
+         {
+-            if (_refreshing || _changing || connection == null || !connection.IsAvailable) return;
++            if (!BackgroundTasksEnabled || _refreshing || _changing || connection == null || !connection.IsAvailable) return;
+             _refreshing = true;
+             long generation = _dashboard.Generation;
+             var client = connection.Client;
+@@ -289,7 +325,7 @@
+         }
+         private async Task ControlAsync(long generation, string taskId, Func<Task<HarnessTask>> execute)
+         {
+-            if (_busy || _changing || generation != _dashboard.Generation || !_dashboard.Tasks.Any(p => p.Id == taskId))
++            if (!BackgroundTasksEnabled || _busy || _changing || generation != _dashboard.Generation || !_dashboard.Tasks.Any(p => p.Id == taskId))
+                 throw new InvalidOperationException("Refresh the task before using this control.");
+             _busy = true; Notify();
+             try
+@@ -301,7 +337,7 @@
+             finally { _busy = false; Notify(); }
+         }
+         private void TaskChanged(HarnessTask task)
+-        { if (!_changing && _dashboard.Apply(_dashboard.Generation, new[] { task })) Notify(); }
++        { if (BackgroundTasksEnabled && !_changing && _dashboard.Apply(_dashboard.Generation, new[] { task })) Notify(); }
+         private void ConnectionError(string message) { Notice = message; Notify(); }
+         private void Notify() => Changed?.Invoke();
+         private void OnDisable()
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessResultFeedback.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessResultFeedback.cs
+@@ -26,7 +26,7 @@
+         }
+         private void Update()
+         {
+-            if (_owner != null || _paused || _suspensions != 0 || connection == null || chat == null) return;
++            if (_owner != null || _paused || _suspensions != 0 || connection == null || !connection.BackgroundTasksEnabled || chat == null) return;
+             _owner = new CancellationTokenSource();
+             _delivery = RunAsync(_owner);
+         }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessTaskTool.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessTaskTool.cs
+@@ -17,6 +17,7 @@
+         [SerializeField] private string harnessId;
+         [SerializeField] private string workspaceKey;
+         public SiriAIHarnessTaskOperation Operation => operation;
++        public override bool IsAvailable => base.IsAvailable && connection != null && connection.BackgroundTasksEnabled;
+         public void Configure(SiriAIHarnessConnection host, SiriAIHarnessTaskOperation kind, string targetHarness, string targetWorkspace)
+         { connection = host; operation = kind; harnessId = targetHarness; workspaceKey = targetWorkspace; }
+         public override ISiriAIRequestTool CreateTool()
+@@ -33,7 +34,7 @@
+             }
+             catch (InvalidOperationException) { }
+             // Capture Unity configuration on the owning thread; the package tool uses only plain values.
+-            return new Tool(new HarnessTaskTool(client, submit, connection.FrontendSession,
++            return new Tool(connection, new HarnessTaskTool(client, submit, connection.FrontendSession,
+                 (HarnessTaskToolOperation)(int)operation, harnessId, workspaceKey, network,
+                 "Connect a background task host in Settings > Tasks before using background work."));
+         }
+@@ -41,12 +42,14 @@
+         private sealed class Tool : ISiriAIRequestTool, IMNNAgentNetworkPermission
+         {
+             private readonly HarnessTaskTool _tool;
++            private readonly SiriAIHarnessConnection _connection;
+             public string Name => _tool.Name;
+             public string Description => _tool.Description;
+             public bool RequiresNetwork => _tool.RequiresNetwork;
+             public bool CanUseNetwork => _tool.CanUseNetwork;
+-            internal Tool(HarnessTaskTool tool) { _tool = tool; }
+-            public Task<string> ExecuteAsync(string input, CancellationToken cancellation) => _tool.ExecuteAsync(input, cancellation);
++            internal Tool(SiriAIHarnessConnection connection, HarnessTaskTool tool) { _connection = connection; _tool = tool; }
++            public Task<string> ExecuteAsync(string input, CancellationToken cancellation) => _connection.BackgroundTasksEnabled ?
++                _tool.ExecuteAsync(input, cancellation) : Task.FromException<string>(new InvalidOperationException("Background tasks are disabled."));
+         }
+     }
+ }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Execution.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Execution.cs
+@@ -16,7 +16,7 @@
+ 
+         private void NotifyHarnessCompletions()
+         {
+-            if (!_harnessNoticesPending || harness == null || _canvasRoot == null) return;
++            if (!BackgroundTasksEnabled || !_harnessNoticesPending || _canvasRoot == null) return;
+             if (_harnessNotificationScope != harness.Dashboard.Generation)
+             {
+                 _harnessNotificationScope = harness.Dashboard.Generation;
+@@ -43,7 +43,7 @@
+ 
+         private void ImportHarnessExecution()
+         {
+-            if (!_harnessExecutionPending || _conversations == null || harness == null || _editorPreview || _conversationSwitchBusy || _chat.IsProcessing) return;
++            if (!BackgroundTasksEnabled || !_harnessExecutionPending || _conversations == null || _editorPreview || _conversationSwitchBusy || _chat.IsProcessing) return;
+             _harnessExecutionPending = false;
+             foreach (var task in harness.Dashboard.Tasks)
+             {
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs
+@@ -91,10 +91,19 @@
+             _harnessPageGeneration = harness != null ? harness.Dashboard.Generation : 0;
+             _harnessPageConnectionId = harness?.Connection?.IsAvailable == true ? harness.Connection.ProfileId : null;
+             _harnessRebuildRequested = false;
++            if (_editorPreview || harness == null)
++            { SettingsDescription("Enter Play mode with a Harness Controller to configure background tasks."); return; }
++            AddBoolField("Use background tasks", "Off: chat with AI only. On: combine conversation with background agents. Applies immediately.",
++                () => harness.BackgroundTasksEnabled, value => _ = SetBackgroundTasksFromSettingsAsync(value),
++                !harness.IsBusy && !_harnessActionBusy);
++            if (!harness.BackgroundTasksEnabled)
++            {
++                SetSettingsNotice("Background tasks are disabled.");
++                SettingsDescription("The task icon is hidden. Tasks already accepted by a host continue there.");
++                return;
++            }
+             SetSettingsNotice("Connect saves host settings and reloads an active foreground session. Task controls apply immediately.");
+             BuildHarnessDispatchSettings();
+-            if (_editorPreview || harness == null)
+-            { SettingsDescription("Enter Play mode with a Harness Controller to configure background tasks."); return; }
+             EnsureHarnessDraftScope();
+             var profiles = harness.Profiles.Profiles;
+             if (_harnessDraftId == null) LoadHarnessDraft(profiles.FirstOrDefault(p => p.Id == harness.Profiles.SelectedId));
+@@ -125,6 +134,12 @@
+             HarnessAction("Refresh tasks", () => harness.RefreshAsync());
+             BuildHarnessTaskList();
+         }
++        private async Task SetBackgroundTasksFromSettingsAsync(bool value)
++        {
++            if (!ReadSettingsFields()) return;
++            await RunHarnessActionAsync(() => harness.SetBackgroundTasksEnabledAsync(value));
++            RedrawHarnessContent();
++        }
+         private void BuildHarnessTaskList()
+         {
+             int firstRow = _settingsContent.childCount, firstReader = _settingsReaders.Count, firstChoice = _settingsChoiceLabels.Count;
+@@ -252,7 +267,7 @@
+             button.interactable = HarnessActionsAvailable;
+             button.onClick.AddListener(() => _ = RunHarnessActionAsync(action));
+         }
+-        private bool HarnessActionsAvailable => harness != null && !harness.IsBusy && !harness.LocalSetup.IsBusy && !_harnessActionBusy;
++        private bool HarnessActionsAvailable => harness != null && harness.BackgroundTasksEnabled && !harness.IsBusy && !harness.LocalSetup.IsBusy && !_harnessActionBusy;
+         private void RefreshHarnessActions()
+         {
+             _harnessActions.RemoveAll(button => button == null);
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.Details.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.Details.cs
+@@ -28,7 +28,7 @@
+         public void OpenTaskDetails(string taskId) => OpenTaskDetailsFrom(taskId, null);
+         private void OpenTaskDetailsFrom(string taskId, RectTransform origin)
+         {
+-            if (_canvasRoot == null || IsSetupOpen || IsSettingsOpen || harness == null) return;
++            if (!BackgroundTasksEnabled || _canvasRoot == null || IsSetupOpen || IsSettingsOpen) return;
+             RefreshTaskCenter();
+             var task = harness.Dashboard.Tasks.FirstOrDefault(item => item.Id == taskId);
+             if (task == null) return;
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.Layout.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.Layout.cs
+@@ -91,14 +91,13 @@
+             if (_taskCenterEntry == null) return;
+             // This is part of the existing drawer/floating-window header, never a separate toolbar button.
+             var entry = (RectTransform)_taskCenterEntry.transform;
+-            bool showEntry = !IsDesktopMode || !IsImmersiveMode && !_floatingPanel.Tucked;
+-            _taskCenterEntry.gameObject.SetActive(showEntry);
++            _taskCenterEntry.gameObject.SetActive(ShowTaskCenterEntry);
+             entry.anchorMin = entry.anchorMax = entry.pivot = Vector2.one;
+             entry.anchoredPosition = new Vector2(-DrawerRightInset - SettingsButtonSize - 8, -SettingsButtonInset);
+             entry.sizeDelta = Vector2.one * SettingsButtonSize;
+             entry.SetAsLastSibling();
+             if (_handleHint != null && !IsImmersiveMode)
+-                _handleHint.rectTransform.offsetMax = new Vector2(-DrawerRightInset - SettingsButtonSize * 2 - 20, -22);
++                _handleHint.rectTransform.offsetMax = new Vector2(-DrawerRightInset - SettingsButtonSize * (BackgroundTasksEnabled ? 2 : 1) - 20, -22);
+             LayoutDesktopTaskStrip();
+             if (_taskCenterRoot == null) return;
+             Stretch(_taskCenterRoot);
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.cs
+@@ -24,6 +24,8 @@
+         private Text _taskEntryCount;
+         private SiriAISurfaceTransition _taskCenterTransition;
+         private bool _taskCenterClosing;
++        private bool BackgroundTasksEnabled => harness != null && harness.BackgroundTasksEnabled;
++        private bool ShowTaskCenterEntry => BackgroundTasksEnabled && (!IsDesktopMode || !IsImmersiveMode && !_floatingPanel.Tucked);
+         public bool IsTaskCenterOpen => _taskCenterPanel != null && _taskCenterPanel.gameObject.activeSelf && !_taskCenterClosing;
+         private bool TaskUIOwnsInput => IsTaskCenterOpen || _taskWindows.Count > 0;
+         private bool IsTaskStateFresh => harness?.Connection?.IsAvailable == true &&
+@@ -51,6 +53,7 @@
+         private void RefreshTaskCenterEntry()
+         {
+             if (_taskCenterEntry == null) return;
++            _taskCenterEntry.gameObject.SetActive(ShowTaskCenterEntry);
+             var tasks = harness?.Dashboard.Tasks ?? Array.Empty<HarnessTask>();
+             int attention = tasks.Count(task => task.State == HarnessTaskState.Running && task.WaitingFor != HarnessWaitingFor.None);
+             int active = tasks.Count(task => !task.IsTerminal);
+@@ -60,7 +63,7 @@
+ 
+         private void EnsureTaskCenterRoot()
+         {
+-            if (_taskCenterRoot != null) return;
++            if (_taskCenterRoot != null) { _taskCenterRoot.gameObject.SetActive(true); return; }
+             _taskCenterRoot = RectObject("Task Center Windows", _canvasRoot.transform);
+             Stretch(_taskCenterRoot);
+             _taskCenterScope = harness?.Dashboard.Generation ?? -1;
+@@ -68,7 +71,7 @@
+ 
+         public void OpenTaskCenter()
+         {
+-            if (_canvasRoot == null || IsSetupOpen || IsSettingsOpen) return;
++            if (!BackgroundTasksEnabled || _canvasRoot == null || IsSetupOpen || IsSettingsOpen) return;
+             PrepareTaskUI();
+             EnsureTaskCenterRoot();
+             if (_taskCenterPanel == null) BuildTaskCenterPanel();
+@@ -160,6 +163,16 @@
+                 _taskCenterScope = scope; _taskListVersion = null; _taskOperationNotice = null;
+             }
+             RefreshTaskCenterEntry();
++            if (!BackgroundTasksEnabled)
++            {
++                foreach (var id in _taskWindows.Keys.ToArray()) RemoveTaskDetails(id, false);
++                if (_taskCenterRoot != null) _taskCenterRoot.gameObject.SetActive(false);
++                if (_taskCenterPanel != null) _taskCenterPanel.gameObject.SetActive(false);
++                if (_desktopTaskStrip != null) _desktopTaskStrip.gameObject.SetActive(false);
++                _desktopTaskCount = 0; _desktopTaskVersion = _taskListVersion = null;
++                _taskCenterClosing = false;
++                return;
++            }
+             var tasks = harness?.Dashboard.Tasks ?? Array.Empty<HarnessTask>();
+             RefreshDesktopTaskStrip(tasks);
+             if (IsTaskCenterOpen) RefreshTaskList(tasks);
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -196,6 +196,10 @@
+             { "Window background depth", "窗口背景深浅" },
+             { "Adjust the shared light or dark backing of chat, settings and popups. Preview immediately; save to keep.", "统一调整对话、设置和弹窗的背景深浅。即时预览，保存后保留。" },
+             { "Background tasks", "后台任务" },
++            { "Use background tasks", "使用后台任务" },
++            { "Off: chat with AI only. On: combine conversation with background agents. Applies immediately.", "关闭后仅与 AI 对话；开启后可结合前台聊天与后台 Agent。立即生效。" },
++            { "Background tasks are disabled.", "后台任务已关闭。" },
++            { "The task icon is hidden. Tasks already accepted by a host continue there.", "任务图标已隐藏。主机已受理的任务仍会继续执行。" },
+             { "Active tasks: {0}", "进行中的任务：{0}" },
+             { "Pause task", "暂停任务" }, { "Resume task", "继续任务" }, { "Paused", "已暂停" },
+             { "Showing all active tasks and the 30 most recent finished tasks.", "显示全部进行中的任务及最近 30 项已结束任务。" },
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIHarnessSetupSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIHarnessSetupSettingsTests.cs
+@@ -1,6 +1,7 @@
+ using System;
+ using System.IO;
+ using System.Linq;
++using System.Threading;
+ using MNN.Samples.SiriAI.Harnesses;
+ using NUnit.Framework;
+ using UnityEngine;
+@@ -14,8 +15,12 @@
+         private SiriAIChatView view;
+         private SiriAIHarnessController controller;
+         private string directory;
++        private int backgroundPreference, speakPreference;
+         [SetUp] public void Setup()
+         {
++            backgroundPreference = PlayerPrefs.GetInt(SiriAIHarnessController.BackgroundTasksPreferenceKey, -1);
++            speakPreference = PlayerPrefs.GetInt("MNN.SiriAI.Harness.SpeakResults", -1);
++            PlayerPrefs.SetInt(SiriAIHarnessController.BackgroundTasksPreferenceKey, 1);
+             root = new GameObject("Harness setup settings");
+             var backend = SiriAITestAccess.CreateBackend(root);
+             var chat = root.AddComponent<SiriAIChat>(); chat.SetBackend(backend);
+@@ -29,7 +34,15 @@
+             SiriAITestAccess.Set(view, "_editorPreview", false);
+             SiriAITestAccess.Call(view, "ShowSettingsTab", 5, true);
+         }
+-        [TearDown] public void Cleanup() { Object.DestroyImmediate(root); if (Directory.Exists(directory)) Directory.Delete(directory, true); }
++        [TearDown] public void Cleanup()
++        {
++            Object.DestroyImmediate(root); if (Directory.Exists(directory)) Directory.Delete(directory, true);
++            RestorePreference(SiriAIHarnessController.BackgroundTasksPreferenceKey, backgroundPreference);
++            RestorePreference("MNN.SiriAI.Harness.SpeakResults", speakPreference);
++            PlayerPrefs.Save();
++        }
++        private static void RestorePreference(string key, int value)
++        { if (value < 0) PlayerPrefs.DeleteKey(key); else PlayerPrefs.SetInt(key, value); }
+         private RectTransform Content => SiriAITestAccess.Field<RectTransform>(view, "_settingsContent");
+         private string[] Options(string title)
+         {
+@@ -40,6 +53,62 @@
+         }
+         private void Remote()
+         { SiriAITestAccess.Set(view, "_harnessRemote", true); SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false); }
++        [Test] public void BackgroundTasksCanBeDisabledAndRestoredFromSettings()
++        {
++            var toggle = Content.Find("Use background tasks");
++            Assert.IsNotNull(toggle, "Background tasks need an independent switch in Settings > Tasks.");
++            toggle.GetComponentInChildren<Button>().onClick.Invoke();
++            Assert.IsNull(Content.Find("Task agent"), "Chat-only mode must not offer agent configuration.");
++            view.CloseSettings(); view.ApplyViewport(new Rect(0, 0, 1280, 800), 1, false);
++            var entry = SiriAITestAccess.Field<Button>(view, "_taskCenterEntry");
++            Assert.False(entry.gameObject.activeSelf, "The task icon must stay hidden after layout.");
++            view.OpenTaskCenter(); Assert.False(view.IsTaskCenterOpen);
++            view.OpenSettings(); SiriAITestAccess.Call(view, "ShowSettingsTab", 5, false);
++            Content.Find("Use background tasks").GetComponentInChildren<Button>().onClick.Invoke();
++            Assert.IsNotNull(Content.Find("Task agent"));
++            view.CloseSettings(); view.ApplyViewport(new Rect(0, 0, 1280, 800), 1, false);
++            Assert.True(entry.gameObject.activeSelf);
++        }
++        [Test] public void BackgroundToggleBlocksCapturedToolsAndRestoresResultPreference()
++        {
++            var connection = root.AddComponent<SiriAIHarnessConnection>();
++            var feedback = root.AddComponent<SiriAIHarnessResultFeedback>();
++            var component = root.AddComponent<SiriAIHarnessTaskTool>();
++            component.Configure(connection, SiriAIHarnessTaskOperation.Submit, "codex", "project");
++            controller.Configure(connection, feedback, root.GetComponent<SiriAIChat>(), new[] { component });
++            controller.SpeakResults = true;
++            var captured = component.CreateTool();
++            Assert.True(component.IsAvailable);
++            controller.SetBackgroundTasksEnabledAsync(false).GetAwaiter().GetResult();
++            Assert.False(connection.BackgroundTasksEnabled);
++            Assert.False(connection.IsAvailable);
++            Assert.False(component.IsAvailable);
++            Assert.False(feedback.enabled);
++            Assert.IsNull(SiriAITestAccess.Field<CancellationTokenSource>(connection, "_polling"));
++            var error = Assert.Throws<InvalidOperationException>(() => captured.ExecuteAsync("{}", CancellationToken.None).GetAwaiter().GetResult());
++            Assert.AreEqual("Background tasks are disabled.", error.Message);
++            Assert.Throws<InvalidOperationException>(() => controller.ConnectLocalAsync("codex", directory).GetAwaiter().GetResult());
++            var reload = new GameObject("Saved background setting");
++            try
++            {
++                var restored = reload.AddComponent<SiriAIHarnessConnection>();
++                SiriAITestAccess.Call(restored, "Awake");
++                Assert.False(restored.BackgroundTasksEnabled, "A new session must honor the saved switch.");
++                PlayerPrefs.DeleteKey("MNN.SiriAI.Harness.SpeakResults");
++                var restoredFeedback = reload.AddComponent<SiriAIHarnessResultFeedback>();
++                var restoredController = reload.AddComponent<SiriAIHarnessController>();
++                restoredController.Configure(restored, restoredFeedback, null, new SiriAIHarnessTaskTool[0]);
++                SiriAITestAccess.Set(restoredController, "_profiles", new HarnessProfileCatalog(Path.Combine(directory, "restored")));
++                SiriAITestAccess.Call(restoredController, "Start");
++                Assert.False(restoredFeedback.enabled);
++                restoredController.SetBackgroundTasksEnabledAsync(true).GetAwaiter().GetResult();
++                Assert.True(restoredFeedback.enabled, "Startup while disabled must preserve the default result preference.");
++            }
++            finally { Object.DestroyImmediate(reload); }
++            controller.SetBackgroundTasksEnabledAsync(true).GetAwaiter().GetResult();
++            Assert.True(component.IsAvailable);
++            Assert.True(feedback.enabled, "The independent result preference must survive disabling background tasks.");
++        }
+         [Test] public void NewRemoteHostOffersOneStepConnectionAndAnOptionalName()
+         {
+             SiriAITestAccess.Call(view, "LoadHarnessDraft", new object[] { null }); Remote();
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAITaskCenterTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAITaskCenterTests.cs
+@@ -9,6 +9,45 @@
+ {
+     public sealed class SiriAITaskCenterTests
+     {
++        [TestCase(false)] [TestCase(true)]
++        public void DisablingBackgroundTasksClosesTaskSurfacesAndBlocksReopening(bool desktop)
++        {
++            string key = SiriAIHarnessController.BackgroundTasksPreferenceKey;
++            int saved = PlayerPrefs.GetInt(key, -1);
++            PlayerPrefs.SetInt(key, 1);
++            var root = new GameObject("Chat only task UI");
++            try
++            {
++                root.AddComponent<SiriAIChat>();
++                var host = root.AddComponent<SiriAIHarnessController>();
++                var view = root.AddComponent<SiriAIChatView>(); view.ConfigureHarness(host);
++                view.TickEditorPreview(new Rect(0, 0, 1200, 800), 1);
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").desktopMode = desktop;
++                view.ApplyViewport(new Rect(0, 0, 1200, 800), 1, false);
++                host.Dashboard.Apply(host.Dashboard.Generation, new[] { Task("one") });
++                SiriAITestAccess.Call(view, "RefreshTaskCenter");
++                view.OpenTaskCenter(); view.OpenTaskDetails("one");
++                Assert.True(view.IsTaskCenterOpen);
++                host.SetBackgroundTasksEnabledAsync(false).GetAwaiter().GetResult();
++                SiriAITestAccess.Call(view, "RefreshTaskCenter");
++                view.ApplyViewport(new Rect(0, 0, 1200, 800), 1, false);
++                Assert.False(SiriAITestAccess.Field<Button>(view, "_taskCenterEntry").gameObject.activeSelf);
++                Assert.False(view.IsTaskCenterOpen);
++                view.OpenTaskCenter(); view.OpenTaskDetails("one");
++                Assert.False(view.IsTaskCenterOpen);
++                var canvas = SiriAITestAccess.Field<GameObject>(view, "_canvasRoot");
++                Assert.False(canvas.GetComponentsInChildren<RectTransform>().Any(p => p.name.StartsWith("Task Detail ") || p.name == "Desktop Active Tasks"));
++                host.SetBackgroundTasksEnabledAsync(true).GetAwaiter().GetResult();
++                SiriAITestAccess.Call(view, "RefreshTaskCenter");
++                Assert.True(SiriAITestAccess.Field<Button>(view, "_taskCenterEntry").gameObject.activeSelf);
++            }
++            finally
++            {
++                Object.DestroyImmediate(root);
++                if (saved < 0) PlayerPrefs.DeleteKey(key); else PlayerPrefs.SetInt(key, saved);
++                PlayerPrefs.Save();
++            }
++        }
+         private static HarnessTask Task(string id, int state = 1, long revision = 1) => TaskHostJson.Read<HarnessTask>(Encoding.UTF8.GetBytes(
+             "{\"Id\":\"" + id + "\",\"OwnerId\":\"owner\",\"ConversationId\":\"chat\",\"SubmissionKey\":\"" + id +
+             "\",\"HarnessId\":\"agent\",\"WorkspaceKey\":\"project\",\"Objective\":\"Inspect " + id +

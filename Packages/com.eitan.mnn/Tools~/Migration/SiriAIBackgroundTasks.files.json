@@ -1,0 +1,79 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Backends/SiriAIConfigurableBackend.Hybrid.cs",
+      "before": "c4e949bd3aa61f8cdd4f6c2003e914b83e66a3c7a8c78532c439764dcbb5204b",
+      "after": "d4c4c516b5f5d9ef31cdf3a523500cc46bc0b6b2585787dd6625e32c081dda81"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Contracts/SiriAIRequestToolComponent.cs",
+      "before": "cc87ee79519ab8ef6e994dd81e1d4c2ef5480f20df97cab7169f3fe67c6ac96f",
+      "after": "88bb7a22792595e75098dcbb5e298fd7dd765d1fd07d01e5f4cf728cb6adb2b5"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessConnection.cs",
+      "before": "c76e255e2309f63a0aaa7518518ac766ddc8644a6fea6d43f37fb24904e72b00",
+      "after": "5a4c918ae1948b402f4ea53cfe0d00fb2b14f813ac9085c1b5b8e27cceab71a0"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.Setup.cs",
+      "before": "1d503b2d60b16f1f760001b2a879943e4baf0e9f656edc8a1a19202f08afd2f2",
+      "after": "22404c88f2d9a50114d92cab0d3476616d57a8054fe414a663414729bc8d57a7"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessController.cs",
+      "before": "f993d76f1e99302a2dc25df71f88257bb3e2d57fa55926ffd28f136ad118dd54",
+      "after": "df6e89a7a756de732ee3235f012412f9366b76cf4d1742282eb446261f8ef0b4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessResultFeedback.cs",
+      "before": "bbba29805a781dd4553f7d18d5a0a1b45e37939a71b9f617131de5581df61f73",
+      "after": "453b79e8e1198de449aa25a25ca7d1b0ba3edfe5ed7826ab13273092082316fb"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Harnesses/SiriAIHarnessTaskTool.cs",
+      "before": "8b461f05a392a080dddc8d252bffa90dddcff147ac8380c86ba68d2cdccdb377",
+      "after": "cb007657d9e0da38fe7b977b09ee1c3c797b5cfd4384199fb2f88753a61af079"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Execution.cs",
+      "before": "bb83d4ae9abdbca25901699576d4d2d074275295ace80bf526d226edb105ade2",
+      "after": "a44cc4911592c491bd9b02d8efd4268112fff8319091520a9d878aff46be77fc"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Harness.cs",
+      "before": "53f114d18ffe7431eb683ac0caee950c03a4c8ec9c8c33d56f21d9951be2294e",
+      "after": "4c52c6a5c2bccbf9fe23131cdd20dd3242e90c826bb1669e11383f1a1f841f56"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.Details.cs",
+      "before": "c59c5686a9ee90eb0e5ebb49fc8b89ef845aaa002d2deea9944ded1eef5f6ae7",
+      "after": "20c3e54230c98aa4ce33b75f0ad07408c127e49fe9774665b161c9cddba3649b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.Layout.cs",
+      "before": "c38893d3d853e0fcdda187e72b8d650dea70eb069449282d600f14085e5d2ca1",
+      "after": "5581388fd724220f0a6a187b1d8ecd2b8c65ceb7f0bf12ad44bdb4c9c8a8f043"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.TaskCenter.cs",
+      "before": "7e73025698c31f43d516ff4536801834f6cf51a1c2b71b6de1b58dc720c60b0b",
+      "after": "8ab2ffc20d253b4fdabd54ecd4039393e2cd116d0d2ae65acfc89b8f2e7ed695"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs",
+      "before": "b0f79fc017e5304fd78b301f5d4ec38a0c73e113d32f5ce9af016eb3e2123db5",
+      "after": "75cebd21f69e74630c3d4408197a979f5c61831f5ac9c3ef60a58084c4043524"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIHarnessSetupSettingsTests.cs",
+      "before": "8d9bafe833d54705c7b71fb4bfbd8c48267f92fad588e36efc19d2f6dba5c8a5",
+      "after": "ec07f0e5cd47baa7bd7fef1b6659a3a5a36960a9652ab76a37cca122b41dcdb4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAITaskCenterTests.cs",
+      "before": "59a41a3958f8d0b7efa9cbd5fc32437a024feb0e7846f0efc557c1cf82c43b2a",
+      "after": "fc23e2fec02cde7f975048b0815b23aedf03f735d8088b0f8e066fc14ab65a54"
+    }
+  ]
+}
