@@ -1,0 +1,19 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/PresenceSleep.md",
+      "before": "497be21dc9dbab0bef73a0c38fb58b7fbf3a46109de0cc4aaab3002d854db459",
+      "after": "d8e0950685bc3ffd30e514a9af148fe66f2536e74ced8916e00000c63436e419"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs",
+      "before": "6051a5a43bf812890001d622814e6f854a6aba98744ba03442dbd292c5020802",
+      "after": "36333434185835bc0897e04b9d390f9b97870765c8f311c201a5db78565bb1d3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs",
+      "before": "9e77fdf6bc6c3bad522ce45dd54abe4afaf36a0064835dc1d264442d2dbac0ae",
+      "after": "f5cfa634ccb8350420e2de1d103099aced0175b7843d7d964aa54ce5f13fc655"
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+diff --git a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+--- a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
++++ b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+@@ -7,5 +7,5 @@
+ 关闭视觉时，启动完成后连续无交互达到同一休眠时长也进入低功耗待机，不会为了检测在场而开启摄像头。键盘、鼠标按键或显式调用 `NotifyInteractionActivity()` 唤醒；手动录音和处理中的请求保持清醒。视觉关闭时无法通过人脸自动唤醒，需要一次手动交互。
+ 
+-启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。实时与非实时对话中，第一个无人在场结果就触发 UI 和完整光球的淡出（约 0.35 秒到 25% 不透明度），不等待 grace 或休眠超时；同时光球降低亮度、保留尺寸，不以缩小代替透明。人回来确认在场后约 0.25 秒淡入。Grace 只保持进行中的交互，不延迟视觉反馈。超时真正进入低功耗休眠，才淡至完全透明。睡眠时停止跟随语音起伏。超时后默认隐藏整个界面和光球，不再提供独立“Dimmed standby”设置。
++启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。实时与非实时对话中，连续无人在场 0.65 秒后才触发 UI 和完整光球的淡出（约 0.35 秒到 25% 不透明度），不等待整个 grace 或休眠超时；同时光球降低亮度、保留尺寸，不以缩小代替透明。人回来经过检测器在场确认（默认 0.35 秒）后，再稳定保持 0.4 秒才开始约 0.25 秒淡入。缓冲期间出现相反结果会取消待切换状态，重新连续计时，不累计短暂闪断。淡入淡出共用同一视觉判定和动画时钟，UI 与光球同步；实际休眠隐藏不额外等待，设置/引导不受人脸抖动影响。Grace 继续保持进行中的交互。超时真正进入低功耗休眠，才淡至完全透明。睡眠时停止跟随语音起伏。超时后默认隐藏整个界面和光球，不再提供独立“Dimmed standby”设置。
+ 
+ 休眠时自动语音采集、唤醒词监听与自动 ASR 暂停；图像上下文清空。摄像头保留连接，默认在场分析从 10 次/秒降为 2 次/秒，供人回来时唤醒。这里降低的是分析频率，摄像头设备的实际采集模式保持原协商值。界面目标帧率降为 12 FPS，背景停止动态流动；设置/引导打开时保持可见；手动模式也显示相同淡出反馈，部分淡出时仍可点击交互；设置/引导保持完整显示。
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+@@ -7,4 +7,6 @@
+         private CanvasGroup _presenceCanvas;
+         private float _presenceAmount = 1;
++        private float _presenceAcceptedTarget = 1, _presencePendingTarget = 1, _presencePendingSeconds;
++        private const float PresenceDepartureBuffer = .65f, PresenceArrivalBuffer = .4f;
+ 
+         private void TickInteractionPresentation()
+@@ -15,12 +17,41 @@
+             float target = _chat != null ? _chat.PresencePresentationTarget : 1;
+             // Settings and onboarding remain accessible even without a face; partial fading never blocks manual interaction.
+-            if (IsSettingsOpen || IsSetupOpen) target = 1;
++            if (IsSettingsOpen || IsSetupOpen)
++            {
++                target = _presenceAcceptedTarget = _presencePendingTarget = 1;
++                _presencePendingSeconds = 0;
++            }
+             if (target >= 1 && _presenceCanvas == null && _presenceAmount >= 1) return;
+             AdvancePresencePresentation(target, Time.unscaledDeltaTime);
+         }
+ 
+-        // One clock controls UI and the complete optical shell. Admission and resource sleep own no opacity.
++        // Require a continuous target; opposite observations cancel the pending transition.
++        // This is visual hysteresis after detector confirmation, independent of voice admission.
++        private float StabilizePresenceTarget(float target, ref float dt)
++        {
++            if (target <= 0 || target == _presenceAcceptedTarget)
++            {
++                _presencePendingSeconds = 0;
++                return _presenceAcceptedTarget = _presencePendingTarget = target;
++            }
++            if (target != _presencePendingTarget)
++            {
++                _presencePendingTarget = target;
++                _presencePendingSeconds = 0;
++            }
++            _presencePendingSeconds += dt;
++            float wait = target > _presenceAcceptedTarget ? PresenceArrivalBuffer : PresenceDepartureBuffer;
++            if (_presencePendingSeconds < wait) return _presenceAcceptedTarget;
++            // Only the time beyond the buffer belongs to the animation, even on a slow frame.
++            dt = _presencePendingSeconds - wait;
++            _presencePendingSeconds = 0;
++            return _presenceAcceptedTarget = target;
++        }
++
++        // One clock controls UI and the complete optical shell after visual state stabilization.
+         private void AdvancePresencePresentation(float target, float dt)
+         {
++            dt = Mathf.Max(0, dt);
++            target = StabilizePresenceTarget(target, ref dt);
+             if (_presenceCanvas == null && _canvasRoot != null)
+             {
+@@ -44,5 +75,6 @@
+             var orb = siriOrb != null ? siriOrb.GetComponentInParent<SiriAIRenderer>() : null;
+             if (orb != null) orb.SetPresenceVisibility(1);
+-            _presenceCanvas = null; _presenceAmount = 1;
++            _presenceCanvas = null; _presenceAmount = _presenceAcceptedTarget = _presencePendingTarget = 1;
++            _presencePendingSeconds = 0;
+         }
+     }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+@@ -15,6 +15,47 @@
+     public sealed class SiriAILowPowerTests
+     {
++        [Test]
++        public void PresenceFlickerWaitsForStableArrivalAndDepartureBeforeFading()
++        {
++            var root = new GameObject("Buffered presence view");
++            var content = new GameObject("UI");
++            var ball = new GameObject("Orb");
++            try
++            {
++                var view = root.AddComponent<SiriAIChatView>();
++                var orb = ball.AddComponent<SiriAIRenderer>(); orb.Refresh();
++                SiriAITestAccess.Set(view, "_canvasRoot", content);
++                SiriAITestAccess.Set(view, "siriOrb", ball.GetComponent<Renderer>());
++                var advance = typeof(SiriAIChatView).GetMethod("AdvancePresencePresentation", BindingFlags.Instance | BindingFlags.NonPublic);
++                Action<float, float> frame = (target, dt) => advance.Invoke(view, new object[] { target, dt });
++                Func<float> alpha = () => content.GetComponent<CanvasGroup>().alpha;
++                frame(1, .1f);
++                for (int i = 0; i < 6; ++i)
++                {
++                    frame(.25f, .2f); Assert.AreEqual(1, alpha(), .001f, "Brief face loss must not start fading.");
++                    frame(1, .1f);
++                }
++                frame(.25f, .6f); Assert.AreEqual(1, alpha(), .001f, "Departure needs a continuous buffer, not accumulated glitches.");
++                frame(.25f, .1f); Assert.Less(alpha(), 1); Assert.Greater(alpha(), .25f);
++                frame(.25f, .3f); Assert.AreEqual(.25f, alpha(), .001f);
++                for (int i = 0; i < 6; ++i)
++                {
++                    frame(1, .2f); Assert.AreEqual(.25f, alpha(), .001f, "Brief face re-entry must not brighten the view.");
++                    frame(.25f, .1f);
++                }
++                frame(1, .35f); Assert.AreEqual(.25f, alpha(), .001f);
++                frame(1, .1f); Assert.Greater(alpha(), .25f); Assert.Less(alpha(), 1);
++                frame(1, .3f); Assert.AreEqual(1, alpha(), .001f);
++                frame(.25f, .5f); frame(0, .4f); Assert.Zero(alpha(), "Real sleep must not wait for a second absence buffer.");
++                frame(1, .2f); Assert.Zero(alpha(), "Wake arrival is buffered too.");
++                frame(1, .5f); Assert.AreEqual(1, alpha(), .001f);
++                Assert.AreEqual(alpha(), ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"), .001f);
++                TestContext.WriteLine("Six departure/arrival glitches ignored; departure .6s unchanged then gradual fade to.25; arrival .35s unchanged then gradual fade to1; actual sleep hides; buffered wake restores UI/orb together.");
++            }
++            finally { Object.DestroyImmediate(root); Object.DestroyImmediate(content); Object.DestroyImmediate(ball); }
++        }
++
+         [UnityTest]
+-        public IEnumerator RealtimeAbsenceFadesImmediatelyThenHidesAtSleepAndReturnsWithoutShrinking()
++        public IEnumerator RealtimeAbsenceBuffersThenFadesHidesAtSleepAndReturnsWithoutShrinking()
+         {
+             var root = new GameObject("Realtime two-stage feedback");
+@@ -50,5 +91,6 @@
+                 Assert.False(chat.IsPresenceSleeping, "Absence feedback must precede resource sleep.");
+                 frame(.1f);
+-                Assert.Less(content.GetComponent<CanvasGroup>().alpha, 1, "Start fading on the first absent observation, even in grace.");
++                Assert.AreEqual(1, content.GetComponent<CanvasGroup>().alpha, "Brief absence stays visually present.");
++                frame(.6f); Assert.Less(content.GetComponent<CanvasGroup>().alpha, 1);
+                 frame(.4f); orb.Refresh();
+                 Assert.AreEqual(.25f, content.GetComponent<CanvasGroup>().alpha, .001f);
+@@ -64,5 +106,6 @@
+                 yield return null;
+                 owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
+-                frame(.1f); Assert.Greater(content.GetComponent<CanvasGroup>().alpha, 0);
++                frame(.2f); Assert.Zero(content.GetComponent<CanvasGroup>().alpha);
++                frame(.3f); Assert.Greater(content.GetComponent<CanvasGroup>().alpha, 0);
+                 frame(.3f); orb.Refresh();
+                 Assert.AreEqual(1, content.GetComponent<CanvasGroup>().alpha);
+@@ -72,9 +115,9 @@
+                 yield return null;
+                 owner.Presence.Report(MNNPresenceObservation.Absent(Time.realtimeSinceStartupAsDouble));
+-                frame(.4f); orb.Refresh();
++                frame(.7f); frame(.4f); orb.Refresh();
+                 Assert.AreEqual(.25f, content.GetComponent<CanvasGroup>().alpha, .001f, "Manual conversation must fade with the orb too.");
+                 Assert.AreEqual(.25f, ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"), .001f);
+                 Assert.True(content.GetComponent<CanvasGroup>().blocksRaycasts, "Partial absence feedback must allow manual interaction.");
+-                TestContext.WriteLine("present alpha=1; first absent Grace alpha<1; absence alpha=.25 without sleep; sleep UI/orb alpha=0; return alpha=1; scale unchanged");
++                TestContext.WriteLine("present alpha=1; brief absent Grace alpha=1; stable absence alpha=.25 without sleep; sleep UI/orb alpha=0; buffered return alpha=1; scale unchanged");
+             }
+             finally { Object.DestroyImmediate(root); Object.DestroyImmediate(content); Object.DestroyImmediate(ball); }

@@ -604,3 +604,5 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 `--stage presence-feedback` follows `sleep-scene`: realtime absence immediately fades UI and the complete orb to 25% opacity, including desktop compositor alpha. Actual sleep hides both; returning fades in. Removes the separate Dimmed standby selector and defaults to Hidden. Grace keeps ongoing interaction without delaying visual feedback. Manual mode and settings remain accessible.
 
 `--stage chat-follow` follows `presence-feedback`: non-realtime conversations share the UI/orb presence fade. New and streaming messages follow the bottom; transcript/window gestures interrupt following, history browsing stays put, and a circular liquid-glass down-arrow jumps to the latest message and resumes following.
+
+`--stage presence-buffer` follows `chat-follow`: visual departure must remain stable for 0.65s and arrival for 0.4s after detector confirmation before shared UI/orb fading begins. Opposite observations cancel pending transitions and restart the continuous timer. Actual sleep hides without an additional delay; settings/onboarding stay accessible.

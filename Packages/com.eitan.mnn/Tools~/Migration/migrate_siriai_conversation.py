@@ -10,7 +10,7 @@ import subprocess
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[4])
-    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'background-tasks', 'background-hot-switch', 'comfort', 'minimind-o', 'omni-turns', 'onboarding', 'multimodal', 'conversation-reset', 'vision-switch', 'voice-input', 'realtime-presence', 'camera-startup', 'camera-lifecycle', 'camera-authorization', 'presence-sleep', 'sleep-scene', 'presence-feedback', 'chat-follow'], default='conversation',
+    parser.add_argument('--stage', choices=['conversation', 'reuse', 'full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'background-tasks', 'background-hot-switch', 'comfort', 'minimind-o', 'omni-turns', 'onboarding', 'multimodal', 'conversation-reset', 'vision-switch', 'voice-input', 'realtime-presence', 'camera-startup', 'camera-lifecycle', 'camera-authorization', 'presence-sleep', 'sleep-scene', 'presence-feedback', 'chat-follow', 'presence-buffer'], default='conversation',
                         help='Apply conversation, reuse, full capability, acceptance-contract, recording-gate, glass-continuity, source-reflection, optical-detail, fold-caustics, soft-endpoint, glass-refraction, Pocket-model, product-interaction, task-settings, background-task-switch, background-hot-switch, desktop-comfort, MiniMind-o, Omni endpointing, onboarding-experience, or speech-voice-selection migration')
     args = parser.parse_args()
     root = args.root.resolve()
@@ -45,9 +45,10 @@ def main():
                                     'presence-sleep': 'SiriAIPresenceSleep.patch',
                                     'sleep-scene': 'SiriAISceneSleep.patch',
                                     'presence-feedback': 'SiriAIPresenceFeedback.patch',
-                                    'chat-follow': 'SiriAIChatFollow.patch'}[args.stage]).resolve()
+                                    'chat-follow': 'SiriAIChatFollow.patch',
+                                    'presence-buffer': 'SiriAIPresenceBuffer.patch'}[args.stage]).resolve()
     command = ['git', '-C', str(root), 'apply', '--whitespace=nowarn']
-    if args.stage in ('full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'background-tasks', 'background-hot-switch', 'comfort', 'minimind-o', 'omni-turns', 'onboarding', 'multimodal', 'conversation-reset', 'vision-switch', 'voice-input', 'realtime-presence', 'camera-startup', 'camera-lifecycle', 'camera-authorization', 'presence-sleep', 'sleep-scene', 'presence-feedback', 'chat-follow'):
+    if args.stage in ('full', 'acceptance', 'recording', 'glass', 'reflection', 'optical', 'caustics', 'soft-ends', 'refraction', 'pocket', 'product', 'tasks', 'background-tasks', 'background-hot-switch', 'comfort', 'minimind-o', 'omni-turns', 'onboarding', 'multimodal', 'conversation-reset', 'vision-switch', 'voice-input', 'realtime-presence', 'camera-startup', 'camera-lifecycle', 'camera-authorization', 'presence-sleep', 'sleep-scene', 'presence-feedback', 'chat-follow', 'presence-buffer'):
         # git apply checks surrounding lines, not every byte in changed files.
         # Reject a partial or independently edited import before any mutation.
         records = json.loads(patch.with_suffix('.files.json').read_text())['files']
