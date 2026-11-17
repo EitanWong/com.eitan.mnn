@@ -21,7 +21,7 @@ namespace MNN.Unity
         public float confirmationSeconds = .35f;
         public float graceSeconds = 3;
         public float sleepSeconds = 15;
-        public MNNPresenceSleepDisplay sleepDisplay = MNNPresenceSleepDisplay.Dimmed;
+        public MNNPresenceSleepDisplay sleepDisplay = MNNPresenceSleepDisplay.Hidden;
         public string[] allowedIdentities = Array.Empty<string>();
         public string detectorDirectory = "budaoshou--InsightFace-Det500M-MNN";
         public string recognizerDirectory = "budaoshou--InsightFace-MobileFaceNet-MNN";

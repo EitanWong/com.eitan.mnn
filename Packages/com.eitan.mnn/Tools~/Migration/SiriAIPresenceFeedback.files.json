@@ -1,0 +1,89 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader",
+      "before": "24fcd6d10f9223b0cfc90ed1afc8de50a7a1caa8a91f57663ef65c260b1b2361",
+      "after": "1f624d2c794f5230b5de93c2848c20ce76d0f2a818297302e153eb6509319ed5"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader",
+      "before": "1779546d592495229a4d2f51f1720bcf0bb7c8c73a226268ddba588b6833d177",
+      "after": "80e4720694a3dce781ea9d644ddbabf98c7746acc18f196ec804ec5418196610"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc",
+      "before": "9b442df452819bc2676cfe23f16c975cfabb55fbb05d308083f2106ab89b7002",
+      "after": "228371d72dd8c5b4ca19cf96bff11ca8d1e0eac58a1fe357713ffdbb60a5bf29"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader",
+      "before": "35e70811b857194dabfde4555fde57b68dd314c8f517e9bb031d19670d23c5df",
+      "after": "5a2bf008808f737f6009a9bfc1dacc2e739bd57b7a941b0aaaaa55ace1014876"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader",
+      "before": "1e2b4277b85e371d242968f88f58503e065dee17d061d10671eb77dcc011c91c",
+      "after": "361c91115187d778c72536d5b21da6f8f4e890640f71f74db1e02096d36b6ece"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader",
+      "before": "b2c4fbff4071fd8d38c18a68189fd135d991fb5100237c4b54edb14ea31e543e",
+      "after": "383730333edded20413dcf8ac817f85ffed0ee675eb4bf592ea6d8f237c042f2"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader",
+      "before": "8f2130cc479e4f66a4e951eb6279e56f6abe5cba526db35c5c3b8a9818b4543b",
+      "after": "f857645bed0c53e2ac5bf8fc96af6035e9fdf486abaa6dc49d778c76292f1e16"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc",
+      "before": "b541f5ec1b6985d72cfbe8e8e07b13dad695ed558aea42986ffc31ceed7c6b65",
+      "after": "ed280a236a200732c80863fd4cada5e659a231b88e589195dddc56e1d66e0645"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader",
+      "before": "7efeca3da6e9bd6484bc9bb5b58b58e044607adec273dfb1b3dfd368a72cee3d",
+      "after": "81ddc96f4f1c5aa195e0c24df53f84ed61cbf831078598e5c9519cfc140a03f2"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/PresenceSleep.md",
+      "before": "8f39de97cdaa7c433c5cb17622581a22a28d493cd187ff16e55883a35baeac26",
+      "after": "18f4edda3e6ddd1124c46c680771dc9bdfe60b0454521b8323136e5d024f10c1"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scenes/SiriAI.unity",
+      "before": "b6bce37113c73415abb30db6c46123f37b10e2e3ac52657c465e77e2fef8f50e",
+      "after": "a4275d29b6954e879706dd0311fef4da87d328b98dca12c5adefb83a5dd9c534"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs",
+      "before": "1da3452afe0523ed3f10d0286a2dd2b6eb3a90e1d076529c6ba42e954bb4b3a3",
+      "after": "1aad62a7a5561b0f3a8787b2d088fbab6287b139818352afce90f954ed261342"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs",
+      "before": "e6a0c6ee98731520f0c4a9c0fe497158a09837a70c32c33d1c754cc76dba5817",
+      "after": "8c7787350278ea8366c59a8a9931a35ff621d74dbe85d09a254c13c77d5408a5"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs",
+      "before": "fae7407e98897a620dc8feeb766f9293383622e4cce310cbf6eb17af65e78c22",
+      "after": "992bf49b28c5c82ed4a70b06b98bb4724946622f621f7ca801bbf69b5efdb4f0"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs",
+      "before": "885967f0e31cb8fb39dab684dc00e2fe49cee80c947c048b610bfe76652b321c",
+      "after": "b34e372d1cc2e08baaf54ff3c6a10120485416428389eac105096f48daec6732"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs",
+      "before": "7a6af295e9a1974ae2cdfb18bdc802ca8835c99fb9425d9cc028b11aaf07758e",
+      "after": "7e57980ee0cb33435d5f766ea112ccc66be45a0bfff21361421cc9f9f3d789f2"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs",
+      "before": "cbcee7065d10a6c37d3232e93ea296a43283cdf3989a2fa99a0272f55ed2ff7e",
+      "after": "0429a75ebcd68c5f8b22ec1db1245e2ecaa99a05adf9c343145af643ed0c6edc"
+    }
+  ]
+}

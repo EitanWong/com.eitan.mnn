@@ -1,0 +1,473 @@
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader b/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader
+@@ -5,4 +5,5 @@
+     Properties
+     {
++        _PresenceVisibility ("Presence Visibility", Range(0,1)) = 1
+         _SleepBlend ("Sleep Blend", Range(0,1)) = 0
+         _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+@@ -50,5 +51,5 @@
+                 glow = float3(GammaToLinearSpaceExact(glow.r), GammaToLinearSpaceExact(glow.g), GammaToLinearSpaceExact(glow.b));
+ #endif
+-                glow = siriSleepColor(glow);
++                glow = siriPresenceLight(siriSleepColor(glow));
+                 return float4(glow, _SiriDesktopMode * saturate(max(glow.r, max(glow.g, glow.b))));
+             }
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader b/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader
+@@ -4,4 +4,5 @@
+     Properties
+     {
++        _PresenceVisibility ("Presence Visibility", Range(0,1)) = 1
+         _SleepBlend ("Sleep Blend", Range(0,1)) = 0
+         _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc b/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc
+@@ -1,5 +1,5 @@
+ #ifndef SIRIAI_DESKTOP_GLASS_INCLUDED
+ #define SIRIAI_DESKTOP_GLASS_INCLUDED
+-float _SleepBlend, _SleepBreath;
++float _SleepBlend, _SleepBreath, _PresenceVisibility;
+ float3 siriSleepColor(float3 color)
+ {
+@@ -49,3 +49,15 @@
+     return float4(color, lerp(1.0, alpha, saturate(_SiriDesktopMode)));
+ }
++// Preserve the unbent scene when fading; desktop output is premultiplied RGBA for the OS compositor.
++float4 siriPresenceComposite(float4 foreground, float3 background)
++{
++    float amount = saturate(_PresenceVisibility);
++    foreground.rgb *= lerp(.35, 1.0, amount);
++    return _SiriDesktopMode > .5 ? foreground * amount : lerp(float4(background, 1), foreground, amount);
++}
++float3 siriPresenceLight(float3 color)
++{
++    float amount = saturate(_PresenceVisibility);
++    return color * amount * lerp(.35, 1.0, amount);
++}
+ #endif
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader b/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader
+@@ -4,4 +4,5 @@
+     Properties
+     {
++        _PresenceVisibility ("Presence Visibility", Range(0,1)) = 1
+         _SleepBlend ("Sleep Blend", Range(0,1)) = 0
+         _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader b/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader
+@@ -4,4 +4,5 @@
+     Properties
+     {
++        _PresenceVisibility ("Presence Visibility", Range(0,1)) = 1
+         _SleepBlend ("Sleep Blend", Range(0,1)) = 0
+         _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader b/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader
+@@ -5,4 +5,5 @@
+     Properties
+     {
++        _PresenceVisibility ("Presence Visibility", Range(0,1)) = 1
+         _SleepBlend ("Sleep Blend", Range(0,1)) = 0
+         _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+@@ -60,5 +61,5 @@
+                 float shadow = 1.0 - smoothstep(.98, 1.25, length(i.local - float2(0, -.02 / .22)));
+                 float attenuation = 1.0 - .22 * shadow * step(1.0, length(i.local));
+-                return float4(attenuation, attenuation, attenuation, 1);
++                return float4(lerp(float3(1,1,1), float3(attenuation,attenuation,attenuation), saturate(_PresenceVisibility)), 1);
+             }
+             ENDCG
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+@@ -3,4 +3,5 @@
+     Properties
+     {
++        _PresenceVisibility ("Presence Visibility", Range(0,1)) = 1
+         _SleepBlend ("Sleep Blend", Range(0,1)) = 0
+         _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+@@ -184,5 +185,6 @@
+                 float3 background=siriGlassSampleChromaticBackground(_SiriGlassBackground,_SiriGlassBackground_TexelSize.xy,
+                     uv,offset,rimCurve,_ChromaticAberration,blurPixels);
+-                return siriDesktopGlass(siriSleepColor(siriGlassComposite(background * transmission * (1-reflectance), color, reflection * reflectance)), .04 + .16 * reflectance);
++                return siriPresenceComposite(siriDesktopGlass(siriSleepColor(siriGlassComposite(background * transmission * (1-reflectance), color, reflection * reflectance)), .04 + .16 * reflectance),
++                    tex2D(_SiriGlassBackground, uv).rgb);
+             }
+             ENDCG
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc b/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc
+@@ -76,5 +76,5 @@
+     color = float3(GammaToLinearSpaceExact(color.r), GammaToLinearSpaceExact(color.g), GammaToLinearSpaceExact(color.b));
+ #endif
+-    return siriDesktopGlass(color, .04 + .16 * pow(saturate(radius), 4.0));
++    return siriPresenceComposite(siriDesktopGlass(color, .04 + .16 * pow(saturate(radius), 4.0)), tex2D(_SiriStyleBackground, saturate(uv)).rgb);
+ }
+ 
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+@@ -3,4 +3,5 @@
+     Properties
+     {
++        _PresenceVisibility ("Presence Visibility", Range(0,1)) = 1
+         _SleepBlend ("Sleep Blend", Range(0,1)) = 0
+         _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+@@ -398,5 +399,6 @@
+                 color = siriDesktopShell(color, disc);
+                 UNITY_APPLY_FOG(input.worldPosition.w, color);
+-                return siriDesktopGlass(siriSleepColor(color), .04 + .16 * data.fresnel);
++                return siriPresenceComposite(siriDesktopGlass(siriSleepColor(color), .04 + .16 * data.fresnel),
++                    tex2D(_SiriGlassBackground, input.screenPosition.xy / input.screenPosition.w).rgb);
+             }
+             ENDCG
+@@ -426,5 +428,5 @@
+                 float3 color = shadeAdditional(input, data, attenuation);
+                 UNITY_APPLY_FOG_COLOR(input.worldPosition.w, color, float4(0, 0, 0, 0));
+-                return half4(siriSleepColor(color), 0.0);
++                return half4(siriPresenceLight(siriSleepColor(color)), 0.0);
+             }
+             ENDCG
+diff --git a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+--- a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
++++ b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+@@ -7,7 +7,7 @@
+ 关闭视觉时，启动完成后连续无交互达到同一休眠时长也进入低功耗待机，不会为了检测在场而开启摄像头。键盘、鼠标按键或显式调用 `NotifyInteractionActivity()` 唤醒；手动录音和处理中的请求保持清醒。视觉关闭时无法通过人脸自动唤醒，需要一次手动交互。
+ 
+-启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。光球平滑变暗和去饱和，约六秒一次轻微呼吸，停止跟随语音起伏。默认“Dimmed standby”保留完整尺寸光球；仍可选择隐藏界面或黑屏。
++启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。实时对话中，第一个无人在场结果就触发 UI 和完整光球的淡出（约 0.35 秒到 25% 不透明度），不等待 grace 或休眠超时；同时光球降低亮度、保留尺寸，不以缩小代替透明。人回来确认在场后约 0.25 秒淡入。Grace 只保持进行中的交互，不延迟视觉反馈。超时真正进入低功耗休眠，才淡至完全透明。睡眠时停止跟随语音起伏。超时后默认隐藏整个界面和光球，不再提供独立“Dimmed standby”设置。
+ 
+-休眠时自动语音采集、唤醒词监听与自动 ASR 暂停；图像上下文清空。摄像头保留连接，默认在场分析从 10 次/秒降为 2 次/秒，供人回来时唤醒。这里降低的是分析频率，摄像头设备的实际采集模式保持原协商值。界面目标帧率降为 12 FPS，背景停止动态流动；设置、拖动和手动交互保持可用。
++休眠时自动语音采集、唤醒词监听与自动 ASR 暂停；图像上下文清空。摄像头保留连接，默认在场分析从 10 次/秒降为 2 次/秒，供人回来时唤醒。这里降低的是分析频率，摄像头设备的实际采集模式保持原协商值。界面目标帧率降为 12 FPS，背景停止动态流动；设置/引导打开时保持可见；手动模式不受人脸在场限制。
+ 
+ 持续空闲两秒，且没有在场推理任务运行后，每次进入休眠只执行一次 `Resources.UnloadUnusedAssets`，完成后执行一次 `GC.Collect`。保留在用的模型和设备；不会每帧或每次检测都 GC。回来后恢复音频、正常分析频率和原外观，重新计算空闲超时窗口；退出或关闭视图恢复此前帧率与垂直同步设置。
+diff --git a/Assets/Samples/SiriAI/Scenes/SiriAI.unity b/Assets/Samples/SiriAI/Scenes/SiriAI.unity
+--- a/Assets/Samples/SiriAI/Scenes/SiriAI.unity
++++ b/Assets/Samples/SiriAI/Scenes/SiriAI.unity
+@@ -250,5 +250,5 @@
+       graceSeconds: 3
+       sleepSeconds: 15
+-      sleepDisplay: 1
++      sleepDisplay: 0
+       allowedIdentities: []
+       detectorDirectory: budaoshou--InsightFace-Det500M-MNN
+@@ -486,5 +486,5 @@
+       graceSeconds: 3
+       sleepSeconds: 15
+-      sleepDisplay: 1
++      sleepDisplay: 0
+       allowedIdentities: []
+       detectorDirectory: budaoshou--InsightFace-Det500M-MNN
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+@@ -12,4 +12,17 @@
+         private int _presenceSleepRevision;
+         public int SleepCleanupCount { get; private set; }
++        /// <summary>Immediate visual feedback is independent of admission grace and resource sleep.</summary>
++        public float PresencePresentationTarget
++        {
++            get
++            {
++                if (_interactionSettings?.visualPresence == true && !IsRealtimeConversation) return 1;
++                if (IsPresenceSleeping) return 0;
++                if (!IsRealtimeConversation || _interactionSettings?.visualPresence != true ||
++                    !_visualReady || _visualStarting || _interaction == null) return 1;
++                return _interaction.Presence.Current.State == MNNPresenceState.Present ? 1 : .25f;
++            }
++        }
++
+         private double _lastInteractionActivity;
+         private bool _idleClockStarted;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+@@ -1,5 +1,3 @@
+-using MNN.Unity;
+ using UnityEngine;
+-using UnityEngine.UI;
+ 
+ namespace MNN.Samples.SiriAI
+@@ -7,8 +5,6 @@
+     public sealed partial class SiriAIChatView
+     {
+-        private MNNPresenceComponent _presencePresentation;
+-        private CanvasGroup _presenceCanvas, _presenceBlack;
+-        private Transform _presenceOrbContainer;
+-        private bool _presencePresentationActive, _presenceVisualHeld;
++        private CanvasGroup _presenceCanvas;
++        private float _presenceAmount = 1;
+ 
+         private void TickInteractionPresentation()
+@@ -17,7 +13,14 @@
+                 Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand))) OpenSettings();
+             TickCameraSettings();
+-            var interaction = _chat?.Interaction;
+-            bool enabled = _chat != null && _chat.IsRealtimeConversation && interaction != null && interaction.ReadSettings().visualPresence;
+-            if (!enabled && !_presencePresentationActive) return;
++            float target = _chat != null ? _chat.PresencePresentationTarget : 1;
++            // Settings and onboarding remain accessible even without a face; manual mode is never gated.
++            if (IsSettingsOpen || IsSetupOpen) target = 1;
++            if (target >= 1 && _presenceCanvas == null && _presenceAmount >= 1) return;
++            AdvancePresencePresentation(target, Time.unscaledDeltaTime);
++        }
++
++        // One clock controls UI and the complete optical shell. Admission and resource sleep own no opacity.
++        private void AdvancePresencePresentation(float target, float dt)
++        {
+             if (_presenceCanvas == null && _canvasRoot != null)
+             {
+@@ -25,64 +28,21 @@
+                 if (_presenceCanvas == null) _presenceCanvas = _canvasRoot.AddComponent<CanvasGroup>();
+             }
+-            if (!enabled)
++            _presenceAmount = Mathf.MoveTowards(_presenceAmount, target, Mathf.Max(0, dt) / (target > _presenceAmount ? .25f : .35f));
++            if (_presenceCanvas != null)
+             {
+-                if (_presencePresentation != null)
+-                { _presencePresentation.ConfigurePresentation(null, null, MNNPresenceSleepDisplay.Hidden); _presencePresentation.ConfigureVisualRoot(null); }
+-                if (_presenceCanvas != null) { _presenceCanvas.alpha = 1; _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = true; }
+-                if (_presenceBlack != null) _presenceBlack.alpha = 0;
+-                if (_presenceOrbContainer != null) _presenceOrbContainer.localScale = Vector3.one;
+-                _presencePresentationActive = false;
+-                return;
++                _presenceCanvas.alpha = _presenceAmount;
++                _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = _presenceAmount >= .95f;
+             }
+-            if (_presenceBlack == null && _canvasRoot != null)
+-            {
+-                var overlay = new GameObject("Presence Black Screen", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup), typeof(Image));
+-                overlay.transform.SetParent(_canvasRoot.transform.parent, false);
+-                var rect = (RectTransform)overlay.transform;
+-                rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
+-                var canvas = overlay.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = short.MaxValue;
+-                overlay.GetComponent<Image>().color = Color.black;
+-                _presenceBlack = overlay.GetComponent<CanvasGroup>(); _presenceBlack.alpha = 0;
+-                _presenceBlack.interactable = _presenceBlack.blocksRaycasts = false;
+-            }
+-            if (_presenceOrbContainer == null && siriOrb != null)
+-            {
+-                _presenceOrbContainer = new GameObject("Presence Orb Container").transform;
+-                _presenceOrbContainer.SetParent(siriOrb.transform.parent, false);
+-                siriOrb.transform.SetParent(_presenceOrbContainer, true);
+-                // Keep the orb visible at full size; its renderer owns the dim sleep breath.
+-            }
+-            _presencePresentation = interaction.Presence;
+-            // Keep settings usable so camera gating can always be disabled without a visible face.
+-            bool settingsOpen = IsSettingsOpen || IsSetupOpen || _chat.IsVisualLoading;
+-            var display = interaction.ReadSettings().sleepDisplay;
+-            bool holdOrb = settingsOpen || display == MNNPresenceSleepDisplay.Dimmed;
+-            if (_presenceVisualHeld != holdOrb || !_presencePresentationActive)
+-            {
+-                _presencePresentation.ConfigureVisualRoot(holdOrb ? null : _presenceOrbContainer);
+-                _presenceVisualHeld = holdOrb;
+-            }
+-            _presencePresentation.ConfigurePresentation(settingsOpen || display == MNNPresenceSleepDisplay.Dimmed ? null : _presenceCanvas,
+-                settingsOpen ? null : _presenceBlack, interaction.ReadSettings().sleepDisplay);
+-            if (settingsOpen || display == MNNPresenceSleepDisplay.Dimmed)
+-            {
+-                if (_presenceCanvas != null) { _presenceCanvas.alpha = 1; _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = true; }
+-                if (_presenceBlack != null) _presenceBlack.alpha = 0;
+-            }
+-            _presencePresentationActive = true;
++            var orb = siriOrb != null ? siriOrb.GetComponentInParent<SiriAIRenderer>() : null;
++            if (orb != null) orb.SetPresenceVisibility(_presenceAmount);
+         }
+ 
+         private void ReleaseInteractionPresentation()
+         {
+-            if (_presencePresentation != null)
+-            { _presencePresentation.ConfigurePresentation(null, null, MNNPresenceSleepDisplay.Hidden); _presencePresentation.ConfigureVisualRoot(null); }
+-            if (_presenceOrbContainer != null)
+-            {
+-                if (siriOrb != null) siriOrb.transform.SetParent(_presenceOrbContainer.parent, true);
+-                Release(_presenceOrbContainer.gameObject);
+-            }
+-            if (_presenceBlack != null) Release(_presenceBlack.gameObject);
+-            _presencePresentation = null; _presenceBlack = null; _presenceOrbContainer = null;
+-            _presenceCanvas = null; _presencePresentationActive = false;
++            if (_presenceCanvas != null)
++            { _presenceCanvas.alpha = 1; _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = true; }
++            var orb = siriOrb != null ? siriOrb.GetComponentInParent<SiriAIRenderer>() : null;
++            if (orb != null) orb.SetPresenceVisibility(1);
++            _presenceCanvas = null; _presenceAmount = 1;
+         }
+     }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+@@ -44,10 +44,9 @@
+                 form.Number("Confirmation time (s)", "Continuous visibility required before interaction starts.",
+                     () => value.confirmationSeconds, seconds => value.confirmationSeconds = seconds, 0, 10);
+-                form.Number("Brief absence grace (s)", "Keep the interface while a person briefly looks away or leaves.",
++                form.Number("Brief absence grace (s)", "Keep the current turn during brief absence; the interface fades immediately.",
+                     () => value.graceSeconds, seconds => value.graceSeconds = seconds, 0, 120);
+                 form.Number("Sleep after absence (s)", "Must be at least the brief absence grace period.",
+                     () => value.sleepSeconds, seconds => value.sleepSeconds = seconds, 0, 3600);
+-                AddEnumField("Sleep display", null, () => (int)value.sleepDisplay,
+-                    selected => value.sleepDisplay = (MNNPresenceSleepDisplay)selected, new[] { "Hide UI", "Dimmed standby", "Black screen" });
++                SettingsDescription("On absence, UI and orb fade immediately. At sleep timeout the interface hides; returning fades it back in.");
+                 AddTextField("Allowed identities", "Comma-separated enrolled identifiers.", () => string.Join(", ", value.allowedIdentities ?? Array.Empty<string>()),
+                     text => value.allowedIdentities = text.Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries));
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs
+@@ -55,4 +55,11 @@
+             _renderer.SetSleeping(conversation.IsPresenceSleeping);
+             if (conversation.IsPresenceSleeping) return;
++            if (conversation.PresencePresentationTarget < 1)
++            {
++                _renderer.SetListening(false, 0);
++                _renderer.SetSpeechLevel(0);
++                _renderer.SetState(SiriAIRenderer.AnimationState.Strands);
++                return;
++            }
+             if (_interaction == null) _interaction = conversation.GetComponentInChildren<SiriAIInteractionFeedback>();
+             bool realtime = conversation.IsRealtimeConversation;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs
+@@ -8,4 +8,8 @@
+     private static readonly int SleepBlendId = Shader.PropertyToID("_SleepBlend");
+     private static readonly int SleepBreathId = Shader.PropertyToID("_SleepBreath");
++    private float presenceVisibility = 1;
++    private static readonly int PresenceVisibilityId = Shader.PropertyToID("_PresenceVisibility");
++    /// <summary>Whole-shell opacity, including emission, refraction and desktop compositor alpha.</summary>
++    public void SetPresenceVisibility(float value) => presenceVisibility = Mathf.Clamp01(value);
+     public bool IsSleeping => sleeping;
+ 
+@@ -30,4 +34,5 @@
+     private void ApplySleepSettings()
+     {
++        SetFloatIfChanged(PresenceVisibilityId, presenceVisibility);
+         SetFloatIfChanged(SleepBlendId, sleepBlend);
+         SetFloatIfChanged(SleepBreathId, (float)System.Math.Sin(sleepTime * System.Math.PI / 3));
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+@@ -15,4 +15,105 @@
+     public sealed class SiriAILowPowerTests
+     {
++        [UnityTest]
++        public IEnumerator RealtimeAbsenceFadesImmediatelyThenHidesAtSleepAndReturnsWithoutShrinking()
++        {
++            var root = new GameObject("Realtime two-stage feedback");
++            var content = new GameObject("UI");
++            var ball = new GameObject("Orb");
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>();
++                var context = new SiriAIChatContext(new EmptyCapture(), () => null);
++                SiriAITestAccess.Set(chat, "_context", context);
++                context.Input.SetRealtime(true);
++                var settings = new MNNInteractionSettings { visualPresence = true, confirmationSeconds = 0, graceSeconds = 3, sleepSeconds = 15 };
++                var owner = root.AddComponent<MNNInteractionComponent>(); owner.Configure(settings);
++                chat.ConfigureInteraction(owner);
++                SiriAITestAccess.Set(chat, "_interactionSettings", settings);
++                SiriAITestAccess.Set(chat, "_visualReady", true);
++                var view = root.AddComponent<SiriAIChatView>();
++                var orb = ball.AddComponent<SiriAIRenderer>(); orb.Refresh();
++                SiriAITestAccess.Set(view, "_chat", chat);
++                SiriAITestAccess.Set(view, "_canvasRoot", content);
++                SiriAITestAccess.Set(view, "siriOrb", ball.GetComponent<Renderer>());
++                var advance = typeof(SiriAIChatView).GetMethod("AdvancePresencePresentation", BindingFlags.Instance | BindingFlags.NonPublic);
++                var target = typeof(SiriAIChat).GetProperty("PresencePresentationTarget");
++                Assert.NotNull(target, "Absence feedback must not wait for the sleep timeout.");
++                Assert.NotNull(advance);
++                Action<float> frame = dt => advance.Invoke(view, new object[] { (float)target.GetValue(chat), dt });
++                var scale = ball.transform.localScale;
++                owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
++                frame(.1f); Assert.AreEqual(1, content.GetComponent<CanvasGroup>().alpha);
++                yield return null;
++                owner.Presence.Report(MNNPresenceObservation.Absent(Time.realtimeSinceStartupAsDouble));
++                Assert.AreEqual(MNNPresenceState.Grace, owner.Presence.Current.State);
++                Assert.False(chat.IsPresenceSleeping, "Absence feedback must precede resource sleep.");
++                frame(.1f);
++                Assert.Less(content.GetComponent<CanvasGroup>().alpha, 1, "Start fading on the first absent observation, even in grace.");
++                frame(.4f); orb.Refresh();
++                Assert.AreEqual(.25f, content.GetComponent<CanvasGroup>().alpha, .001f);
++                Assert.AreEqual(.25f, ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"), .001f);
++                Assert.AreEqual(scale, ball.transform.localScale, "Fade opacity, never shrink the orb.");
++                Assert.False(chat.IsLowPowerMode, "Partial fade alone is not resource sleep.");
++                SiriAITestAccess.Set(owner.Presence, "_controller", new MNNPresenceController(new MNNPresenceOptions(confirmationSeconds: 0)));
++                Assert.True(chat.IsPresenceSleeping);
++                frame(.4f); orb.Refresh();
++                Assert.Zero(content.GetComponent<CanvasGroup>().alpha);
++                Assert.Zero(ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"));
++                Assert.False(content.GetComponent<CanvasGroup>().blocksRaycasts);
++                yield return null;
++                owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
++                frame(.1f); Assert.Greater(content.GetComponent<CanvasGroup>().alpha, 0);
++                frame(.3f); orb.Refresh();
++                Assert.AreEqual(1, content.GetComponent<CanvasGroup>().alpha);
++                Assert.AreEqual(1, ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"));
++                Assert.True(content.GetComponent<CanvasGroup>().blocksRaycasts);
++                context.Input.SetRealtime(false);
++                frame(.3f); Assert.AreEqual(1, content.GetComponent<CanvasGroup>().alpha, "Manual mode stays available.");
++                TestContext.WriteLine("present alpha=1; first absent Grace alpha<1; absence alpha=.25 without sleep; sleep UI/orb alpha=0; return alpha=1; scale unchanged");
++            }
++            finally { Object.DestroyImmediate(root); Object.DestroyImmediate(content); Object.DestroyImmediate(ball); }
++        }
++
++        [TestCase(SiriAIOrbStyle.Original)]
++        [TestCase(SiriAIOrbStyle.ClassicSiri)]
++        [TestCase(SiriAIOrbStyle.LiquidSpectrum)]
++        public void PresenceFadeActuallyReducesDesktopAlphaAndRestoresUnbentBackground(SiriAIOrbStyle style)
++        {
++            using (var view = new SiriAIOrbStyleView(style, false))
++            {
++                Assert.True(view.Material.HasProperty("_PresenceVisibility"));
++                float desktop = Shader.GetGlobalFloat("_SiriDesktopMode");
++                float available = Shader.GetGlobalFloat("_SiriDesktopBackdropAvailable");
++                try
++                {
++                    Shader.SetGlobalFloat("_SiriDesktopMode", 1);
++                    Shader.SetGlobalFloat("_SiriDesktopBackdropAvailable", 0);
++                    view.Background = Color.clear;
++                    var awake = view.Render(1);
++                    view.Material.SetFloat("_PresenceVisibility", .25f);
++                    var absent = view.Render(1);
++                    double bright = 0, dim = 0, alpha = 0, fadedAlpha = 0;
++                    for (int i = 0; i < awake.Length; ++i)
++                    { bright += awake[i].grayscale; dim += absent[i].grayscale; alpha += awake[i].a; fadedAlpha += absent[i].a; }
++                    Assert.Less(dim, bright * .5);
++                    Assert.Less(fadedAlpha, alpha * .5, "The whole shell must become transparent, not merely black.");
++                    view.Material.SetFloat("_PresenceVisibility", 0);
++                    var hidden = view.Render(1);
++                    foreach (var pixel in hidden) { Assert.Less(pixel.a, .001); Assert.Less(pixel.grayscale, .001); }
++                    Shader.SetGlobalFloat("_SiriDesktopMode", 0);
++                    view.Background = new Color(.4f, .2f, .1f, 1);
++                    var scene = view.Render(1);
++                    var corner = scene[0];
++                    foreach (var pixel in scene) Assert.Less(Mathf.Abs(pixel.r-corner.r)+Mathf.Abs(pixel.g-corner.g)+Mathf.Abs(pixel.b-corner.b), .005f,
++                        "Zero opacity must restore the background across the entire orb, including refraction and extra passes.");
++                    view.Material.SetFloat("_PresenceVisibility", 1);
++                    Assert.Greater(view.Render(1)[scene.Length/2 + SiriAIOrbStyleView.Size/2].a, .99f);
++                    TestContext.WriteLine(style + " absent brightness ratio=" + dim/bright + " alpha ratio=" + fadedAlpha/alpha + "; hidden desktop RGBA=0; hidden scene=background");
++                }
++                finally { Shader.SetGlobalFloat("_SiriDesktopMode", desktop); Shader.SetGlobalFloat("_SiriDesktopBackdropAvailable", available); }
++            }
++        }
++
+         [Test]
+         public void CameraOffIdleSleepsAndExplicitActivityWakesWithoutStartingCamera()
+@@ -49,5 +150,5 @@
+ 
+         [Test]
+-        public void ActualSceneSerializesCameraOffImageContextOnAndDimmedSleep()
++        public void ActualSceneSerializesCameraOffImageContextOnAndHiddenSleep()
+         {
+             string path = System.IO.Path.Combine(Application.dataPath, "Samples/SiriAI/Scenes/SiriAI.unity");
+@@ -59,5 +160,5 @@
+             {
+                 Assert.AreEqual("1", block.Groups[1].Value, "Image context preference");
+-                Assert.AreEqual("1", block.Groups[2].Value, "Dimmed sleep display");
++                Assert.AreEqual("0", block.Groups[2].Value, "Hidden sleep display");
+             }
+         }
