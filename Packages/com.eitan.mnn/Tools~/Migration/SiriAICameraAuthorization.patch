@@ -1,0 +1,244 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -130,7 +130,7 @@
+                 previous?.Dispose();
+                 if (!settings.visualPresence) return;
+                 var camera = settings.camera ?? new MNNCameraSettings(); camera.Validate();
+-                if (!Application.HasUserAuthorization(UserAuthorization.WebCam) && !await RequestCameraPermission(lifetime.Token))
++                if (!SiriAICameraAccess.HasSystemAccess && !await RequestCameraPermission(lifetime.Token))
+                     throw new UnauthorizedAccessException("Camera permission is required for visual presence. Allow camera access in system settings, then retry.");
+                 lifetime.Token.ThrowIfCancellationRequested();
+                 var devices = WebCamTexture.devices;
+@@ -204,7 +204,7 @@
+                 if (HasReadableVisualCameraFrame(camera))
+                     completion.TrySetResult(true);
+                 else if (Time.realtimeSinceStartupAsDouble >= deadline)
+-                    completion.TrySetException(new TimeoutException("Camera did not deliver frames: " + camera.deviceName +
++                    completion.TrySetException(SiriAICameraAccess.StartupFailure("Camera did not deliver frames: " + camera.deviceName +
+                         " (playing=" + camera.isPlaying + ", size=" + camera.width + "x" + camera.height +
+                         ", requested FPS=" + camera.requestedFPS + "). Check device access and retry."));
+             }
+@@ -253,15 +253,7 @@
+             released.TrySetResult(true);
+         }
+ 
+-        private static async Task<bool> RequestCameraPermission(CancellationToken token)
+-        {
+-            var completion = new TaskCompletionSource<bool>();
+-            var operation = Application.RequestUserAuthorization(UserAuthorization.WebCam);
+-            operation.completed += _ => completion.TrySetResult(true);
+-            if (operation.isDone) completion.TrySetResult(true);
+-            using (token.Register(() => completion.TrySetCanceled())) await completion.Task;
+-            return Application.HasUserAuthorization(UserAuthorization.WebCam);
+-        }
++        private static Task<bool> RequestCameraPermission(CancellationToken token) => SiriAICameraAccess.RequestAsync(token);
+ 
+         private async Task StopInteractionAsync()
+         {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs
+@@ -1,10 +1,32 @@
+ #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
++using System;
++using System.Runtime.InteropServices;
++
+ namespace MNN.Samples.SiriAI
+ {
+     internal sealed partial class MacWindow
+     {
+         internal static bool InputMonitoringPermission => CGPreflightListenEventAccess();
+         internal static bool RequestInputMonitoringPermission() => CGRequestListenEventAccess();
++
++        // Apple's 64-bit Objective-C ABI returns AVAuthorizationStatus as NSInteger.
++        // Query the actual process attribution; Unity 2021's legacy check returns true on macOS.
++        private static readonly IntPtr CameraFramework = LoadCameraFramework(
++            "/System/Library/Frameworks/AVFoundation.framework/AVFoundation", 1);
++        internal static int CameraAuthorizationStatus
++        {
++            get
++            {
++                if (CameraFramework == IntPtr.Zero)
++                    throw new PlatformNotSupportedException("AVFoundation camera authorization is unavailable.");
++                IntPtr media = SendString(objc_getClass("NSString"), Sel("stringWithUTF8String:"), "vide");
++                return checked((int)SendArgument(objc_getClass("AVCaptureDevice"),
++                    Sel("authorizationStatusForMediaType:"), media).ToInt64());
++            }
++        }
++
++        [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "dlopen", CallingConvention = CallingConvention.Cdecl)]
++        private static extern IntPtr LoadCameraFramework(string path, int mode);
+     }
+ }
+ #endif
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
+@@ -60,7 +60,7 @@
+         private void TickCameraSettings()
+         {
+             if (!IsSettingsOpen || _settingsTab != VisionTab || _cameraSettingsStatus == null) return;
+-            string permission = Application.HasUserAuthorization(UserAuthorization.WebCam) ? "Camera permission granted" : "Camera permission required";
++            string permission = SiriAICameraAccess.HasSystemAccess ? "Camera permission granted" : "Camera permission required";
+             _cameraSettingsStatus.text = Localize(permission) + "\n" + (_editorPreview ? Localize("Preview only. Camera is not started.") : Localize(_chat?.VisualCameraStatus ?? "Camera unavailable"));
+             if (_cameraSettingsPreview == null) return;
+             var camera = _chat?.VisualCamera;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs
+@@ -0,0 +1,56 @@
++using System;
++using System.Threading;
++using System.Threading.Tasks;
++using UnityEngine;
++
++namespace MNN.Samples.SiriAI
++{
++    /// <summary>Camera authorization for the process that macOS actually attributes capture to.</summary>
++    internal static class SiriAICameraAccess
++    {
++        internal static bool HasSystemAccess
++        {
++            get
++            {
++#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
++                return MacWindow.CameraAuthorizationStatus == 3;
++#else
++                return Application.HasUserAuthorization(UserAuthorization.WebCam);
++#endif
++            }
++        }
++
++#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
++        internal static Task<bool> RequestAsync(CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            // AVFoundation automatically prompts when WebCamTexture creates its device input.
++            // Unity 2021's RequestUserAuthorization only implements iOS/WebGL camera prompts.
++            int status = MacWindow.CameraAuthorizationStatus;
++            return Task.FromResult(status == 0 || status == 3);
++        }
++#else
++        internal static async Task<bool> RequestAsync(CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            var completion = new TaskCompletionSource<bool>();
++            var operation = Application.RequestUserAuthorization(UserAuthorization.WebCam);
++            operation.completed += _ => completion.TrySetResult(true);
++            if (operation.isDone) completion.TrySetResult(true);
++            using (token.Register(() => completion.TrySetCanceled())) await completion.Task;
++            return HasSystemAccess;
++        }
++#endif
++
++        internal static Exception StartupFailure(string deviceFailure)
++        {
++#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
++            if (!HasSystemAccess) return new UnauthorizedAccessException(
++                "macOS has not authorized camera capture for this launch. " +
++                "If Unity was opened by Unity Hub, quit the Editor and open Unity.app directly, " +
++                "then allow camera access in System Settings > Privacy & Security > Camera. " + deviceFailure);
++#endif
++            return new TimeoutException(deviceFailure);
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 69f599bfe8e84b0cad01666ae1609874
+diff --git a/Assets/Samples/SiriAI/Tools~/Testing/open_editor_macos.command b/Assets/Samples/SiriAI/Tools~/Testing/open_editor_macos.command
+new file mode 100755
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Tools~/Testing/open_editor_macos.command
+@@ -0,0 +1,23 @@
++#!/bin/sh
++# LaunchServices gives the Editor its own macOS camera authorization identity.
++set -eu
++script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
++project_root=$(CDPATH= cd "$script_dir/../../../../.." && pwd)
++version_file="$project_root/ProjectSettings/ProjectVersion.txt"
++if [ ! -f "$version_file" ]; then
++    printf '%s\n' 'Unity project settings not found beside this SiriAI import.' >&2
++    exit 66
++fi
++editor_version=$(awk '/^m_EditorVersion: / { print $2; exit }' "$version_file")
++editor_app=${UNITY_EDITOR_APP:-"/Applications/Unity/Hub/Editor/$editor_version/Unity.app"}
++if [ ! -x "$editor_app/Contents/MacOS/Unity" ]; then
++    printf 'Unity Editor not found: %s\n' "$editor_app" >&2
++    exit 69
++fi
++if [ -f "$project_root/Temp/UnityLockfile" ] && /usr/sbin/lsof -t "$project_root/Temp/UnityLockfile" >/dev/null 2>&1; then
++    printf '%s\n' 'Quit this project’s existing Unity Editor, then run this launcher again.' >&2
++    exit 75
++fi
++printf 'Opening independently: %s\nProject: %s\n' "$editor_app" "$project_root"
++printf '%s\n' 'Quit the existing Editor before using this launcher. Allow Unity camera access if macOS asks.'
++exec /usr/bin/open -n "$editor_app" --args -projectPath "$project_root"
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs
+@@ -80,58 +80,6 @@
+                     "Camera startup must wait for the audio endpoint to finish configuring the capture device.");
+             }
+             finally { audio.OpenGate.TrySetCanceled(); UnityEngine.Object.DestroyImmediate(root); }
+-        }
+-
+-        [UnityTest, Explicit("Runs the actual SiriAI scene with saved settings and installed models; counts frames only."), Timeout(180000)]
+-        public IEnumerator ActualSiriAISceneStartsCameraWithSavedSettings()
+-        {
+-            for (int cycle = 0; cycle < 2; ++cycle)
+-            {
+-                yield return new EnterPlayMode();
+-                yield return StartActualScene();
+-                yield return new ExitPlayMode();
+-            }
+-        }
+-
+-        private static IEnumerator StartActualScene()
+-        {
+-            var loading = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(
+-                "Assets/Samples/SiriAI/Scenes/SiriAI.unity",
+-                new UnityEngine.SceneManagement.LoadSceneParameters(UnityEngine.SceneManagement.LoadSceneMode.Single));
+-            while (!loading.isDone) yield return null;
+-            // Let the actual view/onboarding lifecycle run before issuing the same idempotent start command.
+-            for (int frame = 0; frame < 5; ++frame) yield return null;
+-            var chat = UnityEngine.Object.FindObjectOfType<SiriAIChat>();
+-            Assert.IsNotNull(chat);
+-            Assert.IsTrue(chat.AcousticProcessing.ReadSettings().interaction.visualPresence,
+-                "Enable vision in the saved SiriAI settings before running this physical scene check.");
+-            Task starting = chat.StartConversationAsync();
+-            double deadline = Time.realtimeSinceStartupAsDouble + 120;
+-            while ((!starting.IsCompleted || chat.VisualCamera == null || chat.VisualCamera.width <= 16) &&
+-                Time.realtimeSinceStartupAsDouble < deadline)
+-            {
+-                if (starting.IsFaulted) starting.GetAwaiter().GetResult();
+-                yield return null;
+-            }
+-            TestContext.WriteLine("Actual SiriAI scene: startup=" + starting.Status + " camera=" + chat.VisualCameraStatus);
+-            Assert.IsTrue(starting.IsCompleted, "Conversation startup must finish.");
+-            starting.GetAwaiter().GetResult();
+-            Assert.IsNotNull(chat.VisualCamera, chat.VisualCameraStatus);
+-            Assert.Greater(chat.VisualCamera.width, 16, chat.VisualCameraStatus);
+-            Assert.That(chat.VisualCamera.GetPixels32().Length, Is.EqualTo(chat.VisualCamera.width * chat.VisualCamera.height));
+-            int frames = 0;
+-            deadline = Time.realtimeSinceStartupAsDouble + 2;
+-            while (Time.realtimeSinceStartupAsDouble < deadline)
+-            {
+-                if (chat.VisualCamera.didUpdateThisFrame) ++frames;
+-                yield return null;
+-            }
+-            TestContext.WriteLine("Actual SiriAI scene: size=" + chat.VisualCamera.width + "x" + chat.VisualCamera.height +
+-                " frames=" + frames + " camera=" + chat.VisualCamera.deviceName);
+-            Assert.Greater(frames, 0);
+-            Task stopping = chat.StopConversationAsync();
+-            while (!stopping.IsCompleted) yield return null;
+-            stopping.GetAwaiter().GetResult();
+         }
+ 
+         [UnityTest, Explicit("Uses the connected C930c camera and microphone; stores counters only, no recordings.")]

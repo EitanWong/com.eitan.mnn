@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs",
+      "before": "7457c2e14b19bb7155465133089e6fb5e70b46ee542d32a1cee6514b55292ef0",
+      "after": "41ef3dd8480e8851fd97dd940b5e95d1fde8e415e8aae0e68156df57bf21803b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs",
+      "before": "f6a4133716031458a7698c7839125f84dabe49d7086fcdba3dea824b345063e6",
+      "after": "a8c77bb02fb95afdd932107758240cd3f5bdb0567e3721282383b82c456fd6c6"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs",
+      "before": "76c38106912c549068ecc8bda3913cd48bfbba166405a5258139688aa998ee33",
+      "after": "6313063a0e949dec24eca4c57b3554d4a3f2db50db763fcdeca1ab99ab592a19"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs",
+      "before": null,
+      "after": "e1d3b0551039014ebe223277b2dc490721808ea29bcac363395aed0a77a7b455"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs.meta",
+      "before": null,
+      "after": "49d8b348770c8b5dc373b514ecfcae6ae6533d436da9bde84c95ae84b5d4eb89"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Tools~/Testing/open_editor_macos.command",
+      "before": null,
+      "after": "2a5c735292d959c8e41934ca79de1b6704bcc15dabc0abf5cbf84c9301375029"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVisualCameraTests.cs",
+      "before": "cf0bf045c0f02c55e7e9cb7176cf1dea13b1f80f91e03f4df9b2ccc76bff37c3",
+      "after": "206ad8348b67aa6fd7b26e53c810a5c26fa05c69cef5d8556b42ca291b00cae2"
+    }
+  ]
+}

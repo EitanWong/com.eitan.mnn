@@ -535,12 +535,53 @@ pending. This removes overlapping device startup and delayed camera ownership.
 
 Two controlled regressions fail on the previous source and restored source, and
 pass with this change; the surrounding conversation lifecycle checks also pass.
-The opt-in `SiriAIVisualCameraTests.ActualSiriAISceneStartsCameraWithSavedSettings`
-loads the actual SiriAI scene with saved settings and installed models, then checks
-readable pixels and continued frames across two Play entries. It stores counters
-only. Hardware acceptance is pending: the current Mac is locked and its UVC
-service reports a Disabled stream. This lifecycle change does not establish that
-the user's original timeout is resolved. No models are downloaded.
+Actual-scene verification now uses explicit Editor Play transitions: the former
+opt-in NUnit coroutine replayed startup during domain reload and has been removed.
+The macOS camera authorization section below records the full-scene hardware
+result and the independently launched Editor used for it.
 
 The migration checks complete hashes, rejects partial or edited imports before
 writing, and preserves existing asset GUIDs. Repeating it makes no changes.
+
+## macOS camera authorization and Unity Hub
+
+For an import matching `SiriAICameraAuthorization.files.json` after `camera-lifecycle`:
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage camera-authorization
+```
+
+A macOS launch through Unity Hub can leave `WebCamTexture` playing at 16×16
+without delivering pixels. In the reproduced failure, TCC attributed capture to
+`com.unity3d.unityhub` and refused camera prompting because the hardened Hub
+process lacked `com.apple.security.device.camera`. Unity 2021's legacy
+`HasUserAuthorization(WebCam)` still returned true. Changing FPS or startup
+ordering cannot authorize that launch.
+
+Quit the existing project Editor, then double-click the imported sample's
+`Tools~/Testing/open_editor_macos.command`. It resolves the project's installed
+Editor and opens it through LaunchServices with the project path; an existing
+project lock makes it stop before launching. For a custom Editor installation,
+set `UNITY_EDITOR_APP` to its `.app` path. macOS can then use the Editor's own
+camera identity. Allow camera access if prompted. The launcher does not alter
+Unity Hub, signatures, entitlements, or privacy databases.
+
+The sample now reads real AVFoundation camera authorization through managed
+Objective-C interop on macOS, shared by capture and the camera settings status.
+If a stream receives no frames while authorization remains ungranted, it reports
+an actionable permission failure and skips the ineffective mode retry.
+Authorized cameras retain readable-pixel checks and bounded mode fallback.
+No C++ code, native bridge, custom exports, or MNN changes were added.
+
+Validation on the actual SiriAI scene with its saved EasyMic, camera and model
+settings completed two Play cycles in the same independent Editor: each stream
+was 1280×720 with 921600 complete pixels; two-second frame counts were 47 and 48;
+both stops released the camera. The prior Hub-attributed launch failed with the
+reported FPS=0 timeout and explicit TCC entitlement errors. Managed fault injection
+also verifies the authorization error and authorized fallback. These results
+supersede the earlier locked-machine hardware limitation above. No recordings or
+model downloads are part of the check. Existing native model loading is not a
+validation of direct official MNN C++ calls.
+
+The migration checks exact file hashes, rejects partial or edited imports before
+writing, preserves GUIDs, and makes no changes when repeated.
