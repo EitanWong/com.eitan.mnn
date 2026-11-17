@@ -1,0 +1,125 @@
+diff --git a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+--- a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
++++ b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+@@ -7,5 +7,5 @@
+ 关闭视觉时，启动完成后连续无交互达到同一休眠时长也进入低功耗待机，不会为了检测在场而开启摄像头。键盘、鼠标按键或显式调用 `NotifyInteractionActivity()` 唤醒；手动录音和处理中的请求保持清醒。视觉关闭时无法通过人脸自动唤醒，需要一次手动交互。
+ 
+-启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。实时与非实时对话中，连续无人在场 0.65 秒后才触发 UI 和完整光球的淡出（约 0.35 秒到 25% 不透明度），不等待整个 grace 或休眠超时；同时光球降低亮度、保留尺寸，不以缩小代替透明。人回来经过检测器在场确认（默认 0.35 秒）后，再稳定保持 0.4 秒才开始约 0.25 秒淡入。缓冲期间出现相反结果会取消待切换状态，重新连续计时，不累计短暂闪断。淡入淡出共用同一视觉判定和动画时钟，UI 与光球同步；实际休眠隐藏不额外等待，设置/引导不受人脸抖动影响。Grace 继续保持进行中的交互。超时真正进入低功耗休眠，才淡至完全透明。睡眠时停止跟随语音起伏。超时后默认隐藏整个界面和光球，不再提供独立“Dimmed standby”设置。
++启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。实时与非实时对话中，连续无人在场 0.65 秒后才触发 UI 和完整光球的淡出（约 0.35 秒到 25% 不透明度），不等待整个 grace 或休眠超时；同时光球降低亮度、保留尺寸，不以缩小代替透明。人回来时，第一个有效人脸检测结果（Acquiring）就立即开始约 0.25 秒淡入，不再额外等待 0.4 秒，也不等待语音准入的确认时间；实际休眠返回同样立即开始恢复。语音准入仍按原配置确认。离开缓冲期间出现返回结果会立即取消待淡出状态，下一次离开重新连续计时，不累计短暂闪断。淡入淡出共用同一视觉判定和动画时钟，UI 与光球同步；实际休眠隐藏不额外等待，设置/引导不受人脸抖动影响。Grace 继续保持进行中的交互。超时真正进入低功耗休眠，才淡至完全透明。睡眠时停止跟随语音起伏。超时后默认隐藏整个界面和光球，不再提供独立“Dimmed standby”设置。
+ 
+ 休眠时自动语音采集、唤醒词监听与自动 ASR 暂停；图像上下文清空。摄像头保留连接，默认在场分析从 10 次/秒降为 2 次/秒，供人回来时唤醒。这里降低的是分析频率，摄像头设备的实际采集模式保持原协商值。界面目标帧率降为 12 FPS，背景停止动态流动；设置/引导打开时保持可见；手动模式也显示相同淡出反馈，部分淡出时仍可点击交互；设置/引导保持完整显示。
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+@@ -20,5 +20,7 @@
+                 if (_interactionSettings?.visualPresence != true ||
+                     !_visualReady || _visualStarting || _interaction == null) return 1;
+-                return _interaction.Presence.Current.State == MNNPresenceState.Present ? 1 : .25f;
++                var state = _interaction.Presence.Current.State;
++                // The first accepted face restores visuals; voice admission still waits for confirmation.
++                return state == MNNPresenceState.Present || state == MNNPresenceState.Acquiring ? 1 : .25f;
+             }
+         }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+@@ -8,5 +8,5 @@
+         private float _presenceAmount = 1;
+         private float _presenceAcceptedTarget = 1, _presencePendingTarget = 1, _presencePendingSeconds;
+-        private const float PresenceDepartureBuffer = .65f, PresenceArrivalBuffer = .4f;
++        private const float PresenceDepartureBuffer = .65f;
+ 
+         private void TickInteractionPresentation()
+@@ -26,9 +26,9 @@
+         }
+ 
+-        // Require a continuous target; opposite observations cancel the pending transition.
+-        // This is visual hysteresis after detector confirmation, independent of voice admission.
++        // Buffer only departures. A detected return cancels pending fade-out and brightens immediately.
++        // Visual feedback is independent of voice admission confirmation.
+         private float StabilizePresenceTarget(float target, ref float dt)
+         {
+-            if (target <= 0 || target == _presenceAcceptedTarget)
++            if (target <= 0 || target >= _presenceAcceptedTarget)
+             {
+                 _presencePendingSeconds = 0;
+@@ -41,5 +41,5 @@
+             }
+             _presencePendingSeconds += dt;
+-            float wait = target > _presenceAcceptedTarget ? PresenceArrivalBuffer : PresenceDepartureBuffer;
++            float wait = PresenceDepartureBuffer;
+             if (_presencePendingSeconds < wait) return _presenceAcceptedTarget;
+             // Only the time beyond the buffer belongs to the animation, even on a slow frame.
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+@@ -16,5 +16,5 @@
+     {
+         [Test]
+-        public void PresenceFlickerWaitsForStableArrivalAndDepartureBeforeFading()
++        public void PresenceDepartureIsBufferedButReturnStartsFadingOnFirstFrame()
+         {
+             var root = new GameObject("Buffered presence view");
+@@ -39,19 +39,38 @@
+                 frame(.25f, .1f); Assert.Less(alpha(), 1); Assert.Greater(alpha(), .25f);
+                 frame(.25f, .3f); Assert.AreEqual(.25f, alpha(), .001f);
++                frame(1, 1f/60); Assert.Greater(alpha(), .25f, "Detected return starts fading in on the first frame.");
++                frame(1, .25f); Assert.AreEqual(1, alpha(), .001f);
+                 for (int i = 0; i < 6; ++i)
+                 {
+-                    frame(1, .2f); Assert.AreEqual(.25f, alpha(), .001f, "Brief face re-entry must not brighten the view.");
+-                    frame(.25f, .1f);
++                    frame(.25f, .2f); frame(1, .02f);
++                    Assert.AreEqual(1, alpha(), .001f, "Fast returns reset departure buffering without flicker.");
+                 }
+-                frame(1, .35f); Assert.AreEqual(.25f, alpha(), .001f);
+-                frame(1, .1f); Assert.Greater(alpha(), .25f); Assert.Less(alpha(), 1);
+-                frame(1, .3f); Assert.AreEqual(1, alpha(), .001f);
+-                frame(.25f, .5f); frame(0, .4f); Assert.Zero(alpha(), "Real sleep must not wait for a second absence buffer.");
+-                frame(1, .2f); Assert.Zero(alpha(), "Wake arrival is buffered too.");
+-                frame(1, .5f); Assert.AreEqual(1, alpha(), .001f);
++                frame(.25f, .5f); frame(0, .4f); Assert.Zero(alpha());
++                frame(1, 1f/60); Assert.Greater(alpha(), 0, "Wake starts fading immediately too.");
++                frame(1, .25f); Assert.AreEqual(1, alpha(), .001f);
+                 Assert.AreEqual(alpha(), ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"), .001f);
+-                TestContext.WriteLine("Six departure/arrival glitches ignored; departure .6s unchanged then gradual fade to.25; arrival .35s unchanged then gradual fade to1; actual sleep hides; buffered wake restores UI/orb together.");
++                TestContext.WriteLine("Departure glitches ignored; stable absence fades to.25; return and sleep wake brighten on first frame; UI/orb restore together.");
+             }
+             finally { Object.DestroyImmediate(root); Object.DestroyImmediate(content); Object.DestroyImmediate(ball); }
++        }
++
++        [Test]
++        public void FirstDetectedFaceRestoresVisualTargetBeforeVoiceConfirmation()
++        {
++            var root = new GameObject("Fast visual arrival");
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>();
++                var settings = new MNNInteractionSettings { visualPresence = true, confirmationSeconds = .35f };
++                var owner = root.AddComponent<MNNInteractionComponent>(); owner.Configure(settings);
++                chat.ConfigureInteraction(owner);
++                SiriAITestAccess.Set(chat, "_interactionSettings", settings);
++                SiriAITestAccess.Set(chat, "_visualReady", true);
++                owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
++                Assert.AreEqual(MNNPresenceState.Acquiring, owner.Presence.Current.State);
++                Assert.AreEqual(1, chat.PresencePresentationTarget, "First accepted face restores visual feedback without waiting for speech admission.");
++                TestContext.WriteLine("First detected face: Acquiring; visual target=1 before confirmed Present; speech confirmation timing unchanged.");
++            }
++            finally { Object.DestroyImmediate(root); }
+         }
+ 
+@@ -106,6 +125,5 @@
+                 yield return null;
+                 owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
+-                frame(.2f); Assert.Zero(content.GetComponent<CanvasGroup>().alpha);
+-                frame(.3f); Assert.Greater(content.GetComponent<CanvasGroup>().alpha, 0);
++                frame(1f/60); Assert.Greater(content.GetComponent<CanvasGroup>().alpha, 0);
+                 frame(.3f); orb.Refresh();
+                 Assert.AreEqual(1, content.GetComponent<CanvasGroup>().alpha);
+@@ -119,5 +137,5 @@
+                 Assert.AreEqual(.25f, ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"), .001f);
+                 Assert.True(content.GetComponent<CanvasGroup>().blocksRaycasts, "Partial absence feedback must allow manual interaction.");
+-                TestContext.WriteLine("present alpha=1; brief absent Grace alpha=1; stable absence alpha=.25 without sleep; sleep UI/orb alpha=0; buffered return alpha=1; scale unchanged");
++                TestContext.WriteLine("present alpha=1; brief absent Grace alpha=1; stable absence alpha=.25 without sleep; sleep UI/orb alpha=0; immediate return starts fading then alpha=1; scale unchanged");
+             }
+             finally { Object.DestroyImmediate(root); Object.DestroyImmediate(content); Object.DestroyImmediate(ball); }

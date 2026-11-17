@@ -606,3 +606,5 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 `--stage chat-follow` follows `presence-feedback`: non-realtime conversations share the UI/orb presence fade. New and streaming messages follow the bottom; transcript/window gestures interrupt following, history browsing stays put, and a circular liquid-glass down-arrow jumps to the latest message and resumes following.
 
 `--stage presence-buffer` follows `chat-follow`: visual departure must remain stable for 0.65s and arrival for 0.4s after detector confirmation before shared UI/orb fading begins. Opposite observations cancel pending transitions and restart the continuous timer. Actual sleep hides without an additional delay; settings/onboarding stay accessible.
+
+`--stage fast-return` follows `presence-buffer`: the first accepted face detection (Acquiring) restores the visual target, and UI/orb fade-in starts that frame without extra arrival debounce. Departure retains its 0.65s continuous buffer; voice admission still requires its configured confirmation.

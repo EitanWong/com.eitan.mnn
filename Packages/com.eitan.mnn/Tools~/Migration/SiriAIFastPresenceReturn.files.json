@@ -1,0 +1,24 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/PresenceSleep.md",
+      "before": "d8e0950685bc3ffd30e514a9af148fe66f2536e74ced8916e00000c63436e419",
+      "after": "4c58451e8523e3dabc8052ea6e4e97eda5082b6369cb6799807b079a58959f99"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs",
+      "before": "9577987557525ad30e25f077485e7e59edfe68520a844e5361e1976d0914b6f6",
+      "after": "1c572e56b99b49a6e21dbb25370d2a4efb7c97f24f61fe8ccf5480e0904a496b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs",
+      "before": "36333434185835bc0897e04b9d390f9b97870765c8f311c201a5db78565bb1d3",
+      "after": "6ff9de60fd56afd20f7696a81f8b2a537685d013fa2a358b8eeb3612af1315af"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs",
+      "before": "f5cfa634ccb8350420e2de1d103099aced0175b7843d7d964aa54ce5f13fc655",
+      "after": "6c21cebae3a657139acbc27e5f756e22ecb03f73afe0720c3ee1ffbd2e4d2842"
+    }
+  ]
+}
