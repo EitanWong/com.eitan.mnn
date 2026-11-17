@@ -1,0 +1,896 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Composer.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Composer.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Composer.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Composer.cs
+@@ -251,6 +251,7 @@
+             _composerEditorScrim = SiriAIUIFactory.CreateSurface(_composerEditorRoot, "Editor Scrim", null, new Color(0, .01f, .03f, 0));
+             var dismiss = _composerEditorScrim.gameObject.AddComponent<Button>();
+             dismiss.targetGraphic = _composerEditorScrim;
++            AddControlFeedback(dismiss, animateScale: false);
+             dismiss.onClick.AddListener(() => CloseComposerEditor());
+             _input.transform.SetParent(_composerEditorRoot, false);
+             GlassScope(_input.transform, 4);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.ConversationPopup.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.ConversationPopup.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.ConversationPopup.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.ConversationPopup.cs
+@@ -27,6 +27,7 @@
+             _conversationPopupScrim = dismiss.gameObject.AddComponent<Image>();
+             _conversationPopupScrim.color = new Color(0, .01f, .03f, IsDesktopMode ? .08f : .25f);
+             var button = dismiss.gameObject.AddComponent<Button>(); button.targetGraphic = _conversationPopupScrim;
++            AddControlFeedback(button, animateScale: false);
+             button.transition = Selectable.Transition.None; button.onClick.AddListener(() => SetConversationNavigationVisible(false));
+             _conversationSidebar.SetParent(_conversationPopupRoot, false);
+             _conversationPopupClose = ConversationAction(_conversationSidebar, SiriAIActionGlyph.Close, "Close conversations", true);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Conversations.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Conversations.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Conversations.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Conversations.cs
+@@ -180,7 +180,9 @@
+             var placeholder = Label(rect, hint, 15, Muted); Stretch(placeholder.rectTransform);
+             placeholder.rectTransform.offsetMin = new Vector2(12, 4); placeholder.rectTransform.offsetMax = new Vector2(-12, -4);
+             placeholder.alignment = TextAnchor.MiddleLeft; placeholder.supportRichText = false; placeholder.verticalOverflow = VerticalWrapMode.Truncate;
+-            field.placeholder = placeholder; return field;
++            field.placeholder = placeholder;
++            AddControlFeedback(field, animateScale: false);
++            return field;
+         }
+ 
+         private async void ChangeConversation(string id)
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Feedback.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Feedback.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Feedback.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Feedback.cs
+@@ -57,9 +57,10 @@
+         {
+             if (_canvasRoot == null) return;
+             BuildFeedbackSheet();
+-            _feedbackTransition?.PrepareForOpen();
++            bool wasOpen = IsFeedbackOpen;
++            if (!wasOpen) _feedbackTransition?.PrepareForOpen();
+             _feedbackClosing = false;
+-            if (!IsFeedbackOpen) _feedbackPreviousSelection = EventSystem.current?.currentSelectedGameObject;
++            if (!wasOpen) _feedbackPreviousSelection = EventSystem.current?.currentSelectedGameObject;
+             _feedbackError = error;
+             CancelVoiceGesture();
+             _feedbackTitle.text = Localize(title);
+@@ -67,6 +68,11 @@
+             _feedbackDismiss.GetComponentInChildren<Text>().text = Localize(error ? "Ignore" : "Close");
+             _feedbackRoot.gameObject.SetActive(true);
+             LayoutFeedback();
++            if (wasOpen && _feedbackTransition != null)
++            {
++                _feedbackTransition.SetOpen(true);
++                return;
++            }
+             Canvas.ForceUpdateCanvases(); _feedbackScroll.verticalNormalizedPosition = 1;
+             if (_feedbackTransition == null) _feedbackTransition = _feedbackPanel.gameObject.AddComponent<SiriAISurfaceTransition>();
+             _feedbackTransition.UnifiedContentReveal = true;
+@@ -153,6 +159,7 @@
+             _preparationDetailsButton = rect.gameObject.AddComponent<Button>();
+             _preparationDetailsButton.targetGraphic = _preparationSurface;
+             _preparationDetailsButton.transition = Selectable.Transition.None;
++            AddControlFeedback(_preparationDetailsButton, animateScale: false);
+             _preparationDetailsButton.onClick.AddListener(OpenPreparationDetails);
+             // The progress surface owns the click; decorative children cannot swallow it.
+             var hint = Label(rect, "Tap progress for details", 13, Muted);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.Motion.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.Motion.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.Motion.cs
+@@ -0,0 +1,61 @@
++using UnityEngine;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private bool _historyScrollAnimating;
++        private float _historyScrollVelocity;
++
++        private void ScrollToLatestHistory()
++        {
++            if (_editorPreview || !UiMotion)
++            {
++                JumpToLatestHistory();
++                return;
++            }
++            int latest = _entries.Count == 0 ? 0 : (_entries.Count - 1) / HistoryPageSize * HistoryPageSize;
++            if (latest != _historyPageStart)
++            {
++                float position = Mathf.Clamp01(_scroll.verticalNormalizedPosition);
++                ShowHistoryPage(latest, true);
++                // Paging still bounds layout work. Start the new page at the presented
++                // relative offset; never animate through thousands of hidden rows.
++                _historyScrollRequest = position;
++            }
++            _historySeenCount = _entries.Count;
++            _historyFollowing = _scrollLatest = true;
++            _scrollToStatus = false;
++            // Repeated activation retargets the same spring without resetting momentum.
++            _historyScrollAnimating = true;
++            _scroll.StopMovement();
++        }
++
++        private void CancelHistoryScroll()
++        {
++            _historyScrollAnimating = false;
++            _historyScrollVelocity = 0f;
++        }
++
++        private void AdvanceHistoryScroll(float deltaTime)
++        {
++            if (!_historyScrollAnimating || HistoryGestureActive || _historyScrollRequest.HasValue) return;
++            float range = Mathf.Max(0f, _scroll.content.rect.height - _scroll.viewport.rect.height);
++            // Integrate in pixels, after layout. Streaming and resizing can move the
++            // destination while the spring preserves its current position and velocity.
++            float distance = Mathf.Clamp01(_scroll.verticalNormalizedPosition) * range;
++            if (!UiMotion || range <= 2f)
++            {
++                distance = 0f;
++                _historyScrollVelocity = 0f;
++            }
++            else
++                SiriAIMotion.Spring(ref distance, ref _historyScrollVelocity, 0f,
++                    Mathf.Max(0f, deltaTime), 22f, 1f);
++            bool settled = distance < .25f && Mathf.Abs(_historyScrollVelocity) < 5f;
++            _scroll.StopMovement();
++            _scroll.verticalNormalizedPosition = settled || range <= 0f ? 0f : Mathf.Clamp01(distance / range);
++            if (settled) CancelHistoryScroll();
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.Motion.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.Motion.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.Motion.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: 6f870632cc144d0b886efa7eb5396749
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.State.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.State.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.State.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.State.cs
+@@ -16,6 +16,7 @@
+         }
+         private void RestoreConversationView()
+         {
++            CancelHistoryScroll();
+             if (_conversations == null) { ShowHistoryPage(_historyPageStart, _historyFollowing); return; }
+             var state = _conversations.ViewState;
+             int page = state.FollowingLatest && _entries.Count > 0 ? (_entries.Count - 1) / HistoryPageSize * HistoryPageSize : state.PageStart;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs
+@@ -26,6 +26,7 @@
+         private bool _historyFollowing = true, _historyBindingsDirty = true;
+         private float? _historyScrollRequest;
+         private Button _historyLatestButton;
++        private SiriAIVisualTransition _historyLatestTransition;
+         private SiriAITranscriptScrollInput _historyScrollInput;
+         private bool HistoryGestureActive =>
+             (_historyScrollInput != null && _historyScrollInput.IsDragging) ||
+@@ -46,8 +47,9 @@
+             var rect = (RectTransform)_historyLatestButton.transform;
+             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, 0);
+             rect.sizeDelta = new Vector2(44, 44); rect.anchoredPosition = new Vector2(0, 12);
+-            _historyLatestButton.onClick.AddListener(JumpToLatestHistory);
+-            _historyLatestButton.gameObject.SetActive(false);
++            _historyLatestButton.onClick.AddListener(ScrollToLatestHistory);
++            _historyLatestTransition = _historyLatestButton.gameObject.AddComponent<SiriAIVisualTransition>();
++            _historyLatestTransition.Configure(() => SettingsMotion, false);
+         }
+ 
+         private void ResumeHistoryFollowingAtBottom()
+@@ -60,7 +62,8 @@
+         private void RefreshLatestHistoryButton()
+         {
+             if (_historyLatestButton != null)
+-                _historyLatestButton.gameObject.SetActive(!IsImmersiveMode && _entries.Count > 0 && !IsAtLatestHistory);
++                _historyLatestTransition.SetVisible(!IsImmersiveMode && _entries.Count > 0 &&
++                    (_historyScrollAnimating || !IsAtLatestHistory));
+         }
+ 
+         private void RequestLatestHistoryFollow()
+@@ -75,6 +78,7 @@
+             internal Image Surface;
+             internal Text Author, Body;
+             internal Button Disclosure;
++            internal SiriAIControlFeedback DisclosureFeedback;
+             internal readonly List<MarkdownImageSlot> MarkdownImages = new List<MarkdownImageSlot>();
+             internal MNNMarkdownHistoryLayout.Slice BoundSlice;
+             internal MNNMarkdownRenderResult BoundRenderResult;
+@@ -122,6 +126,10 @@
+ 
+         private void ShowHistoryPage(int start, bool follow)
+         {
++            bool continueMotion = follow && _historyScrollAnimating;
++            float position = continueMotion ? Mathf.Clamp01(_scroll.verticalNormalizedPosition) : 0f;
++            float velocity = _historyScrollVelocity;
++            CancelHistoryScroll();
+             _pendingConversationView = null;
+             int lastPage = _entries.Count == 0 ? 0 : (_entries.Count - 1) / HistoryPageSize * HistoryPageSize;
+             _historyPageStart = Mathf.Clamp(start, 0, lastPage);
+@@ -132,6 +140,12 @@
+             _historyScrollRequest = follow ? 0f : 1f;
+             _historyBindingsDirty = _layoutDirty = true;
+             _scroll?.StopMovement();
++            if (continueMotion)
++            {
++                _historyScrollAnimating = true;
++                _historyScrollVelocity = velocity;
++                _historyScrollRequest = position;
++            }
+         }
+ 
+         private void JumpToLatestHistory()
+@@ -142,6 +156,7 @@
+ 
+         private void PauseHistoryFollowing()
+         {
++            CancelHistoryScroll();
+             _historyFollowing = _scrollLatest = false;
+             _historyScrollRequest = null;
+             _scrollToStatus = false;
+@@ -251,6 +266,9 @@
+                 bool contentChanged = row.BoundSlice != slice || row.BoundRenderResult != renderResult;
+                 row.Root.name = slice.Kind != MNNConversationEntryKind.Message ? "Agent " + slice.Kind : slice.Role == MNNChatRole.User ? "User Message" : "Assistant Message";
+                 row.Disclosure.interactable = slice.Kind != MNNConversationEntryKind.Message;
++                // Ordinary author labels are not disabled actions: keep their ink
++                // unchanged while pooled agent headers retain interaction feedback.
++                row.DisclosureFeedback.enabled = row.Disclosure.interactable;
+                 var geometry = new MNNConversationRowLayout(Mathf.Max(1, _messageWindow.rect.width), slice.Role, slice.Kind, slice.First);
+                 row.Root.anchorMin = row.Root.anchorMax = new Vector2(0, 1);
+                 row.Root.pivot = new Vector2(0, 1);
+@@ -298,6 +316,8 @@
+             body.rectTransform.offsetMin = new Vector2(16, 12);
+             var row = new MessageRow { Root = root, Surface = surface, Author = author, Body = body };
+             row.Disclosure = author.gameObject.AddComponent<Button>(); row.Disclosure.targetGraphic = author;
++            AddControlFeedback(row.Disclosure, animateScale: false);
++            row.DisclosureFeedback = row.Disclosure.GetComponent<SiriAIControlFeedback>();
+             author.raycastTarget = true;
+             row.Disclosure.onClick.AddListener(() =>
+             {
+@@ -389,6 +409,7 @@
+         private void ClearTranscript()
+         {
+             if (_conversationContextDirty) return;
++            CancelHistoryScroll();
+             SetRecognitionSubtitle("");
+             _entries.Clear(); _historyLayout.Reset();
+             _conversations?.SetViewState(MNNConversationViewState.Latest);
+@@ -409,6 +430,7 @@
+ 
+         private void ReleaseHistoryViews()
+         {
++            CancelHistoryScroll();
+             _historyLayout.Clear();
+             foreach (var row in _messageRows) ReleaseMarkdownImages(row);
+             _messageRows.Clear();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs
+@@ -70,6 +70,7 @@
+                 var root = RectObject("Wake Word List", row);
+                 var list = root.gameObject.AddComponent<SiriAIWakeWordList>();
+                 list.Configure(_view._font, text => _view.Localize(text), validate, _view.AppearanceColor(Ink), _view.AppearanceColor(new UnityEngine.Color(.09f, .115f, .16f, 1)));
++                list.DecorateControls(control => _view.AddControlFeedback(control));
+                 list.SetWords(read());
+                 list.Changed += words => { write(words); _view.PreviewWakeWords(); };
+                 _view._settingsReaders.Add(() => write(list.ReadWords()));
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
+@@ -347,6 +347,7 @@
+             if (HistoryGestureActive) { /* Preserve the user's scroll while dragging content or the window. */ }
+             else if (_scrollToStatus)
+             {
++                CancelHistoryScroll();
+                 _scroll.verticalNormalizedPosition = 1f;
+                 _scrollToStatus = false;
+                 _scrollLatest = false;
+@@ -356,6 +357,7 @@
+                 _scroll.verticalNormalizedPosition = _historyScrollRequest.Value;
+                 _historyScrollRequest = null;
+             }
++            else if (_historyScrollAnimating) AdvanceHistoryScroll(Time.unscaledDeltaTime);
+             else if (_scrollLatest) _scroll.verticalNormalizedPosition = 0;
+             if (!IsImmersiveMode) { ApplyConversationViewAnchor(); RefreshVisibleMessages(); }
+             RefreshLatestHistoryButton();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIControlFeedback.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIControlFeedback.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIControlFeedback.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIControlFeedback.cs
+@@ -67,15 +67,26 @@
+ 
+         public void Configure(SiriAIInteractionFeedback feedback, RectTransform visual = null, bool animateScale = true)
+         {
++            if (_input != null) _input.onValueChanged.RemoveListener(TextChanged);
++            if (_button != null) _button.onClick.RemoveListener(Clicked);
+             _feedback = feedback;
+             _animateScale = animateScale;
+             _control = GetComponent<Selectable>();
+             _input = _control as InputField;
+             _button = _control as Button;
+-            _visual = visual != null ? visual : (RectTransform)transform;
+-            _baseScale = _visual.localScale;
++            var nextVisual = visual != null ? visual : (RectTransform)transform;
++            if (_visual != nextVisual)
++            {
++                if (_visual != null) _visual.localScale = _baseScale;
++                _visual = nextVisual;
++                _baseScale = _visual.localScale;
++            }
+             _graphic = _control != null ? _control.targetGraphic : _visual.GetComponentInChildren<Graphic>();
+-            if (_control != null) _opacity = gameObject.AddComponent<CanvasGroup>();
++            if (_control != null)
++            {
++                _opacity = GetComponent<CanvasGroup>();
++                if (_opacity == null) _opacity = gameObject.AddComponent<CanvasGroup>();
++            }
+             if (_control != null) _control.transition = Selectable.Transition.None;
+             if (_input != null)
+             {
+@@ -177,7 +188,8 @@
+         {
+             // InputFields have no Button.onClick. A real click also covers an already focused field.
+             // The composer's TypingStarted action already emits Click after resolving tap versus hold.
+-            if (_input == null || _input is SiriAIComposerInput || _input.readOnly || !Usable || !Owns(data) ||
++            if (_input == null || _input is SiriAIComposerInput composer && composer.AllowVoiceHold ||
++                _input.readOnly || !Usable || !Owns(data) ||
+                 data.button != PointerEventData.InputButton.Left) return;
+             Cue(SiriAIInteractionCue.Click);
+         }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs
+@@ -6,13 +6,17 @@
+ {
+     /// <summary>Detect explicit navigation even when streaming text makes the layout dirty every frame.</summary>
+     [AddComponentMenu("")]
+-    public sealed class SiriAITranscriptScrollInput : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IScrollHandler
++    public sealed class SiriAITranscriptScrollInput : MonoBehaviour, IPointerDownHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IScrollHandler
+     {
+         internal Action OnNavigate;
+         internal Action<float> OnMove;
+         internal Action OnNavigationEnd;
+         public bool IsDragging { get; private set; }
+         private float _dragDirection;
++        public void OnPointerDown(PointerEventData eventData)
++        {
++            if (eventData != null && eventData.button == PointerEventData.InputButton.Left) OnNavigate?.Invoke();
++        }
+         public void OnBeginDrag(PointerEventData eventData) { IsDragging = true; _dragDirection = 0; OnNavigate?.Invoke(); }
+         public void OnDrag(PointerEventData eventData)
+         { if (eventData != null && Mathf.Abs(eventData.delta.y) > .01f) _dragDirection = -eventData.delta.y; }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIVisualTransition.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIVisualTransition.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIVisualTransition.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIVisualTransition.cs
+@@ -9,6 +9,7 @@
+     public sealed class SiriAIVisualTransition : MonoBehaviour
+     {
+         private CanvasGroup _group;
++        private SiriAIControlFeedback _control;
+         private Func<bool> _motion;
+         private float _progress, _velocity;
+         private bool _visible, _initialized, _lastMotion;
+@@ -18,6 +19,7 @@
+         {
+             SubscribeQuality();
+             _motion = motion;
++            _control = GetComponent<SiriAIControlFeedback>();
+             _group = GetComponent<CanvasGroup>();
+             if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
+             _progress = visible ? 1f : 0f;
+@@ -84,8 +86,13 @@
+         {
+             if (_group == null) return;
+             float progress = Mathf.Clamp01(_progress);
+-            _group.alpha = progress;
+-            transform.localScale = Vector3.one * Mathf.Lerp(.92f, 1f, progress);
++            if (_control != null) _control.SetVisibility(progress);
++            else
++            {
++                _group.alpha = progress;
++                transform.localScale = Vector3.one * Mathf.Lerp(.92f, 1f, progress);
++            }
++            _group.interactable = _group.blocksRaycasts = _visible && progress > .001f;
+         }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIWakeWordList.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIWakeWordList.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIWakeWordList.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAIWakeWordList.cs
+@@ -18,6 +18,7 @@
+         [SerializeField] private Font _font;
+         [SerializeField] private string[] initialWords = MNN.Unity.MNNKeywordSpotterConfig.EnglishDefaultWords.Split('\n');
+         private bool _assigned;
++        private Action<Selectable> _decorateControl;
+         private Func<string, string> _localize = text => text;
+         private Func<string, string> _validate;
+         private Color _ink = new Color(.92f, .95f, 1);
+@@ -29,6 +30,12 @@
+         {
+             _font = font; _localize = localize ?? (text => text); _validate = validate; _ink = ink; _surface = surface;
+             EnsureBuilt();
++        }
++
++        internal void DecorateControls(Action<Selectable> decorate)
++        {
++            _decorateControl = decorate;
++            foreach (var control in GetComponentsInChildren<Selectable>(true)) decorate?.Invoke(control);
+         }
+ 
+         private void Start()
+@@ -143,6 +150,7 @@
+             input.targetGraphic = background; input.textComponent = text; input.characterLimit = 128;
+             input.customCaretColor = true; input.caretColor = _ink;
+             input.text = value; input.onEndEdit.AddListener(_ => Publish());
++            _decorateControl?.Invoke(input);
+             var placeholder = Label(Rect("Placeholder", viewport), _localize("New wake word"), new Color(_ink.r, _ink.g, _ink.b, .5f));
+             Stretch(placeholder.rectTransform); input.placeholder = placeholder;
+             placeholder.gameObject.SetActive(string.IsNullOrEmpty(input.text));
+@@ -169,6 +177,7 @@
+             var rect = Rect(name, parent);
+             var graphic = rect.gameObject.AddComponent<SiriAIRoundedRect>(); graphic.Radius = 12; graphic.color = _surface;
+             var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = graphic;
++            _decorateControl?.Invoke(button);
+             var label = Label(Rect("Label", rect), caption, _ink); Stretch(label.rectTransform, 12, 6); label.alignment = TextAnchor.MiddleCenter;
+             return button;
+         }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceFeedbackTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceFeedbackTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceFeedbackTests.cs
+@@ -0,0 +1,280 @@
++using System;
++using System.Collections.Generic;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.EventSystems;
++using UnityEngine.UI;
++using Object = UnityEngine.Object;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIExperienceFeedbackTests
++    {
++        private GameObject _root;
++        private SiriAIChatView _view;
++        private SiriAIInteractionFeedback _feedback;
++
++        [SetUp]
++        public void SetUp()
++        {
++            SiriAIGraphicsQuality.Apply(SiriAIQualityTier.High);
++            _root = new GameObject("Experience feedback");
++            _view = _root.AddComponent<SiriAIChatView>();
++            _view.TickEditorPreview(new Rect(0, 0, 390, 844), 1);
++            _feedback = _root.AddComponent<SiriAIInteractionFeedback>();
++            _feedback.Configure(new SiriAIInteractionSettings());
++            SiriAITestAccess.Set(_view, "_interactionFeedback", _feedback);
++            for (int i = 0; i < 12; ++i)
++                Call("AddUser", "Message " + i + new string('x', 200));
++            Call("LateUpdate");
++        }
++
++        [TearDown]
++        public void TearDown()
++        {
++            Object.DestroyImmediate(_root);
++            SiriAIGraphicsQuality.Apply(SiriAIQualityTier.High);
++        }
++
++        private T Field<T>(string name) => SiriAITestAccess.Field<T>(_view, name);
++        private void Call(string name, params object[] args) => SiriAITestAccess.Call(_view, name, args);
++        private ScrollRect Scroll => Field<ScrollRect>("_scroll");
++
++        private void ReadEarlierMessages()
++        {
++            Scroll.GetComponent<SiriAITranscriptScrollInput>().OnScroll(new PointerEventData(null) { scrollDelta = Vector2.up });
++            Scroll.verticalNormalizedPosition = .7f;
++            Call("LateUpdate");
++            SiriAITestAccess.Set(_view, "_editorPreview", false);
++        }
++
++        [Test]
++        public void LatestButtonMovesContinuouslyAndRetargetsStreamingUntilSettled()
++        {
++            ReadEarlierMessages();
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            Assert.AreEqual(.7f, Scroll.verticalNormalizedPosition, .01f, "A click starts from the presented position.");
++            Call("LateUpdate");
++            Assert.Greater(Scroll.verticalNormalizedPosition, .01f, "The first frame must not teleport to the bottom.");
++            Call("AdvanceHistoryScroll", 1f / 60f);
++            Assert.That(Scroll.verticalNormalizedPosition, Is.InRange(.01f, .699f));
++            Call("SetAssistant", new string('y', 3000));
++            Call("LateUpdate");
++            Assert.Greater(Scroll.verticalNormalizedPosition, 0f, "Streaming must retarget the running spring.");
++            for (int i = 0; i < 180; ++i) Call("AdvanceHistoryScroll", 1f / 60f);
++            Assert.AreEqual(0f, Scroll.verticalNormalizedPosition, .001f);
++            Assert.IsTrue(Field<bool>("_historyFollowing"));
++            Assert.IsFalse(Field<bool>("_historyScrollAnimating"));
++        }
++
++        [Test]
++        public void WheelCancelsLatestMotionAndStreamingCannotStealThePosition()
++        {
++            ReadEarlierMessages();
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            Call("LateUpdate");
++            float before = Scroll.verticalNormalizedPosition;
++            Scroll.GetComponent<SiriAITranscriptScrollInput>().OnScroll(new PointerEventData(null) { scrollDelta = Vector2.up });
++            Call("SetAssistant", new string('z', 2000));
++            Call("LateUpdate");
++            float held = Scroll.content.anchoredPosition.y;
++            for (int i = 0; i < 30; ++i) Call("AdvanceHistoryScroll", 1f / 60f);
++            Assert.AreEqual(held, Scroll.content.anchoredPosition.y, .01f);
++            Assert.IsFalse(Field<bool>("_historyFollowing"));
++            Assert.IsFalse(Field<bool>("_historyScrollAnimating"));
++            Assert.Greater(before, 0f);
++        }
++
++        [Test]
++        public void ReducedMotionFinishesInFlightScrollImmediately()
++        {
++            ReadEarlierMessages();
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            Call("LateUpdate");
++            Assert.Greater(Scroll.verticalNormalizedPosition, 0f);
++            _feedback.Settings.reducedMotion = true;
++            Call("AdvanceHistoryScroll", 1f / 60f);
++            Assert.AreEqual(0f, Scroll.verticalNormalizedPosition, .001f);
++            Assert.IsFalse(Field<bool>("_historyScrollAnimating"));
++        }
++
++        [Test]
++        public void EveryBuiltButtonIncludingProgressDisclosureAndScrimsHasFeedback()
++        {
++            Call("BuildFeedbackSheet");
++            Call("BuildConversationPopup");
++            Call("OpenComposerEditor");
++            var missing = new List<string>();
++            var canvas = Field<GameObject>("_canvasRoot");
++            foreach (var button in canvas.GetComponentsInChildren<Button>(true))
++                if (button.GetComponent<SiriAIControlFeedback>() == null) missing.Add(button.name);
++            Assert.IsEmpty(missing, "Every button must use the shared audio and motion feedback: " + string.Join(", ", missing));
++        }
++
++        [Test]
++        public void ReconfiguringControlKeepsOneOpacityGroupAndOriginalScale()
++        {
++            var button = Field<Button>("_historyLatestButton");
++            var feedback = button.GetComponent<SiriAIControlFeedback>();
++            feedback.Configure(_feedback);
++            feedback.Configure(_feedback);
++            Assert.AreEqual(1, button.GetComponents<CanvasGroup>().Length);
++            Assert.AreEqual(Vector3.one, button.transform.localScale);
++        }
++
++        [Test]
++        public void PressInterruptsBeforeTheDragThresholdAndAnotherClickResumes()
++        {
++            ReadEarlierMessages();
++            var button = Field<Button>("_historyLatestButton");
++            button.onClick.Invoke();
++            Call("LateUpdate");
++            Call("AdvanceHistoryScroll", .04f);
++            ExecuteEvents.Execute(Scroll.gameObject, new PointerEventData(null), ExecuteEvents.pointerDownHandler);
++            float held = Scroll.content.anchoredPosition.y;
++            Call("AdvanceHistoryScroll", .2f);
++            Assert.AreEqual(held, Scroll.content.anchoredPosition.y, .01f);
++            Assert.IsFalse(Field<bool>("_historyScrollAnimating"));
++            button.onClick.Invoke();
++            Call("AdvanceHistoryScroll", .04f);
++            Assert.Greater(Scroll.content.anchoredPosition.y, held);
++        }
++
++        [Test]
++        public void RepeatedLatestClicksPreservePositionAndMomentum()
++        {
++            ReadEarlierMessages();
++            var button = Field<Button>("_historyLatestButton");
++            button.onClick.Invoke();
++            Call("AdvanceHistoryScroll", .04f);
++            float position = Scroll.content.anchoredPosition.y;
++            float velocity = Field<float>("_historyScrollVelocity");
++            button.onClick.Invoke();
++            Assert.AreEqual(position, Scroll.content.anchoredPosition.y);
++            Assert.AreEqual(velocity, Field<float>("_historyScrollVelocity"));
++            Assert.Less(velocity, 0f);
++        }
++
++        [TestCase(30)]
++        [TestCase(60)]
++        [TestCase(120)]
++        public void ScrollHasTheSameTrajectoryAcrossRefreshRates(int fps)
++        {
++            ReadEarlierMessages();
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            for (int i = 0; i < fps / 10; ++i) Call("AdvanceHistoryScroll", 1f / fps);
++            float position = Scroll.verticalNormalizedPosition;
++            Scroll.GetComponent<SiriAITranscriptScrollInput>().OnScroll(new PointerEventData(null));
++            Scroll.verticalNormalizedPosition = .7f;
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            Call("AdvanceHistoryScroll", .1f);
++            Assert.AreEqual(position, Scroll.verticalNormalizedPosition, .0001f);
++        }
++
++        [Test]
++        public void JumpFromAnOldPageKeepsThePoolBoundedAndStillAnimates()
++        {
++            for (int i = 12; i < 60; ++i) Call("AddUser", "Older message " + i + new string('x', 200));
++            Call("ShowHistoryPage", 0, false);
++            Call("LateUpdate");
++            ReadEarlierMessages();
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            Call("LateUpdate");
++            Assert.AreEqual(48, Field<int>("_historyPageStart"));
++            Assert.AreEqual(.7f, Scroll.verticalNormalizedPosition, .01f);
++            Call("AdvanceHistoryScroll", .04f);
++            Assert.That(Scroll.verticalNormalizedPosition, Is.InRange(.01f, .699f));
++            Assert.Less(Field<RectTransform>("_messageWindow").childCount, SiriAIChatView.HistoryPageSize);
++        }
++
++        [Test]
++        public void LatestAffordanceFadesWithoutFightingPressScaleAndRejectsClosingClicks()
++        {
++            ReadEarlierMessages();
++            var button = Field<Button>("_historyLatestButton");
++            var transition = button.GetComponent<SiriAIVisualTransition>();
++            transition.SetVisible(false);
++            transition.AdvanceMotion(.04f);
++            float alpha = button.GetComponent<CanvasGroup>().alpha;
++            Assert.That(alpha, Is.InRange(.01f, .99f));
++            Assert.IsFalse(button.GetComponent<CanvasGroup>().blocksRaycasts);
++            button.transform.localScale = Vector3.one * .97f;
++            transition.SetVisible(true);
++            Assert.AreEqual(alpha, button.GetComponent<CanvasGroup>().alpha);
++            transition.AdvanceMotion(.04f);
++            Assert.AreEqual(.97f, button.transform.localScale.x, .0001f);
++            Assert.IsTrue(button.GetComponent<CanvasGroup>().blocksRaycasts);
++        }
++
++        [Test]
++        public void ReopeningFeedbackReversesThePresentedSurfaceAndDiscardsItsOldClose()
++        {
++            SiriAITestAccess.Set(_view, "_editorPreview", false);
++            Call("ShowFeedback", "Loading details", "First details", false);
++            var transition = Field<SiriAISurfaceTransition>("_feedbackTransition");
++            transition.AdvanceMotion(.12f);
++            Call("CloseFeedback");
++            transition.AdvanceMotion(.025f);
++            Rect bounds = transition.VisibleBounds;
++            float progress = transition.Progress;
++            Call("ShowFeedback", "Loading details", "Updated details", false);
++            Assert.AreEqual(bounds, transition.VisibleBounds);
++            Assert.AreEqual(progress, transition.Progress);
++            for (int i = 0; i < 120; ++i) transition.AdvanceMotion(1f / 60f);
++            Assert.IsTrue(Field<RectTransform>("_feedbackRoot").gameObject.activeSelf);
++            Assert.AreEqual("Updated details", Field<Text>("_feedbackText").text);
++        }
++
++        [Test]
++        public void DynamicWakeWordControlsReceiveFeedbackAfterAddRemoveAndRebuild()
++        {
++            var host = new GameObject("Wake words", typeof(RectTransform));
++            host.transform.SetParent(_root.transform);
++            var list = host.AddComponent<SiriAIWakeWordList>();
++            list.Configure(Resources.GetBuiltinResource<Font>("Arial.ttf"), text => text, null, Color.white, Color.gray);
++            SiriAITestAccess.Call(list, "DecorateControls", new Action<Selectable>(control =>
++                control.gameObject.AddComponent<SiriAIControlFeedback>().Configure(_feedback)));
++            list.SetWords(new[] { "Siri", "Hey Siri" });
++            list.AddWord("Hello Siri");
++            list.RemoveWord(0);
++            foreach (var control in host.GetComponentsInChildren<Selectable>(true))
++                Assert.IsNotNull(control.GetComponent<SiriAIControlFeedback>(), control.name);
++            Assert.AreEqual(2, list.ReadWords().Length);
++        }
++
++        [Test]
++        public void ActiveScrollFramesDoNotAllocateManagedMemory()
++        {
++            SiriAIAllocationCounter.RequireSupport();
++            ReadEarlierMessages();
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            var method = typeof(SiriAIChatView).GetMethod("AdvanceHistoryScroll",
++                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
++            var advance = (Action<float>)Delegate.CreateDelegate(typeof(Action<float>), _view, method);
++            advance(.001f);
++            long before = GC.GetAllocatedBytesForCurrentThread();
++            for (int i = 0; i < 30; ++i) advance(1f / 120f);
++            long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
++            Assert.AreEqual(0, bytes);
++        }
++
++        [Test]
++        public void ScrollIntegrationKeepsActiveFrameWorkSmallWithoutGrowingTheMessagePool()
++        {
++            ReadEarlierMessages();
++            Field<Button>("_historyLatestButton").onClick.Invoke();
++            var method = typeof(SiriAIChatView).GetMethod("AdvanceHistoryScroll",
++                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
++            var advance = (Action<float>)Delegate.CreateDelegate(typeof(Action<float>), _view, method);
++            int rows = Field<RectTransform>("_messageWindow").childCount;
++            for (int i = 0; i < 20; ++i) advance(.00001f);
++            var timer = System.Diagnostics.Stopwatch.StartNew();
++            for (int i = 0; i < 1000; ++i) advance(.00001f);
++            timer.Stop();
++            Assert.IsTrue(Field<bool>("_historyScrollAnimating"), "Measure moving frames, not the settled early return.");
++            Assert.AreEqual(rows, Field<RectTransform>("_messageWindow").childCount);
++            Assert.Less(timer.Elapsed.TotalMilliseconds, 1000d);
++            TestContext.WriteLine("1000 active scroll integrations: " + timer.Elapsed.TotalMilliseconds.ToString("F3") + " ms; rows=" + rows);
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceFeedbackTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceFeedbackTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceFeedbackTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: 5f1756d59a39493a990e29b587c866de
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceAudioTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceAudioTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceAudioTests.cs
+@@ -0,0 +1,92 @@
++using System.Collections;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.EventSystems;
++using UnityEngine.TestTools;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIExperienceAudioTests
++    {
++        [UnityTest]
++        public IEnumerator ProgressSearchDisclosureAndScrimClicksPlayThroughTheSelectedEndpoint()
++        {
++            yield return new EnterPlayMode();
++            var root = new GameObject("UI feedback audio routing");
++            root.SetActive(false);
++            var clip = AudioClip.Create("UI tap", 1600, 1, 16000, false);
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>();
++                chat.enabled = false;
++                var endpoint = root.AddComponent<SiriAIRecordingAudioEndpoint>();
++                chat.Configure(endpoint, root.AddComponent<MNN.Unity.MNNRealtimeSessionComponent>());
++                var view = root.AddComponent<SiriAIChatView>();
++                view.enabled = false;
++                SiriAITestAccess.Call(view, "InitializeView", false);
++                root.SetActive(true);
++                SiriAITestAccess.Call(view, "ResetSetupWizard");
++                root.GetComponentInChildren<SiriAILifecycleTransition>(true).SetDesktopMode(true);
++                var bus = root.GetComponentInChildren<SiriAIInteractionFeedback>(true);
++                var settings = new SiriAIInteractionSettings { soundVolume = 1f };
++                settings.Find(SiriAIInteractionCue.Click).sound = clip;
++                bus.Configure(settings, chat);
++                bus.SetPreferences(new SiriAIChatViewPreferences { interactionSounds = true });
++
++                var progress = SiriAITestAccess.Field<Button>(view, "_preparationDetailsButton");
++                progress.gameObject.SetActive(true);
++                Assert.IsTrue(progress.IsActive() && progress.IsInteractable(), "Progress is usable after onboarding yields control.");
++                progress.onClick.Invoke();
++                Assert.AreEqual(1, endpoint.Channels.Count);
++                Assert.AreSame(clip, endpoint.Channels[0].Clip);
++                yield return new WaitForSecondsRealtime(.07f);
++                SiriAITestAccess.Call(view, "CloseFeedback");
++                SiriAITestAccess.Field<SiriAISurfaceTransition>(view, "_feedbackTransition").AdvanceMotion(2f);
++
++                var search = SiriAITestAccess.Field<InputField>(view, "_conversationSearch");
++                SiriAITestAccess.Call(view, "SetConversationNavigationVisible", true);
++                view.ApplyViewport(new Rect(0, 0, 390, 844), 1f, false);
++                var searchFeedback = search.GetComponent<SiriAIControlFeedback>();
++                Assert.IsNotNull(searchFeedback);
++                Assert.IsTrue(search.IsActive() && search.IsInteractable(), "Open navigation owns an editable search field.");
++                // This reuses the composer input type, with voice-hold disabled.
++                searchFeedback.OnPointerClick(new PointerEventData(null) { pointerId = -1 });
++                Assert.AreEqual(2, endpoint.Channels.Count);
++                Assert.AreSame(clip, endpoint.Channels[1].Clip);
++                yield return new WaitForSecondsRealtime(.07f);
++
++                SiriAITestAccess.Call(view, "SetConversationNavigationVisible", false);
++                var history = SiriAITestAccess.Field<SiriAIChatHistory>(view, "_entries");
++                history.AddExecution(new MNN.Unity.MNNConversationTranscriptEntry(MNN.Unity.MNNChatRole.System,
++                    new string('x', 3000), MNN.Unity.MNNConversationEntryKind.ToolResult,
++                    "feedback-tool", "", "Tool details", MNN.Unity.MNNConversationEntryState.Completed));
++                SiriAITestAccess.Call(view, "ShowHistoryPage", 0, true);
++                SiriAITestAccess.Call(view, "LateUpdate");
++                var rows = SiriAITestAccess.Field<System.Collections.IList>(view, "_messageRows");
++                var disclosure = SiriAITestAccess.Field<Button>(rows[0], "Disclosure");
++                Assert.IsTrue(disclosure.IsActive() && disclosure.IsInteractable(), "A tool result exposes its disclosure.");
++                disclosure.onClick.Invoke();
++                Assert.AreEqual(3, endpoint.Channels.Count);
++                yield return new WaitForSecondsRealtime(.07f);
++
++                SiriAITestAccess.Call(view, "SetConversationNavigationVisible", true);
++                view.ApplyViewport(new Rect(0, 0, 390, 844), 1f, false);
++                var scrim = SiriAITestAccess.Field<Graphic>(view, "_conversationPopupScrim").GetComponent<Button>();
++                scrim.onClick.Invoke();
++                Assert.AreEqual(4, endpoint.Channels.Count);
++                foreach (var channel in endpoint.Channels) Assert.AreSame(clip, channel.Clip);
++                yield return new WaitForSecondsRealtime(.07f);
++                settings.sounds = false;
++                progress.onClick.Invoke();
++                Assert.AreEqual(4, endpoint.Channels.Count, "The sound preference must still mute every control.");
++            }
++            finally
++            {
++                Object.DestroyImmediate(root);
++                Object.DestroyImmediate(clip);
++            }
++            yield return new ExitPlayMode();
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceAudioTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceAudioTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIExperienceAudioTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: d9e34444487048e3ba7ba463315b56dd
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/Assets/Samples/SiriAI/Documentation~/UIExperience.md b/Assets/Samples/SiriAI/Documentation~/UIExperience.md
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Documentation~/UIExperience.md
+@@ -0,0 +1,34 @@
++# UI feedback and motion
++
++The chat view uses the shared `SiriAIControlFeedback` and
++`SiriAIInteractionFeedback` for buttons and editable fields, including progress
++details, message disclosures, conversation search and titles, modal scrims and
++dynamically added wake words. Existing scene-owned click and semantic audio clips
++use the selected audio endpoint and its bounded voice pool. Sound volume, mute,
++haptics, disabled controls and microphone sound protection retain their existing
++behavior.
++
++The latest-message button starts an analytic, critically damped spring in pixel
++space after layout. Streaming updates and window resizing move the destination
++without restarting the spring. Repeated clicks preserve momentum. A press, drag
++or wheel navigation takes control immediately; streaming then preserves the
++reader's position until they return to the bottom or activate the button again.
++Changing conversations cancels the old scroll. Reduced motion and lower quality
++tiers finish the motion immediately. Editor previews retain immediate navigation.
++
++History paging and the viewport-sized message pool remain bounded. Returning
++from an older page loads the latest page at the previous relative scroll offset
++and animates within that page; it does not instantiate or traverse every hidden
++message. The latest affordance fades in and out, rejects clicks while closing,
++and composes its visibility with press feedback instead of competing for scale.
++
++Progress/error sheets preserve their presented geometry and velocity when
++reopened during dismissal. The old dismissal callback is discarded. Existing
++settings, conversation windows, menus, toggles and drawer transitions continue
++to use the shared interruptible motion system.
++
++Regression coverage is in `SiriAIExperienceFeedbackTests` and
++`SiriAIExperienceAudioTests`, alongside the existing motion, history, input and
++audio routing suites. Allocation checks explicitly skip Unity runtimes with an
++unavailable allocation counter. The integration timing check measures CPU motion
++work, not total GPU frame time or physical speaker output.
