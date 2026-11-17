@@ -598,3 +598,5 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 ```
 
 升级共享 package 后再应用本阶段；此 stage 只更新样例。保留已有 GUID，完整哈希不匹配时零写入，重复应用零写入。详情见样例 `Documentation~/PresenceSleep.md`。
+
+`--stage sleep-scene` applies actual SiriAI scene defaults (camera off, image context on, Dimmed), camera-off inactivity sleep, and manual wake after `presence-sleep`. Saved camera choices are preserved; select Dimmed standby for existing saved settings. Verified in the actual scene with sleep blend >0.99, 12 FPS, one cleanup, and wake restoration.

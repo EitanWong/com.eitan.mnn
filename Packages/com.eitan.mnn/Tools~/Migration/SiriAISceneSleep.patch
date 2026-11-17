@@ -1,0 +1,175 @@
+diff --git a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+--- a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
++++ b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+@@ -3,6 +3,8 @@
+ 新设置默认关闭视觉，保留启用的图像上下文偏好。关闭视觉不会启动摄像头、保留图像或请求必需摄像头授权；重新启用后仅使用新鲜且已确认目标的图像。已有用户保存的选择不重置。
+ 
+ macOS 引导提供摄像头权限行，视觉关闭时可选。使用 AVFoundation 的官方 `requestAccessForMediaType:completionHandler:`，等待回调并重新读取授权状态，不把请求完成视为授权。Player 构建补齐摄像头和麦克风用途说明，保留产品自定义文本。Unity Hub 启动导致缺少摄像头 entitlement 时，仍需退出并通过 `Tools~/Testing/open_editor_macos.command` 独立启动 Editor；此功能不修改应用签名或系统权限数据库。
++
++关闭视觉时，启动完成后连续无交互达到同一休眠时长也进入低功耗待机，不会为了检测在场而开启摄像头。键盘、鼠标按键或显式调用 `NotifyInteractionActivity()` 唤醒；手动录音和处理中的请求保持清醒。视觉关闭时无法通过人脸自动唤醒，需要一次手动交互。
+ 
+ 启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。光球平滑变暗和去饱和，约六秒一次轻微呼吸，停止跟随语音起伏。默认“Dimmed standby”保留完整尺寸光球；仍可选择隐藏界面或黑屏。
+ 
+diff --git a/Assets/Samples/SiriAI/Scenes/SiriAI.unity b/Assets/Samples/SiriAI/Scenes/SiriAI.unity
+--- a/Assets/Samples/SiriAI/Scenes/SiriAI.unity
++++ b/Assets/Samples/SiriAI/Scenes/SiriAI.unity
+@@ -241,7 +241,7 @@
+       visualPresence: 0
+       requirePresenceForVoice: 0
+       faceRecognition: 0
+-      imageContext: 0
++      imageContext: 1
+       audioVisualSpeech: 0
+       referenceSpeaker: 0
+       separateSpeakers: 0
+@@ -249,7 +249,7 @@
+       confirmationSeconds: 0.35
+       graceSeconds: 3
+       sleepSeconds: 15
+-      sleepDisplay: 0
++      sleepDisplay: 1
+       allowedIdentities: []
+       detectorDirectory: budaoshou--InsightFace-Det500M-MNN
+       recognizerDirectory: budaoshou--InsightFace-MobileFaceNet-MNN
+@@ -477,7 +477,7 @@
+       visualPresence: 0
+       requirePresenceForVoice: 0
+       faceRecognition: 0
+-      imageContext: 0
++      imageContext: 1
+       audioVisualSpeech: 0
+       referenceSpeaker: 0
+       separateSpeakers: 0
+@@ -485,7 +485,7 @@
+       confirmationSeconds: 0.35
+       graceSeconds: 3
+       sleepSeconds: 15
+-      sleepDisplay: 0
++      sleepDisplay: 1
+       allowedIdentities: []
+       detectorDirectory: budaoshou--InsightFace-Det500M-MNN
+       recognizerDirectory: budaoshou--InsightFace-MobileFaceNet-MNN
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -98,6 +98,7 @@
+         private async Task StartInteractionPresenceAsync()
+         {
+             _interactionStartupReady = true;
++            NotifyInteractionActivity();
+             UpdateInteractionPresence();
+             // Audio has finished opening the shared capture device. Finish visual startup
+             // before the conversation's acoustic and language models compete for resources.
+@@ -261,6 +262,7 @@
+         private async Task StopInteractionAsync()
+         {
+             SetPresenceLowPower(false);
++            _idleClockStarted = false;
+             _interactionStartupReady = false;
+             ++_presenceRevision;
+             _presenceLifetime?.Cancel();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+@@ -11,19 +11,37 @@
+         private AsyncOperation _presenceUnload;
+         private int _presenceSleepRevision;
+         public int SleepCleanupCount { get; private set; }
+-        /// <summary>Visual sleep only. Explicit interaction and active work keep normal resources available.</summary>
+-        public bool IsPresenceSleeping => isActiveAndEnabled && _stopTask == null && _interactionSettings?.visualPresence == true && _visualReady &&
+-            _interaction != null && _interaction.Presence.Current.State == MNNPresenceState.Sleeping &&
+-            !IsProcessing && !IsRecordingVoice && !_voiceFinishing && !IsPreparingConversation && !IsResettingConversation;
++        private double _lastInteractionActivity;
++        private bool _idleClockStarted;
++        /// <summary>Visual absence, or inactivity when vision is disabled. Active work always stays awake.</summary>
++        public bool IsPresenceSleeping => isActiveAndEnabled && _stopTask == null &&
++            !IsProcessing && !IsRecordingVoice && !_voiceFinishing && !IsPreparingConversation &&
++            !IsPreparingRealtime && !IsResettingConversation &&
++            (_interactionSettings?.visualPresence == true
++                ? _visualReady && _interaction != null && _interaction.Presence.Current.State == MNNPresenceState.Sleeping
++                : _context != null && _interactionSettings != null && _idleClockStarted &&
++                  Time.realtimeSinceStartupAsDouble - _lastInteractionActivity >= _interactionSettings.sleepSeconds);
+         public bool IsLowPowerMode => _presenceLowPower;
++
++        /// <summary>Explicit UI/input activity wakes idle standby without enabling the camera.</summary>
++        public void NotifyInteractionActivity()
++        {
++            _idleClockStarted = true;
++            _lastInteractionActivity = Time.realtimeSinceStartupAsDouble;
++            SetPresenceLowPower(false);
++        }
+ 
+         private void UpdatePresenceLowPower()
+         {
++            if (!_idleClockStarted || IsProcessing || IsRecordingVoice || _voiceFinishing ||
++                IsPreparingConversation || IsPreparingRealtime || IsResettingConversation ||
++                (!_presenceLowPower && IsUserSpeaking) || (Application.isFocused && Input.anyKeyDown))
++                NotifyInteractionActivity();
+             SetPresenceLowPower(IsPresenceSleeping);
+             if (!_presenceLowPower || !_presenceCleanupPending || _presenceUnload != null ||
+-                Time.realtimeSinceStartupAsDouble < _presenceCleanupAt || !_interaction.Camera.Completion.IsCompleted) return;
++                Time.realtimeSinceStartupAsDouble < _presenceCleanupAt || (_interaction != null && !_interaction.Camera.Completion.IsCompleted)) return;
+             _presenceCleanupPending = false;
+-            _interaction.VisionContext.Clear();
++            _interaction?.VisionContext.Clear();
+             AcousticFrontend?.DiscardWake();
+             // Reclaim only unreferenced Unity assets. Live models, capture and wake detector stay owned.
+             int revision = _presenceSleepRevision;
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+@@ -14,6 +14,54 @@
+ {
+     public sealed class SiriAILowPowerTests
+     {
++        [Test]
++        public void CameraOffIdleSleepsAndExplicitActivityWakesWithoutStartingCamera()
++        {
++            var root = new GameObject("Camera-off idle sleep");
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>();
++                var context = new SiriAIChatContext(new EmptyCapture(), () => null);
++                SiriAITestAccess.Set(chat, "_context", context);
++                SiriAITestAccess.Set(chat, "_interactionSettings", new MNNInteractionSettings { visualPresence = false, sleepSeconds = 15 });
++                var tick = typeof(SiriAIChat).GetMethod("UpdatePresenceLowPower", BindingFlags.Instance | BindingFlags.NonPublic);
++                tick.Invoke(chat, null);
++                Assert.False(chat.IsPresenceSleeping, "A new session gets a full idle window.");
++                var activity = typeof(SiriAIChat).GetMethod("NotifyInteractionActivity");
++                Assert.NotNull(activity, "Manual interaction must wake camera-off idle sleep.");
++                SiriAITestAccess.Set(chat, "_lastInteractionActivity", Time.realtimeSinceStartupAsDouble - 16);
++                tick.Invoke(chat, null);
++                Assert.True(chat.IsPresenceSleeping);
++                Assert.True(chat.IsLowPowerMode);
++                Assert.True(context.AutomaticInputSuspended);
++                Assert.IsNull(chat.VisualCamera);
++                Assert.IsNull(chat.Interaction);
++                Assert.DoesNotThrow(() => { SiriAITestAccess.Set(chat, "_presenceCleanupAt", 0d); tick.Invoke(chat, null); });
++                activity.Invoke(chat, null);
++                Assert.False(chat.IsPresenceSleeping);
++                Assert.False(chat.IsLowPowerMode);
++                Assert.False(context.AutomaticInputSuspended);
++                Assert.IsNull(chat.VisualCamera);
++                TestContext.WriteLine("vision=False idle=sleep lowPower=True; manual=wake lowPower=False; camera=null throughout");
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test]
++        public void ActualSceneSerializesCameraOffImageContextOnAndDimmedSleep()
++        {
++            string path = System.IO.Path.Combine(Application.dataPath, "Samples/SiriAI/Scenes/SiriAI.unity");
++            string scene = System.IO.File.ReadAllText(path);
++            var blocks = System.Text.RegularExpressions.Regex.Matches(scene,
++                @"visualPresence: 0[\s\S]*?imageContext: (\d)[\s\S]*?sleepDisplay: (\d)");
++            Assert.AreEqual(2, blocks.Count, "Both scene settings owners must be checked.");
++            foreach (System.Text.RegularExpressions.Match block in blocks)
++            {
++                Assert.AreEqual("1", block.Groups[1].Value, "Image context preference");
++                Assert.AreEqual("1", block.Groups[2].Value, "Dimmed sleep display");
++            }
++        }
++
+         [Test]
+         public void SleepingDefersBackgroundSpeechUntilPresenceReturns()
+         {
