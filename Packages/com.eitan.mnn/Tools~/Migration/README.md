@@ -384,3 +384,13 @@ Omni 表示模型直接接受音频并生成语音，不等于模型原生 Full-
 允许/禁用和删除。包与导入的源码一起校验；整组 SHA256 不匹配时不写入。
 修复静音尾段丢弃整句，以及端点模型取消超时后不继续验证的问题。默认每轮自动
 选择说话人，录入只用于可选交互限制。详见 `Documentation~/SpeechVisionSettings.md`。
+
+## 视觉目标聚焦、联合 VAD 与人脸录入引导
+
+完成 `speech-vision-settings` 后，运行
+`python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage visual-speech-focus`。
+权限统一为“镜头内任何人”“镜头内目标说话人”“仅已录入人脸”。自动目标融合人脸
+突出程度、相对远近与中心位置，唇动及粗略头部朝向与音频 VAD 联合决定启动和结束；
+不使用眼球注视。复用现有视听提取模型选择器，录入引导支持等比预览、分步采集、
+确认、重录、取消及管理。包与导入源码共用整组哈希校验，重复运行不重复应用；
+独立修改或部分迁移会在写入前拒绝。启发式阈值尚未实拍标定，见 `Documentation~/SpeechVisionSettings.md`。

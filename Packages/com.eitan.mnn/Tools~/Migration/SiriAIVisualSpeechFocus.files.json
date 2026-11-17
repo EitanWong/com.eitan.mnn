@@ -1,0 +1,159 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs",
+      "before": "7bafd5ed6a02f1a54a32018c0e82969b047659d05494f22f38a2306c7fad8fdf",
+      "after": "d62417c9039c53e43a245b2978aa2a09f074343c3b323aa721f0a0b4cc65731b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs",
+      "before": "f18179043691fbd17eb2882e4efcee25f7922d305194a2b5f7bc521ef2aaf530",
+      "after": "307539f95bd3a3b01ba584ee40db21d2592289e2b307d837ac196c3da0b42f79"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs",
+      "before": "513dc68d40590349d8af8210bb6ec3bef035a49a7ff88db1b81f60e6af3ca30c",
+      "after": "7d5522fe992afeb848adcbf5af16042ce008bbad81999438f846bf0aebae3ea9"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs",
+      "before": "6313063a0e949dec24eca4c57b3554d4a3f2db50db763fcdeca1ab99ab592a19",
+      "after": "6c9a4c058b8c00da1039eef7d5b6e65907436ea1a468de27a077fcd5c2696fdb"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs",
+      "before": "9d425e5abc52f675fd4055333647a506d9b10dd6a37bf1547b03210997e4b5b4",
+      "after": "7d94a71603340047b111d4a3f002c1b5039845f8c6ef32daee7fcca5b833069f"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs",
+      "before": "c7fb7b641dde194f4fc0352969e1e35f71542f62dba81fb78b2fa2f0f74718b6",
+      "after": "e0219681fce1f87bdfa696c40e84ecf13e2919267969c788c22d11299564d04d"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs",
+      "before": null,
+      "after": "41d59fb1cd435bf53e59787fc89ad295ec678757fa0dd00bf1b55132301ef1b4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs.meta",
+      "before": null,
+      "after": "e9265e7af3d8ebef81ce71fce7a8ab29daa1a5c8d48b68468717ec127c2e39f0"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs",
+      "before": "39cf1eac2d1c66445f934775dacea7b33892a473fc30e287ebc0159d8a9ae3e9",
+      "after": "c9397cf3fdd36c47e287b08b607fba50614dc3f1ee4b4ae439fe9dbed3b9400c"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs",
+      "before": "be343729854a76b6fb7a380f62c7e922815bae28f2a77742d94d17ff05cce419",
+      "after": "01c15b7befbc849eae0f90e765d9c2c7b8833a7b21b23cd1ffbc04b444a72861"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIConversationRuntime.cs",
+      "before": "53ce05fc0c4e2ab3b0480d5e4e442d6a952503ce1d0aa68c1caaba3dfd05a779",
+      "after": "d8e0031918019baaeea47eaecc6b06457a79e0cd6ed6a0288151c4393997d9ef"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs",
+      "before": "34c6aa1567c58c303b92bf8efc6c96bf3a930d3539b3630778eda5528369e6f0",
+      "after": "389be2b3244d188d65cb7b861951c8c8fa61884b51196e0903c7a2078488981f"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs",
+      "before": "548774491127a7d37234831402304b28d08c7d3472715420d111a0b3b200a0ca",
+      "after": "8997aafd38d4c8d996fd20fd62b6ed11d23b7e6b93b56cebe51cfb486876adc4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs",
+      "before": "f995afbf24a390f817dbe15002c70be9bd848b1f568b91c396ba7d2f7b5075f7",
+      "after": "8e1cbee59d574add16c5c8456b831329f608eebb377598a6824ba0386ab80334"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs",
+      "before": "8897029cc2641bf189b7e9103d5ac3f68227eec7ac0d8479dd93e97d884afb53",
+      "after": "8a40c57c296ace635fb4029fc99faff4484e87ae2e8a3ed2806e14bc4325479e"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs",
+      "before": "620da1cb2ae3eda4104d0391ec230361bfdf19e4e513a8659dc0cedfa076e233",
+      "after": "bc0469832a177076add510f82867373ccf01d2296c701dbc50b8976c85f04af4"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs",
+      "before": null,
+      "after": "ffb7ba85d8cf9afe12e972f647566f6f8ccc376396338bee3c5293513a93e6ac"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs.meta",
+      "before": null,
+      "after": "c428c6dbb306bc778481077439a094149cf827d26ae6085627e6efb8b40fcee8"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs",
+      "before": null,
+      "after": "8b1080b42d72b54bfddffef9d911092c47ef520745d04aa476f1d06ff0c22e84"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs.meta",
+      "before": null,
+      "after": "83d4527368b3ac3eb5c4e8a20fb534a97caa4a13fcdfead511b241aa3fb51588"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/IMNNConversationContext.cs",
+      "before": "549ade4fd3b1ccae62a4b3e05e3da812d3a0b92a903898823dfc474272737e3b",
+      "after": "bda5d9e4c6d86108d09c1e2c0b128dd948454090d2088a7d512de829c67a91c6"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Input.cs",
+      "before": "c86e2085cb8607cc9a3ea641cfca706ac5a9eecf1ff73d29b55a158df3b2d678",
+      "after": "6430a116bdc976ac169bb2f5993a6f128a0736ee6d6b623e1d57204348a5f8b3"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/IMNNVisualSpeechSource.cs",
+      "before": "c5ce51cb1b82d9f6dde65f08041b5b78d4a260b8e0d06b2e9c87acf894596bbb",
+      "after": "5592bef29d98dde016840e7c95217f03dad7affa7a8a4e945bb073eb1ca008aa"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs",
+      "before": null,
+      "after": "3f9cba23ec61dd84fff7da0a277fefb90c355155573d2e8185ef4d4f5035ee45"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs.meta",
+      "before": null,
+      "after": "ed2af4804055a31fda21a4a0c2b93e08e7aab1534536404dc77bc897e37139d2"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresencePipeline.cs",
+      "before": "b0883ce3b753508d51701ebdafa4488481cebcb88b77e72920f8a673200ccdbc",
+      "after": "a1eb93d1a3cd695ad1b9785ebb49c642d44d67f5002776ec983e91a9f683b984"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresenceSource.cs",
+      "before": "f1c0435ffdc00d8e50b9c050ed58fb99125aff6e80c61ff1655e90ace97711ec",
+      "after": "8b3d25624e05e187d77b1fd9ab14ba14303dff51333ed5a05ab945367e25b737"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceTargetTracker.cs",
+      "before": "5489663ad3e5dc3410f7bed24e42ef217165f81a4c008d765c86381451fab25b",
+      "after": "9b7db37830b2e5124ef1218e81600f47e77b10cbadfae7793e22600e3e6e073a"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs",
+      "before": null,
+      "after": "810cfb1163fb82a121dbd1cfbb3bc57b3c9fd66d169c2ec0f7cebd1cf756ad5a"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs.meta",
+      "before": null,
+      "after": "da79c1dea38cb8728ff5ab5ad6782de3f6aad0c1c779512471fd2770a6b637ad"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/FaceTargetTrackerTests.cs",
+      "before": "8a9e2f546c8b5414e884d687fde04d8bc71fbdf932c09d266cdd2880eb956539",
+      "after": "eebd3245af14e5ca151c35976036ae70c4f0de618275ba3811b0a99381d571bc"
+    }
+  ]
+}

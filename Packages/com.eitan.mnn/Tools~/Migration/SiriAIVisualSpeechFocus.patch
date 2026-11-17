@@ -1,0 +1,1637 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs
+@@ -9,7 +9,11 @@
+     {
+         private bool _enrollingIdentity;
+ 
+-        internal async Task<MNNInteractionIdentity> CaptureIdentityAsync(SiriAIAcousticSettings settings, bool face, bool voice, CancellationToken token)
++        internal Task<MNNInteractionIdentity> CaptureIdentityAsync(SiriAIAcousticSettings settings, bool face, bool voice, CancellationToken token) =>
++            CaptureIdentityAsync(settings, face, voice, token, null);
++
++        internal async Task<MNNInteractionIdentity> CaptureIdentityAsync(SiriAIAcousticSettings settings, bool face, bool voice,
++            CancellationToken token, Action<MNNRgbImage> capturedFrame)
+         {
+             if (_enrollingIdentity || _context == null || IsRecordingVoice || IsPreparingConversation)
+                 throw new InvalidOperationException("Wait for the microphone and conversation to become ready.");
+@@ -42,6 +46,8 @@
+                     catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                     { throw new TimeoutException("No fresh camera frame. Check vision and try recording again."); }
+                     finally { _interaction.Camera.FrameCaptured -= capture; }
++                    token.ThrowIfCancellationRequested();
++                    capturedFrame?.Invoke(image);
+                     identity.face = await Task.Run(() =>
+                     {
+                         using (var detector = MNNImageTask.Load(SiriAIAcousticModelResources.ResolvePath(root, settings.interaction.detectorDirectory)))
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -135,6 +135,7 @@
+                     EnrolledFaces.Enroll(identity.id, identity.face);
+                 }
+                 (_presenceSource as IDisposable)?.Dispose(); _presenceSource = null;
++                if (_context != null) _context.VisualSpeechActivity = null;
+                 await ReleaseVisualCameraAsync(lifetime.Token);
+                 previous?.Dispose();
+                 if (!settings.visualPresence) return;
+@@ -160,6 +161,11 @@
+                 if (settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers)
+                 {
+                     if (source is IMNNVisualSpeechSource visual) visual.TargetFaceCaptured += CaptureTargetFace;
++                    if (_context != null)
++                    {
++                        _context.VisualSpeechActivity = (source as IMNNVisualSpeechActivitySource)?.Activity;
++                        _context.VisualSpeechClockOffset = _visualSpeechClockOffset;
++                    }
+                     // Camera capture remains independent; analyze enough real crops for 25 FPS conditioning.
+                     var analysis = camera.Snapshot();
+                     analysis.width = camera.RequestedWidth; analysis.height = camera.RequestedHeight;
+@@ -285,6 +291,7 @@
+             try { await _presenceChange; } catch (Exception) { }
+             if (_interaction != null) await _interaction.StopCameraAsync();
+             (_presenceSource as IDisposable)?.Dispose(); _presenceSource = null;
++            if (_context != null) _context.VisualSpeechActivity = null;
+             ReleaseVisualCamera();
+             if (_interaction != null)
+             { _interaction.Camera.Observation -= VisualObservation; _interaction.Camera.Failed -= VisualCameraFailed; }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs
+@@ -10,6 +10,8 @@
+     {
+         private MNNTargetSpeechSession _targetSpeech;
+         private double _visualSpeechClockOffset;
++        public MNNVisualSpeechActivityState TargetVisualSpeechState => (_presenceSource as IMNNVisualSpeechActivitySource)?.Activity.GetState(
++            System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency - _visualSpeechClockOffset) ?? MNNVisualSpeechActivityState.WaitingForVideo;
+         public string TargetSpeechDiagnostics => _targetSpeech?.Diagnostics ?? "Target speech pickup: off.";
+ 
+         private async Task PrepareTargetSpeechAsync(CancellationToken token)
+@@ -19,6 +21,10 @@
+             if (settings == null || !settings.audioVisualSpeech && !settings.referenceSpeaker && !settings.separateSpeakers && !settings.UsesVoiceIdentity) return;
+             if (settings.audioVisualSpeech && !(_presenceSource is IMNNVisualSpeechSource))
+                 throw new InvalidOperationException("Target speech requires a ready camera source with synchronized target-face crops. " + VisualCameraStatus);
++            if (settings.audioVisualSpeech && !(_presenceSource is IMNNVisualSpeechActivitySource))
++                throw new InvalidOperationException("Visual speech needs synchronized lip movement and head-facing evidence from the camera source.");
++            _context.VisualSpeechActivity = (_presenceSource as IMNNVisualSpeechActivitySource)?.Activity;
++            _context.VisualSpeechClockOffset = _visualSpeechClockOffset;
+             string root = SiriAIModelInstallation.ModelsDirectory;
+             MNNRuntime.Initialize();
+             var prepared = await Task.Run(() => MNNTargetSpeechSession.Load(root,
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Camera.cs
+@@ -16,6 +16,8 @@
+         {
+             var camera = interaction.camera ?? (interaction.camera = new MNNCameraSettings());
+             AddSettingsTitle("Camera", "Enable vision and save to start the camera after permission is granted. Disable vision and save to release it.");
++            BuildVisionModelSelection("Face detection model", "Finds faces in the live preview and during face recording.",
++                FaceDetectionModelStage, () => interaction.detectorDirectory, directory => interaction.detectorDirectory = directory);
+             var devices = _cameraDevices();
+             var names = new string[devices.Length + 1]; names[0] = "Automatic (prefer front camera)";
+             for (int i = 0; i < devices.Length; ++i) names[i + 1] = devices[i].name;
+@@ -59,6 +61,7 @@
+ 
+         private void TickCameraSettings()
+         {
++            TickIdentityGuide();
+             if (!IsSettingsOpen || _settingsTab != VisionTab || _cameraSettingsStatus == null) return;
+             string permission = SiriAICameraAccess.HasSystemAccess ? "Camera permission granted" : "Camera permission required";
+             _cameraSettingsStatus.text = Localize(permission) + "\n" + (_editorPreview ? Localize("Preview only. Camera is not started.") : Localize(_chat?.VisualCameraStatus ?? "Camera unavailable"));
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.CameraPreview.cs
+@@ -48,15 +48,21 @@
+ 
+         private void LayoutCameraPreview(int width, int height, int rotation, bool mirrored)
+         {
++            LayoutUprightCamera(_cameraSettingsPreview, _cameraPreviewSurface, _cameraSettingsAspect, width, height, rotation, mirrored);
++        }
++
++        private static void LayoutUprightCamera(RawImage image, RectTransform surface, AspectRatioFitter aspect,
++            int width, int height, int rotation, bool mirrored)
++        {
+             bool quarterTurn = rotation % 180 != 0;
+-            _cameraSettingsAspect.aspectRatio = quarterTurn ? (float)height / width : (float)width / height;
+-            var raw = _cameraSettingsPreview.rectTransform;
++            aspect.aspectRatio = quarterTurn ? (float)height / width : (float)width / height;
++            var raw = image.rectTransform;
+             raw.anchorMin = raw.anchorMax = raw.pivot = new Vector2(.5f, .5f);
+             raw.anchoredPosition = Vector2.zero;
+-            var size = _cameraPreviewSurface.rect.size;
++            var size = surface.rect.size;
+             raw.sizeDelta = quarterTurn ? new Vector2(size.y, size.x) : size;
+             raw.localEulerAngles = new Vector3(0, 0, -rotation);
+-            _cameraSettingsPreview.uvRect = mirrored ? new Rect(0, 1, 1, -1) : new Rect(0, 0, 1, 1);
++            image.uvRect = mirrored ? new Rect(0, 1, 1, -1) : new Rect(0, 0, 1, 1);
+         }
+ 
+         private void UpdateCameraOverlay(MNNPresenceObservation? observation, MNNPresenceSnapshot presence, double now, bool ready)
+@@ -76,6 +82,13 @@
+             if (!fresh) { _cameraPresenceStatus.text = Localize("Waiting for fresh detection…") + " · " + state; return; }
+             _cameraPresenceStatus.text = (frame == null ? Localize("Detection boxes unavailable") :
+                 frame.Detections.Count == 0 ? Localize("No face detected") : Localize("Faces") + ": " + frame.Detections.Count) + " · " + state;
++            if (_chat?.Interaction?.ReadSettings().audioVisualSpeech == true)
++            {
++                var visualState = _chat.TargetVisualSpeechState;
++                _cameraPresenceStatus.text += "\n" + Localize(visualState == MNNVisualSpeechActivityState.Speaking ? "Target speaking · listening" :
++                    visualState == MNNVisualSpeechActivityState.Quiet ? "Target quiet · background voices ignored" :
++                    visualState == MNNVisualSpeechActivityState.FacingAway ? "Target facing away · listening paused" : "Waiting for synchronized face evidence");
++            }
+             if (frame == null) return;
+             for (int i = 0; i < System.Math.Min(32, frame.Detections.Count); ++i)
+             {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs
+@@ -1,7 +1,6 @@
+ using System;
+ using System.Collections.Generic;
+ using System.Linq;
+-using System.Threading;
+ using MNN.Unity;
+ using UnityEngine;
+ using UnityEngine.UI;
+@@ -10,15 +9,29 @@
+ {
+     public sealed partial class SiriAIChatView
+     {
+-        private RectTransform _identityGuide;
+-        private CancellationTokenSource _identityCapture;
+-
+         private void BuildIdentitySettings(bool visual)
+         {
+             var settings = _settingsDraft.Acoustics.interaction;
+             settings.identities = settings.identities ?? Array.Empty<MNNInteractionIdentity>();
+-            AddSettingsTitle(visual ? "Face access" : "Voice access", "Optional. Everyone can interact unless you enable restrictions. Recordings stay on this device; save to apply changes.");
+-            if (!visual)
++            AddSettingsTitle(visual ? "Face access" : "Voice access", visual
++                ? "Choose who can start realtime voice. Typing and hold-to-talk are unaffected. Save settings to apply."
++                : "Optional. Everyone can interact unless you enable restrictions. Recordings stay on this device; save to apply changes.");
++            if (visual)
++            {
++                settings.requirePresenceForVoice = true;
++                AddEnumField("Realtime voice access", FaceAccessEffect(settings),
++                    () => settings.faceRecognition ? 2 : settings.audioVisualSpeech ? 1 : 0,
++                    selected => UpdateAudioSettings(() =>
++                    {
++                        settings.faceRecognition = selected == 2;
++                        settings.requirePresenceForVoice = true;
++                        settings.audioVisualSpeech = selected == 1;
++                    }), new[] { "Anyone visible", "Visible target speaker", "Recorded faces only" });
++                BuildVisualSpeechSettings(settings, _settingsDraft.Acoustics);
++                BuildVisionModelSelection("Face recognition model", "Used to record faces and check who may use realtime voice.",
++                    FaceRecognitionModelStage, () => settings.recognizerDirectory, directory => settings.recognizerDirectory = directory);
++            }
++            else
+             {
+                 AddBoolField("Registered voices only", "Record an allowed voice first. Unrecognized or ambiguous voices are rejected.",
+                     () => settings.voiceRecognition, enabled => UpdateAudioSettings(() =>
+@@ -27,9 +40,12 @@
+                 if (settings.voiceRecognition && !settings.referenceSpeaker && !settings.separateSpeakers)
+                     BuildTargetSpeakerModel(_settingsDraft.Acoustics);
+             }
+-            if (visual ? settings.faceRecognition && !settings.identities.Any(person => person.allowed && person.face.Length == 512) :
+-                settings.voiceRecognition && !settings.identities.Any(person => person.allowed && person.voice.Length > 0))
++            if (!visual && settings.voiceRecognition && !settings.identities.Any(person => person.allowed && person.voice.Length > 0))
+                 SettingsDescription("No allowed people. Register someone or turn off restrictions to allow interaction.");
++            if (visual && settings.faceRecognition && !settings.identities.Any(person => person.allowed && person.face.Length == 512))
++                SettingsDescription("No allowed face recorded. Realtime voice stays paused until you add an allowed face or choose a less restrictive option.");
++            if (visual && HasBlockedFaces(settings)) SettingsDescription("Blocked people stay blocked in every face mode. Remove their block to stop identity checks.");
++            if (visual) SettingsDescription("Recorded people · add, update or remove faces below. Save settings to apply changes.");
+             var add = SettingsButton(_settingsContent, "Add person", GlassInset, Ink);
+             add.name = visual ? "Add face" : "Add voice"; FixedHeight(add.gameObject, 44);
+             add.onClick.AddListener(() => OpenIdentityGuide(null, visual, !visual));
+@@ -37,8 +53,9 @@
+             {
+                 var person = settings.identities[i];
+                 int number = i + 1;
++                bool faceChanged = person.face.Length > 0 && person.faceModel != settings.recognizerDirectory;
+                 var row = AddSettingsField(LocalizeFormat("Person {0}", number), Localize(person.allowed ? "Allowed" : "Blocked") + " · " +
+-                    Localize(person.face.Length > 0 ? "Face recorded" : "No face recording") + " · " +
++                    Localize(faceChanged ? "Face model changed · record again" : person.face.Length > 0 ? "Face recorded" : "No face recording") + " · " +
+                     Localize(person.voice.Length > 0 ? "Voice recorded" : "No voice recording"));
+                 var manage = SettingsButton(row, "Manage", GlassInset, Ink); FixedHeight(manage.gameObject, 44);
+                 manage.onClick.AddListener(() => OpenSettingsOptions((RectTransform)manage.transform,
+@@ -56,83 +73,22 @@
+             }
+         }
+ 
++        private static bool HasBlockedFaces(MNNInteractionSettings settings) =>
++            Array.Exists(settings.identities, person => !person.allowed && person.face.Length == 512);
++
++        private static string FaceAccessEffect(MNNInteractionSettings settings)
++        {
++            if (settings.faceRecognition)
++                return "Only allowed, recorded faces can start realtime voice. Unknown faces pause listening.";
++            return settings.audioVisualSpeech
++                ? "Automatically chooses the most prominent, central face. Lip movement, facing direction and audio jointly gate realtime listening. No registration needed."
++                : "Any visible face can start realtime voice. Leaving the camera pauses new listening. Blocked people stay blocked.";
++        }
++
+         private static void UpdateIdentityPolicy(MNNInteractionSettings settings)
+         {
+             settings.allowedIdentities = settings.identities.Where(person => person.allowed && person.face.Length == 512).Select(person => person.id).ToArray();
+         }
+ 
+-        private void OpenIdentityGuide(string id, bool face, bool voice)
+-        {
+-            if (!ReadSettingsFields()) return;
+-            CloseIdentityGuide();
+-            _identityGuide = RectObject("Identity Registration Guide", _settingsRoot);
+-            Stretch(_identityGuide); _identityGuide.SetAsLastSibling();
+-            _identityGuide.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, .6f);
+-            var card = RectObject("Registration Card", _identityGuide);
+-            card.anchorMin = card.anchorMax = new Vector2(.5f, .5f); card.pivot = new Vector2(.5f, .5f);
+-            card.sizeDelta = new Vector2(Mathf.Min(440, Mathf.Max(240, _settingsPanel.rect.width - 32)), 0);
+-            var surface = card.gameObject.AddComponent<SiriAIRoundedRect>(); surface.Radius = SettingsSheetRadius;
+-            surface.color = new Color(.06f, .08f, .12f, 1);
+-            var layout = card.gameObject.AddComponent<VerticalLayoutGroup>();
+-            layout.padding = new RectOffset(20, 20, 20, 20); layout.spacing = 16;
+-            layout.childControlWidth = layout.childControlHeight = true; layout.childForceExpandHeight = false;
+-            card.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+-            Label(card, "Register person", 24, Ink).gameObject.AddComponent<LayoutElement>().minHeight = 36;
+-            if (face)
+-            {
+-                var preview = RectObject("Registration Camera", card);
+-                FixedHeight(preview.gameObject, 160);
+-                var image = preview.gameObject.AddComponent<RawImage>(); image.texture = _chat?.VisualCamera;
+-                image.uvRect = new Rect(0, 0, 1, 1);
+-            }
+-            var instructions = Label(card, face ? "Look at the camera alone, then click Record. Only your face features are saved." :
+-                "Click Record, then speak alone for four seconds. Only your voice features are saved.", 17, Ink);
+-            instructions.gameObject.AddComponent<LayoutElement>().minHeight = 90;
+-            var record = SettingsButton(card, "Record", GlassInset, Ink); FixedHeight(record.gameObject, 48);
+-            var close = SettingsButton(card, "Cancel", GlassInset, Ink); FixedHeight(close.gameObject, 44);
+-            close.onClick.AddListener(CloseIdentityGuide);
+-            record.onClick.AddListener(async () =>
+-            {
+-                if (_identityCapture != null) return;
+-                if (_editorPreview) { instructions.text = Localize("Preview only. Camera is not started."); return; }
+-                var cancellation = _identityCapture = new CancellationTokenSource();
+-                int generation = _settingsGeneration;
+-                SetSettingsBusy(true, allowClose: true);
+-                record.interactable = false;
+-                instructions.text = Localize(face ? "Capturing a fresh face image…" : "Recording… Speak alone for four seconds.");
+-                try
+-                {
+-                    var captured = await _chat.CaptureIdentityAsync(_settingsDraft.Acoustics.Snapshot(), face, voice, cancellation.Token);
+-                    cancellation.Token.ThrowIfCancellationRequested();
+-                    if (this == null || generation != _settingsGeneration || !IsSettingsOpen) return;
+-                    var settings = _settingsDraft.Acoustics.interaction;
+-                    var people = new List<MNNInteractionIdentity>(settings.identities);
+-                    var previous = people.Find(person => person.id == id);
+-                    if (previous != null)
+-                    {
+-                        if (face) { previous.face = captured.face; previous.faceModel = captured.faceModel; }
+-                        if (voice) { previous.voice = captured.voice; previous.voiceModel = captured.voiceModel; }
+-                    }
+-                    else people.Add(captured);
+-                    settings.identities = people.ToArray(); UpdateIdentityPolicy(settings);
+-                    CloseIdentityGuide(); ShowSettingsTab(_settingsTab, false);
+-                    SetSettingsNotice("Registration complete. Save to apply.");
+-                }
+-                catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+-                catch (Exception error) { if (instructions != null) { instructions.text = Localize(error.Message); record.interactable = true; } }
+-                finally
+-                {
+-                    if (_identityCapture == cancellation) _identityCapture = null;
+-                    cancellation.Dispose();
+-                    if (this != null && generation == _settingsGeneration && IsSettingsOpen) SetSettingsBusy(false);
+-                }
+-            });
+-        }
+-
+-        private void CloseIdentityGuide()
+-        {
+-            _identityCapture?.Cancel();
+-            if (_identityGuide != null) { _identityGuide.gameObject.SetActive(false); Release(_identityGuide.gameObject); _identityGuide = null; }
+-        }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs
+@@ -0,0 +1,271 @@
++using System;
++using System.Collections.Generic;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++using UnityEngine;
++using UnityEngine.EventSystems;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private RectTransform _identityGuide, _identityCard, _identitySurface;
++        private CancellationTokenSource _identityCapture;
++        private RawImage _identityPreview;
++        private AspectRatioFitter _identityAspect;
++        private LayoutElement _identityCameraLayout;
++        private Text _identityStep, _identityInstructions, _identityCameraHint;
++        private Button _identityRecord, _identityRetake;
++        private SiriAIProgressIndicator _identityProgress;
++        private SiriAISurfaceTransition _identityTransition;
++        private Texture2D _identityCapturedFrame;
++        private MNNInteractionIdentity _identityResult;
++        private string _identityUpdating;
++        private bool _identityFace, _identityVoice;
++        private Rect _identityGuideBounds;
++
++        private void OpenIdentityGuide(string id, bool face, bool voice)
++        {
++            if (!ReadSettingsFields()) return;
++            CloseIdentityGuide();
++            _identityUpdating = id; _identityFace = face; _identityVoice = voice;
++            _identityGuide = RectObject("Identity Registration Guide", _settingsRoot);
++            Stretch(_identityGuide); _identityGuide.SetAsLastSibling();
++            var scrim = _identityGuide.gameObject.AddComponent<Image>(); scrim.color = new Color(0, 0, 0, .6f);
++            _identityCard = RectObject("Registration Card", _identityGuide);
++            _identityGuideBounds = default;
++            _identityCard.anchorMin = _identityCard.anchorMax = _identityCard.pivot = Vector2.zero;
++            var surface = _identityCard.gameObject.AddComponent<SiriAIRoundedRect>(); surface.Radius = SettingsSheetRadius;
++            SetAppearanceColor(surface, new Color(.06f, .08f, .12f, 1));
++            _identityCard.gameObject.AddComponent<Mask>().showMaskGraphic = true;
++            var header = RectObject("Guide Header", _identityCard);
++            header.anchorMin = new Vector2(0, 1); header.anchorMax = Vector2.one;
++            header.offsetMin = new Vector2(20, -86); header.offsetMax = new Vector2(-20, -16);
++            var title = Label(header, face ? "Record a face" : "Record a voice", 24, Ink);
++            title.fontStyle = FontStyle.Bold;
++            title.rectTransform.anchorMin = new Vector2(0, 1); title.rectTransform.anchorMax = Vector2.one;
++            title.rectTransform.offsetMin = new Vector2(0, -34); title.rectTransform.offsetMax = Vector2.zero;
++            _identityStep = Label(header, "1 · Prepare", 16, Muted);
++            _identityStep.rectTransform.anchorMin = Vector2.zero; _identityStep.rectTransform.anchorMax = new Vector2(1, 0);
++            _identityStep.rectTransform.offsetMin = Vector2.zero; _identityStep.rectTransform.offsetMax = new Vector2(0, 28);
++            var scrollRoot = RectObject("Guide Scroll", _identityCard);
++            Stretch(scrollRoot); scrollRoot.offsetMin = new Vector2(20, 86); scrollRoot.offsetMax = new Vector2(-20, -98);
++            scrollRoot.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, .001f);
++            var scroll = scrollRoot.gameObject.AddComponent<ScrollRect>();
++            scroll.horizontal = false; scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 24;
++            var viewport = RectObject("Guide Viewport", scrollRoot); Stretch(viewport); viewport.gameObject.AddComponent<RectMask2D>();
++            var body = RectObject("Guide Body", viewport);
++            body.anchorMin = new Vector2(0, 1); body.anchorMax = Vector2.one; body.pivot = new Vector2(.5f, 1); body.sizeDelta = Vector2.zero;
++            var layout = body.gameObject.AddComponent<VerticalLayoutGroup>();
++            layout.spacing = 14; layout.childControlWidth = layout.childControlHeight = true; layout.childForceExpandHeight = false;
++            body.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
++            scroll.viewport = viewport; scroll.content = body;
++            _identityInstructions = Label(body, "", 17, Ink); _identityInstructions.gameObject.AddComponent<LayoutElement>().minHeight = 64;
++            if (face) BuildIdentityGuideCamera(body);
++            var activity = Label(body, "", 15, Muted);
++            _identityProgress = SiriAIUIFactory.CreateProgressIndicator(body, null, "Identity Capture Progress", GlassInset, Ink, 4, activity);
++            _identityProgress.gameObject.SetActive(false); activity.gameObject.SetActive(false);
++            _identityRetake = SettingsButton(body, "Retake", GlassInset, Ink); FixedHeight(_identityRetake.gameObject, 44);
++            _identityRetake.onClick.AddListener(ResetIdentityGuide); _identityRetake.gameObject.SetActive(false);
++            var privacy = Label(body, "Only identity features stay on this device. Photos and recordings are not saved or sent to AI.", 14, Muted);
++            privacy.gameObject.AddComponent<LayoutElement>().minHeight = 50;
++            var footer = RectObject("Guide Actions", _identityCard);
++            footer.anchorMin = Vector2.zero; footer.anchorMax = new Vector2(1, 0);
++            footer.offsetMin = new Vector2(20, 20); footer.offsetMax = new Vector2(-20, 70);
++            var actions = footer.gameObject.AddComponent<HorizontalLayoutGroup>(); actions.spacing = 10;
++            actions.childControlWidth = actions.childControlHeight = true; actions.childForceExpandWidth = true;
++            _identityRecord = SettingsButton(footer, face ? "Capture face" : "Record voice", GlassInset, Ink);
++            _identityRecord.targetGraphic.material = null;
++            SetAppearanceColor(_identityRecord.targetGraphic, new Color(.1f, .24f, .28f, 1));
++            _identityRecord.name = "Record"; _identityRecord.gameObject.AddComponent<LayoutElement>().flexibleWidth = 2;
++            _identityRecord.onClick.AddListener(HandleIdentityRecord);
++            var cancel = SettingsButton(footer, "Cancel", GlassInset, Ink); cancel.name = "Cancel";
++            cancel.targetGraphic.material = null;
++            SetAppearanceColor(cancel.targetGraphic, new Color(.1f, .13f, .19f, 1));
++            cancel.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1; cancel.onClick.AddListener(CloseIdentityGuide);
++            ResetIdentityGuide(); LayoutIdentityGuide(); Canvas.ForceUpdateCanvases();
++            _identityTransition = _identityCard.gameObject.AddComponent<SiriAISurfaceTransition>();
++            _identityTransition.Configure(null, () => SettingsMotion, SettingsSheetRadius, scrim, true, header, scrollRoot, footer);
++            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(cancel.gameObject);
++        }
++
++        private void BuildIdentityGuideCamera(RectTransform body)
++        {
++            var frame = RectObject("Registration Camera", body); FixedHeight(frame.gameObject, 190);
++            _identityCameraLayout = frame.GetComponent<LayoutElement>();
++            frame.gameObject.AddComponent<Image>().color = new Color(.025f, .03f, .04f);
++            frame.gameObject.AddComponent<RectMask2D>();
++            _identitySurface = RectObject("Upright Registration Surface", frame); Stretch(_identitySurface);
++            _identityAspect = _identitySurface.gameObject.AddComponent<AspectRatioFitter>();
++            _identityAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent; _identityAspect.aspectRatio = 4f / 3;
++            _identityPreview = RectObject("Registration Image", _identitySurface).gameObject.AddComponent<RawImage>();
++            _identityPreview.raycastTarget = false;
++            _identityCameraHint = Label(body, "", 15, Muted); _identityCameraHint.name = "Camera readiness";
++            _identityCameraHint.gameObject.AddComponent<LayoutElement>().minHeight = 40;
++        }
++
++        private void LayoutIdentityGuide()
++        {
++            if (_identityGuide == null || _identityCard == null) return;
++            var available = _identityGuide.rect.size;
++            var size = new Vector2(Mathf.Min(480, Mathf.Max(0, available.x - 32)), Mathf.Min(620, Mathf.Max(0, available.y - 32)));
++            var bounds = new Rect((available - size) * .5f, size);
++            if (_identityGuideBounds == bounds) return;
++            _identityGuideBounds = bounds;
++            _identityCard.anchorMin = _identityCard.anchorMax = _identityCard.pivot = Vector2.zero;
++            _identityCard.anchoredPosition = bounds.position;
++            _identityCard.sizeDelta = size;
++            if (_identitySurface != null)
++            {
++                // Leave the first instruction and the preview visible together in short viewports.
++                float previewHeight = size.y < 420 ? Mathf.Max(72, size.y - 262) : Mathf.Clamp(size.y * .36f, 100, 220);
++                _identityCameraLayout.minHeight = _identityCameraLayout.preferredHeight = previewHeight;
++            }
++            _identityTransition?.CaptureExpandedBounds();
++        }
++
++        private void UpdateIdentityGuidePreview(Texture texture, int rotation, bool mirrored)
++        {
++            if (_identityPreview == null || texture == null || texture.width < 1 || texture.height < 1) return;
++            _identityPreview.enabled = true; _identityPreview.texture = texture;
++            LayoutUprightCamera(_identityPreview, _identitySurface, _identityAspect, texture.width, texture.height, rotation, mirrored);
++        }
++
++        private void TickIdentityGuide()
++        {
++            if (_identityGuide == null) return;
++            LayoutIdentityGuide();
++            if (_identityCapturedFrame != null)
++            { UpdateIdentityGuidePreview(_identityCapturedFrame, 0, true); return; }
++            bool ready = !_editorPreview;
++            if (_identityFace)
++            {
++                var camera = _chat?.VisualCamera;
++                ready &= camera != null && camera.isPlaying && camera.width > 16;
++                if (ready) UpdateIdentityGuidePreview(camera, camera.videoRotationAngle, camera.videoVerticallyMirrored);
++                else { _identityPreview.enabled = false; _identityPreview.texture = null; }
++                string hint = _editorPreview ? "Preview only. Camera is not started." :
++                    ready ? "Keep one face in view, look straight ahead and use even lighting." : "Camera not ready. Enable vision, save settings and check the camera preview first.";
++                var observation = _chat?.Interaction?.Camera.LatestObservation;
++                if (ready && observation.HasValue && Time.realtimeSinceStartupAsDouble - observation.Value.CapturedAt <= .75)
++                {
++                    var count = observation.Value.DetectionFrame?.Detections.Count;
++                    if (count == 0) { hint = "No face in view. Move into the camera frame."; ready = false; }
++                    else if (count > 1) { hint = "Several faces in view. Keep only the person being recorded in frame."; ready = false; }
++                }
++                _identityCameraHint.text = Localize(hint);
++            }
++            if (_identityResult == null) _identityRecord.interactable = _identityCapture == null && ready;
++        }
++
++        private void ResetIdentityGuide()
++        {
++            if (_identityCapturedFrame != null) Release(_identityCapturedFrame);
++            _identityCapturedFrame = null; _identityResult = null;
++            _identityStep.text = Localize("1 · Prepare");
++            _identityInstructions.text = Localize(_identityFace
++                ? "Keep only your face in view. Capture starts after a three-second countdown. Then review before adding it."
++                : "Record four seconds of your voice in a quiet place. Then review before adding it.");
++            _identityRecord.GetComponentInChildren<Text>().text = Localize(_identityFace ? "Capture face" : "Record voice");
++            _identityRetake.gameObject.SetActive(false); _identityProgress.gameObject.SetActive(false);
++            TickIdentityGuide();
++        }
++
++        private async void HandleIdentityRecord()
++        {
++            if (_identityResult != null) { ApplyIdentityRecording(); return; }
++            if (_identityCapture != null || _editorPreview) return;
++            ResetIdentityGuide();
++            var guide = _identityGuide;
++            var cancellation = _identityCapture = new CancellationTokenSource();
++            int generation = _settingsGeneration;
++            SetSettingsBusy(true, allowClose: true); _identityRecord.interactable = false;
++            _identityStep.text = Localize("2 · Capture");
++            try
++            {
++                if (_identityFace)
++                    for (int remaining = 3; remaining > 0; --remaining)
++                    {
++                        _identityInstructions.text = LocalizeFormat("Look at the camera · {0}", remaining);
++                        await Task.Delay(1000, cancellation.Token);
++                    }
++                _identityInstructions.text = Localize(_identityFace ? "Checking the captured face…" : "Recording… Speak alone for four seconds.");
++                _identityProgress.gameObject.SetActive(true);
++                _identityProgress.SetIndeterminate("");
++                var captured = await _chat.CaptureIdentityAsync(_settingsDraft.Acoustics.Snapshot(), _identityFace, _identityVoice,
++                    cancellation.Token, image => { if (_identityGuide == guide && !cancellation.IsCancellationRequested) ShowIdentityCaptureFrame(image); });
++                cancellation.Token.ThrowIfCancellationRequested();
++                if (this == null || generation != _settingsGeneration || _identityGuide != guide || !IsSettingsOpen) return;
++                ReviewIdentityRecording(captured);
++            }
++            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
++            catch (Exception error)
++            {
++                if (_identityGuide == guide && _identityInstructions != null)
++                {
++                    _identityInstructions.text = Localize(error.Message);
++                    _identityRecord.GetComponentInChildren<Text>().text = Localize("Try again");
++                    _identityRecord.interactable = true;
++                    _identityRetake.gameObject.SetActive(true);
++                }
++            }
++            finally
++            {
++                if (_identityCapture == cancellation) _identityCapture = null;
++                cancellation.Dispose();
++                if (_identityGuide == guide && _identityProgress != null) _identityProgress.gameObject.SetActive(false);
++                if (this != null && generation == _settingsGeneration && IsSettingsOpen) SetSettingsBusy(false);
++            }
++        }
++
++        private void ShowIdentityCaptureFrame(MNNRgbImage image)
++        {
++            if (_identityCapturedFrame != null) Release(_identityCapturedFrame);
++            _identityCapturedFrame = new Texture2D(image.Width, image.Height, TextureFormat.RGB24, false) { hideFlags = HideFlags.DontSave };
++            _identityCapturedFrame.LoadRawTextureData(image.ToArray()); _identityCapturedFrame.Apply();
++            UpdateIdentityGuidePreview(_identityCapturedFrame, 0, true);
++            _identityCameraHint.text = Localize("Captured frame · this image is cleared when you leave this guide.");
++        }
++
++        private void ReviewIdentityRecording(MNNInteractionIdentity captured)
++        {
++            _identityResult = captured;
++            _identityStep.text = Localize("3 · Review");
++            _identityInstructions.text = Localize("Recording ready. Use recording adds it to your draft. Save settings afterward to apply access rules.");
++            _identityRecord.GetComponentInChildren<Text>().text = Localize("Use recording");
++            _identityRecord.interactable = true; _identityRetake.gameObject.SetActive(true);
++        }
++
++        private void ApplyIdentityRecording()
++        {
++            var settings = _settingsDraft.Acoustics.interaction;
++            var people = new List<MNNInteractionIdentity>(settings.identities);
++            var previous = people.Find(person => person.id == _identityUpdating);
++            if (previous == null) people.Add(_identityResult);
++            else
++            {
++                if (_identityFace) { previous.face = _identityResult.face; previous.faceModel = _identityResult.faceModel; }
++                if (_identityVoice) { previous.voice = _identityResult.voice; previous.voiceModel = _identityResult.voiceModel; }
++            }
++            settings.identities = people.ToArray(); UpdateIdentityPolicy(settings);
++            CloseIdentityGuide(); ShowSettingsTab(_settingsTab, false);
++            SetSettingsNotice("Registration complete. Save to apply.");
++        }
++
++        private void CloseIdentityGuide()
++        {
++            _identityCapture?.Cancel();
++            var guide = _identityGuide; var transition = _identityTransition;
++            _identityGuide = _identityCard = _identitySurface = null; _identityTransition = null;
++            _identityCameraLayout = null;
++            _identityPreview = null; _identityResult = null;
++            if (_identityCapturedFrame != null) Release(_identityCapturedFrame);
++            _identityCapturedFrame = null;
++            if (guide == null) return;
++            if (transition != null) transition.SetOpen(false, () => { if (guide != null) Release(guide.gameObject); });
++            else Release(guide.gameObject);
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.IdentityGuide.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 4e6645ba0d4e4db58e4acd0b6b594920
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+@@ -6,6 +6,7 @@
+     public sealed partial class SiriAIChatView
+     {
+         private const int VisionTab = 13;
++        private bool _showPresenceDetails;
+ 
+         private void BuildVisionSettings()
+         {
+@@ -27,21 +28,14 @@
+                 }));
+             if (!value.visualPresence) return;
+             BuildCameraPreview();
+-            AddBoolField("Require visible face for voice", "Presence controls realtime listening only. Space and hold-to-talk always work without a visible target.",
+-                () => value.requirePresenceForVoice, enabled => UpdateAudioSettings(() => value.requirePresenceForVoice = enabled));
+-            AddBoolField("Recognized identities only", "Requires enrolled identities and a ready recognition provider.",
+-                () => value.faceRecognition, enabled => UpdateAudioSettings(() => value.faceRecognition = enabled),
+-                value.faceRecognition || Array.Exists(value.identities, person => person.allowed && person.face.Length == 512));
+             AddBoolField("Image context", "Use a fresh target image for supported multimodal requests.",
+                 () => value.imageContext, enabled => UpdateAudioSettings(() => value.imageContext = enabled), value.visualPresence);
+-            BuildVisionModelSelection("Face detection model", "Choose an installed model or download a supported detector.",
+-                FaceDetectionModelStage, () => value.detectorDirectory, directory => value.detectorDirectory = directory);
+-            BuildVisionModelSelection("Face recognition model", "Used only when identity matching is enabled.",
+-                FaceRecognitionModelStage, () => value.recognizerDirectory, directory => value.recognizerDirectory = directory);
+-            BuildVisualSpeechSettings(value, acoustics);
+             BuildIdentitySettings(true);
+             BuildCameraSettings(value);
+-            if (value.visualPresence)
++            var advanced = SettingsButton(_settingsContent, _showPresenceDetails ? "Hide presence timing" : "Presence timing and sleep", GlassInset, Ink);
++            FixedHeight(advanced.gameObject, 44);
++            advanced.onClick.AddListener(() => { _showPresenceDetails = !_showPresenceDetails; ShowSettingsTab(VisionTab); });
++            if (_showPresenceDetails)
+             {
+                 var form = new SettingsForm(this);
+                 form.Number("Confirmation time (s)", "Continuous visibility required before interaction starts.",
+@@ -85,9 +79,6 @@
+ 
+         private void BuildVisualSpeechSettings(MNNInteractionSettings value, SiriAIAcousticSettings acoustics)
+         {
+-            AddSettingsTitle("Audio-visual speech", "Uses synchronized camera frames to isolate the visible speaker. No registration is required.");
+-            AddBoolField("Audio-visual target speech", "Selects a speaker automatically for each new turn; the voice remains stable within that turn.",
+-                () => value.audioVisualSpeech, enabled => UpdateAudioSettings(() => value.audioVisualSpeech = enabled));
+             if (!value.audioVisualSpeech) return;
+             BuildAcousticModelSelection("Audio-visual extraction model", "Choose a compatible installed model or download one with the existing model picker.",
+                 SiriAIAcousticModelTask.AudioVisualSpeech, () => value.audioVisualDirectory, directory => value.audioVisualDirectory = directory);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
+@@ -327,6 +327,7 @@
+             UpdateGlassSurfaceScale(scale);
+             RefreshSettingsSessionActions();
+             if (changed && _settingsPopup != null) LayoutSettingsOptions();
++            LayoutIdentityGuide();
+             if (_settingsTransition != null) _settingsTransition.CaptureExpandedBounds();
+ 
+         }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIConversationRuntime.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIConversationRuntime.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIConversationRuntime.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Backends/Conversation/SiriAIConversationRuntime.cs
+@@ -58,10 +58,11 @@
+             public void Reset() => _inner.Reset();
+             public void Dispose() => _inner.Dispose();
+         }
+-        internal sealed class Context : IMNNConversationContext, IMNNTimedConversationVoiceInput
++        internal sealed class Context : IMNNConversationContext, IMNNTimedConversationVoiceInput, IMNNConversationVisualSpeechGate
+         {
+             private readonly SiriAIChatContext _inner;
+             internal Context(SiriAIChatContext inner) { _inner = inner; }
++            public bool AllowsRealtimeSpeech(long captureStartedAtTicks) => _inner.AllowsRealtimeSpeech(captureStartedAtTicks);
+             public IMNNAudioCaptureSource Capture => _inner.Capture;
+             public MNNRealtimeSession Session => _inner.Session;
+             public IMNNConversationInput Input => _inner.Input;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+@@ -70,6 +70,18 @@
+         internal SiriAIAcousticFrontend Acoustics;
+         internal MNNInteractionComponent Interaction;
+         internal MNNTargetSpeechSession TargetSpeech;
++        /// <summary>Optional synchronized visual sensor adapter; the Unity camera uses TargetSpeech evidence by default.</summary>
++        internal Func<long, bool> VisualSpeechAdmission;
++        internal MNNVisualSpeechActivity VisualSpeechActivity;
++        internal double VisualSpeechClockOffset;
++        internal bool AllowsRealtimeSpeech(long capturedAtTicks)
++        {
++            if (VisualSpeechAdmission != null) return VisualSpeechAdmission(capturedAtTicks);
++            if (Interaction?.ReadSettings().audioVisualSpeech != true) return true;
++            double visualTime = capturedAtTicks / (double)System.Diagnostics.Stopwatch.Frequency - VisualSpeechClockOffset;
++            return capturedAtTicks > 0 && visualTime >= 0 && VisualSpeechActivity != null &&
++                VisualSpeechActivity.GetState(visualTime) == MNNVisualSpeechActivityState.Speaking;
++        }
+         private readonly AsyncLocal<bool> _manualVoice = new AsyncLocal<bool>();
+         internal async Task<T> ProcessManualVoiceAsync<T>(Func<Task<T>> operation)
+         {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -8,6 +8,47 @@
+     {
+         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
+         {
++            { "Target speaking · listening", "目标正在说话 · 接听中" },
++            { "Target quiet · background voices ignored", "目标未开口 · 忽略周围声音" },
++            { "Target facing away · listening paused", "目标未面向设备 · 暂停接听" },
++            { "Waiting for synchronized face evidence", "等待同步的人脸画面" },
++            { "Visible target speaker", "镜头内目标说话人" },
++            { "Automatically chooses the most prominent, central face. Lip movement, facing direction and audio jointly gate realtime listening. No registration needed.", "综合人脸大小、中心位置和连续跟踪自动选人，再结合唇动、面向镜头程度与声音判断是否接听，无需录入。" },
++            { "Choose who can start realtime voice. Typing and hold-to-talk are unaffected. Save settings to apply.", "选择谁能发起实时语音对话。文字和按住说话不受人脸权限限制；保存后生效。" },
++            { "Realtime voice access", "谁可以发起实时语音" },
++            { "Anyone visible", "镜头内任何人" },
++            { "Recorded faces only", "仅已录入的人脸" },
++            { "Used to record faces and check who may use realtime voice.", "用于录入人脸，以及判断谁可以发起实时语音。" },
++            { "Only allowed, recorded faces can start realtime voice. Unknown faces pause listening.", "仅允许名单中已录入的人脸可以发起实时语音；陌生人出现时暂停接听。" },
++            { "Any visible face can start realtime voice. Leaving the camera pauses new listening. Blocked people stay blocked.", "镜头内检测到人脸即可发起实时语音；离开画面后暂停接听新语音。已禁止的人员仍不可使用。" },
++            { "No allowed face recorded. Realtime voice stays paused until you add an allowed face or choose a less restrictive option.", "尚未录入允许交互的人脸，实时语音将暂停接听。请添加人脸，或改选其他权限。" },
++            { "Blocked people stay blocked in every face mode. Remove their block to stop identity checks.", "禁止名单在各个人脸模式下都生效。如需完全停止身份检查，请先解除这些人员的禁止状态。" },
++            { "Recorded people · add, update or remove faces below. Save settings to apply changes.", "已录入人员：在下方添加、更新或删除人脸，保存设置后生效。" },
++            { "Face model changed · record again", "人脸模型已更换，请重新录入" },
++            { "Hide presence timing", "收起离开与休眠设置" },
++            { "Presence timing and sleep", "离开与休眠设置" },
++            { "Finds faces in the live preview and during face recording.", "用于在实时画面与录入画面中找到人脸。" },
++            { "Record a face", "录入人脸" },
++            { "Record a voice", "录入声纹" },
++            { "1 · Prepare", "第 1 步 / 准备" },
++            { "2 · Capture", "第 2 步 / 采集" },
++            { "3 · Review", "第 3 步 / 确认" },
++            { "Retake", "重新采集" },
++            { "Only identity features stay on this device. Photos and recordings are not saved or sent to AI.", "仅在本机保存身份特征；照片和原始录音不会保存，也不会发送给 AI。" },
++            { "Capture face", "采集人脸" },
++            { "Record voice", "录制声纹" },
++            { "Keep one face in view, look straight ahead and use even lighting.", "请确保画面中只有您一人，正对摄像头，并保持光线均匀。" },
++            { "Camera not ready. Enable vision, save settings and check the camera preview first.", "摄像头尚未就绪。请返回启用视觉并保存，确认摄像头预览正常后再录入。" },
++            { "No face in view. Move into the camera frame.", "画面中没有人脸，请移到摄像头前。" },
++            { "Several faces in view. Keep only the person being recorded in frame.", "画面中有多张人脸，请仅保留要录入的人员。" },
++            { "Keep only your face in view. Capture starts after a three-second countdown. Then review before adding it.", "让画面中只保留您的人脸。点击后倒计时 3 秒再采集，完成后可确认或重录。" },
++            { "Record four seconds of your voice in a quiet place. Then review before adding it.", "请在安静的环境录制 4 秒语音，完成后可确认或重录。" },
++            { "Look at the camera · {0}", "请看向摄像头 · {0}" },
++            { "Checking the captured face…", "正在检查采集的人脸…" },
++            { "Captured frame · this image is cleared when you leave this guide.", "本次采集画面 · 离开向导后即清除" },
++            { "Recording ready. Use recording adds it to your draft. Save settings afterward to apply access rules.", "采集完成。点击“使用本次采集”加入待保存设置；随后保存设置，交互权限才会生效。" },
++            { "Use recording", "使用本次采集" },
++            { "Try again", "重试" },
+             { "Audio-visual speech", "视听融合" },
+             { "Uses synchronized camera frames to isolate the visible speaker. No registration is required.", "结合摄像头画面提取当前说话人的声音，无需预先注册。" },
+             { "Selects a speaker automatically for each new turn; the voice remains stable within that turn.", "每轮对话自动识别说话人，同一句话内保持目标一致。" },
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs
+@@ -579,6 +579,31 @@
+             return audio;
+         }
+ 
++        [Test]
++        public void VisualVadRejectsBystandersAndEndsTheTargetTurnWhileBackgroundSpeechContinues()
++        {
++            using (var fixture = new RuntimeFixture("stop", "ACCEPT", validate: false, exitIntent: false))
++            {
++                int targetSpeaking = 0;
++                fixture.Context.VisualSpeechAdmission = _ => Volatile.Read(ref targetSpeaking) != 0;
++                fixture.EnableRealtime();
++                fixture.Capture.PushUtterance();
++                WaitFor(() => !fixture.Capture.HasPendingCaptureFrames);
++                Thread.Sleep(80);
++                Assert.AreEqual(0, fixture.Provider.AsrCalls, "A silent selected face must not admit bystander speech.");
++                Volatile.Write(ref targetSpeaking, 1);
++                fixture.Capture.PushSpeech(12);
++                WaitFor(() => !fixture.Capture.HasPendingCaptureFrames && fixture.Context.Input.Speaking);
++                Volatile.Write(ref targetSpeaking, 0);
++                fixture.Capture.PushSpeech(30); // Bystanders continue; there is no acoustic silence.
++                WaitFor(() => fixture.Provider.ReplyCalls == 1);
++                Assert.AreEqual(1, fixture.Provider.AsrCalls);
++                Assert.AreEqual(1, fixture.Provider.ReplyCalls);
++                Assert.Greater(fixture.Provider.LastAudioSamples, 4000);
++                TestContext.WriteLine("silent-target/bystander=ignored; target-speech=one reply; target-stops/background-continues=turn completed");
++            }
++        }
++
+         private sealed class RuntimeFixture : IDisposable
+         {
+             private readonly GameObject _root = new GameObject("Voice validation");
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+@@ -391,8 +391,10 @@
+                 Assert.That(Active(content, "Image context"), Is.Null);
+                 Assert.That(Active(content, "Reference speaker extraction"), Is.Null);
+                 Active(content, "Enable vision").GetComponentInChildren<Button>().onClick.Invoke();
+-                foreach (string label in new[] { "Recognized identities only", "Image context", "Require visible face for voice" })
++                foreach (string label in new[] { "Realtime voice access", "Image context", "Face access Section" })
+                     Assert.That(Active(content, label), Is.Not.Null, label);
++                Assert.That(Active(content, "Sleep display"), Is.Null, "Timing details stay collapsed until requested.");
++                Active(content, "Presence timing and sleep").GetComponent<Button>().onClick.Invoke();
+                 Assert.That(Active(content, "Sleep display"), Is.Not.Null);
+                 Assert.That(Active(content, "Face detection model"), Is.Not.Null);
+                 var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs
+@@ -82,7 +82,8 @@
+         {
+             Draft.interaction.visualPresence = Draft.interaction.audioVisualSpeech = true;
+             SiriAITestAccess.Call(_view, "ShowSettingsTab", 13, false);
+-            Assert.NotNull(Content.Find("Audio-visual target speech"));
++            Assert.NotNull(Content.Find("Realtime voice access"));
++            Assert.IsNull(Content.Find("Audio-visual target speech"));
+             Assert.IsNull(Content.Find("Reference speaker extraction"));
+             Assert.IsNull(Content.Find("Allowed identities"));
+             Assert.IsEmpty(Content.GetComponentsInChildren<InputField>(), "Visual tuning and identities must be click-only.");
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs
+@@ -0,0 +1,221 @@
++using System;
++using System.IO;
++using System.Linq;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAIFaceAccessGuideTests
++    {
++        private GameObject _root;
++        private SiriAIChatView _view;
++        private Action _restore;
++        private RectTransform Content => SiriAITestAccess.Field<RectTransform>(_view, "_settingsContent");
++
++        [SetUp]
++        public void SetUp()
++        {
++            _restore = SiriAIViewPreferencesStore.CaptureRestore();
++            _root = new GameObject("Face access guide");
++            var acoustic = _root.AddComponent<SiriAIAcousticProcessing>();
++            SiriAITestAccess.Set(acoustic, "preferencesKey", "");
++            _root.AddComponent<SiriAIChat>().enabled = false;
++            _view = _root.AddComponent<SiriAIChatView>();
++            _view.TickEditorPreview(new Rect(0, 0, 390, 844), 1);
++            _view.OpenSettings();
++            _view.SettingsDraft.Acoustics.interaction.visualPresence = true;
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 13, false);
++        }
++
++        [TearDown]
++        public void TearDown()
++        {
++            UnityEngine.Object.DestroyImmediate(_root);
++            _restore?.Invoke();
++        }
++
++        [Test]
++        public void OneFaceAccessChoiceExplainsAndSetsRealtimeAdmission()
++        {
++            bool singleChoice = Content.Find("Realtime voice access") != null;
++            TestContext.WriteLine("face-access=" + (singleChoice ? "one explained choice" : "separate switches"));
++            Assert.True(singleChoice, "Face permissions need one explicit choice beside enrolled people.");
++            Assert.IsNull(Content.Find("Recognized identities only"));
++            Assert.IsNull(Content.Find("Require visible face for voice"));
++            SiriAITestAccess.SelectSetting(_view, "Realtime voice access", "Recorded faces only");
++            var settings = _view.SettingsDraft.Acoustics.interaction;
++            Assert.True(settings.faceRecognition && settings.requirePresenceForVoice && settings.RequiresPresenceForVoice);
++            Assert.True(Content.GetComponentsInChildren<Text>().Any(text => text.text.Contains("No allowed face")), "An empty list must explicitly explain that listening stays paused.");
++            SiriAITestAccess.SelectSetting(_view, "Realtime voice access", "Anyone visible");
++            Assert.False(settings.faceRecognition);
++            Assert.True(settings.requirePresenceForVoice);
++            SiriAITestAccess.SelectSetting(_view, "Realtime voice access", "Visible target speaker");
++            Assert.True(settings.audioVisualSpeech && settings.RequiresPresenceForVoice);
++            Assert.NotNull(Content.Find("Audio-visual extraction model"));
++            Assert.IsNull(Content.Find("Audio-visual target speech"), "The mode is the only owner of visual pickup.");
++            SiriAITestAccess.SelectSetting(_view, "Realtime voice access", "Anyone visible");
++            Assert.False(settings.audioVisualSpeech);
++            Assert.True(settings.RequiresPresenceForVoice);
++            Assert.False(_root.GetComponent<SiriAIChat>().GetAcousticSettings().interaction.visualPresence, "Choices remain drafts until Save.");
++        }
++
++        [Test]
++        public void ExistingFaceBlocksRemainExplicitWhenTheAllowListIsOff()
++        {
++            var settings = _view.SettingsDraft.Acoustics.interaction;
++            settings.identities = new[] { new MNNInteractionIdentity { id = "blocked", allowed = false, face = new float[512] } };
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 13, false);
++            SiriAITestAccess.SelectSetting(_view, "Realtime voice access", "Anyone visible");
++            Assert.True(settings.RequiresPresenceForVoice, "An existing block must never be silently cleared by changing the allow-list choice.");
++            Assert.False(settings.identities[0].allowed);
++            Assert.True(Content.Find("Realtime voice access").GetComponentsInChildren<Text>().Any(text => text.text.Contains("Blocked people stay blocked")));
++        }
++
++        [Test]
++        public void RecordingRequiresReviewAndCanBeRetakenOrCancelledWithoutSaving()
++        {
++            Content.Find("Add face").GetComponent<Button>().onClick.Invoke();
++            var captured = new MNNInteractionIdentity { id = "new-face", face = new float[512], faceModel = "face-model" };
++            SiriAITestAccess.Call(_view, "ShowIdentityCaptureFrame", new MNNRgbImage(new byte[4 * 2 * 3], 4, 2));
++            SiriAITestAccess.Call(_view, "ReviewIdentityRecording", captured);
++            var guide = SiriAITestAccess.Field<RectTransform>(_view, "_identityGuide");
++            Assert.IsEmpty(_view.SettingsDraft.Acoustics.interaction.identities, "Capturing must not silently add a person before confirmation.");
++            guide.GetComponentsInChildren<Button>().Single(button => button.name == "Retake").onClick.Invoke();
++            Assert.IsNull(SiriAITestAccess.Field<Texture2D>(_view, "_identityCapturedFrame"));
++            Assert.IsEmpty(_view.SettingsDraft.Acoustics.interaction.identities);
++            SiriAITestAccess.Call(_view, "ReviewIdentityRecording", captured);
++            guide.GetComponentsInChildren<Button>().Single(button => button.name == "Record").onClick.Invoke();
++            Assert.AreEqual(1, _view.SettingsDraft.Acoustics.interaction.identities.Length);
++            Assert.IsEmpty(_root.GetComponent<SiriAIChat>().GetAcousticSettings().interaction.identities, "Using a recording only edits the draft.");
++            Content.Find("Add face").GetComponent<Button>().onClick.Invoke();
++            SiriAITestAccess.Call(_view, "ReviewIdentityRecording", new MNNInteractionIdentity { id = "cancelled", face = new float[512] });
++            SiriAITestAccess.Call(_view, "CloseIdentityGuide");
++            Assert.AreEqual(1, _view.SettingsDraft.Acoustics.interaction.identities.Length);
++            Assert.IsNull(SiriAITestAccess.Field<Texture2D>(_view, "_identityCapturedFrame"));
++        }
++
++        [TestCase(390, 844)]
++        [TestCase(844, 390)]
++        [TestCase(320, 568)]
++        public void FaceGuideFitsViewportAndPreservesCameraAspect(int width, int height)
++        {
++            _view.TickEditorPreview(new Rect(0, 0, width, height), 1);
++            Content.Find("Add face").GetComponent<Button>().onClick.Invoke();
++            var guide = SiriAITestAccess.Field<RectTransform>(_view, "_identityGuide");
++            var card = (RectTransform)guide.Find("Registration Card");
++            Canvas.ForceUpdateCanvases();
++            var preview = guide.GetComponentsInChildren<RawImage>().Single();
++            var aspect = preview.GetComponentInParent<AspectRatioFitter>();
++            TestContext.WriteLine("preview=" + (aspect == null ? "stretched" : "aspect fit") + "; viewport=" + width + "x" + height);
++            Assert.NotNull(aspect, "Recording preview must preserve camera aspect rather than stretch the face.");
++            Assert.AreEqual(AspectRatioFitter.AspectMode.FitInParent, aspect.aspectMode);
++            var texture = new Texture2D(640, 480);
++            try
++            {
++                SiriAITestAccess.Call(_view, "UpdateIdentityGuidePreview", texture, 90, true);
++                Canvas.ForceUpdateCanvases();
++                SiriAITestAccess.Call(_view, "UpdateIdentityGuidePreview", texture, 90, true);
++                Assert.AreEqual(.75f, aspect.aspectRatio, .001f);
++                Assert.AreEqual(-1, preview.uvRect.height);
++                Assert.LessOrEqual(card.rect.height, guide.rect.height - 24);
++                Assert.LessOrEqual(card.rect.width, guide.rect.width - 24);
++                var corners = new Vector3[4]; card.GetWorldCorners(corners);
++                Assert.True(corners.All(point => guide.rect.Contains((Vector2)guide.InverseTransformPoint(point))), "The card must stay inside the visible guide, including its position.");
++                Assert.NotNull(guide.GetComponentInChildren<ScrollRect>(), "Long instructions scroll while the actions stay visible.");
++                if (width > height)
++                {
++                    var viewport = (RectTransform)guide.GetComponentInChildren<ScrollRect>().viewport;
++                    var instructions = SiriAITestAccess.Field<Text>(_view, "_identityInstructions").rectTransform;
++                    AssertInsideViewport(instructions, viewport, "Landscape must show the capture instruction before scrolling.");
++                    AssertInsideViewport((RectTransform)aspect.transform.parent, viewport, "Landscape must show the preview beside the capture instruction without scrolling.");
++                }
++                var actions = (RectTransform)card.Find("Guide Actions");
++                Assert.GreaterOrEqual(actions.offsetMin.y, 16);
++                Assert.Less(actions.offsetMax.y, ((RectTransform)card.Find("Guide Scroll")).offsetMin.y);
++                Assert.IsEmpty(guide.GetComponentsInChildren<InputField>());
++                guide.GetComponentsInChildren<Button>().Single(button => button.name == "Cancel").onClick.Invoke();
++                Assert.IsNull(SiriAITestAccess.Field<RectTransform>(_view, "_identityGuide"));
++                Assert.IsEmpty(_view.SettingsDraft.Acoustics.interaction.identities);
++            }
++            finally { UnityEngine.Object.DestroyImmediate(texture); }
++        }
++
++        [TestCase(390, 844)]
++        [TestCase(844, 390)]
++        [TestCase(320, 568)]
++        public void RenderChineseGuideForLayoutReview(int width, int height)
++        {
++            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) Assert.Ignore("Requires --graphics for visual layout review.");
++            string output = Environment.GetEnvironmentVariable("SIRIAI_FACE_GUIDE_ARTIFACTS");
++            if (string.IsNullOrEmpty(output)) Assert.Ignore("Set SIRIAI_FACE_GUIDE_ARTIFACTS to save visual review artifacts.");
++            SiriAITestAccess.Field<SiriAIChatViewPreferences>(_view, "_viewPreferences").language = SiriAILanguage.SimplifiedChinese;
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 13, false);
++            _view.TickEditorPreview(new Rect(0, 0, width, height), 1);
++            Content.Find("Add face").GetComponent<Button>().onClick.Invoke();
++            var target = new RenderTexture(width, height, 24);
++            var cameraOwner = new GameObject("Guide layout camera");
++            var texture = new Texture2D(640, 480);
++            var pixels = new Texture2D(width, height, TextureFormat.RGB24, false);
++            var previous = RenderTexture.active;
++            try
++            {
++                var calibration = new Color32[640 * 480];
++                for (int y = 0; y < 480; ++y)
++                    for (int x = 0; x < 640; ++x)
++                    {
++                        bool circle = Math.Abs(Math.Sqrt((x - 320) * (x - 320) + (y - 240) * (y - 240)) - 150) < 4;
++                        calibration[y * 640 + x] = circle ? new Color32(90, 200, 170, 255) : new Color32(25, 42, 57, 255);
++                    }
++                texture.SetPixels32(calibration); texture.Apply();
++                SiriAITestAccess.Call(_view, "UpdateIdentityGuidePreview", texture, 0, false);
++                Canvas.ForceUpdateCanvases();
++                SiriAITestAccess.Call(_view, "UpdateIdentityGuidePreview", texture, 0, false);
++                var camera = cameraOwner.AddComponent<Camera>(); camera.targetTexture = target;
++                camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.025f, .03f, .045f);
++                var canvas = SiriAITestAccess.Field<GameObject>(_view, "_canvasRoot").GetComponent<Canvas>();
++                canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 1;
++                Canvas.ForceUpdateCanvases();
++                SiriAITestAccess.Call(_view, "LayoutIdentityGuide");
++                Canvas.ForceUpdateCanvases();
++                SiriAITestAccess.Call(_view, "UpdateIdentityGuidePreview", texture, 0, false);
++                FollowRenderedControls(canvas);
++                camera.Render(); RenderTexture.active = target;
++                pixels.ReadPixels(new Rect(0, 0, width, height), 0, 0); pixels.Apply();
++                Directory.CreateDirectory(output);
++                File.WriteAllBytes(Path.Combine(output, "guide-" + width + "x" + height + ".png"), pixels.EncodeToPNG());
++                SiriAITestAccess.Call(_view, "ReviewIdentityRecording", new MNNInteractionIdentity { id = "review", face = new float[512] });
++                Canvas.ForceUpdateCanvases(); FollowRenderedControls(canvas); camera.Render();
++                pixels.ReadPixels(new Rect(0, 0, width, height), 0, 0); pixels.Apply();
++                File.WriteAllBytes(Path.Combine(output, "review-" + width + "x" + height + ".png"), pixels.EncodeToPNG());
++                Assert.Greater(pixels.GetPixels32().Count(pixel => pixel.g > 80), 1000, "The rendered guide must contain visible content.");
++            }
++            finally
++            {
++                RenderTexture.active = previous;
++                UnityEngine.Object.DestroyImmediate(cameraOwner); UnityEngine.Object.DestroyImmediate(target);
++                UnityEngine.Object.DestroyImmediate(texture); UnityEngine.Object.DestroyImmediate(pixels);
++            }
++        }
++
++        private static void FollowRenderedControls(Canvas canvas)
++        {
++            // Camera.Render does not run the normal LateUpdate after layout.
++            foreach (var shadow in canvas.GetComponentsInChildren<SiriAIComposerShadow>())
++                SiriAITestAccess.Call(shadow, "FollowTarget");
++        }
++
++        private static void AssertInsideViewport(RectTransform item, RectTransform viewport, string message)
++        {
++            var corners = new Vector3[4]; item.GetWorldCorners(corners);
++            Assert.True(corners.All(point =>
++            {
++                var local = viewport.InverseTransformPoint(point);
++                return local.x >= viewport.rect.xMin - .5f && local.x <= viewport.rect.xMax + .5f &&
++                    local.y >= viewport.rect.yMin - .5f && local.y <= viewport.rect.yMax + .5f;
++            }), message);
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIFaceAccessGuideTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a982dd6db028465786a931fe26012bc4
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs
+@@ -0,0 +1,113 @@
++using System;
++using System.Collections.Generic;
++
++namespace MNN.Unity
++{
++    public enum MNNVisualSpeechActivityState { WaitingForVideo, FacingAway, Quiet, Speaking }
++
++    /// <summary>Timestamped visual VAD evidence for one automatically selected face.
++    /// Mouth changes must exceed upper-face motion; uniform lighting shifts do not count.
++    /// Thresholds are conservative heuristics, not a calibrated lip-reading/3D-pose model.</summary>
++    public sealed class MNNVisualSpeechActivity
++    {
++        private readonly object _gate = new object();
++        private readonly Queue<Motion> _motion = new Queue<Motion>();
++        private readonly Queue<Facing> _facing = new Queue<Facing>();
++        private float[] _previous;
++        private string _track;
++        private double _previousTime;
++
++        public void Observe(float[] crop, double capturedAt, string track)
++        {
++            if (crop == null || crop.Length != 112 * 112) throw new ArgumentException("Supply a normalized 112x112 face crop.", nameof(crop));
++            Validate(capturedAt, track);
++            foreach (float value in crop) if (float.IsNaN(value) || float.IsInfinity(value)) throw new ArgumentException("Crop must be finite.", nameof(crop));
++            lock (_gate)
++            {
++                Track(track);
++                if (_previous != null && capturedAt <= _previousTime) return;
++                bool active = false;
++                if (_previous != null && capturedAt - _previousTime <= .12)
++                {
++                    double lighting = Difference(crop, _previous, 26, 28, 86, 64, 0, false);
++                    double upper = Difference(crop, _previous, 26, 28, 86, 64, lighting, true);
++                    double mouth = Difference(crop, _previous, 34, 76, 78, 104, lighting, true);
++                    active = mouth >= .04 && mouth > upper * 1.8 + .015;
++                }
++                _previous = (float[])crop.Clone(); _previousTime = capturedAt;
++                while (_motion.Count >= 160) _motion.Dequeue();
++                _motion.Enqueue(new Motion(capturedAt, active));
++            }
++        }
++
++        public void ObserveFacing(float confidence, double capturedAt, string track)
++        {
++            Validate(capturedAt, track);
++            if (float.IsNaN(confidence) || confidence < 0 || confidence > 1) throw new ArgumentOutOfRangeException(nameof(confidence));
++            lock (_gate)
++            {
++                Track(track);
++                if (_facing.Count > 0 && capturedAt <= _lastFacingTime) return;
++                while (_facing.Count >= 64) _facing.Dequeue();
++                _facing.Enqueue(new Facing(capturedAt, confidence)); _lastFacingTime = capturedAt;
++            }
++        }
++        private double _lastFacingTime;
++
++        public MNNVisualSpeechActivityState GetState(double audioCapturedAt)
++        {
++            MNNPresenceOptions.RequireTime(audioCapturedAt, nameof(audioCapturedAt));
++            lock (_gate)
++            {
++                double nearestVideo = double.PositiveInfinity, nearestFacing = double.PositiveInfinity;
++                float facing = 0; int moving = 0;
++                foreach (var sample in _motion)
++                {
++                    double age = audioCapturedAt - sample.Time;
++                    if (age < -.08) continue;
++                    nearestVideo = Math.Min(nearestVideo, Math.Abs(age));
++                    if (sample.Active && age >= -.08 && age <= .22) ++moving;
++                }
++                foreach (var sample in _facing)
++                {
++                    double age = audioCapturedAt - sample.Time;
++                    if (age < -.08 || age > .2 || Math.Abs(age) >= nearestFacing) continue;
++                    nearestFacing = Math.Abs(age); facing = sample.Confidence;
++                }
++                if (nearestVideo > .12 || double.IsPositiveInfinity(nearestFacing)) return MNNVisualSpeechActivityState.WaitingForVideo;
++                if (facing < .35) return MNNVisualSpeechActivityState.FacingAway;
++                return moving >= 2 ? MNNVisualSpeechActivityState.Speaking : MNNVisualSpeechActivityState.Quiet;
++            }
++        }
++
++        public void Clear() { lock (_gate) { _track = null; _previous = null; _motion.Clear(); _facing.Clear(); _previousTime = _lastFacingTime = 0; } }
++        private void Track(string track)
++        {
++            if (_track == track) return;
++            _track = track; _previous = null; _motion.Clear(); _facing.Clear(); _previousTime = _lastFacingTime = 0;
++        }
++        private static void Validate(double time, string track)
++        {
++            MNNPresenceOptions.RequireTime(time, nameof(time));
++            if (string.IsNullOrWhiteSpace(track)) throw new ArgumentException("Supply a target track.", nameof(track));
++        }
++        private static double Difference(float[] next, float[] previous, int left, int top, int right, int bottom, double lighting, bool absolute)
++        {
++            double sum = 0;
++            for (int y = top; y < bottom; ++y)
++                for (int x = left; x < right; ++x)
++                { double change = next[y * 112 + x] - previous[y * 112 + x] - lighting; sum += absolute ? Math.Abs(change) : change; }
++            return sum / ((right - left) * (bottom - top));
++        }
++        private readonly struct Motion
++        {
++            internal readonly double Time; internal readonly bool Active;
++            internal Motion(double time, bool active) { Time = time; Active = active; }
++        }
++        private readonly struct Facing
++        {
++            internal readonly double Time; internal readonly float Confidence;
++            internal Facing(double time, float confidence) { Time = time; Confidence = confidence; }
++        }
++    }
++}
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs.meta b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNVisualSpeechActivity.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: ad3a333e058044729f81c314c3f1eff4
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/IMNNConversationContext.cs b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/IMNNConversationContext.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/IMNNConversationContext.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/IMNNConversationContext.cs
+@@ -9,6 +9,13 @@
+     public interface IMNNTimedConversationVoiceInput
+     {
+         Task<float[]> PrepareVoiceAsync(float[] samples, long captureStartedAtTicks, CancellationToken token);
++    }
++
++    /// <summary>Optional visual speech admission for automatic input; explicit recordings bypass this gate.
++    /// Unknown capture time must not be replaced by processing time.</summary>
++    public interface IMNNConversationVisualSpeechGate
++    {
++        bool AllowsRealtimeSpeech(long captureStartedAtTicks);
+     }
+ 
+     public interface IMNNConversationContext
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Input.cs b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Input.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Input.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Input.cs
+@@ -35,6 +35,7 @@
+             var frame = new float[512];
+             var inactivity = new MNNConversationInactivity();
+             bool interruptedTurn = false;
++            bool visualSpeechActive = false;
+             int recoverySilence = 0;
+             MNNConversationWakeHandoff wake = null;
+             try
+@@ -45,6 +46,7 @@
+                     if (_inputRevision != revision)
+                     {
+                         ResetUtterance();
++                        visualSpeechActive = false;
+                         _acceptedAudio = null;
+                         Volatile.Write(ref _bargeInEcho, null);
+                         _turnCancellation?.Cancel();
+@@ -52,6 +54,8 @@
+                         recoverySilence = 0;
+                         _inputRevision = revision;
+                         wake = _context.TakeWakeCommand();
++                        if (wake != null && _context is IMNNConversationVisualSpeechGate wakeGate && !wakeGate.AllowsRealtimeSpeech(0))
++                            wake = null; // A wake handoff without a capture clock cannot prove visual speech.
+                         if (_context.Input.Realtime && wake != null)
+                         {
+                             interruptedTurn = wake.LostPrefix || wake.CaptureRevision != _context.CaptureRevision;
+@@ -91,10 +95,20 @@
+                             else if (info.StartSample < wake.EndSample) continue;
+                             else wake = null;
+                         }
+-                        if (_context.Input.Consume(frame, info.IsSpeechActive, info.EnqueuedMonotonicTicks, info.Discontinuity)) continue;
++                        bool visuallyAllowed = !_context.Input.Realtime || _context.Input.Recording ||
++                            !(_context is IMNNConversationVisualSpeechGate visualGate) || visualGate.AllowsRealtimeSpeech(info.CaptureStartedAtTicks);
++                        bool speechActive = info.IsSpeechActive && visuallyAllowed;
++                        if (_context.Input.Consume(frame, speechActive, info.EnqueuedMonotonicTicks, info.Discontinuity)) continue;
++                        // Keep pre-roll for audio/video latency. Once a target turn has begun,
++                        // bystander-only frames become silence on the same sample clock.
++                        if (!visuallyAllowed && _utterance.HasSpeechStarted) Array.Clear(frame, 0, frame.Length);
+                         if (SuppressSpeakerEcho()) continue;
+                         if (info.Discontinuity) _bargeIn.Reset();
+-                        OnVad(info.Vad);
++                        if (info.Discontinuity) visualSpeechActive = false;
++                        var vad = new MNNRealtimeVadUpdate(info.StartSample, speechActive ? info.SpeechProbability : 0,
++                            speechActive, speechActive && !visualSpeechActive, !speechActive && visualSpeechActive);
++                        visualSpeechActive = speechActive;
++                        OnVad(vad);
+                         if (info.Discontinuity && _utterance.HasSpeechStarted)
+                         {
+                             Interlocked.Increment(ref _inputGaps);
+@@ -109,7 +123,7 @@
+                         }
+                         if (interruptedTurn)
+                         {
+-                            recoverySilence = info.IsSpeechActive ? 0 : recoverySilence + 512;
++                            recoverySilence = speechActive ? 0 : recoverySilence + 512;
+                             if (recoverySilence >= _config.silenceMilliseconds * 16)
+                             {
+                                 interruptedTurn = false;
+@@ -117,7 +131,7 @@
+                             }
+                             continue;
+                         }
+-                        _utterance.Append(frame, info.IsSpeechActive, info.Discontinuity, info.CaptureStartedAtTicks);
++                        _utterance.Append(frame, speechActive, info.Discontinuity, info.CaptureStartedAtTicks);
+                         if (_utterance.IsFull)
+                         {
+                             // A capacity boundary is not an end of speech. Never submit a
+@@ -127,7 +141,7 @@
+                             RejectFullUtterance();
+                             continue;
+                         }
+-                        if (!_context.RequiresUtteranceSpeakerSelection) _recognitionPreview?.Append(frame, info.IsSpeechActive);
++                        if (!_context.RequiresUtteranceSpeakerSelection) _recognitionPreview?.Append(frame, speechActive);
+                         if (_acceptedAudio != null && _acceptedRevision != _utterance.Revision) _acceptedAudio = null;
+                         TryLaunchAccepted();
+                         if (_turnTask != null && _turnRevision != _utterance.Revision) _turnCancellation.Cancel();
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/IMNNVisualSpeechSource.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/IMNNVisualSpeechSource.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/IMNNVisualSpeechSource.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/IMNNVisualSpeechSource.cs
+@@ -8,6 +8,12 @@
+         event Action<float[], double, string> TargetFaceCaptured;
+     }
+ 
++    /// <summary>Single-owner lip-motion and head-facing evidence on the same clock as target crops.</summary>
++    public interface IMNNVisualSpeechActivitySource : IMNNVisualSpeechSource
++    {
++        MNNVisualSpeechActivity Activity { get; }
++    }
++
+     /// <summary>Optional fast capture path. Crops the current image using fresh completed target geometry;
+     /// may run concurrently with Process, without running detection or reading mutable model state.</summary>
+     public interface IMNNVisualSpeechCaptureSource : IMNNVisualSpeechSource
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs
+@@ -0,0 +1,27 @@
++using System;
++
++namespace MNN.Unity
++{
++    /// <summary>Conservative five-landmark head-facing proxy. Not eye gaze, calibrated depth or trained 3D pose.</summary>
++    public static class MNNFaceFacing
++    {
++        public static float Estimate(MNNImagePoint[] points)
++        {
++            if (points == null || points.Length != 5) return 0;
++            foreach (var point in points)
++                if (float.IsNaN(point.X) || float.IsInfinity(point.X) || float.IsNaN(point.Y) || float.IsInfinity(point.Y)) return 0;
++            double dx = points[1].X - points[0].X, dy = points[1].Y - points[0].Y;
++            double distance = Math.Sqrt(dx * dx + dy * dy);
++            if (distance < 1) return 0;
++            double x = (points[0].X + points[1].X) * .5, y = (points[0].Y + points[1].Y) * .5;
++            double nx = points[2].X - x, ny = points[2].Y - y;
++            double mouthX = (points[3].X + points[4].X) * .5 - x, mouthY = (points[3].Y + points[4].Y) * .5 - y;
++            double down = (-dy * mouthX + dx * mouthY) / distance;
++            if (down < distance * .35) return 0;
++            double yaw = Math.Abs(dx * nx + dy * ny) / (distance * distance);
++            double pitch = (-dy * nx + dx * ny) / (distance * down);
++            double roll = Math.Abs(Math.Atan2(dy, dx));
++            return (float)(Math.Max(0, 1 - yaw / .45) * Math.Max(0, 1 - Math.Abs(pitch - .5) / .45) * Math.Max(0, 1 - roll / 1.2));
++        }
++    }
++}
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs.meta b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceFacing.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: eb30c4322f7348c3ac1da3f694511eeb
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresencePipeline.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresencePipeline.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresencePipeline.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresencePipeline.cs
+@@ -7,7 +7,7 @@
+     /// <summary>Worker-owned SCRFD -> stable target -> five-point alignment -> optional MobileFaceNet/gallery.
+     /// Caller owns the supplied models. A missing/ambiguous face produces an absent observation.
+     /// Capture and UI clocks must agree. Pass the result to MNNPresenceController or MNNPresenceComponent.</summary>
+-    public sealed class MNNFacePresencePipeline : IMNNVisualSpeechCaptureSource
++    public sealed class MNNFacePresencePipeline : IMNNVisualSpeechCaptureSource, IMNNVisualSpeechActivitySource
+     {
+         private readonly MNNImageTask _detector, _recognizer;
+         private readonly MNNFaceGallery _gallery;
+@@ -15,6 +15,7 @@
+         private readonly MNNTrackedFaceCapture _capture = new MNNTrackedFaceCapture();
+         private int _cameraCapture;
+         public event Action<float[], double, string> TargetFaceCaptured;
++        public MNNVisualSpeechActivity Activity { get; } = new MNNVisualSpeechActivity();
+         public bool WantsTargetFaceFrames => TargetFaceCaptured != null;
+ 
+         public bool CaptureTargetFace(MNNRgbImage image, double capturedAt)
+@@ -25,6 +26,7 @@
+             Interlocked.Exchange(ref _cameraCapture, 1);
+             var frame = _capture.Capture(image, capturedAt, out string track);
+             if (frame == null) return false;
++            Activity.Observe(frame, capturedAt, track);
+             listener(frame, capturedAt, track);
+             return true;
+         }
+@@ -45,9 +47,9 @@
+             MNNPresenceOptions.RequireTime(capturedAt, nameof(capturedAt));
+             var result = _detector.Process(image, cancellationToken);
+             if (result.Detections == null) throw new InvalidDataException("Face detector returned no detection list.");
+-            int selected = _tracker.Select(result.Detections, capturedAt);
++            int selected = _tracker.Select(result.Detections, capturedAt, image.Width, image.Height, Activity.GetState(capturedAt) == MNNVisualSpeechActivityState.Speaking);
+             var geometry = new MNNPresenceDetectionFrame(image.Width, image.Height, result.Detections, selected);
+-            if (selected < 0) { _capture.Clear(); return MNNPresenceObservation.Absent(capturedAt, geometry); }
++            if (selected < 0) { _capture.Clear(); Activity.Clear(); return MNNPresenceObservation.Absent(capturedAt, geometry); }
+             var listener = TargetFaceCaptured;
+             // The fast camera path publishes each current image once. Detection only refreshes geometry.
+             var captureFace = Volatile.Read(ref _cameraCapture) == 0 ? listener : null;
+@@ -56,6 +58,7 @@
+             {
+                 if (result.FaceKeypoints == null || result.FaceKeypoints.Length != result.Detections.Length)
+                     throw new InvalidDataException("Target conditioning requires SCRFD five-point landmarks.");
++                Activity.ObserveFacing(MNNFaceFacing.Estimate(result.FaceKeypoints[selected]), capturedAt, _tracker.TrackId);
+                 _capture.Update(result.FaceKeypoints[selected], _tracker.TrackId, capturedAt, image.Width, image.Height);
+                 if (_recognizer != null || captureFace != null) crop = MNNImageTask.AlignFace(image, result.FaceKeypoints[selected]);
+             }
+@@ -65,11 +68,16 @@
+                 identity = _gallery.Recognize(_recognizer.Process(crop, cancellationToken).Vector);
+             }
+             cancellationToken.ThrowIfCancellationRequested();
+-            captureFace?.Invoke(MNNClearerVoiceFaceFrames.PrepareFrame(crop), capturedAt, _tracker.TrackId);
++            if (captureFace != null)
++            {
++                var normalized = MNNClearerVoiceFaceFrames.PrepareFrame(crop);
++                Activity.Observe(normalized, capturedAt, _tracker.TrackId);
++                captureFace(normalized, capturedAt, _tracker.TrackId);
++            }
+             return new MNNPresenceObservation(capturedAt, MNNPresenceKind.Face, _tracker.TrackId,
+                 result.Detections[selected].Score, identity, geometry);
+         }
+ 
+-        public void Reset() { _capture.Clear(); Interlocked.Exchange(ref _cameraCapture, 0); _tracker.Reset(); }
++        public void Reset() { Activity.Clear(); _capture.Clear(); Interlocked.Exchange(ref _cameraCapture, 0); _tracker.Reset(); }
+     }
+ }
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresenceSource.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresenceSource.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresenceSource.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFacePresenceSource.cs
+@@ -5,7 +5,7 @@
+ {
+     /// <summary>Owned convenience adapter for the existing SCRFD/MobileFaceNet task APIs.
+     /// Other model families implement IMNNPresenceSource; the camera/controller never inspect model names.</summary>
+-    public sealed class MNNFacePresenceSource : IMNNVisualSpeechCaptureSource, IDisposable
++    public sealed class MNNFacePresenceSource : IMNNVisualSpeechCaptureSource, IMNNVisualSpeechActivitySource, IDisposable
+     {
+         private readonly MNNImageTask _detector, _recognizer;
+         private readonly MNNFacePresencePipeline _pipeline;
+@@ -16,6 +16,8 @@
+             add { _pipeline.TargetFaceCaptured += value; }
+             remove { _pipeline.TargetFaceCaptured -= value; }
+         }
++
++        public MNNVisualSpeechActivity Activity => _pipeline.Activity;
+ 
+         private MNNFacePresenceSource(MNNImageTask detector, MNNImageTask recognizer, MNNFaceGallery gallery)
+         {
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceTargetTracker.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceTargetTracker.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceTargetTracker.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNFaceTargetTracker.cs
+@@ -3,7 +3,7 @@
+ 
+ namespace MNN.Unity
+ {
+-    /// <summary>Single-owner geometric face continuity. Keeps the current face ahead of larger newcomers.
++    /// <summary>Single-owner geometric face continuity. Uses prominence and frame center with a stable, delayed handover.
+     /// Crossing/ambiguous matches invalidate the track. Geometry is not biometric identity.</summary>
+     public sealed class MNNFaceTargetTracker
+     {
+@@ -13,6 +13,8 @@
+         private MNNDetection _previous;
+         private double _lastSeen, _lastTime;
+         private long _sequence;
++        private MNNDetection _challenger;
++        private double _challengerSince;
+         public string TrackId { get; private set; }
+ 
+         public MNNFaceTargetTracker(float minimumScore = .6f, double maximumGapSeconds = .75)
+@@ -24,32 +26,72 @@
+             _maximumGap = maximumGapSeconds;
+         }
+ 
+-        public int Select(IReadOnlyList<MNNDetection> faces, double capturedAt)
++        public int Select(IReadOnlyList<MNNDetection> faces, double capturedAt) => SelectCore(faces, capturedAt, 0, 0, false);
++
++        /// <summary>Face area estimates relative distance; center position and confidence rank prominence.
++        /// A clearly stronger challenger must persist for 600 ms before taking over a continuous track.</summary>
++        public int Select(IReadOnlyList<MNNDetection> faces, double capturedAt, int imageWidth, int imageHeight)
++            => Select(faces, capturedAt, imageWidth, imageHeight, false);
++
++        public int Select(IReadOnlyList<MNNDetection> faces, double capturedAt, int imageWidth, int imageHeight, bool protectSpeakingTarget)
++        {
++            if (imageWidth < 1 || imageHeight < 1) throw new ArgumentOutOfRangeException(nameof(imageWidth));
++            return SelectCore(faces, capturedAt, imageWidth, imageHeight, protectSpeakingTarget);
++        }
++
++        private int SelectCore(IReadOnlyList<MNNDetection> faces, double capturedAt, int width, int height, bool protectSpeakingTarget)
+         {
+             if (faces == null) throw new ArgumentNullException(nameof(faces));
+             MNNPresenceOptions.RequireTime(capturedAt, nameof(capturedAt));
+             if (capturedAt < _lastTime) throw new ArgumentOutOfRangeException(nameof(capturedAt));
+             _lastTime = capturedAt;
+             bool continuing = _previous != null && capturedAt - _lastSeen <= _maximumGap;
++            double largest = 1;
++            if (width > 0)
++                for (int i = 0; i < faces.Count; ++i)
++                    if (Usable(faces[i])) largest = Math.Max(largest, (double)faces[i].Width * faces[i].Height);
+             int index = -1;
+             double best = 0, runnerUp = 0;
+             for (int i = 0; i < faces.Count; ++i)
+             {
+                 var face = faces[i];
+                 if (!Usable(face)) continue;
+-                double score = continuing ? IntersectionOverUnion(_previous, face) : (double)face.Width * face.Height;
++                double score = continuing ? IntersectionOverUnion(_previous, face) : width > 0 ? Prominence(face, width, height, largest) : (double)face.Width * face.Height;
+                 if (score > best) { runnerUp = best; best = score; index = i; }
+                 else runnerUp = Math.Max(runnerUp, score);
+             }
+             if (continuing && best < .3)
+             {
+                 Reset();
+-                return Select(faces, capturedAt);
++                return SelectCore(faces, capturedAt, width, height, false);
+             }
+             if (index < 0 || best - runnerUp <= best * .1)
+             {
+                 if (index >= 0 || capturedAt - _lastSeen > _maximumGap) Reset();
+                 return -1;
++            }
++            if (protectSpeakingTarget) _challenger = null;
++            if (continuing && width > 0 && !protectSpeakingTarget)
++            {
++                int challenger = -1;
++                double strongest = Prominence(faces[index], width, height, largest), second = 0;
++                for (int i = 0; i < faces.Count; ++i)
++                {
++                    if (i == index || !Usable(faces[i])) continue;
++                    double rank = Prominence(faces[i], width, height, largest);
++                    if (rank > strongest) { second = strongest; strongest = rank; challenger = i; }
++                    else second = Math.Max(second, rank);
++                }
++                double current = Prominence(faces[index], width, height, largest);
++                if (challenger >= 0 && strongest > current * 1.25 && strongest - second > strongest * .1)
++                {
++                    if (_challenger == null || IntersectionOverUnion(_challenger, faces[challenger]) < .4)
++                        _challengerSince = capturedAt;
++                    _challenger = faces[challenger];
++                    if (capturedAt - _challengerSince >= .6)
++                    { index = challenger; continuing = false; _challenger = null; }
++                }
++                else _challenger = null;
+             }
+             if (!continuing) TrackId = _session + ":" + (++_sequence);
+             _previous = faces[index];
+@@ -57,7 +99,16 @@
+             return index;
+         }
+ 
+-        public void Reset() { _previous = null; TrackId = null; }
++        public void Reset() { _previous = _challenger = null; TrackId = null; }
++
++        private static double Prominence(MNNDetection face, int width, int height, double largest)
++        {
++            double x = (face.X + face.Width * .5) / width * 2 - 1;
++            double y = (face.Y + face.Height * .5) / height * 2 - 1;
++            double center = 1 - Math.Min(1, Math.Sqrt(x * x + y * y));
++            double size = Math.Sqrt((double)face.Width * face.Height / largest);
++            return (.7 * size + .3 * center) * face.Score;
++        }
+ 
+         private bool Usable(MNNDetection face) => face != null && face.Score >= _minimumScore && face.Score <= 1 &&
+             face.Width > 0 && face.Height > 0 && !float.IsInfinity(face.Width) && !float.IsInfinity(face.Height) &&
+diff --git a/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs b/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs
+@@ -0,0 +1,61 @@
++using NUnit.Framework;
++
++namespace MNN.Unity.Tests
++{
++    public sealed class VisualSpeechActivityTests
++    {
++        private static float[] Crop(float mouth = 0, float light = 0)
++        {
++            var crop = new float[112 * 112];
++            for (int y = 0; y < 112; ++y)
++                for (int x = 0; x < 112; ++x) crop[y * 112 + x] = light + (x >= 34 && x < 78 && y >= 76 && y < 104 ? mouth : 0);
++            return crop;
++        }
++
++        [Test]
++        public void SilentTargetCannotQualifyBystanderAudioAndLightingCannotImitateLips()
++        {
++            var activity = new MNNVisualSpeechActivity();
++            activity.ObserveFacing(1, 1, "target");
++            for (int i = 0; i < 5; ++i) activity.Observe(Crop(light: i * .2f), 1 + i * .04, "target");
++            Assert.AreEqual(MNNVisualSpeechActivityState.Quiet, activity.GetState(1.16));
++        }
++
++        [Test]
++        public void MovingMouthAndFacingEvidenceStartAndEndIndependentlyOfBackgroundSound()
++        {
++            var activity = new MNNVisualSpeechActivity();
++            activity.ObserveFacing(1, 1, "target");
++            activity.Observe(Crop(), 1, "target");
++            activity.Observe(Crop(.3f), 1.04, "target");
++            activity.Observe(Crop(), 1.08, "target");
++            Assert.AreEqual(MNNVisualSpeechActivityState.Speaking, activity.GetState(1.08));
++            for (int i = 3; i <= 12; ++i)
++            { activity.Observe(Crop(), 1 + i * .04, "target"); activity.ObserveFacing(1, 1 + i * .04, "target"); }
++            Assert.AreEqual(MNNVisualSpeechActivityState.Quiet, activity.GetState(1.48));
++        }
++
++        [Test]
++        public void TurnedHeadStaleVideoAndDifferentTargetsNeverReuseOldSpeechEvidence()
++        {
++            var activity = new MNNVisualSpeechActivity();
++            activity.ObserveFacing(.1f, 1, "target");
++            activity.Observe(Crop(), 1, "target"); activity.Observe(Crop(.3f), 1.04, "target"); activity.Observe(Crop(), 1.08, "target");
++            Assert.AreEqual(MNNVisualSpeechActivityState.FacingAway, activity.GetState(1.08));
++            Assert.AreEqual(MNNVisualSpeechActivityState.WaitingForVideo, activity.GetState(2));
++            activity.Observe(Crop(.4f), 2.04, "new-target");
++            Assert.AreEqual(MNNVisualSpeechActivityState.WaitingForVideo, activity.GetState(2.04));
++        }
++
++        [Test]
++        public void FacingEstimateUsesHeadGeometryWithoutClaimingEyeGaze()
++        {
++            var points = new[] { new MNNImagePoint(38, 52), new MNNImagePoint(74, 52), new MNNImagePoint(56, 72),
++                new MNNImagePoint(42, 92), new MNNImagePoint(70, 92) };
++            Assert.Greater(MNNFaceFacing.Estimate(points), .9);
++            points[2] = new MNNImagePoint(78, 72);
++            Assert.Less(MNNFaceFacing.Estimate(points), .35);
++            Assert.AreEqual(0, MNNFaceFacing.Estimate(null));
++        }
++    }
++}
+diff --git a/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs.meta b/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/VisualSpeechActivityTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: eb752dd1b8ef4221b908fb2ae23cf8cb
+diff --git a/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/FaceTargetTrackerTests.cs b/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/FaceTargetTrackerTests.cs
+--- a/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/FaceTargetTrackerTests.cs
++++ b/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/FaceTargetTrackerTests.cs
+@@ -33,5 +33,46 @@
+             tracker.Select(new[] { Box(0) }, 2);
+             Assert.That(tracker.TrackId, Is.Not.EqualTo(track));
+         }
++
++        [Test]
++        public void CenterBreaksAnEqualSizeTieAndClearSizeDominatesDistanceProxy()
++        {
++            var tracker = new MNNFaceTargetTracker();
++            var center = new MNNDetection(0, "face", .9f, 270, 190, 100, 100);
++            var edge = new MNNDetection(0, "face", .9f, 10, 190, 100, 100);
++            Assert.AreEqual(1, tracker.Select(new[] { edge, center }, 0, 640, 480));
++            tracker.Reset();
++            var nearby = new MNNDetection(0, "face", .9f, 20, 100, 220, 220);
++            Assert.AreEqual(0, tracker.Select(new[] { nearby, center }, 1, 640, 480));
++        }
++
++        [Test]
++        public void AStrongerTargetNeedsSustainedEvidenceBeforeAutomaticHandover()
++        {
++            var tracker = new MNNFaceTargetTracker();
++            var edge = new MNNDetection(0, "face", .9f, 10, 190, 80, 80);
++            var center = new MNNDetection(0, "face", .9f, 240, 160, 160, 160);
++            tracker.Select(new[] { edge }, 0, 640, 480); string track = tracker.TrackId;
++            Assert.AreEqual(0, tracker.Select(new[] { edge, center }, .1, 640, 480));
++            Assert.AreEqual(track, tracker.TrackId);
++            Assert.AreEqual(0, tracker.Select(new[] { edge, center }, .4, 640, 480));
++            Assert.AreEqual(1, tracker.Select(new[] { edge, center }, .8, 640, 480));
++            Assert.AreNotEqual(track, tracker.TrackId);
++        }
++
++        [Test]
++        public void ActiveSpeakerRetainsFocusEvenWhenALargerPersonStaysNearby()
++        {
++            var tracker = new MNNFaceTargetTracker();
++            var current = new MNNDetection(0, "face", .9f, 10, 190, 80, 80);
++            var newcomer = new MNNDetection(0, "face", .9f, 240, 160, 160, 160);
++            tracker.Select(new[] { current }, 0, 640, 480);
++            string track = tracker.TrackId;
++            for (int i = 1; i <= 20; ++i)
++                Assert.AreEqual(0, tracker.Select(new[] { current, newcomer }, i * .1, 640, 480, true));
++            Assert.AreEqual(track, tracker.TrackId);
++            Assert.AreEqual(0, tracker.Select(new[] { current, newcomer }, 2.1, 640, 480, false));
++            Assert.AreEqual(1, tracker.Select(new[] { current, newcomer }, 2.71, 640, 480, false));
++        }
+     }
+ }
