@@ -602,3 +602,5 @@ python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py -
 `--stage sleep-scene` applies actual SiriAI scene defaults (camera off, image context on, Dimmed), camera-off inactivity sleep, and manual wake after `presence-sleep`. Saved camera choices are preserved; select Dimmed standby for existing saved settings. Verified in the actual scene with sleep blend >0.99, 12 FPS, one cleanup, and wake restoration.
 
 `--stage presence-feedback` follows `sleep-scene`: realtime absence immediately fades UI and the complete orb to 25% opacity, including desktop compositor alpha. Actual sleep hides both; returning fades in. Removes the separate Dimmed standby selector and defaults to Hidden. Grace keeps ongoing interaction without delaying visual feedback. Manual mode and settings remain accessible.
+
+`--stage chat-follow` follows `presence-feedback`: non-realtime conversations share the UI/orb presence fade. New and streaming messages follow the bottom; transcript/window gestures interrupt following, history browsing stays put, and a circular liquid-glass down-arrow jumps to the latest message and resumes following.

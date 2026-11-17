@@ -1,0 +1,258 @@
+diff --git a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+--- a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
++++ b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+@@ -7,9 +7,13 @@
+ 关闭视觉时，启动完成后连续无交互达到同一休眠时长也进入低功耗待机，不会为了检测在场而开启摄像头。键盘、鼠标按键或显式调用 `NotifyInteractionActivity()` 唤醒；手动录音和处理中的请求保持清醒。视觉关闭时无法通过人脸自动唤醒，需要一次手动交互。
+ 
+-启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。实时对话中，第一个无人在场结果就触发 UI 和完整光球的淡出（约 0.35 秒到 25% 不透明度），不等待 grace 或休眠超时；同时光球降低亮度、保留尺寸，不以缩小代替透明。人回来确认在场后约 0.25 秒淡入。Grace 只保持进行中的交互，不延迟视觉反馈。超时真正进入低功耗休眠，才淡至完全透明。睡眠时停止跟随语音起伏。超时后默认隐藏整个界面和光球，不再提供独立“Dimmed standby”设置。
++启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。实时与非实时对话中，第一个无人在场结果就触发 UI 和完整光球的淡出（约 0.35 秒到 25% 不透明度），不等待 grace 或休眠超时；同时光球降低亮度、保留尺寸，不以缩小代替透明。人回来确认在场后约 0.25 秒淡入。Grace 只保持进行中的交互，不延迟视觉反馈。超时真正进入低功耗休眠，才淡至完全透明。睡眠时停止跟随语音起伏。超时后默认隐藏整个界面和光球，不再提供独立“Dimmed standby”设置。
+ 
+-休眠时自动语音采集、唤醒词监听与自动 ASR 暂停；图像上下文清空。摄像头保留连接，默认在场分析从 10 次/秒降为 2 次/秒，供人回来时唤醒。这里降低的是分析频率，摄像头设备的实际采集模式保持原协商值。界面目标帧率降为 12 FPS，背景停止动态流动；设置/引导打开时保持可见；手动模式不受人脸在场限制。
++休眠时自动语音采集、唤醒词监听与自动 ASR 暂停；图像上下文清空。摄像头保留连接，默认在场分析从 10 次/秒降为 2 次/秒，供人回来时唤醒。这里降低的是分析频率，摄像头设备的实际采集模式保持原协商值。界面目标帧率降为 12 FPS，背景停止动态流动；设置/引导打开时保持可见；手动模式也显示相同淡出反馈，部分淡出时仍可点击交互；设置/引导保持完整显示。
+ 
+ 持续空闲两秒，且没有在场推理任务运行后，每次进入休眠只执行一次 `Resources.UnloadUnusedAssets`，完成后执行一次 `GC.Collect`。保留在用的模型和设备；不会每帧或每次检测都 GC。回来后恢复音频、正常分析频率和原外观，重新计算空闲超时窗口；退出或关闭视图恢复此前帧率与垂直同步设置。
+ 
+ 验证包括实际 GPU 像素、原生 macOS 授权回调、采集/自动 ASR 暂停、一次回收、手动录音和返回恢复。资源频率下降不等于已测量电功耗，本次未做瓦数测量。
++
++## Transcript following
++
++New messages and streaming responses follow the newest message after layout updates. Dragging the transcript or conversation window interrupts following. Reviewing older messages keeps the reading position; a circular liquid-glass down-arrow appears at the bottom of the transcript. Click it to jump to the latest message and resume following. Releasing a transcript drag at the bottom also resumes following.
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+@@ -17,7 +17,6 @@
+             get
+             {
+-                if (_interactionSettings?.visualPresence == true && !IsRealtimeConversation) return 1;
+                 if (IsPresenceSleeping) return 0;
+-                if (!IsRealtimeConversation || _interactionSettings?.visualPresence != true ||
++                if (_interactionSettings?.visualPresence != true ||
+                     !_visualReady || _visualStarting || _interaction == null) return 1;
+                 return _interaction.Presence.Current.State == MNNPresenceState.Present ? 1 : .25f;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.History.cs
+@@ -26,4 +26,47 @@
+         private bool _historyFollowing = true, _historyBindingsDirty = true;
+         private float? _historyScrollRequest;
++        private Button _historyLatestButton;
++        private SiriAITranscriptScrollInput _historyScrollInput;
++        private bool HistoryGestureActive =>
++            (_historyScrollInput != null && _historyScrollInput.IsDragging) ||
++            _desktopDragging || _desktopResizing || _floatingPanel.IsDragging ||
++            (_drawerDrag != null && _drawerDrag.IsDragging);
++
++        private bool IsAtLatestHistory => _entries != null && _historyPageStart + HistoryPageSize >= _entries.Count &&
++            (_scroll.content.rect.height <= _scroll.viewport.rect.height + 2 ||
++             Mathf.Abs(_scroll.verticalNormalizedPosition) * Mathf.Max(0, _scroll.content.rect.height - _scroll.viewport.rect.height) <= 2);
++
++        private void BuildLatestHistoryButton()
++        {
++            _historyLatestButton = ButtonObject(_transcript, "", GlassInset, Ink, 16);
++            _historyLatestButton.name = "Jump to latest message";
++            _historyLatestButton.targetGraphic.material = _sendMaterial;
++            MakeActionButton(_historyLatestButton, SiriAIActionGlyph.Latest, "Jump to latest message");
++            _historyLatestButton.GetComponentInChildren<Text>().gameObject.SetActive(false);
++            var rect = (RectTransform)_historyLatestButton.transform;
++            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, 0);
++            rect.sizeDelta = new Vector2(44, 44); rect.anchoredPosition = new Vector2(0, 12);
++            _historyLatestButton.onClick.AddListener(JumpToLatestHistory);
++            _historyLatestButton.gameObject.SetActive(false);
++        }
++
++        private void ResumeHistoryFollowingAtBottom()
++        {
++            if (HistoryGestureActive || !IsAtLatestHistory) return;
++            _historyFollowing = _scrollLatest = true;
++            _historySeenCount = _entries.Count;
++        }
++
++        private void RefreshLatestHistoryButton()
++        {
++            if (_historyLatestButton != null)
++                _historyLatestButton.gameObject.SetActive(!IsImmersiveMode && _entries.Count > 0 && !IsAtLatestHistory);
++        }
++
++        private void RequestLatestHistoryFollow()
++        {
++            _scrollToStatus = false;
++            if (_historyFollowing) _scrollLatest = true;
++        }
+ 
+         private sealed class MessageRow
+@@ -62,4 +105,5 @@
+         private void AppendHistory(SiriAIChatEntry entry)
+         {
++            RequestLatestHistoryFollow();
+             _entries.Add(entry);
+             int latestPage = (_entries.Count - 1) / HistoryPageSize * HistoryPageSize;
+@@ -101,4 +145,5 @@
+             _historyFollowing = _scrollLatest = false;
+             _historyScrollRequest = null;
++            _scrollToStatus = false;
+         }
+ 
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+@@ -14,5 +14,5 @@
+             TickCameraSettings();
+             float target = _chat != null ? _chat.PresencePresentationTarget : 1;
+-            // Settings and onboarding remain accessible even without a face; manual mode is never gated.
++            // Settings and onboarding remain accessible even without a face; partial fading never blocks manual interaction.
+             if (IsSettingsOpen || IsSetupOpen) target = 1;
+             if (target >= 1 && _presenceCanvas == null && _presenceAmount >= 1) return;
+@@ -32,5 +32,5 @@
+             {
+                 _presenceCanvas.alpha = _presenceAmount;
+-                _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = _presenceAmount >= .95f;
++                _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = _presenceAmount > .01f;
+             }
+             var orb = siriOrb != null ? siriOrb.GetComponentInParent<SiriAIRenderer>() : null;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Layout.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Layout.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Layout.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Layout.cs
+@@ -239,6 +239,9 @@
+             scrollInput.OnNavigate = PauseHistoryFollowing;
+             scrollInput.OnMove = NavigateHistoryByScroll;
++            scrollInput.OnNavigationEnd = ResumeHistoryFollowingAtBottom;
++            _historyScrollInput = scrollInput;
+             _empty = Label(_messages, "Hello. Speak or type a message.", 22, Muted);
+             BuildHistoryWindow();
++            BuildLatestHistoryButton();
+             BuildRecognitionSubtitle();
+ 
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
+@@ -214,4 +214,5 @@
+             {
+                 if (_entries[_entries.Count - 1].Text == value) return;
++                RequestLatestHistoryFollow();
+                 _entries.UpdateLast(value);
+                 InvalidateHistoryFrom(_entries.Count - 1);
+@@ -333,5 +334,5 @@
+         private void LateUpdate()
+         {
+-            if (_canvasRoot == null) return;
++            if (_canvasRoot == null || _scroll == null) return;
+             if (_layoutDirty)
+             {
+@@ -344,5 +345,6 @@
+                 Canvas.ForceUpdateCanvases();
+             }
+-            if (_scrollToStatus)
++            if (HistoryGestureActive) { /* Preserve the user's scroll while dragging content or the window. */ }
++            else if (_scrollToStatus)
+             {
+                 _scroll.verticalNormalizedPosition = 1f;
+@@ -355,6 +357,7 @@
+                 _historyScrollRequest = null;
+             }
+-            else if (_layoutDirty && _scrollLatest) _scroll.verticalNormalizedPosition = 0;
++            else if (_scrollLatest) _scroll.verticalNormalizedPosition = 0;
+             if (!IsImmersiveMode) { ApplyConversationViewAnchor(); RefreshVisibleMessages(); }
++            RefreshLatestHistoryButton();
+             FollowComposerCaret();
+             _layoutDirty = false;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/UI/SiriAITranscriptScrollInput.cs
+@@ -11,9 +11,13 @@
+         internal Action OnNavigate;
+         internal Action<float> OnMove;
++        internal Action OnNavigationEnd;
++        public bool IsDragging { get; private set; }
+         private float _dragDirection;
+-        public void OnBeginDrag(PointerEventData eventData) { _dragDirection = 0; OnNavigate?.Invoke(); }
++        public void OnBeginDrag(PointerEventData eventData) { IsDragging = true; _dragDirection = 0; OnNavigate?.Invoke(); }
+         public void OnDrag(PointerEventData eventData)
+         { if (eventData != null && Mathf.Abs(eventData.delta.y) > .01f) _dragDirection = -eventData.delta.y; }
+-        public void OnEndDrag(PointerEventData eventData) { OnMove?.Invoke(_dragDirection); _dragDirection = 0; }
++        public void OnEndDrag(PointerEventData eventData)
++        { IsDragging = false; OnMove?.Invoke(_dragDirection); _dragDirection = 0; OnNavigationEnd?.Invoke(); }
++        private void OnDisable() { IsDragging = false; }
+         public void OnScroll(PointerEventData eventData)
+         {
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatHistoryTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatHistoryTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatHistoryTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatHistoryTests.cs
+@@ -18,4 +18,56 @@
+         private static T Field<T>(object target, string name) => SiriAITestAccess.Field<T>(target, name);
+         private static void Call(object target, string name, params object[] args) => SiriAITestAccess.Call(target, name, args);
++
++        [Test]
++        public void NewMessagesFollowAfterLayoutAndUserDragPausesUntilLatestButton()
++        {
++            var root = new GameObject("Latest message follow");
++            var events = new GameObject("Scroll events").AddComponent<EventSystem>();
++            try
++            {
++                var view = root.AddComponent<SiriAIChatView>();
++                view.TickEditorPreview(new Rect(0, 0, 390, 844), 1);
++                for (int i = 0; i < 36; ++i) Call(view, "AddUser", "Message " + i + new string('x', 100));
++                Call(view, "LateUpdate");
++                var scroll = Field<ScrollRect>(view, "_scroll");
++                var input = scroll.GetComponent<SiriAITranscriptScrollInput>();
++                // A pending status jump must never steal the new message's follow request.
++                SiriAITestAccess.Set(view, "_scrollToStatus", true);
++                Call(view, "SetAssistant", new string('a', 1800));
++                Call(view, "LateUpdate");
++                Assert.AreEqual(0, scroll.verticalNormalizedPosition, .001f, "New reply follows even after status navigation.");
++                var latest = typeof(SiriAIChatView).GetField("_historyLatestButton", Flags);
++                Assert.NotNull(latest, "History needs a circular latest-message affordance.");
++                var button = (Button)latest.GetValue(view);
++                Assert.False(button.gameObject.activeSelf);
++                SiriAITestAccess.Set(view, "_desktopDragging", true);
++                scroll.verticalNormalizedPosition = .5f;
++                float held = scroll.content.anchoredPosition.y;
++                Call(view, "SetAssistant", new string('a', 2100)); Call(view, "LateUpdate");
++                Assert.AreEqual(held, scroll.content.anchoredPosition.y, .5f, "Dragging the window suspends automatic scroll.");
++                SiriAITestAccess.Set(view, "_desktopDragging", false); Call(view, "LateUpdate");
++                Assert.AreEqual(0, scroll.verticalNormalizedPosition, .001f, "Releasing the window catches up if history was following.");
++                input.OnBeginDrag(new PointerEventData(events));
++                scroll.verticalNormalizedPosition = .6f;
++                float before = scroll.content.anchoredPosition.y;
++                Call(view, "SetAssistant", new string('b', 2500)); Call(view, "LateUpdate");
++                Assert.AreEqual(before, scroll.content.anchoredPosition.y, .5f, "Streaming cannot fight an active drag.");
++                input.OnEndDrag(new PointerEventData(events)); Call(view, "LateUpdate");
++                Assert.True(button.gameObject.activeSelf, "Reading history offers a return-to-latest button.");
++                Assert.AreEqual(button.GetComponent<RectTransform>().rect.width, button.GetComponent<RectTransform>().rect.height);
++                StringAssert.Contains("Glass", button.targetGraphic.material.name);
++                button.onClick.Invoke(); Call(view, "LateUpdate");
++                Assert.AreEqual(0, scroll.verticalNormalizedPosition, .001f);
++                Assert.False(button.gameObject.activeSelf);
++                Call(view, "SetAssistant", new string('c', 4000)); Call(view, "LateUpdate");
++                Assert.AreEqual(0, scroll.verticalNormalizedPosition, .001f, "Clicking latest resumes streaming follow.");
++                input.OnBeginDrag(new PointerEventData(events));
++                scroll.verticalNormalizedPosition = 0;
++                input.OnEndDrag(new PointerEventData(events)); Call(view, "LateUpdate");
++                Assert.True(Field<bool>(view, "_scrollLatest"), "Releasing at bottom resumes following without an extra wheel event.");
++                TestContext.WriteLine("new reply/stream=bottom; drag=position preserved; history=glass down button; latest=bottom+follow; release at bottom=follow");
++            }
++            finally { Object.DestroyImmediate(root); Object.DestroyImmediate(events.gameObject); }
++        }
+ 
+         [Test]
+@@ -162,5 +214,5 @@
+                 Assert.IsTrue(Field<bool>(view, "_scrollLatest"));
+                 Assert.IsEmpty(Array.FindAll(Field<GameObject>(view, "_canvasRoot").GetComponentsInChildren<SiriAIActionIcon>(true),
+-                    icon => icon.Glyph == SiriAIActionGlyph.Earlier || icon.Glyph == SiriAIActionGlyph.Later || icon.Glyph == SiriAIActionGlyph.Latest));
++                    icon => icon.Glyph == SiriAIActionGlyph.Earlier || icon.Glyph == SiriAIActionGlyph.Later));
+             }
+             finally { Object.DestroyImmediate(root); Object.DestroyImmediate(events.gameObject); }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+@@ -70,5 +70,10 @@
+                 Assert.True(content.GetComponent<CanvasGroup>().blocksRaycasts);
+                 context.Input.SetRealtime(false);
+-                frame(.3f); Assert.AreEqual(1, content.GetComponent<CanvasGroup>().alpha, "Manual mode stays available.");
++                yield return null;
++                owner.Presence.Report(MNNPresenceObservation.Absent(Time.realtimeSinceStartupAsDouble));
++                frame(.4f); orb.Refresh();
++                Assert.AreEqual(.25f, content.GetComponent<CanvasGroup>().alpha, .001f, "Manual conversation must fade with the orb too.");
++                Assert.AreEqual(.25f, ball.GetComponent<Renderer>().sharedMaterial.GetFloat("_PresenceVisibility"), .001f);
++                Assert.True(content.GetComponent<CanvasGroup>().blocksRaycasts, "Partial absence feedback must allow manual interaction.");
+                 TestContext.WriteLine("present alpha=1; first absent Grace alpha<1; absence alpha=.25 without sleep; sleep UI/orb alpha=0; return alpha=1; scale unchanged");
+             }
