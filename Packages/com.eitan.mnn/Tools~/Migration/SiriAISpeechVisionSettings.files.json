@@ -1,0 +1,224 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/SiriAIAcousticProcessing.cs",
+      "before": "605413905195fb0087820dd34b665660e72cde69bcfc0cc1c8cf637d1c563ee7",
+      "after": "d41776648eb40c38609b0c708331c9903c8f2926a794a06c6b605eee3efd8301"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/AssemblyInfo.cs",
+      "before": "9b89648adaa1a0fced9623800c3f5374786ef6a38f3468b5ddc648a400891a1c",
+      "after": "e1c95c466a68f51ac3f4a249e0166347fc1ad27f1eca1cc9e3202f3fdbe6513f"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs",
+      "before": null,
+      "after": "7bafd5ed6a02f1a54a32018c0e82969b047659d05494f22f38a2306c7fad8fdf"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs.meta",
+      "before": null,
+      "after": "a48f32b7bc40e67344075d8c4b40b94c5dafbab73771a4116a91235282f53ded"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs",
+      "before": "f10a7df27bb8605aee13945578b677a4bc1101bb0bef7a64426a026ca5c012d1",
+      "after": "f18179043691fbd17eb2882e4efcee25f7922d305194a2b5f7bc521ef2aaf530"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs",
+      "before": "cfd763430cba6341bdca690442290d2c15e2c4f3222d5c5c7064bdf58fe52bb0",
+      "after": "513dc68d40590349d8af8210bb6ec3bef035a49a7ff88db1b81f60e6af3ca30c"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.AcousticModels.cs",
+      "before": "c73205cbccc25bc635592f405523324f62bca254d10beeeb2834734222860a74",
+      "after": "6f0f72b5acfa4386ad69073bb2cb1e386557a6e867c2bc72e1061b1ee6d26ef3"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs",
+      "before": "f3c7ba54dbe7e3b2b5a799f036698be3a1d271f76ddf56dfbf9c8230f32f984e",
+      "after": "5ec3e0d1b488ab229aa6309dd8de25f5828183e5aa8c13a0b526957494f8ce25"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Categories.cs",
+      "before": "b5503ff6a77e58fc72c629cf03f8006130f0de7aeb198dedbef43fe40b5cde73",
+      "after": "9f2d6b419ea361538bcf1531d9fd7387ca943fb5c8b4ceec0be1857fc93973b9"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs",
+      "before": "d3577ca4745e16839cf1b614d6bf01fcbff0ee618e5bff73299f056cd7d0d1a3",
+      "after": "cc8054006de1c8d8f8c9e7b6623cf98db1c10622ff8193c022664a9312c8ecbf"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs",
+      "before": null,
+      "after": "c7fb7b641dde194f4fc0352969e1e35f71542f62dba81fb78b2fa2f0f74718b6"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs.meta",
+      "before": null,
+      "after": "8a9ea36484eff06d8bd58c767bf2a4cf419283627f04a1d038e9782d208c7db7"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs",
+      "before": "992bf49b28c5c82ed4a70b06b98bb4724946622f621f7ca801bbf69b5efdb4f0",
+      "after": "39cf1eac2d1c66445f934775dacea7b33892a473fc30e287ebc0159d8a9ae3e9"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.UI.cs",
+      "before": "7820f342e188f108d2abdcd26e503db107259872785334f53392035357284842",
+      "after": "4215f423ef8aa9bc817f62630a92def0b633c4aac75f6dc26479b2133e8cf940"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs",
+      "before": "d2680841a1f08fda756461ffc1936135b4bfdbc9134bb7371020207a24e1adcf",
+      "after": "be343729854a76b6fb7a380f62c7e922815bae28f2a77742d94d17ff05cce419"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs",
+      "before": "ad0bd87dd558934268aff966b77b1dcc06b01abb5337d5e65af50c1b14d7a201",
+      "after": "34c6aa1567c58c303b92bf8efc6c96bf3a930d3539b3630778eda5528369e6f0"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.Acoustics.cs",
+      "before": "ac3468f4b257f65d6c0c4ee4ac51436d9f1602e1de8116e8e13f913cc5997e8b",
+      "after": "cfd8cbcf42e2a69bf1ce8c227b1ec8c7964605c53845383148a6fa7ea03afacd"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/ISiriAIModelSettingsForm.cs",
+      "before": "bce3814c646f77a9e36fdf016a90da70d55a8f7a92d07fe87fb44bd012056871",
+      "after": "ad89e8a1e7a5832d2e05c91a3abbb92ebae04475e309b88395896d546e7576cf"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAIAcousticSettingsSection.cs",
+      "before": "45ce9ddc14dd6a719ae18344e773e806b3d61738474acdfb1fdcf935d3912ebf",
+      "after": "5885f59a206e984ce4bde5b933bbae501ea27c435b7b279a24d1b932ce2a9c1e"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs",
+      "before": "7d9daa47d91c5f0aff3550a73d04d36b01fff7519fcfd9b145fe77ab19bd1630",
+      "after": "548774491127a7d37234831402304b28d08c7d3472715420d111a0b3b200a0ca"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs",
+      "before": "82984822764410ee3494b180607c85dd5ac6dfc68e7ab138af00be65137ba9f8",
+      "after": "f995afbf24a390f817dbe15002c70be9bd848b1f568b91c396ba7d2f7b5075f7"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs",
+      "before": "5ef271cc7a99807a4844b191687c995c0f4efa3c7f7538bfe3500092b9eb5472",
+      "after": "8897029cc2641bf189b7e9103d5ac3f68227eec7ac0d8479dd93e97d884afb53"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Fixtures/SiriAITestAccess.cs",
+      "before": "207a50df2adc651bda25e55d9303ee0db6f50e9a2ab6382f53092e741b8f3a11",
+      "after": "e0bd18ab74c8ff65e9ac37d8933dcb16b87c7da4371dec5183407ccc6251fd5b"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticConfigurationTests.cs",
+      "before": "e5a88270b5e5202d2d199f123743538b368dd9fca66eab317146e106630f04dd",
+      "after": "ca2f1f0ac0518fb304e4d76b91fe636725e0fc7f95059776650c846b3a375122"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs",
+      "before": "9a9d42b959b5807998bdb110d4c2ca17076c656d7d7ffceb66d5219c0e7391d9",
+      "after": "620da1cb2ae3eda4104d0391ec230361bfdf19e4e513a8659dc0cedfa076e233"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs",
+      "before": "db4521621500a4139f2f37ab4e5e8f5db34cad99c4321d115fbe564516f93d57",
+      "after": "300a8ddb7c5e88c1c117ba68fe979fd732f471811e51c201d8b84622e45b0a5a"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILocalizationTests.cs",
+      "before": "119d8179c841f6a01b9e175f3b47b51f994f0c42bbc9ec5c4cd5cf3e2d99c6ce",
+      "after": "efceb13ae9b735bfef6de696e85bd6b70a7f1e85e452f8effaac89a6376bf6a3"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Documentation~/SpeechVisionSettings.md",
+      "before": null,
+      "after": "ffacc31fb7463b5dbf771c99221a849217f95cdb9b1212f58cb6d14b3b8a05e1"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNInteractionComponent.cs",
+      "before": "52db9b0c19cf106cc234c63d795b6afb3d2549f3611adf904e35aed841c427b1",
+      "after": "5e7e2a25d81fb6a9252f3c368260887fdf045c9b298193e34dab8b55fcab0789"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNPresenceComponent.cs",
+      "before": "c9c0f78eeb4520a073f6000f2da43fb049743b47840cb604c6650966f17b0247",
+      "after": "217be54a167748094fee87a9b6d3765dffa5558e19d045bd56528942c520924e"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechModels.cs",
+      "before": "43ee42d356f04e2d927bf3f7850c29da9d26fbe24d7cd0cb822541bffea37ee0",
+      "after": "fc565f6c33f7c7d9026dab1c196c90d1b21f9b5f05af553173f85a99d25ceeec"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechSession.cs",
+      "before": "e3821c6f1a7b6114489f6d1699f3cb6d9e3c80451c5ea46c07939187e85e9573",
+      "after": "ff099907094b23a87ec88c338b53f21ea221aa389ba72535895c332fb91d901a"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationCommands.cs",
+      "before": "890dbb3cb673837c803f13eb82968791d352f59106002eb4a8997d3be4d78515",
+      "after": "c002f58aa0522448fc288527008884b5c1167922aeb7d64be767c96377611cf3"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Validation.cs",
+      "before": "7858c1d2996f403c086ca163d3bc4c116b8d131336de7bc8eb4ceb975fb0a999",
+      "after": "c81fc0391ac38949e8410e8fd5560cc42875c606fd0b6cd1a45086c57ad3ead8"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNAcousticModelCatalog.cs",
+      "before": "bde00d289d5e40a91633bf36f61bdad4515df5cc052d12d363d1c3f311050699",
+      "after": "737d83b1f7a1d2f838f98fb902c657a6515a2ac0d82a4184029d26d2d41e1391"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNModelCatalog.PublishedSpeech.cs",
+      "before": "b287fe8f8fdba9c2e94c99c045cfc376db29a1a3af93b83ce06b23e81785f071",
+      "after": "45419e0df132895785f6c9f162eac41945d47febf8e512a11b2bcb35a2f75ece"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs",
+      "before": null,
+      "after": "6bdba28701174daa0ca6c83ae04fcd9dc4610100d18dcfba40e74da4c3456e09"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs.meta",
+      "before": null,
+      "after": "2672a6766db92415f374c5f9acb0de9e9c7fe8fd529bb332eb02e506e1871899"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionSettings.cs",
+      "before": "194a46ea4a7a4449e40246851ce965824f589573b08f85352e89877f86e5059c",
+      "after": "b0af3e36b56159e5864229356a90d594ff8f15484b443825254cadfe027c198e"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNPresenceController.cs",
+      "before": "a635373e76ebe09c35c36c5f881a68677ac0683d3ea7813c16d328881757896d",
+      "after": "ac8bb3eca6429adeaf6b92b6d26123c6d145948286a5d619978f63bd63d3d016"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/TargetSpeechSessionTests.cs",
+      "before": "c2d842a9ac18cdce13316563b07c281f2b3fc81f6d318e2e015a102f3e7e8606",
+      "after": "d07cb5297c209ebaae8885c7bd431a78904ac7706d9ab280d6820ab53faa4e51"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Tests/Editor/Language/Realtime/ConversationCommandTests.cs",
+      "before": "565dbf9d04adf33b32148e4c116e3bef8950c1c74ad121351e9b2a1b4b267386",
+      "after": "4b4edf1796894d58584da8d66290f6d644c95f1c5c9905e52683a8eec4cae969"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Tests/Editor/Models/Catalog/AudioModelClassificationTests.cs",
+      "before": "da9d3c0e25e3298c1ce83ed454405cd80128bd513465aff03caa0d2231932f39",
+      "after": "72ce8c4db644707bae1efed3a3c71a200d4740812f564fdd12729e3fd077fafe"
+    },
+    {
+      "path": "Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/PresenceControllerTests.cs",
+      "before": "2b569c4b5c40fefdf2c472f248c428abd784dce9c98f9fe99a645582fdb2fbe5",
+      "after": "07f84433c46f2e5ecbf3be0d26ebf0b30562580446bab77e3286aa540f6d5366"
+    }
+  ]
+}

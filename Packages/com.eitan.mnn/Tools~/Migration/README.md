@@ -376,3 +376,11 @@ Turn Detection 的 Provider；旧 profile 中错误的 false 标志会修复并�
 Omni 表示模型直接接受音频并生成语音，不等于模型原生 Full-duplex。MiniMind-o
 发布权重仍按完整轮次推理；此补丁不会把它升级为持续输入输出的全双工模型。
 详见 [MiniMind-o](../../Documentation~/MiniMindO.md)。
+
+## 视听设置分类、自动说话人与录入向导
+
+`--stage speech-vision-settings` 基于当前已完成的 SiriAI 导入，整理视觉与音频设置，
+让视听拾音、参考提取与声纹模型复用现有选择器，并提供本机人脸/声纹录入、更新、
+允许/禁用和删除。包与导入的源码一起校验；整组 SHA256 不匹配时不写入。
+修复静音尾段丢弃整句，以及端点模型取消超时后不继续验证的问题。默认每轮自动
+选择说话人，录入只用于可选交互限制。详见 `Documentation~/SpeechVisionSettings.md`。

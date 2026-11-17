@@ -1,0 +1,1837 @@
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/SiriAIAcousticProcessing.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/SiriAIAcousticProcessing.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/SiriAIAcousticProcessing.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Audio/SiriAIAcousticProcessing.cs
+@@ -109,7 +109,7 @@
+             snapshot.Validate();
+             Shared.WakeAllowed = () => WakeAllowed?.Invoke() == true;
+             var shared = snapshot.ToShared();
+-            if (snapshot.interaction != null && (snapshot.interaction.audioVisualSpeech || snapshot.interaction.referenceSpeaker || snapshot.interaction.separateSpeakers))
++            if (snapshot.interaction != null && (snapshot.interaction.audioVisualSpeech || snapshot.interaction.referenceSpeaker || snapshot.interaction.separateSpeakers || snapshot.interaction.UsesVoiceIdentity))
+                 shared.profile = MNNAcousticProfile.Realtime; // Target session owns separation and speaker identity once.
+             await Shared.PrepareAsync(shared, SiriAIModelInstallation.ModelsDirectory, token);
+             Frontend = Shared.Frontend == null ? null : new SiriAIAcousticFrontend(Shared.Frontend);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/AssemblyInfo.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/AssemblyInfo.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/AssemblyInfo.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/AssemblyInfo.cs
+@@ -1,3 +1,4 @@
+ using System.Runtime.CompilerServices;
+ 
+ [assembly: InternalsVisibleTo("MNN.Samples.SiriAI.Tests")]
++[assembly: InternalsVisibleTo("MNN.Samples.SiriAI.Presentation")]
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs
+@@ -0,0 +1,98 @@
++using System;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChat
++    {
++        private bool _enrollingIdentity;
++
++        internal async Task<MNNInteractionIdentity> CaptureIdentityAsync(SiriAIAcousticSettings settings, bool face, bool voice, CancellationToken token)
++        {
++            if (_enrollingIdentity || _context == null || IsRecordingVoice || IsPreparingConversation)
++                throw new InvalidOperationException("Wait for the microphone and conversation to become ready.");
++            _enrollingIdentity = true;
++            bool resume = IsRealtimeConversation;
++            var identity = new MNNInteractionIdentity { id = Guid.NewGuid().ToString("N"),
++                faceModel = settings.interaction.recognizerDirectory, voiceModel = settings.speakerDirectory };
++            try
++            {
++                await SetRealtimeConversationAsync(false);
++                await InterruptAsync();
++                token.ThrowIfCancellationRequested();
++                string root = SiriAIModelInstallation.ModelsDirectory;
++                if (face)
++                {
++                    if (_interaction == null || _interactionCamera == null || !HasReadableVisualCameraFrame(_interactionCamera))
++                        throw new InvalidOperationException("Enable vision and save before recording a face.");
++                    var frame = new TaskCompletionSource<MNNRgbImage>(TaskCreationOptions.RunContinuationsAsynchronously);
++                    Action<MNNRgbImage, double> capture = (image, _) => frame.TrySetResult(image);
++                    _interaction.Camera.FrameCaptured += capture;
++                    MNNRgbImage image;
++                    try
++                    {
++                        using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(token))
++                        {
++                            deadline.CancelAfter(3000);
++                            using (deadline.Token.Register(() => frame.TrySetCanceled())) image = await frame.Task;
++                        }
++                    }
++                    catch (OperationCanceledException) when (!token.IsCancellationRequested)
++                    { throw new TimeoutException("No fresh camera frame. Check vision and try recording again."); }
++                    finally { _interaction.Camera.FrameCaptured -= capture; }
++                    identity.face = await Task.Run(() =>
++                    {
++                        using (var detector = MNNImageTask.Load(SiriAIAcousticModelResources.ResolvePath(root, settings.interaction.detectorDirectory)))
++                        using (var recognizer = MNNImageTask.Load(SiriAIAcousticModelResources.ResolvePath(root, identity.faceModel)))
++                        {
++                            var faces = detector.Process(image, token);
++                            if (faces.Detections == null || faces.Detections.Length != 1 || faces.FaceKeypoints?.Length != 1)
++                                throw new InvalidOperationException("Keep exactly one face in the camera and try again.");
++                            return recognizer.Process(MNNImageTask.AlignFace(image, faces.FaceKeypoints[0]), token).Vector;
++                        }
++                    }, token);
++                }
++                if (voice)
++                {
++                    if (!await Commands.BeginEnrollmentRecordingAsync()) throw new InvalidOperationException("The microphone is busy. Try again.");
++                    await Task.Delay(4000, token);
++                    var samples = await Commands.FinishEnrollmentRecordingAsync();
++                    token.ThrowIfCancellationRequested();
++                    identity.voice = await Task.Run(() =>
++                    {
++                        if (!HasEnrollmentSpeech(samples)) throw new InvalidOperationException("No clear voice was recorded. Speak alone and try again.");
++                        using (var speaker = MNNSpeakerEncoder.Load(SiriAIAcousticModelResources.ResolvePath(root, identity.voiceModel)))
++                            return speaker.Encode(samples, 16000, token);
++                    }, token);
++                }
++                token.ThrowIfCancellationRequested();
++                identity.Validate();
++                return identity;
++            }
++            finally
++            {
++                try { if (IsRecordingVoice) CancelVoiceRecording(); }
++                finally
++                {
++                    _enrollingIdentity = false;
++                    if (resume && _stopTask == null && isActiveAndEnabled) await SetRealtimeConversationAsync(true);
++                }
++            }
++        }
++
++        private static bool HasEnrollmentSpeech(float[] audio)
++        {
++            if (audio == null || audio.Length < 16000) return false;
++            int voiced = 0;
++            for (int offset = 0; offset + 512 <= audio.Length; offset += 512)
++            {
++                double sum = 0, energy = 0;
++                for (int i = offset; i < offset + 512; ++i) { sum += audio[i]; energy += audio[i] * (double)audio[i]; }
++                if (energy / 512 - sum * sum / (512 * 512) > .000009) ++voiced;
++            }
++            return voiced >= 16;
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Enrollment.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 8bddb2a9cbe645fb927452ab89472674
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -65,7 +65,7 @@
+             {
+                 _interactionConfiguration = configuration;
+                 _visualReady = false; _visualCameraError = null;
+-                bool needed = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers;
++                bool needed = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers || settings.UsesVoiceIdentity;
+                 if (needed)
+                 {
+                     _interaction = GetComponent<MNNInteractionComponent>() ?? gameObject.AddComponent<MNNInteractionComponent>();
+@@ -82,7 +82,7 @@
+                 _presenceChange = ApplyPresenceSettingsAsync(settings.Snapshot(), _presenceChange, ++_presenceRevision);
+                 Observe(() => _presenceChange);
+             }
+-            _context.Interaction = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers ? _interaction : null;
++            _context.Interaction = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers || settings.UsesVoiceIdentity ? _interaction : null;
+             if (_interaction != null && settings.visualPresence)
+                 _interaction.Presence.SetInteractionBusy(IsProcessing || IsRecordingVoice);
+             UpdatePresenceLowPower();
+@@ -126,6 +126,14 @@
+             try
+             {
+                 if (_interaction != null) await _interaction.StopCameraAsync();
++                EnrolledFaces.Clear();
++                foreach (var identity in settings.identities)
++                {
++                    if (identity.face.Length != 512) continue;
++                    if (settings.UsesFaceIdentity && identity.faceModel != settings.recognizerDirectory)
++                        throw new InvalidOperationException("The face model changed. Update the saved face recordings before enabling identity restrictions.");
++                    EnrolledFaces.Enroll(identity.id, identity.face);
++                }
+                 (_presenceSource as IDisposable)?.Dispose(); _presenceSource = null;
+                 await ReleaseVisualCameraAsync(lifetime.Token);
+                 previous?.Dispose();
+@@ -146,8 +154,8 @@
+                 var factory = PresenceSourceFactory;
+                 source = await Task.Run(() => factory != null ? factory(settings, lifetime.Token) :
+                     MNNFacePresenceSource.Load(Path.Combine(root, settings.detectorDirectory),
+-                        settings.faceRecognition ? Path.Combine(root, settings.recognizerDirectory) : null,
+-                        settings.faceRecognition ? EnrolledFaces : null), lifetime.Token);
++                        settings.UsesFaceIdentity ? Path.Combine(root, settings.recognizerDirectory) : null,
++                        settings.UsesFaceIdentity ? EnrolledFaces : null), lifetime.Token);
+                 lifetime.Token.ThrowIfCancellationRequested();
+                 if (settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers)
+                 {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.TargetSpeech.cs
+@@ -16,8 +16,8 @@
+         {
+             var acoustic = GetAcousticSettings();
+             var settings = _interaction?.ReadSettings();
+-            if (settings == null || !settings.audioVisualSpeech && !settings.referenceSpeaker && !settings.separateSpeakers) return;
+-            if (settings.visualPresence && !(_presenceSource is IMNNVisualSpeechSource))
++            if (settings == null || !settings.audioVisualSpeech && !settings.referenceSpeaker && !settings.separateSpeakers && !settings.UsesVoiceIdentity) return;
++            if (settings.audioVisualSpeech && !(_presenceSource is IMNNVisualSpeechSource))
+                 throw new InvalidOperationException("Target speech requires a ready camera source with synchronized target-face crops. " + VisualCameraStatus);
+             string root = SiriAIModelInstallation.ModelsDirectory;
+             MNNRuntime.Initialize();
+@@ -26,7 +26,7 @@
+             if (token.IsCancellationRequested) { await prepared.ReleaseAsync(); token.ThrowIfCancellationRequested(); }
+             try
+             {
+-                if (_microphoneTargetIdentity != null)
++                if (_microphoneTargetIdentity != null && !settings.automaticSpeakerSelection)
+                     await prepared.RestoreTargetIdentityAsync(_microphoneTargetIdentity, token);
+             }
+             catch { await prepared.ReleaseAsync(); throw; }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.AcousticModels.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.AcousticModels.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.AcousticModels.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.AcousticModels.cs
+@@ -44,6 +44,13 @@
+                         throw new InvalidDataException("The downloaded model has no complete SiriAI profile for " + task + ".");
+                 }
+                 if (this == null || generation != _settingsGeneration || !IsSettingsOpen) return;
++                if (task == SiriAIAcousticModelTask.AudioVisualSpeech || task == SiriAIAcousticModelTask.ReferenceSpeaker)
++                {
++                    var kind = task == SiriAIAcousticModelTask.AudioVisualSpeech ? MNN.Unity.MNNModelKind.AvConvTasNet : MNN.Unity.MNNModelKind.SpExPlus;
++                    if (!await Task.Run(() => MNN.Unity.MNNModelSupport.IsComplete(kind, directory), cancellation.Token))
++                        throw new InvalidDataException("The selected target model is incomplete or does not match its verified export.");
++                    if (this == null || generation != _settingsGeneration || !IsSettingsOpen) return;
++                }
+                 if (task == SiriAIAcousticModelTask.NoiseReduction && !File.Exists(Path.Combine(directory, MNN.Unity.MNNDtlnConfig.FileName)))
+                 {
+                     _settingsDraft.Acoustics.enhanceRecognition = true;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Acoustics.cs
+@@ -10,7 +10,8 @@
+             if (_settingsDraft.Acoustics == null) return;
+             BuildAcousticPreflight();
+             BuildTargetSpeechSettings();
+-            SiriAIAcousticSettingsSection.Build(new SettingsForm(this), _settingsDraft.Acoustics, UpdateAudioSettings, CaptureEnhancementAvailable());
++            SiriAIAcousticSettingsSection.Build(new SettingsForm(this), _settingsDraft.Acoustics, UpdateAudioSettings,
++                CaptureEnhancementAvailable(), legacySpeakerSelection: false);
+         }
+         private int _wakePreviewRevision;
+         private async void PreviewWakeWords()
+@@ -79,14 +80,15 @@
+                 _view.BuildAcousticModelSelection(title, detail, task, read, write);
+             public void Integer(string title, string detail, Func<int> read, Action<int> write, int minimum, int maximum) =>
+                 _view.AddIntField(title, detail, read, write, minimum, maximum);
+-            public void Number(string title, string detail, Func<float> read, Action<float> write, float minimum, float maximum) =>
+-                _view.AddTextField(title, detail, () => read().ToString("G", CultureInfo.InvariantCulture), value =>
+-                {
+-                    if (!float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed) ||
+-                        float.IsNaN(parsed) || float.IsInfinity(parsed) || parsed < minimum || parsed > maximum)
+-                        throw new ArgumentException(title + " must be between " + minimum + " and " + maximum + ".");
+-                    write(parsed);
+-                });
++            public void Number(string title, string detail, Func<float> read, Action<float> write, float minimum, float maximum)
++            {
++                var values = new System.Collections.Generic.SortedSet<float> { minimum, maximum, read() };
++                foreach (float value in new[] { .01f, .03f, .05f, .06f, .1f, .2f, .3f, .35f, .5f, .6f, .65f, .7f, .8f, .9f, 1, 2, 3, 5, 10, 15, 30, 60, 120, 300 })
++                    if (value >= minimum && value <= maximum) values.Add(value);
++                var choices = new System.Collections.Generic.List<float>(values);
++                _view.AddEnumField(title, detail, () => choices.IndexOf(read()), index => write(choices[index]),
++                    choices.ConvertAll(value => value.ToString("G", CultureInfo.InvariantCulture)).ToArray());
++            }
+         }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Categories.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Categories.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Categories.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Categories.cs
+@@ -19,6 +19,7 @@
+                 () => _settingsAudioAdvanced, value => UpdateAudioSettings(() => _settingsAudioAdvanced = value));
+             if (!_settingsAudioAdvanced) return;
+             BuildAcousticSettings();
++            BuildAudioListeningSettings();
+             BuildSpeechInputSettings();
+         }
+ 
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Fields.cs
+@@ -14,7 +14,6 @@
+             AddEnumField("Conversation mode", "Model selections adjust to this mode.",
+                 () => (int)_settingsDraft.Configuration.mode, value => UpdateListeningSettings(() => _settingsDraft.Configuration.mode = (SiriAIConversationMode)value),
+                 new[] { "Automatic", SiriAISettingsConstraints.OmniModeLabel(_settingsDraft.Configuration.model.location), "Omni + speech synthesis", "Cascaded" });
+-            BuildListeningModelSettings();
+             AddBoolField("Advanced conversation settings", null,
+                 () => _settingsConversationAdvanced, value => UpdateListeningSettings(() => _settingsConversationAdvanced = value));
+             if (!_settingsConversationAdvanced) return;
+@@ -66,6 +65,12 @@
+                 () => _settingsDraft.Configuration.instructions, value => _settingsDraft.Configuration.instructions = value,
+                 multiline: true, readOnly: fixedPrompt);
+             BuildHybridSettings();
++        }
++
++        private void BuildAudioListeningSettings()
++        {
++            if (_settingsDraft.Configuration == null) return;
++            BuildListeningModelSettings();
+             AddSettingsTitle("Listening", null);
+             AddIntField("Realtime inactivity (seconds)", "Exit when idle. 0: never.",
+                 () => _settingsDraft.Configuration.realtimeInactivitySeconds,
+@@ -116,7 +121,7 @@
+             float scroll = SettingsScrollOffset;
+             update();
+             bool adjusted = SiriAISettingsConstraints.Normalize(_settingsDraft.Configuration, _settingsDraft.Catalog);
+-            ShowSettingsTab(0, false);
++            ShowSettingsTab(_settingsTab, false);
+             RestoreSettingsScrollOffset(scroll);
+             if (adjusted) SetSettingsNotice("Mode changed. Review provider selections.");
+         }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs
+@@ -0,0 +1,138 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Threading;
++using MNN.Unity;
++using UnityEngine;
++using UnityEngine.UI;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChatView
++    {
++        private RectTransform _identityGuide;
++        private CancellationTokenSource _identityCapture;
++
++        private void BuildIdentitySettings(bool visual)
++        {
++            var settings = _settingsDraft.Acoustics.interaction;
++            settings.identities = settings.identities ?? Array.Empty<MNNInteractionIdentity>();
++            AddSettingsTitle(visual ? "Face access" : "Voice access", "Optional. Everyone can interact unless you enable restrictions. Recordings stay on this device; save to apply changes.");
++            if (!visual)
++            {
++                AddBoolField("Registered voices only", "Record an allowed voice first. Unrecognized or ambiguous voices are rejected.",
++                    () => settings.voiceRecognition, enabled => UpdateAudioSettings(() =>
++                    { settings.voiceRecognition = enabled; if (enabled) settings.separateSpeakers = true; }),
++                    settings.voiceRecognition || Array.Exists(settings.identities, person => person.allowed && person.voice.Length > 0));
++                if (settings.voiceRecognition && !settings.referenceSpeaker && !settings.separateSpeakers)
++                    BuildTargetSpeakerModel(_settingsDraft.Acoustics);
++            }
++            if (visual ? settings.faceRecognition && !settings.identities.Any(person => person.allowed && person.face.Length == 512) :
++                settings.voiceRecognition && !settings.identities.Any(person => person.allowed && person.voice.Length > 0))
++                SettingsDescription("No allowed people. Register someone or turn off restrictions to allow interaction.");
++            var add = SettingsButton(_settingsContent, "Add person", GlassInset, Ink);
++            add.name = visual ? "Add face" : "Add voice"; FixedHeight(add.gameObject, 44);
++            add.onClick.AddListener(() => OpenIdentityGuide(null, visual, !visual));
++            for (int i = 0; i < settings.identities.Length; ++i)
++            {
++                var person = settings.identities[i];
++                int number = i + 1;
++                var row = AddSettingsField(LocalizeFormat("Person {0}", number), Localize(person.allowed ? "Allowed" : "Blocked") + " · " +
++                    Localize(person.face.Length > 0 ? "Face recorded" : "No face recording") + " · " +
++                    Localize(person.voice.Length > 0 ? "Voice recorded" : "No voice recording"));
++                var manage = SettingsButton(row, "Manage", GlassInset, Ink); FixedHeight(manage.gameObject, 44);
++                manage.onClick.AddListener(() => OpenSettingsOptions((RectTransform)manage.transform,
++                    LocalizeFormat("Person {0}", number), new[] { Localize(person.allowed ? "Block interaction" : "Allow interaction"),
++                        Localize("Update recording"), Localize("Delete registration") }, -1, selected =>
++                    {
++                        if (selected == 1) { OpenIdentityGuide(person.id, visual, !visual); return; }
++                        UpdateAudioSettings(() =>
++                        {
++                            if (selected == 0) person.allowed = !person.allowed;
++                            else settings.identities = settings.identities.Where(entry => entry.id != person.id).ToArray();
++                            UpdateIdentityPolicy(settings);
++                        });
++                    }, false));
++            }
++        }
++
++        private static void UpdateIdentityPolicy(MNNInteractionSettings settings)
++        {
++            settings.allowedIdentities = settings.identities.Where(person => person.allowed && person.face.Length == 512).Select(person => person.id).ToArray();
++        }
++
++        private void OpenIdentityGuide(string id, bool face, bool voice)
++        {
++            if (!ReadSettingsFields()) return;
++            CloseIdentityGuide();
++            _identityGuide = RectObject("Identity Registration Guide", _settingsRoot);
++            Stretch(_identityGuide); _identityGuide.SetAsLastSibling();
++            _identityGuide.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, .6f);
++            var card = RectObject("Registration Card", _identityGuide);
++            card.anchorMin = card.anchorMax = new Vector2(.5f, .5f); card.pivot = new Vector2(.5f, .5f);
++            card.sizeDelta = new Vector2(Mathf.Min(440, Mathf.Max(240, _settingsPanel.rect.width - 32)), 0);
++            var surface = card.gameObject.AddComponent<SiriAIRoundedRect>(); surface.Radius = SettingsSheetRadius;
++            surface.color = new Color(.06f, .08f, .12f, 1);
++            var layout = card.gameObject.AddComponent<VerticalLayoutGroup>();
++            layout.padding = new RectOffset(20, 20, 20, 20); layout.spacing = 16;
++            layout.childControlWidth = layout.childControlHeight = true; layout.childForceExpandHeight = false;
++            card.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
++            Label(card, "Register person", 24, Ink).gameObject.AddComponent<LayoutElement>().minHeight = 36;
++            if (face)
++            {
++                var preview = RectObject("Registration Camera", card);
++                FixedHeight(preview.gameObject, 160);
++                var image = preview.gameObject.AddComponent<RawImage>(); image.texture = _chat?.VisualCamera;
++                image.uvRect = new Rect(0, 0, 1, 1);
++            }
++            var instructions = Label(card, face ? "Look at the camera alone, then click Record. Only your face features are saved." :
++                "Click Record, then speak alone for four seconds. Only your voice features are saved.", 17, Ink);
++            instructions.gameObject.AddComponent<LayoutElement>().minHeight = 90;
++            var record = SettingsButton(card, "Record", GlassInset, Ink); FixedHeight(record.gameObject, 48);
++            var close = SettingsButton(card, "Cancel", GlassInset, Ink); FixedHeight(close.gameObject, 44);
++            close.onClick.AddListener(CloseIdentityGuide);
++            record.onClick.AddListener(async () =>
++            {
++                if (_identityCapture != null) return;
++                if (_editorPreview) { instructions.text = Localize("Preview only. Camera is not started."); return; }
++                var cancellation = _identityCapture = new CancellationTokenSource();
++                int generation = _settingsGeneration;
++                SetSettingsBusy(true, allowClose: true);
++                record.interactable = false;
++                instructions.text = Localize(face ? "Capturing a fresh face image…" : "Recording… Speak alone for four seconds.");
++                try
++                {
++                    var captured = await _chat.CaptureIdentityAsync(_settingsDraft.Acoustics.Snapshot(), face, voice, cancellation.Token);
++                    cancellation.Token.ThrowIfCancellationRequested();
++                    if (this == null || generation != _settingsGeneration || !IsSettingsOpen) return;
++                    var settings = _settingsDraft.Acoustics.interaction;
++                    var people = new List<MNNInteractionIdentity>(settings.identities);
++                    var previous = people.Find(person => person.id == id);
++                    if (previous != null)
++                    {
++                        if (face) { previous.face = captured.face; previous.faceModel = captured.faceModel; }
++                        if (voice) { previous.voice = captured.voice; previous.voiceModel = captured.voiceModel; }
++                    }
++                    else people.Add(captured);
++                    settings.identities = people.ToArray(); UpdateIdentityPolicy(settings);
++                    CloseIdentityGuide(); ShowSettingsTab(_settingsTab, false);
++                    SetSettingsNotice("Registration complete. Save to apply.");
++                }
++                catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
++                catch (Exception error) { if (instructions != null) { instructions.text = Localize(error.Message); record.interactable = true; } }
++                finally
++                {
++                    if (_identityCapture == cancellation) _identityCapture = null;
++                    cancellation.Dispose();
++                    if (this != null && generation == _settingsGeneration && IsSettingsOpen) SetSettingsBusy(false);
++                }
++            });
++        }
++
++        private void CloseIdentityGuide()
++        {
++            _identityCapture?.Cancel();
++            if (_identityGuide != null) { _identityGuide.gameObject.SetActive(false); Release(_identityGuide.gameObject); _identityGuide = null; }
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Identities.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: eef241dfcf534882a87afbcb2ff3ad66
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+@@ -30,13 +30,16 @@
+             AddBoolField("Require visible face for voice", "Presence controls realtime listening only. Space and hold-to-talk always work without a visible target.",
+                 () => value.requirePresenceForVoice, enabled => UpdateAudioSettings(() => value.requirePresenceForVoice = enabled));
+             AddBoolField("Recognized identities only", "Requires enrolled identities and a ready recognition provider.",
+-                () => value.faceRecognition, enabled => UpdateAudioSettings(() => value.faceRecognition = enabled), value.visualPresence);
++                () => value.faceRecognition, enabled => UpdateAudioSettings(() => value.faceRecognition = enabled),
++                value.faceRecognition || Array.Exists(value.identities, person => person.allowed && person.face.Length == 512));
+             AddBoolField("Image context", "Use a fresh target image for supported multimodal requests.",
+                 () => value.imageContext, enabled => UpdateAudioSettings(() => value.imageContext = enabled), value.visualPresence);
+             BuildVisionModelSelection("Face detection model", "Choose an installed model or download a supported detector.",
+                 FaceDetectionModelStage, () => value.detectorDirectory, directory => value.detectorDirectory = directory);
+             BuildVisionModelSelection("Face recognition model", "Used only when identity matching is enabled.",
+                 FaceRecognitionModelStage, () => value.recognizerDirectory, directory => value.recognizerDirectory = directory);
++            BuildVisualSpeechSettings(value, acoustics);
++            BuildIdentitySettings(true);
+             BuildCameraSettings(value);
+             if (value.visualPresence)
+             {
+@@ -47,9 +50,9 @@
+                     () => value.graceSeconds, seconds => value.graceSeconds = seconds, 0, 120);
+                 form.Number("Sleep after absence (s)", "Must be at least the brief absence grace period.",
+                     () => value.sleepSeconds, seconds => value.sleepSeconds = seconds, 0, 3600);
++                AddEnumField("Sleep display", "Appearance while no permitted person is present.", () => (int)value.sleepDisplay,
++                    selected => value.sleepDisplay = (MNNPresenceSleepDisplay)selected, new[] { "Hidden", "Dimmed", "Black screen" });
+                 SettingsDescription("On absence, UI and orb fade immediately. At sleep timeout the interface hides; returning fades it back in.");
+-                AddTextField("Allowed identities", "Comma-separated enrolled identifiers.", () => string.Join(", ", value.allowedIdentities ?? Array.Empty<string>()),
+-                    text => value.allowedIdentities = text.Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries));
+             }
+         }
+ 
+@@ -58,17 +61,43 @@
+             var acoustics = _settingsDraft?.Acoustics;
+             if (acoustics == null) return;
+             var value = acoustics.interaction ?? (acoustics.interaction = new MNNInteractionSettings());
+-            AddSettingsTitle("Target speech pickup", "Audio-visual pickup uses the camera configured in Vision.");
+-            if (value.visualPresence)
+-                AddBoolField("Audio-visual target speech", "Enable vision first. Requires a synchronized visual speech provider; stale video is rejected.",
+-                    () => value.audioVisualSpeech, enabled => UpdateAudioSettings(() => value.audioVisualSpeech = enabled));
+-            AddBoolField("Reference speaker extraction", "Requires an enrolled voice and a target extraction provider.",
++            if (acoustics.enabled && acoustics.profile == SiriAIAcousticProfile.AutomaticSpeaker)
++            { value.separateSpeakers = true; acoustics.profile = SiriAIAcousticProfile.Realtime; }
++            AddSettingsTitle("Target speech pickup", "Automatically selects the main speaker for each turn. Registration is optional.");
++            AddBoolField("Reference speaker extraction", "Learns the current speaker automatically from isolated speech; no prior registration is required.",
+                 () => value.referenceSpeaker, enabled => UpdateAudioSettings(() => value.referenceSpeaker = enabled));
+             AddBoolField("Overlapping speaker separation", "Requires a separator and target identity selector; ambiguity is rejected.",
+                 () => value.separateSpeakers, enabled => UpdateAudioSettings(() => value.separateSpeakers = enabled));
++            if (value.referenceSpeaker)
++                BuildAcousticModelSelection("Reference extraction model", "Downloads and verifies the selected supported export.",
++                    SiriAIAcousticModelTask.ReferenceSpeaker, () => value.referenceSpeakerDirectory, directory => value.referenceSpeakerDirectory = directory);
++            if (value.referenceSpeaker || value.separateSpeakers)
++            {
++                BuildAcousticModelSelection("Separation model", "Bootstraps a speaker automatically; used when voices overlap.",
++                    SiriAIAcousticModelTask.Separation, () => acoustics.separationDirectory, directory => acoustics.separationDirectory = directory);
++                BuildTargetSpeakerModel(acoustics);
++            }
++            BuildIdentitySettings(false);
+             SettingsDescription(string.IsNullOrEmpty(value.measuredConfigurationId)
+                 ? "No comparable CER/WER measurement is selected. Current defaults are not ranked for recognition accuracy."
+                 : "Measured configuration: " + value.measuredConfigurationId);
+         }
++
++        private void BuildVisualSpeechSettings(MNNInteractionSettings value, SiriAIAcousticSettings acoustics)
++        {
++            AddSettingsTitle("Audio-visual speech", "Uses synchronized camera frames to isolate the visible speaker. No registration is required.");
++            AddBoolField("Audio-visual target speech", "Selects a speaker automatically for each new turn; the voice remains stable within that turn.",
++                () => value.audioVisualSpeech, enabled => UpdateAudioSettings(() => value.audioVisualSpeech = enabled));
++            if (!value.audioVisualSpeech) return;
++            BuildAcousticModelSelection("Audio-visual extraction model", "Choose a compatible installed model or download one with the existing model picker.",
++                SiriAIAcousticModelTask.AudioVisualSpeech, () => value.audioVisualDirectory, directory => value.audioVisualDirectory = directory);
++            BuildTargetSpeakerModel(acoustics);
++        }
++
++        private void BuildTargetSpeakerModel(SiriAIAcousticSettings acoustics)
++        {
++            BuildAcousticModelSelection("Speaker embedding model", "Identifies the selected speaker; shared by audio and visual pickup.",
++                SiriAIAcousticModelTask.SpeakerEmbedding, () => acoustics.speakerDirectory, directory => acoustics.speakerDirectory = directory);
++        }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.UI.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.UI.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.UI.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.UI.cs
+@@ -281,13 +281,20 @@
+ 
+         private void AddIntField(string title, string detail, Func<int> read, Action<int> write, int min, int max)
+         {
+-            var input = AddTextField(title, detail, () => read().ToString(CultureInfo.InvariantCulture), value =>
+-            {
+-                if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) || parsed < min || parsed > max)
+-                    throw new ArgumentException(title + " must be between " + min + " and " + max + ".");
+-                write(parsed);
+-            }, numeric: true);
+-            AddPresetChoices(input, title, NumericChoices(title, min, max, read()));
++            if (_settingsTab != 3 && _settingsTab != VisionTab)
++            {
++                var input = AddTextField(title, detail, () => read().ToString(CultureInfo.InvariantCulture), value =>
++                {
++                    if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) || parsed < min || parsed > max)
++                        throw new ArgumentException(title + " must be between " + min + " and " + max + ".");
++                    write(parsed);
++                }, numeric: true);
++                AddPresetChoices(input, title, NumericChoices(title, min, max, read()));
++                return;
++            }
++            var values = NumericChoices(title, min, max, read());
++            AddEnumField(title, detail, () => Array.IndexOf(values, read().ToString(CultureInfo.InvariantCulture)),
++                index => write(int.Parse(values[index], CultureInfo.InvariantCulture)), values);
+         }
+ 
+         private void AddScaleField()
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.cs
+@@ -160,6 +160,7 @@
+         public void CloseSettings()
+         {
+             if (_settingsSaving || !IsSettingsOpen) return;
++            CloseIdentityGuide();
+             ClearHarnessSecret();
+             CancelCloudCheck();
+             CloseResetPrompt();
+@@ -189,6 +190,7 @@
+ 
+         private void ResetSettingsPage()
+         {
++            CloseIdentityGuide();
+             ClearHarnessSecret();
+             CancelCloudCheck();
+             _pendingQualityTier = null;
+@@ -345,6 +347,7 @@
+ 
+         private void ShowSettingsTab(int index, bool read = true)
+         {
++            CloseIdentityGuide();
+             if (_settingsSaving || read && !ReadSettingsFields()) return;
+             // Merge related pages while retaining stable internal entry points.
+             if (index == AcousticTab || index == SpeechTab) { _settingsAudioAdvanced = true; index = 3; }
+@@ -421,7 +424,7 @@
+ 
+         private async void SaveChatSettings()
+         {
+-            if (_editorPreview || !IsSettingsOpen || _settingsSaving || _acousticModelCancellation != null || _visionModelCancellation != null || !ReadSettingsFields()) return;
++            if (_editorPreview || !IsSettingsOpen || _settingsSaving || _identityCapture != null || _acousticModelCancellation != null || _visionModelCancellation != null || !ReadSettingsFields()) return;
+             int generation = _settingsGeneration;
+             bool committed = false;
+             GameObject savedCanvas = _canvasRoot;
+@@ -475,6 +478,11 @@
+ 
+         private void UpdateSettingsKeyboard()
+         {
++            if (_identityGuide != null)
++            {
++                if (Input.GetKeyDown(KeyCode.Escape)) CloseIdentityGuide();
++                return;
++            }
+             if (_settingsPopup != null && !_settingsOptionsClosing)
+             {
+                 if (Input.GetKeyDown(KeyCode.Escape)) CloseSettingsOptions();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+@@ -106,6 +106,8 @@
+                 samples = await Interaction.PrepareVoiceAsync(samples, Math.Max(0, captureStartedAtTicks - delay), token).ConfigureAwait(false);
+             }
+             if (samples == null) return null;
++            if (_manualVoice.Value && Interaction?.ReadSettings().UsesVoiceIdentity == true &&
++                (TargetSpeech == null || !await TargetSpeech.IsVoiceAllowedAsync(samples, token).ConfigureAwait(false))) return null;
+             return Acoustics == null ? samples : await Acoustics.PrepareVoiceAsync(samples, token).ConfigureAwait(false);
+         }
+         // Utterance-level selection cannot qualify a live interrupter's identity.
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.Acoustics.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.Acoustics.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.Acoustics.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Models/SiriAIModelCatalog.Acoustics.cs
+@@ -15,7 +15,8 @@
+             MNNModelCatalogCategory.All, MNNModelCatalogCategory.SpeechSynthesis, MNNModelCatalogCategory.SpeechRecognition,
+             MNNModelCatalogCategory.VoiceActivityDetection, MNNModelCatalogCategory.TurnDetection, MNNModelCatalogCategory.EchoCancellation,
+             MNNModelCatalogCategory.SpeechEnhancement, MNNModelCatalogCategory.KeywordSpotting, MNNModelCatalogCategory.SpeechSeparation,
+-            MNNModelCatalogCategory.SpeakerRecognition, MNNModelCatalogCategory.VoiceActivityDetection
++            MNNModelCatalogCategory.SpeakerRecognition, MNNModelCatalogCategory.VoiceActivityDetection,
++            MNNModelCatalogCategory.KeywordSpotting, MNNModelCatalogCategory.TargetSpeakerExtraction, MNNModelCatalogCategory.TargetSpeakerExtraction
+         };
+         private static readonly HashSet<string> LanguageCategories = new HashSet<string>
+         {
+@@ -41,6 +42,11 @@
+         internal static bool CanSelect(Entry entry, int stage)
+         {
+             if (entry.installedDirectory != null) return (int)entry.acousticTask == stage;
++            if (stage == (int)SiriAIAcousticModelTask.AudioVisualSpeech || stage == (int)SiriAIAcousticModelTask.ReferenceSpeaker)
++            {
++                return MNNAcousticModelCatalog.SupportsTargetSpeech(entry.remote, stage == (int)SiriAIAcousticModelTask.AudioVisualSpeech
++                    ? MNNAcousticModelTask.AudioVisualSpeech : MNNAcousticModelTask.ReferenceSpeaker);
++            }
+             if (stage == (int)SiriAIAcousticModelTask.EnglishWakeDetection) return !entry.catalogOnly && IsEnglishWakeModel(entry);
+             if (stage == (int)SiriAIAcousticModelTask.WakeDetection && IsEnglishWakeModel(entry)) return false;
+             if (stage < 6) return !entry.catalogOnly;
+@@ -75,6 +81,8 @@
+                     case MNNAcousticModelTask.EnglishWakeDetection: task = SiriAIAcousticModelTask.EnglishWakeDetection; break;
+                     case MNNAcousticModelTask.Separation: task = SiriAIAcousticModelTask.Separation; break;
+                     case MNNAcousticModelTask.SpeakerEmbedding: task = SiriAIAcousticModelTask.SpeakerEmbedding; break;
++                    case MNNAcousticModelTask.AudioVisualSpeech: task = SiriAIAcousticModelTask.AudioVisualSpeech; break;
++                    case MNNAcousticModelTask.ReferenceSpeaker: task = SiriAIAcousticModelTask.ReferenceSpeaker; break;
+                     default: task = SiriAIAcousticModelTask.QualityVoiceActivity; break;
+                 }
+                 _entries.Add(new Entry { modelId = AcousticModelId(task, entry.Directory), repository = Path.GetFileName(entry.Directory),
+@@ -99,6 +107,8 @@
+                 case SiriAIAcousticModelTask.Separation: return settings.separationDirectory;
+                 case SiriAIAcousticModelTask.SpeakerEmbedding: return settings.speakerDirectory;
+                 case SiriAIAcousticModelTask.QualityVoiceActivity: return settings.vadDirectory;
++                case SiriAIAcousticModelTask.AudioVisualSpeech: return settings.interaction?.audioVisualDirectory;
++                case SiriAIAcousticModelTask.ReferenceSpeaker: return settings.interaction?.referenceSpeakerDirectory;
+                 default: throw new ArgumentOutOfRangeException(nameof(task));
+             }
+         }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/ISiriAIModelSettingsForm.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/ISiriAIModelSettingsForm.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/ISiriAIModelSettingsForm.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/ISiriAIModelSettingsForm.cs
+@@ -5,7 +5,8 @@
+     /// <summary>Task-specific installed acoustic models in the shared model picker.</summary>
+     public enum SiriAIAcousticModelTask
+     {
+-        NoiseReduction = 6, WakeDetection, Separation, SpeakerEmbedding, QualityVoiceActivity, EnglishWakeDetection
++        NoiseReduction = 6, WakeDetection, Separation, SpeakerEmbedding, QualityVoiceActivity, EnglishWakeDetection,
++        AudioVisualSpeech, ReferenceSpeaker
+     }
+ 
+     /// <summary>Optional model-field capability. Existing custom scalar form adapters remain compatible.</summary>
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAIAcousticSettingsSection.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAIAcousticSettingsSection.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAIAcousticSettingsSection.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAIAcousticSettingsSection.cs
+@@ -6,6 +6,10 @@
+     public static class SiriAIAcousticSettingsSection
+     {
+         public static void Build(ISiriAISettingsForm form, SiriAIAcousticSettings draft, Action<Action> change, bool captureEnhancement = true)
++            => Build(form, draft, change, captureEnhancement, true);
++
++        public static void Build(ISiriAISettingsForm form, SiriAIAcousticSettings draft, Action<Action> change, bool captureEnhancement,
++            bool legacySpeakerSelection)
+         {
+             if (form == null || draft == null || change == null) throw new ArgumentNullException();
+             form.Section("Speech input processing", "Wake words apply live; other changes require saving and restarting.");
+@@ -14,12 +18,12 @@
+             if (!draft.enabled) return;
+             form.Integer("Maximum capture age (ms)", "64–1000 ms; older audio is discarded.",
+                 () => draft.maximumCaptureAgeMilliseconds, value => draft.maximumCaptureAgeMilliseconds = value, 64, 1000);
+-            form.Choice("Speaker selection", "Experimental; selects after speech ends.",
++            if (legacySpeakerSelection) form.Choice("Speaker selection", "Experimental; selects after speech ends.",
+                 () => (int)draft.profile, value => change(() => draft.profile = (SiriAIAcousticProfile)value),
+                 new[] { "Ordinary speech input", "Automatic speaker (experimental)" });
+             BuildEnhancement(form, draft, change, captureEnhancement);
+             BuildWake(form, draft, change);
+-            if (draft.profile == SiriAIAcousticProfile.AutomaticSpeaker) BuildSpeaker(form, draft);
++            if (legacySpeakerSelection && draft.profile == SiriAIAcousticProfile.AutomaticSpeaker) BuildSpeaker(form, draft);
+         }
+         private static void BuildEnhancement(ISiriAISettingsForm form, SiriAIAcousticSettings draft, Action<Action> change, bool captureEnhancement)
+         {
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -8,6 +8,53 @@
+     {
+         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
+         {
++            { "Audio-visual speech", "视听融合" },
++            { "Uses synchronized camera frames to isolate the visible speaker. No registration is required.", "结合摄像头画面提取当前说话人的声音，无需预先注册。" },
++            { "Selects a speaker automatically for each new turn; the voice remains stable within that turn.", "每轮对话自动识别说话人，同一句话内保持目标一致。" },
++            { "Audio-visual extraction model", "视听融合拾音模型" },
++            { "Choose a compatible installed model or download one with the existing model picker.", "点击选择兼容的已安装模型，也可搜索并下载。" },
++            { "Automatically selects the main speaker for each turn. Registration is optional.", "每轮自动识别主要说话人，无需注册；也可按需设置交互名单。" },
++            { "Learns the current speaker automatically from isolated speech; no prior registration is required.", "从清晰语音自动提取当前说话人的特征，无需提前录入声纹。" },
++            { "Reference extraction model", "参考声纹提取模型" },
++            { "Downloads and verifies the selected supported export.", "选择后自动下载并校验兼容模型。" },
++            { "Bootstraps a speaker automatically; used when voices overlap.", "自动识别主要说话人，用于多人声音重叠的情况。" },
++            { "Identifies the selected speaker; shared by audio and visual pickup.", "用于区分说话人，音频与视听拾音共用此模型。" },
++            { "Face access", "人脸交互权限" },
++            { "Voice access", "声纹交互权限" },
++            { "Optional. Everyone can interact unless you enable restrictions. Recordings stay on this device; save to apply changes.", "默认任何人都可交互，可按需限制。身份特征仅保存在本机，点击保存后生效。" },
++            { "Registered voices only", "仅允许已注册声纹" },
++            { "Record an allowed voice first. Unrecognized or ambiguous voices are rejected.", "先录入允许交互的声纹，无法识别或不确定的声音将被拒绝。" },
++            { "No allowed people. Register someone or turn off restrictions to allow interaction.", "允许名单为空，当前禁止交互。请添加人员，或主动关闭限制。" },
++            { "Add person", "添加人员" },
++            { "Person {0}", "人员 {0}" },
++            { "Blocked", "禁止交互" },
++            { "Face recorded", "已录入人脸" },
++            { "No face recording", "尚未录入人脸" },
++            { "Voice recorded", "已录入声纹" },
++            { "No voice recording", "尚未录入声纹" },
++            { "Manage", "管理" },
++            { "Block interaction", "禁止交互" },
++            { "Allow interaction", "允许交互" },
++            { "Update recording", "重新录制" },
++            { "Delete registration", "删除注册" },
++            { "Register person", "录入人员" },
++            { "Look at the camera alone, then click Record. Only your face features are saved.", "请独自面对摄像头，然后点击“开始录制”。仅保存人脸特征，不保留照片。" },
++            { "Click Record, then speak alone for four seconds. Only your voice features are saved.", "点击“开始录制”，然后独自说话 4 秒。仅保存声纹特征，不保留原始录音。" },
++            { "Record", "开始录制" },
++            { "Capturing a fresh face image…", "正在采集当前人脸…" },
++            { "Recording… Speak alone for four seconds.", "正在录音，请独自说话 4 秒…" },
++            { "Registration complete. Save to apply.", "录入完成，点击保存后生效。" },
++            { "Wait for the microphone and conversation to become ready.", "请等待麦克风与会话就绪。" },
++            { "Enable vision and save before recording a face.", "请先启用视觉并保存，再录入人脸。" },
++            { "Keep exactly one face in the camera and try again.", "请确保镜头中只有一张人脸，然后重试。" },
++            { "The microphone is busy. Try again.", "麦克风正在使用中，请稍后重试。" },
++            { "No clear voice was recorded. Speak alone and try again.", "没有录到清晰语音，请独自说话后重试。" },
++            { "No fresh camera frame. Check vision and try recording again.", "未获取到新的摄像头画面，请检查视觉设置后重试。" },
++            { "Appearance while no permitted person is present.", "没有允许交互的人员时，界面的显示方式。" },
++            { "Hidden", "隐藏" },
++            { "Dimmed", "变暗" },
++            { "The face model changed. Update the saved face recordings before enabling identity restrictions.", "人脸模型已更换，请重新录入人脸后再使用身份限制。" },
++            { "The speaker model changed. Update the saved voice recordings before using identity restrictions.", "声纹模型已更换，请重新录入声纹后再使用身份限制。" },
+             { "Microphone activity", "实时麦克风" },
+             { "Live input before speech recognition. Silence does not trigger device switching.", "显示识别前的实时输入；环境安静不会触发设备切换。" },
+             { "Microphone is not active", "麦克风未启动" },
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/SiriAIVoiceInputFilterTests.cs
+@@ -539,14 +539,37 @@
+         private sealed class TranscriptTurn : ISiriAITranscriptTurnProvider
+         {
+             internal string LastTranscript;
++            internal bool WaitForCancellation, WasCancelled;
+             public bool RequiresTranscript => true;
+             public MNNRealtimeCapabilities Capabilities => new MNNRealtimeCapabilities(MNNRealtimeFeature.None, "test", "Managed transcript endpoint");
+             public Task PrepareAsync(CancellationToken token) => Task.CompletedTask;
+             public Task<bool> IsTurnCompleteAsync(float[] audio, int rate, CancellationToken token) =>
+                 throw new AssertionException("A text endpoint must receive its transcript.");
+-            public Task<bool> IsTurnCompleteAsync(float[] audio, int rate, string text, CancellationToken token)
+-            { LastTranscript = text; return Task.FromResult(text == "stop"); }
++            public async Task<bool> IsTurnCompleteAsync(float[] audio, int rate, string text, CancellationToken token)
++            {
++                LastTranscript = text;
++                if (WaitForCancellation)
++                {
++                    try { await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false); }
++                    catch (OperationCanceledException) { WasCancelled = true; throw; }
++                }
++                return text == "stop";
++            }
+             public void Dispose() { }
++        }
++
++        [Test]
++        public void SlowEndpointModelReleasesCompletedSpeechToValidationAfterItsDeadline()
++        {
++            var turn = new TranscriptTurn { WaitForCancellation = true };
++            using (var fixture = new RuntimeFixture("stop", "ACCEPT", turn))
++            {
++                fixture.EnableRealtime(); fixture.Capture.PushUtterance();
++                WaitFor(() => Volatile.Read(ref fixture.Provider.ReplyCalls) == 1);
++                Assert.True(turn.WasCancelled);
++                Assert.AreEqual(1, fixture.Provider.AsrCalls, "Endpoint timeout must reuse the transcript and still apply voice validation.");
++                Assert.AreEqual("stop", fixture.History[0].Text);
++            }
+         }
+ 
+         private static float[] Speech()
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+@@ -397,11 +397,13 @@
+                 Assert.That(Active(content, "Face detection model"), Is.Not.Null);
+                 var draft = (SiriAISettingsDraft)type.GetProperty("SettingsDraft", Private).GetValue(view);
+                 Assert.That(draft.Acoustics.interaction.visualPresence, Is.True);
+-                Active(content, "Confirmation time (s)").GetComponentInChildren<InputField>().text = "1.2";
++                var confirmation = Active(content, "Confirmation time (s)");
++                Assert.IsNull(confirmation.GetComponentInChildren<InputField>(), "Timing is selected by clicking a preset.");
++                draft.Acoustics.interaction.confirmationSeconds = 1;
+                 Assert.That(Active(content, "Brief absence grace (s)"), Is.Not.Null);
+                 Assert.That(Active(content, "Sleep after absence (s)"), Is.Not.Null);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {11, true});
+-                Assert.That(draft.Acoustics.interaction.confirmationSeconds, Is.EqualTo(1.2f));
++                Assert.That(draft.Acoustics.interaction.confirmationSeconds, Is.EqualTo(1f));
+                 Assert.That(Active(content, "Enable vision"), Is.Null);
+                 Assert.That(Active(content, "Reference speaker extraction"), Is.Not.Null);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {ids[vision], true});
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Fixtures/SiriAITestAccess.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Fixtures/SiriAITestAccess.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Fixtures/SiriAITestAccess.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Fixtures/SiriAITestAccess.cs
+@@ -6,6 +6,15 @@
+     /// <summary>Legacy lifecycle/UI access in one place. Domain rules use their internal APIs directly.</summary>
+     internal static class SiriAITestAccess
+     {
++        internal static void SelectSetting(SiriAIChatView view, string title, string value)
++        {
++            var content = Field<UnityEngine.RectTransform>(view, "_settingsContent");
++            content.Find(title).GetComponentInChildren<UnityEngine.UI.Button>().onClick.Invoke();
++            var options = Field<UnityEngine.RectTransform>(view, "_settingsOptionsContent");
++            foreach (var button in options.GetComponentsInChildren<UnityEngine.UI.Button>())
++                if (button.GetComponentInChildren<UnityEngine.UI.Text>().text == value) { button.onClick.Invoke(); return; }
++            throw new ArgumentException("Setting choice is missing: " + title + " / " + value);
++        }
+         private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+ 
+         private static FieldInfo FindField(object target, string name)
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticConfigurationTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticConfigurationTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticConfigurationTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticConfigurationTests.cs
+@@ -32,7 +32,7 @@
+             _view = _root.AddComponent<SiriAIChatView>();
+             _view.TickEditorPreview(new Rect(0, 0, 390, 844), 1);
+             _view.OpenSettings();
+-            SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, true);
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 12, true);
+         }
+         [TearDown]
+         public void TearDown()
+@@ -97,11 +97,11 @@
+             SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
+             foreach (string row in new[] { "Maximum capture age (ms)", "Enhance voice detection", "Enhance wake detection",
+                 "Enhance speech recognition", "Wake words", "Wake word language", "Wake threshold" }) Assert.NotNull(Content.Find(row), row);
+-            Content.Find("Wake threshold").GetComponentInChildren<InputField>().text = "0.42";
+-            Content.Find("Maximum capture age (ms)").GetComponentInChildren<InputField>().text = "320";
++            SiriAITestAccess.SelectSetting(_view, "Wake threshold", "0.5");
++            SiriAITestAccess.SelectSetting(_view, "Maximum capture age (ms)", "256");
+             Content.Find("Enhance speech recognition").GetComponentInChildren<Button>().onClick.Invoke();
+-            Assert.AreEqual(.42f, Draft.keywordThreshold);
+-            Assert.AreEqual(320, Draft.maximumCaptureAgeMilliseconds);
++            Assert.AreEqual(.5f, Draft.keywordThreshold);
++            Assert.AreEqual(256, Draft.maximumCaptureAgeMilliseconds);
+             Assert.True(Draft.enhanceRecognition);
+             Assert.False(Owner.ReadSettings().enhanceRecognition);
+         }
+@@ -121,7 +121,7 @@
+                 Assert.IsNull(Content.Find("Enhance wake detection"));
+                 Assert.NotNull(Content.Find("Enhance speech recognition"));
+                 Assert.That(string.Join(" ", System.Array.ConvertAll(Content.GetComponentsInChildren<Text>(), text => text.text)),
+-                    Does.Contain("recorded utterance"));
++                    Does.Contain("completed recordings"));
+             }
+             finally { System.IO.Directory.Delete(folder, true); }
+         }
+@@ -186,13 +186,15 @@
+         }
+ 
+         [Test]
+-        public void InvalidNumericInputKeepsThePageAndPreventsTheDependentToggleFromChanging()
+-        {
+-            Draft.enabled = Draft.wakeWord = true;
+-            SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
+-            Content.Find("Wake threshold").GetComponentInChildren<InputField>().text = "NaN";
++        public void NumericPresetsPreventInvalidInputAndAllowDependentToggles()
++        {
++            Draft.enabled = Draft.wakeWord = true;
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
++            Assert.IsNull(Content.Find("Wake threshold").GetComponentInChildren<InputField>());
++            SiriAITestAccess.SelectSetting(_view, "Wake threshold", "0.5");
+             Content.Find("Voice wake-up").GetComponentInChildren<Button>().onClick.Invoke();
+-            Assert.True(Draft.wakeWord);
++            Assert.False(Draft.wakeWord);
++            Assert.AreEqual(.5f, Draft.keywordThreshold);
+             Assert.True(_view.IsSettingsOpen);
+             Assert.False(PlayerPrefs.HasKey(AcousticKey));
+         }
+@@ -219,7 +221,7 @@
+             Assert.Greater(Content.rect.height, scroll.viewport.rect.height);
+             scroll.verticalNormalizedPosition = 0;
+             Canvas.ForceUpdateCanvases();
+-            var last = (RectTransform)Content.Find("Speaker selection margin");
++            var last = (RectTransform)Content.GetChild(Content.childCount - 1);
+             Assert.NotNull(last);
+             var corners = new Vector3[4]; last.GetWorldCorners(corners);
+             var bottom = scroll.viewport.InverseTransformPoint(corners[0]);
+@@ -236,30 +238,30 @@
+             string folder = System.IO.Path.GetFullPath("TestArtifacts~/NeverInstalled-" + Guid.NewGuid().ToString("N"));
+             Draft.denoiserDirectory = folder;
+             SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
+-            Content.Find("Maximum capture age (ms)").GetComponentInChildren<InputField>().text = "320";
++            SiriAITestAccess.SelectSetting(_view, "Maximum capture age (ms)", "256");
+             var check = Content.Find("Acoustic file preflight");
+             Assert.NotNull(check, "Audio settings need a model-file check entry point.");
+             check.Find("Check acoustic files").GetComponent<Button>().onClick.Invoke();
+             var report = check.Find("Acoustic Check Report").GetComponent<Text>();
+             Assert.That(report.text, Does.Contain(folder).And.Contain("directory.missing"));
+             Assert.AreEqual(folder, Draft.denoiserDirectory);
+-            Assert.AreEqual(320, Draft.maximumCaptureAgeMilliseconds);
++            Assert.AreEqual(256, Draft.maximumCaptureAgeMilliseconds);
+             Assert.False(Owner.IsPrepared);
+             Assert.False(Owner.ReadSettings().denoise);
+             Assert.False(PlayerPrefs.HasKey(AcousticKey));
+         }
+ 
+         [Test]
+-        public void AcousticCheckPreservesAnInvalidNumericFieldForCorrection()
+-        {
+-            Draft.enabled = Draft.wakeWord = true;
+-            SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
+-            var threshold = Content.Find("Wake threshold").GetComponentInChildren<InputField>();
+-            threshold.text = "NaN";
++        public void AcousticCheckUsesOnlyValidSelectedNumericPresets()
++        {
++            Draft.enabled = Draft.wakeWord = true;
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
++            Assert.IsNull(Content.Find("Wake threshold").GetComponentInChildren<InputField>());
++            SiriAITestAccess.SelectSetting(_view, "Wake threshold", "0.5");
+             var check = Content.Find("Acoustic file preflight");
+             Assert.NotNull(check);
+             check.Find("Check acoustic files").GetComponent<Button>().onClick.Invoke();
+-            Assert.AreEqual("NaN", threshold.text);
++            Assert.AreEqual(.5f, Draft.keywordThreshold);
+             Assert.True(_view.IsSettingsOpen);
+             Assert.False(PlayerPrefs.HasKey(AcousticKey));
+         }
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIAcousticModelPickerTests.cs
+@@ -1,5 +1,6 @@
+ using System;
+ using System.Collections;
++using System.Collections.Generic;
+ using System.Threading;
+ using System.Threading.Tasks;
+ using System.IO;
+@@ -38,6 +39,10 @@
+             WriteModel("Separation", MNNMossFormer2Config.FileName, new MNNMossFormer2Config { graph = "separate.mnn" }, "separate.mnn");
+             WriteModel("Speaker-A", MNNSpeakerModelConfig.FileName, new MNNSpeakerModelConfig { graph = "speaker.mnn" }, "speaker.mnn");
+             WriteModel("Speaker-B", MNNSpeakerModelConfig.FileName, new MNNSpeakerModelConfig { graph = "speaker.mnn" }, "speaker.mnn");
++            WriteModel("Visual-Pickup", MNNAvConvTasNetConfig.FileName, new MNNAvConvTasNetConfig
++                { visual_graph = "visual.mnn", audio_graph = "audio.mnn" }, "visual.mnn", "audio.mnn");
++            WriteModel("Reference-Pickup", MNNSpExPlusConfig.FileName, new MNNSpExPlusConfig
++                { reference_graph = "reference.mnn", audio_graph = "audio.mnn" }, "reference.mnn", "audio.mnn");
+             _restoreAppearance = SiriAIViewPreferencesStore.CaptureRestore();
+             _root = new GameObject("Unified acoustic model picker");
+             _chat = _root.AddComponent<SiriAIChat>();
+@@ -70,6 +75,54 @@
+             foreach (var expected in shared.SearchModels(query))
+                 Assert.IsTrue(runtime.SearchModels(query).Any(entry => entry.repository == expected.repositoryId &&
+                     entry.remote?.provider == expected.provider), expected.repositoryId);
++        }
++
++        [Test]
++        public void VisualPickupLivesOnlyInVisionAndUsesTheSharedTaskPicker()
++        {
++            Draft.interaction.visualPresence = Draft.interaction.audioVisualSpeech = true;
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 13, false);
++            Assert.NotNull(Content.Find("Audio-visual target speech"));
++            Assert.IsNull(Content.Find("Reference speaker extraction"));
++            Assert.IsNull(Content.Find("Allowed identities"));
++            Assert.IsEmpty(Content.GetComponentsInChildren<InputField>(), "Visual tuning and identities must be click-only.");
++            Content.Find("Audio-visual extraction model").Find("Choose MNN Model").GetComponent<Button>().onClick.Invoke();
++            Assert.AreEqual((int)SiriAIAcousticModelTask.AudioVisualSpeech, SiriAITestAccess.Field<int>(_view, "_modelPickerStage"));
++            Assert.True(SiriAITestAccess.Field<List<SiriAIModelCatalog.Entry>>(_view, "_modelPickerEntries").Any(entry => entry.repository == "Visual-Pickup"));
++            Assert.False(SiriAITestAccess.Field<List<SiriAIModelCatalog.Entry>>(_view, "_modelPickerEntries").Any(entry => entry.repository == "Reference-Pickup"));
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
++            Assert.IsNull(Content.Find("Audio-visual target speech"));
++            Assert.NotNull(Content.Find("Overlapping speaker separation"));
++            Assert.AreEqual(1, Content.Cast<Transform>().Count(child => child.gameObject.activeSelf && child.name == "Separation model"));
++        }
++
++        [Test]
++        public void RegistrationGuideCanBeOpenedAndCancelledWithoutTypingOrPersistingAnIdentity()
++        {
++            Content.Find("Add voice").GetComponent<Button>().onClick.Invoke();
++            var guide = SiriAITestAccess.Field<RectTransform>(_view, "_identityGuide");
++            Assert.IsNotNull(guide);
++            Assert.IsEmpty(guide.GetComponentsInChildren<InputField>());
++            var cancel = guide.GetComponentsInChildren<Button>().Single(button => button.GetComponentInChildren<Text>().text == "Cancel");
++            cancel.onClick.Invoke();
++            Assert.IsNull(SiriAITestAccess.Field<RectTransform>(_view, "_identityGuide"));
++            Assert.IsEmpty(Draft.interaction.identities);
++        }
++
++        [Test]
++        public void DeletingTheLastVoiceRegistrationNeverOpensAnEnabledAllowList()
++        {
++            Draft.interaction.voiceRecognition = true;
++            Draft.interaction.identities = new[] { new MNNInteractionIdentity { id = "person", voice = new[] { 1f, 0f } } };
++            SiriAITestAccess.Call(_view, "ShowSettingsTab", 3, false);
++            var row = Content.Find("Person 1");
++            row.GetComponentInChildren<Button>().onClick.Invoke();
++            var options = SiriAITestAccess.Field<RectTransform>(_view, "_settingsOptionsContent");
++            options.GetComponentsInChildren<Button>().Single(button => button.GetComponentInChildren<Text>().text == "Delete registration").onClick.Invoke();
++            Assert.IsEmpty(Draft.interaction.identities);
++            Assert.True(Draft.interaction.voiceRecognition, "Deleting the final allowed person must leave the list closed.");
++            Assert.DoesNotThrow(Draft.interaction.Validate);
++            Assert.False(_chat.GetAcousticSettings().interaction.voiceRecognition, "Changes remain in the draft until Save.");
+         }
+ 
+         [Test]
+@@ -325,7 +378,7 @@
+             catalog.RefreshInstalledAcoustics(_models, Draft);
+             for (int stage = 0; stage < 6; ++stage)
+                 CollectionAssert.AreEqual(original[stage], catalog.ForStage(stage).Select(entry => entry.modelId));
+-            Assert.AreEqual(6, catalog.Entries.Count(entry => entry.installedDirectory != null));
++            Assert.AreEqual(8, catalog.Entries.Count(entry => entry.installedDirectory != null));
+         }
+ 
+         private void WriteModel(string folder, string profile, object config, params string[] files)
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIChatSettingsTests.cs
+@@ -721,6 +721,7 @@
+                 var content = Field<RectTransform>(view, "_settingsContent");
+                 content.Find("Speak replies/Toggle Speak replies").GetComponent<Button>().onClick.Invoke();
+                 content.Find("CPU threads/CPU threads Input").GetComponent<InputField>().text = "9";
++                Call(view, "ShowSettingsTab", 12, true);
+                 content.Find("Voice activity model/Toggle Voice activity model").GetComponent<Button>().onClick.Invoke();
+                 content.Find("Turn detection model/Toggle Turn detection model").GetComponent<Button>().onClick.Invoke();
+                 var draft = view.SettingsDraft.Configuration;
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILocalizationTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILocalizationTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILocalizationTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILocalizationTests.cs
+@@ -151,8 +151,9 @@
+                 SiriAITestAccess.Call(view, "ShowSettingsTab", 0, false);
+                 var content = SiriAITestAccess.Field<RectTransform>(view, "_settingsContent");
+                 content.Find("Advanced conversation settings").GetComponentInChildren<Button>().onClick.Invoke();
++                Assert.IsNotNull(Array.Find(content.GetComponentsInChildren<Text>(), t => t.text == "对话模式"));
++                SiriAITestAccess.Call(view, "ShowSettingsTab", 12, false);
+                 Assert.IsNotNull(Array.Find(content.GetComponentsInChildren<Text>(), t => t.text == "监听"));
+-                Assert.IsNotNull(Array.Find(content.GetComponentsInChildren<Text>(), t => t.text == "对话模式"));
+                 var close = SiriAITestAccess.Field<Button>(view, "_settingsClose");
+                 SiriAITestAccess.Call(view, "ShowControlHint", (RectTransform)close.transform, "Close settings");
+                 Assert.AreEqual("关闭设置", SiriAITestAccess.Field<Text>(view, "_controlHintLabel").text);
+diff --git a/Packages/com.eitan.mnn/Documentation~/SpeechVisionSettings.md b/Packages/com.eitan.mnn/Documentation~/SpeechVisionSettings.md
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Documentation~/SpeechVisionSettings.md
+@@ -0,0 +1,32 @@
++# SiriAI 视听设置与人员管理
++
++系统设置中的“视觉”负责摄像头、画面上下文、人脸交互权限和视听融合拾音；
++“音频 → 高级音频设置”负责回声/降噪、语音开始与结束、参考声纹提取、多人重叠分离、
++声纹交互权限和唤醒词。音频与视觉的数值选项通过预设选择，不要求输入模型路径或人员 ID。
++视听提取、参考提取、分离和声纹模型复用现有模型选择器；下载成功并通过完整性检查后才修改草稿。
++
++默认自动识别每一轮的主要说话人，无需注册。目标在同一轮保持稳定，下一轮可以换人；
++同时说话且无法区分目标时仍拒绝。摄像头仅开启预览时，不会给纯声音提取附加画面条件。
++这些目标模型在完整语句上处理，不等于逐帧的实时说话人分离。
++
++需要限制交互时，在“人脸交互权限”或“声纹交互权限”点击“添加人员”。
++人脸向导要求画面中只有一张人脸；声纹向导通过现有麦克风采集所有者录制四秒。
++录制不会转写或发送给 AI，只保存本机模型相关特征，不保存原照片与原录音。
++同一个人员在两个页面都可管理：重新录制当前类型，可以补充或更新另一种特征。
++支持允许、禁止和删除，点击设置页“保存”才生效，取消则丢弃草稿。
++禁止规则优先于允许名单；删除最后一个允许人员不会自动放开交互限制。
++切换身份模型后需要重新录入，旧模型的向量不会用于新模型。
++
++`MNNInteractionSettings.automaticSpeakerSelection` 默认启用；显式关闭可保留旧的固定目标策略。
++`identities` 保存 `MNNInteractionIdentity`，`voiceRecognition` 控制声纹允许名单，
++`faceRecognition` 与 `allowedIdentities` 控制人脸允许名单，`allowed=false` 表示禁止。
++只启用摄像头不会隐式要求声音目标必须拥有同步画面；只有视听提取使用同步画面。
++旧的 Presence 构造函数与 Configure 方法保留，通过新增重载提供禁止名单。
++
++实时语音的端点静音窗口保持原采样时钟，不再因尾段没有目标声音丢弃整句。
++可取消的轮次模型超过最大静音预算时，取消本次端点推理并继续声纹/语音验证；
++外层取消、说话恢复、采集缺帧仍保留既有中止策略。自定义 provider 必须遵守 CancellationToken。
++
++验证使用共享管理代码与模型替身，覆盖端点提交、静音、新说话人、交互名单、录制所有权、
++页面分类、选择器和中文提示。未新增模型、原生桥、C++ 代码或官方 MNN 修改；
++这些回归不构成真实麦克风/摄像头、识别准确率或官方 C++ ABI 的验证。
+diff --git a/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNInteractionComponent.cs b/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNInteractionComponent.cs
+--- a/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNInteractionComponent.cs
++++ b/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNInteractionComponent.cs
+@@ -43,7 +43,8 @@
+                 _clockTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+             }
+             VisionContext.Clear();
+-            Presence.Configure(settings.ToPresenceOptions(), settings.faceRecognition ? settings.allowedIdentities : null);
++            Presence.Configure(settings.ToPresenceOptions(), settings.faceRecognition ? settings.allowedIdentities : null,
++                Array.ConvertAll(Array.FindAll(settings.identities, person => !person.allowed && person.face.Length == 512), person => person.id));
+             Presence.enabled = settings.visualPresence;
+             Camera.BindPresence(Presence);
+             Camera.enabled = settings.visualPresence;
+@@ -94,7 +95,7 @@
+             }
+             token.ThrowIfCancellationRequested();
+             if (settings.RequiresPresenceForVoice && (!snapshot.CanStartInteraction || now - snapshot.EvaluatedAt > .75)) return Task.FromResult<float[]>(null);
+-            if (!settings.audioVisualSpeech && !settings.referenceSpeaker && !settings.separateSpeakers) return Task.FromResult(samples);
++            if (!settings.audioVisualSpeech && !settings.referenceSpeaker && !settings.separateSpeakers && !settings.UsesVoiceIdentity) return Task.FromResult(samples);
+             if (target != null) return target.PrepareVoiceAsync(samples, captureStartedAtTicks, snapshot.TrackId, token);
+             if (speech == null || capture == null) throw new InvalidOperationException("Configure synchronized speech providers before enabling target pickup.");
+             var input = capture(samples, token);
+diff --git a/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNPresenceComponent.cs b/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNPresenceComponent.cs
+--- a/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNPresenceComponent.cs
++++ b/Packages/com.eitan.mnn/Runtime/Components/Realtime/MNNPresenceComponent.cs
+@@ -22,6 +22,7 @@
+         private MNNPresenceController _controller;
+         private MNNPresenceOptions _options;
+         private string[] _allowedIdentities;
++        private string[] _blockedIdentities;
+         private bool _busy;
+         private MNNPresenceState _previousState = MNNPresenceState.Sleeping;
+         private bool _previousAdmission;
+@@ -33,14 +34,16 @@
+ 
+         public MNNPresenceSnapshot Current => Controller.Current;
+         public event Action<MNNPresenceSnapshot> Changed;
+-        private MNNPresenceController Controller => _controller ?? (_controller = new MNNPresenceController(_options, _allowedIdentities));
++        private MNNPresenceController Controller => _controller ?? (_controller = new MNNPresenceController(_options, _allowedIdentities, _blockedIdentities));
+ 
+         /// <summary>Configure on the Unity main thread. An empty allow-list admits nobody; null accepts any qualifying face.</summary>
+-        public void Configure(MNNPresenceOptions options, string[] allowedIdentities = null)
++        public void Configure(MNNPresenceOptions options, string[] allowedIdentities = null) => Configure(options, allowedIdentities, null);
++        public void Configure(MNNPresenceOptions options, string[] allowedIdentities, string[] blockedIdentities)
+         {
+             _options = options;
+             _allowedIdentities = allowedIdentities == null ? null : (string[])allowedIdentities.Clone();
+-            _controller = new MNNPresenceController(_options, _allowedIdentities);
++            _blockedIdentities = blockedIdentities == null ? null : (string[])blockedIdentities.Clone();
++            _controller = new MNNPresenceController(_options, _allowedIdentities, _blockedIdentities);
+             _busy = false;
+             Publish();
+         }
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechModels.cs b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechModels.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechModels.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechModels.cs
+@@ -16,18 +16,21 @@
+         internal static MNNTargetSpeechModels Load(string root, MNNInteractionSettings settings, MNNAcousticSettings acoustics, CancellationToken token)
+         {
+             settings.Validate(); acoustics.Validate();
++            foreach (var identity in settings.identities)
++                if (identity.voice.Length > 0 && settings.UsesVoiceIdentity && identity.voiceModel != acoustics.speakerDirectory)
++                    throw new InvalidOperationException("The speaker model changed. Update the saved voice recordings before using identity restrictions.");
+             var models = new MNNTargetSpeechModels();
+             try
+             {
+                 var factory = new MNNAcousticMnnModelFactory();
+                 token.ThrowIfCancellationRequested();
+-                if (settings.visualPresence) models._visual = MNNAvConvTasNetExtraction.Load(
++                if (settings.audioVisualSpeech) models._visual = MNNAvConvTasNetExtraction.Load(
+                     MNNAcousticModelResources.ResolvePath(root, settings.audioVisualDirectory), settings.targetThreadCount);
+                 token.ThrowIfCancellationRequested();
+                 if (settings.referenceSpeaker) models._reference = MNNSpExPlusExtraction.Load(
+                     MNNAcousticModelResources.ResolvePath(root, settings.referenceSpeakerDirectory), settings.targetThreadCount);
+                 token.ThrowIfCancellationRequested();
+-                if (settings.separateSpeakers || !settings.visualPresence) models._separation = MNNSpeechSeparator.Load(
++                if (settings.separateSpeakers || !settings.audioVisualSpeech) models._separation = MNNSpeechSeparator.Load(
+                     MNNAcousticModelResources.ResolvePath(root, acoustics.separationDirectory), settings.targetThreadCount, MNNBackendType.Auto);
+                 token.ThrowIfCancellationRequested();
+                 models._speaker = factory.CreateSpeaker(MNNAcousticModelResources.ResolvePath(root, acoustics.speakerDirectory));
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechSession.cs b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechSession.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechSession.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/AudioProcessing/Acoustics/Multimodal/MNNTargetSpeechSession.cs
+@@ -6,7 +6,7 @@
+ 
+ namespace MNN.Unity
+ {
+-    /// <summary>One serialized utterance worker, bounded model windows and a stable enrolled target.
++    /// <summary>One serialized utterance worker, bounded model windows and a stable target within each turn.
+     /// Visual extraction takes priority; reference extraction and separation are fallbacks, not repeated cascades.</summary>
+     public sealed class MNNTargetSpeechSession : IDisposable
+     {
+@@ -19,6 +19,7 @@
+         private float[] _identity;
+         private string _track;
+         private bool _referenceReady, _trackNeedsVisual, _closed;
++        private bool _restoredIdentity;
+         private long _visualCalls, _referenceCalls, _separationCalls, _workTicks, _reusedWindows;
+         private long _cachedStart;
+         private string _cachedTrack;
+@@ -68,8 +69,9 @@
+                 if (_closed) throw new ObjectDisposedException(nameof(MNNTargetSpeechSession));
+                 if (_identity != null) throw new InvalidOperationException("Restore the target before new input is processed.");
+                 _identity = copy;
++                _restoredIdentity = true;
+                 _referenceReady = false;
+-                _trackNeedsVisual = _settings.visualPresence;
++                _trackNeedsVisual = _settings.audioVisualSpeech;
+             }
+             finally { _worker.Release(); }
+         }
+@@ -91,12 +93,34 @@
+             finally { _worker.Release(); }
+         }
+ 
++        /// <summary>Apply voice access rules to an explicit recording without requiring a timed camera track.</summary>
++        public async Task<bool> IsVoiceAllowedAsync(float[] samples, CancellationToken token)
++        {
++            if (samples == null || samples.Length < 4000 || samples.Length > 16000 * 60) return false;
++            MNNMultimodalSpeechInput.ValidatePcm(samples);
++            await _worker.WaitAsync(token).ConfigureAwait(false);
++            try
++            {
++                if (_closed) throw new ObjectDisposedException(nameof(MNNTargetSpeechSession));
++                return await Task.Run(() =>
++                {
++                    if (!HasSpeech(samples)) return false;
++                    var identity = _models.Encode(samples, token); ValidateIdentity(identity);
++                    return IsAllowed(identity);
++                }, token).ConfigureAwait(false);
++            }
++            finally { _worker.Release(); }
++        }
++
+         private float[] Prepare(float[] samples, long ticks, string track, CancellationToken token)
+         {
+             long started = Stopwatch.GetTimestamp();
+             try
+             {
+-                if (_settings.visualPresence)
++                bool newTurn = ticks <= 0 || _cachedStart != ticks;
++                if (newTurn && _settings.automaticSpeakerSelection && !_restoredIdentity)
++                { _identity = null; _referenceReady = false; _trackNeedsVisual = _settings.audioVisualSpeech; }
++                if (_settings.audioVisualSpeech)
+                 {
+                     if (string.IsNullOrEmpty(track) || ticks <= 0) return Reject("No timed visual target.");
+                     if (_track != track) { _track = track; _trackNeedsVisual = true; }
+@@ -114,7 +138,9 @@
+                     while (_prepared.Count <= slot) _prepared.Add(null);
+                     var previous = ticks > 0 ? _prepared[slot] : null;
+                     bool reused = previous != null && Same(window, previous.Input);
+-                    var selected = reused ? previous.Output : Select(window, capturedAt, track, token);
++                    // Endpoint padding carries timing, not another speaker. It must not reject
++                    // the preceding speech or invoke models on an entirely silent window.
++                    var selected = reused ? previous.Output : !HasEnergy(window) ? new float[count] : Select(window, capturedAt, track, token);
+                     if (selected == null) return null;
+                     if (selected.Length != count) throw new InvalidOperationException("Target provider changed the sample clock.");
+                     MNNMultimodalSpeechInput.ValidatePcm(selected);
+@@ -128,6 +154,7 @@
+                     }
+                     if (offset + count == samples.Length) break;
+                 }
++                if (!HasSpeech(output)) return Reject("No qualified target speech in the recording.");
+                 Volatile.Write(ref _lastReason, "Accepted isolated target speech.");
+                 return output;
+             }
+@@ -137,7 +164,7 @@
+         private float[] Select(float[] mixture, double capturedAt, string track, CancellationToken token)
+         {
+             // Bootstrap a visual target only from synchronized lip-conditioned extraction.
+-            if (_settings.visualPresence && (_settings.audioVisualSpeech || _identity == null || _trackNeedsVisual))
++            if (_settings.audioVisualSpeech)
+             {
+                 var frames = VisualFrames.Read(capturedAt, mixture.Length, track);
+                 if (frames != null)
+@@ -146,7 +173,7 @@
+                     Interlocked.Increment(ref _visualCalls);
+                     if (!HasSpeech(target)) return Reject("Visual target has insufficient speech energy.");
+                     if (_identity != null && !Matches(target, token)) return Reject("Visual voice does not match the enrolled target.");
+-                    if (_identity == null) Enroll(target, token);
++                    if (_identity == null && !Enroll(target, token)) return Reject("Speaker is not allowed.");
+                     else EnsureReference(target, token);
+                     _trackNeedsVisual = false;
+                     return target;
+@@ -159,7 +186,7 @@
+                 Interlocked.Increment(ref _referenceCalls);
+                 if (HasSpeech(target) && Matches(target, token)) return target;
+             }
+-            if (!_settings.separateSpeakers && (_settings.visualPresence || _identity != null) &&
++            if (!_settings.separateSpeakers && (_settings.audioVisualSpeech || _identity != null) &&
+                 !(_settings.referenceSpeaker && !_referenceReady))
+                 return Reject("No qualified target extraction route.");
+             var candidates = _models.Separate(mixture, token);
+@@ -182,19 +209,29 @@
+                 slot = Math.Max(a, b) < _settings.targetSpeakerSimilarity || Math.Abs(a - b) < _acoustics.speakerMargin ? -1 : a > b ? 0 : 1;
+             }
+             if (slot < 0 || !HasSpeech(candidates[slot])) return Reject("Target speaker is absent or ambiguous.");
+-            if (_identity == null) Enroll(candidates[slot], token);
++            if (_identity == null && !Enroll(candidates[slot], token)) return Reject("Speaker is not allowed.");
+             else EnsureReference(candidates[slot], token);
+             return candidates[slot];
+         }
+ 
+-        private void Enroll(float[] target, CancellationToken token)
++        private bool Enroll(float[] target, CancellationToken token)
+         {
+             // Keep a fixed anchor; never drift toward a louder bystander over successive turns.
+             var identity = _models.Encode(target, token);
+             ValidateIdentity(identity);
++            if (!IsAllowed(identity)) return false;
+             EnsureReference(target, token);
+             token.ThrowIfCancellationRequested();
+             _identity = (float[])identity.Clone();
++            return true;
++        }
++
++        private bool IsAllowed(float[] identity)
++        {
++            bool MatchesIdentity(MNNInteractionIdentity person) => person.voice.Length == identity.Length &&
++                MNNSpeakerEmbedding.Similarity(person.voice, identity) >= _settings.targetSpeakerSimilarity;
++            if (Array.Exists(_settings.identities, person => !person.allowed && MatchesIdentity(person))) return false;
++            return !_settings.voiceRecognition || Array.Exists(_settings.identities, person => person.allowed && MatchesIdentity(person));
+         }
+ 
+         private void EnsureReference(float[] target, CancellationToken token)
+@@ -237,10 +274,12 @@
+             internal PreparedWindow(float[] input, float[] output) { Input = input; Output = output; }
+         }
+         private static bool HasSpeech(float[] audio)
++            => audio.Length >= 640 && HasEnergy(audio);
++        private static bool HasEnergy(float[] audio)
+         {
+             double energy = 0;
+             foreach (float value in audio) energy += value * value;
+-            return audio.Length >= 640 && energy / audio.Length > 1e-7;
++            return audio.Length > 0 && energy / audio.Length > 1e-7;
+         }
+ 
+         public async Task ReleaseAsync()
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationCommands.cs b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationCommands.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationCommands.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationCommands.cs
+@@ -135,9 +135,12 @@
+             if (failure != null) throw failure;
+         }
+ 
+-        public Task<bool> BeginRecordingAsync()
+-        {
+-            if (!SessionAvailable || _ports.Resetting() || Input.Recording && !_voiceFinishing || !_ports.SupportsRecordedVoice()) return Task.FromResult(false);
++        public Task<bool> BeginRecordingAsync() => BeginRecordingCoreAsync(false);
++        /// <summary>Uses the same microphone owner and drain protocol without requiring an audio submission provider.</summary>
++        public Task<bool> BeginEnrollmentRecordingAsync() => BeginRecordingCoreAsync(true);
++        private Task<bool> BeginRecordingCoreAsync(bool enrollment)
++        {
++            if (!SessionAvailable || _ports.Resetting() || Input.Recording && !_voiceFinishing || !enrollment && !_ports.SupportsRecordedVoice()) return Task.FromResult(false);
+             CancelPreparation(); int command = ++_inputCommand; _voiceSubmission?.Cancel();
+             var previousStart = _voiceStartTask; var previousCapture = _voiceCaptureFinished;
+             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+@@ -205,7 +208,15 @@
+             if (failure != null) throw failure;
+         }
+ 
+-        public async Task<string> FinishRecordingAsync(bool transcribeOnly)
++        public Task<string> FinishRecordingAsync(bool transcribeOnly) => FinishRecordingCoreAsync(transcribeOnly, null);
++        /// <summary>Returns the drained recording to enrollment only. Never transcribes or submits an AI request.</summary>
++        public async Task<float[]> FinishEnrollmentRecordingAsync()
++        {
++            float[] captured = null;
++            await FinishRecordingCoreAsync(false, (audio, token) => { token.ThrowIfCancellationRequested(); captured = audio; return Task.FromResult<string>(null); });
++            return captured;
++        }
++        private async Task<string> FinishRecordingCoreAsync(bool transcribeOnly, Func<float[], CancellationToken, Task<string>> capture)
+         {
+             if (_voiceFinishing) throw new InvalidOperationException("The recording is already finishing.");
+             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_ports.Lifetime());
+@@ -234,6 +245,7 @@
+                 if (command != _inputCommand) throw new OperationCanceledException();
+                 if (_ports.SessionState() != MNNRealtimeSessionState.Running) throw new InvalidOperationException("Wait for the conversation to become ready.");
+                 _submitting = true;
++                if (capture != null) return await capture(audio, token);
+                 if (transcribeOnly)
+                 {
+                     if (!_ports.SupportsTranscription() || _ports.TranscribeAsync == null) throw new NotSupportedException("Configure speech recognition to convert voice to text.");
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Validation.cs b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Validation.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Validation.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Language/Realtime/MNNConversationRuntime.Validation.cs
+@@ -37,15 +37,24 @@
+             string transcript = null;
+             if (_providers.Turn is IMNNConversationTurnProvider turn && !silenceExpired)
+             {
+-                bool complete;
+-                if (turn is IMNNConversationTranscriptTurnProvider textTurn && textTurn.RequiresTranscript)
+-                {
+-                    if (!HasAsr) throw new InvalidOperationException("The selected turn detector requires speech recognition.");
+-                    transcript = await TranscribePreparedAsync(audio, token).ConfigureAwait(false);
+-                    complete = await textTurn.IsTurnCompleteAsync(audio, 16000, transcript, token).ConfigureAwait(false);
+-                }
+-                else complete = await turn.IsTurnCompleteAsync(audio, 16000, token).ConfigureAwait(false);
+-                if (!complete) return default;
++                using (var endpointDeadline = CancellationTokenSource.CreateLinkedTokenSource(token))
++                {
++                    endpointDeadline.CancelAfter(Math.Max(_config.silenceMilliseconds, _config.maximumTurnSilenceMilliseconds));
++                    try
++                    {
++                        bool complete;
++                        if (turn is IMNNConversationTranscriptTurnProvider textTurn && textTurn.RequiresTranscript)
++                        {
++                            if (!HasAsr) throw new InvalidOperationException("The selected turn detector requires speech recognition.");
++                            transcript = await TranscribePreparedAsync(audio, endpointDeadline.Token).ConfigureAwait(false);
++                            complete = await textTurn.IsTurnCompleteAsync(audio, 16000, transcript, endpointDeadline.Token).ConfigureAwait(false);
++                        }
++                        else complete = await turn.IsTurnCompleteAsync(audio, 16000, endpointDeadline.Token).ConfigureAwait(false);
++                        if (!complete) return default;
++                    }
++                    catch (OperationCanceledException) when (!token.IsCancellationRequested && endpointDeadline.IsCancellationRequested)
++                    { /* Sustained silence completes the turn; identity and voice validation still run below. */ }
++                }
+             }
+             if (!_config.filterVoiceInput) return new VoiceCandidate(true, true, transcript, audio);
+             var candidate = await ValidateVoiceAsync(audio, echo, token, transcript).ConfigureAwait(false);
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNAcousticModelCatalog.cs b/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNAcousticModelCatalog.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNAcousticModelCatalog.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNAcousticModelCatalog.cs
+@@ -5,11 +5,19 @@
+ 
+ namespace MNN.Unity
+ {
+-    public enum MNNAcousticModelTask { NoiseReduction, WakeDetection, EnglishWakeDetection, Separation, SpeakerEmbedding, VoiceActivity }
++    public enum MNNAcousticModelTask { NoiseReduction, WakeDetection, EnglishWakeDetection, Separation, SpeakerEmbedding, VoiceActivity, AudioVisualSpeech, ReferenceSpeaker }
+ 
+     /// <summary>Discovers structurally complete local acoustic exports, without loading models or claiming inference validation.</summary>
+     public static class MNNAcousticModelCatalog
+     {
++        /// <summary>Supported target adapters are identified by their graph contract, not repository names.</summary>
++        public static bool SupportsTargetSpeech(MNNRemoteModel model, MNNAcousticModelTask task)
++        {
++            string[] graphs = task == MNNAcousticModelTask.AudioVisualSpeech
++                ? new[] { "av_convtasnet_audio_fp32.mnn", "av_convtasnet_visual_fp32.mnn" }
++                : task == MNNAcousticModelTask.ReferenceSpeaker ? new[] { "spexplus_audio_fp32.mnn", "spexplus_reference_fp32.mnn" } : Array.Empty<string>();
++            return graphs.Length > 0 && graphs.All(graph => model?.mnnFiles?.Contains(graph) == true);
++        }
+         public sealed class Entry
+         {
+             public string Directory { get; internal set; }
+@@ -27,6 +35,10 @@
+                 Add(results, directory, MNNAcousticModelTask.Separation, MNNSpeechSeparator.ProfileFile(directory), MNNAcousticModelFiles.Separation);
+                 Add(results, directory, MNNAcousticModelTask.SpeakerEmbedding, MNNSpeakerEncoder.ProfileFile(directory), MNNAcousticModelFiles.Speaker);
+                 Add(results, directory, MNNAcousticModelTask.VoiceActivity, MNNVoiceActivityDetector.ProfileFile(directory), MNNAcousticModelFiles.Vad);
++                Add(results, directory, MNNAcousticModelTask.AudioVisualSpeech, MNNAvConvTasNetConfig.FileName,
++                    path => { var config = MNNAvConvTasNetConfig.Read(path); return new[] { config.visual_graph, config.audio_graph }; });
++                Add(results, directory, MNNAcousticModelTask.ReferenceSpeaker, MNNSpExPlusConfig.FileName,
++                    path => { var config = MNNSpExPlusConfig.Read(path); return new[] { config.reference_graph, config.audio_graph }; });
+             }
+             return results.AsReadOnly();
+         }
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNModelCatalog.PublishedSpeech.cs b/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNModelCatalog.PublishedSpeech.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNModelCatalog.PublishedSpeech.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Models/Catalog/MNNModelCatalog.PublishedSpeech.cs
+@@ -97,7 +97,9 @@
+             model.mnnFiles = (string[])profile.Graphs.Clone();
+             model.supportSummary = (profile.Name == "VoxTurn-v1-MNN" ? "Noncommercial license. " : string.Empty) +
+                 "Published MNN deployment files. Consult the model card for input, license and validation limits; catalog availability does not validate inference.";
+-            model.runtimeAvailable = profile.Task != "target-speaker-extraction" && profile.Task != "speaker-diarization";
++            model.runtimeAvailable = profile.Task != "speaker-diarization" && (profile.Task != "target-speaker-extraction" ||
++                MNNAcousticModelCatalog.SupportsTargetSpeech(model, MNNAcousticModelTask.AudioVisualSpeech) ||
++                MNNAcousticModelCatalog.SupportsTargetSpeech(model, MNNAcousticModelTask.ReferenceSpeaker));
+             if (MNNEnglishKwsModel.IsModelScopeRepository(model.repositoryId))
+             {
+                 model.revision = model.version = MNNEnglishKwsModel.Revision;
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs
+@@ -0,0 +1,41 @@
++using System;
++
++namespace MNN.Unity
++{
++    /// <summary>Device-local enrollment. Embeddings are model-specific; raw pictures and recordings are not stored.</summary>
++    [Serializable]
++    public sealed class MNNInteractionIdentity
++    {
++        public string id;
++        public bool allowed = true;
++        public float[] face = Array.Empty<float>();
++        public float[] voice = Array.Empty<float>();
++        public string faceModel, voiceModel;
++
++        public MNNInteractionIdentity Snapshot() => new MNNInteractionIdentity
++        {
++            id = id, allowed = allowed, faceModel = faceModel, voiceModel = voiceModel,
++            face = (float[])(face ?? Array.Empty<float>()).Clone(), voice = (float[])(voice ?? Array.Empty<float>()).Clone()
++        };
++
++        public void Validate()
++        {
++            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("An enrollment needs an identifier.");
++            ValidateVector(face, 512); ValidateVector(voice, null);
++        }
++
++        private static void ValidateVector(float[] vector, int? size)
++        {
++            if (vector == null) throw new ArgumentException("Enrollment vectors cannot be null.");
++            if (vector.Length == 0) return;
++            if (size.HasValue && vector.Length != size.Value) throw new ArgumentException("Incompatible enrollment vector.");
++            double energy = 0;
++            foreach (float value in vector)
++            {
++                if (float.IsNaN(value) || float.IsInfinity(value)) throw new ArgumentException("Enrollment must be finite.");
++                energy += value * (double)value;
++            }
++            if (energy <= 1e-12) throw new ArgumentException("Enrollment needs a usable signal.");
++        }
++    }
++}
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs.meta b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionIdentity.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 7d9d057b71d04ed987d403e8e9c65287
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionSettings.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionSettings.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionSettings.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNInteractionSettings.cs
+@@ -17,6 +17,9 @@
+         public bool audioVisualSpeech;
+         public bool referenceSpeaker;
+         public bool separateSpeakers;
++        public bool automaticSpeakerSelection = true;
++        public bool voiceRecognition;
++        public MNNInteractionIdentity[] identities = Array.Empty<MNNInteractionIdentity>();
+         public string audioVisualDirectory = "AV-ConvTasNet-LRS2-16K-MNN";
+         public string referenceSpeakerDirectory = "SpExPlus-WSJ02Mix-8K-MNN";
+         public int targetThreadCount = 2;
+@@ -32,13 +35,16 @@
+         public string measuredConfigurationId;
+ 
+         /// <summary>Camera preview alone never gates microphone input. Target-specific features retain presence checks.</summary>
+-        public bool RequiresPresenceForVoice => visualPresence && (requirePresenceForVoice || faceRecognition || audioVisualSpeech || referenceSpeaker || separateSpeakers);
++        public bool UsesFaceIdentity => faceRecognition || Array.Exists(identities ?? Array.Empty<MNNInteractionIdentity>(), person => !person.allowed && person.face.Length == 512);
++        public bool UsesVoiceIdentity => voiceRecognition || Array.Exists(identities ?? Array.Empty<MNNInteractionIdentity>(), person => !person.allowed && person.voice.Length > 0);
++        public bool RequiresPresenceForVoice => visualPresence && (requirePresenceForVoice || UsesFaceIdentity || audioVisualSpeech);
+ 
+         public MNNInteractionSettings Snapshot()
+         {
+             var copy = (MNNInteractionSettings)MemberwiseClone();
+             copy.camera = (camera ?? new MNNCameraSettings()).Snapshot();
+             copy.allowedIdentities = allowedIdentities == null ? Array.Empty<string>() : (string[])allowedIdentities.Clone();
++            copy.identities = Array.ConvertAll(identities ?? Array.Empty<MNNInteractionIdentity>(), identity => identity.Snapshot());
+             return copy;
+         }
+ 
+@@ -50,9 +56,10 @@
+             (camera ?? new MNNCameraSettings()).Validate();
+             ToPresenceOptions();
+             if (!Enum.IsDefined(typeof(MNNPresenceSleepDisplay), sleepDisplay)) throw new ArgumentException("Select a sleep display mode.");
+-            if (faceRecognition && (!visualPresence || allowedIdentities == null || allowedIdentities.Length == 0))
+-                throw new ArgumentException("Identity gating requires visual presence and explicitly enrolled allowed identities.");
++            if (faceRecognition && !visualPresence)
++                throw new ArgumentException("Face identity restrictions require visual presence.");
+             if (audioVisualSpeech && !visualPresence) throw new ArgumentException("Visual speech extraction requires target presence.");
++            foreach (var identity in identities ?? Array.Empty<MNNInteractionIdentity>()) identity.Validate();
+         }
+ 
+         public MNNPresenceOptions ToPresenceOptions() => new MNNPresenceOptions(confirmationSeconds,
+diff --git a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNPresenceController.cs b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNPresenceController.cs
+--- a/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNPresenceController.cs
++++ b/Packages/com.eitan.mnn/Runtime/Core/Vision/Presence/MNNPresenceController.cs
+@@ -9,6 +9,7 @@
+     {
+         private readonly MNNPresenceOptions _options;
+         private readonly HashSet<string> _allowed;
++        private readonly HashSet<string> _blocked;
+         private double _now, _lastObservation = double.NegativeInfinity;
+         private double _lastSeen = double.NegativeInfinity, _candidateSince, _confirmedAt = double.PositiveInfinity;
+         private string _track, _identity;
+@@ -16,9 +17,13 @@
+         public MNNPresenceSnapshot Current { get; private set; }
+ 
+         public MNNPresenceController(MNNPresenceOptions options = null, IEnumerable<string> allowedIdentities = null)
++            : this(options, allowedIdentities, null) { }
++
++        public MNNPresenceController(MNNPresenceOptions options, IEnumerable<string> allowedIdentities, IEnumerable<string> blockedIdentities)
+         {
+             _options = options ?? new MNNPresenceOptions();
+             _allowed = allowedIdentities == null ? null : new HashSet<string>(allowedIdentities, StringComparer.Ordinal);
++            _blocked = blockedIdentities == null ? null : new HashSet<string>(blockedIdentities, StringComparer.Ordinal);
+             Current = new MNNPresenceSnapshot(MNNPresenceState.Sleeping, null, false, false, 0);
+         }
+ 
+@@ -80,6 +85,7 @@
+         private bool Accept(MNNPresenceObservation observation) =>
+             observation.Kind != MNNPresenceKind.None && (!_options.RequireFace || observation.Kind == MNNPresenceKind.Face) &&
+             observation.Confidence >= _options.MinimumConfidence &&
++            (_blocked == null || observation.Identity == null || !_blocked.Contains(observation.Identity)) &&
+             (_allowed == null || observation.Identity != null && _allowed.Contains(observation.Identity));
+ 
+         private void ValidateNow(double now)
+diff --git a/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/TargetSpeechSessionTests.cs b/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/TargetSpeechSessionTests.cs
+--- a/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/TargetSpeechSessionTests.cs
++++ b/Packages/com.eitan.mnn/Tests/Editor/AudioProcessing/Multimodal/TargetSpeechSessionTests.cs
+@@ -47,6 +47,80 @@
+         }
+ 
+         [Test]
++        public void VoiceAllowListRejectsUnknownAndBlockedSpeakers()
++        {
++            var models = new Models();
++            var settings = new MNNInteractionSettings { separateSpeakers = true, voiceRecognition = true,
++                identities = new[] { new MNNInteractionIdentity { id = "allowed", voice = new[] { 1f, 0f } },
++                    new MNNInteractionIdentity { id = "blocked", allowed = false, voice = new[] { 0f, 1f } } } };
++            using (var session = new MNNTargetSpeechSession(settings, new MNNAcousticSettings(), models))
++            {
++                Assert.IsNotNull(session.PrepareVoiceAsync(Mix(models.Target, models.Other), 0, null, Token).GetAwaiter().GetResult());
++                models.Target = Source(200, .1f); models.Other = Source(347, .6f);
++                Assert.IsNull(session.PrepareVoiceAsync(Mix(models.Target, models.Other), 0, null, Token).GetAwaiter().GetResult());
++            }
++        }
++
++        [Test]
++        public void DeniedVoiceCannotInteractWhenTheAllowListIsOff()
++        {
++            var models = new Models();
++            var settings = new MNNInteractionSettings { separateSpeakers = true,
++                identities = new[] { new MNNInteractionIdentity { id = "blocked", allowed = false, voice = new[] { 1f, 0f } } } };
++            using (var session = new MNNTargetSpeechSession(settings, new MNNAcousticSettings(), models))
++            {
++                Assert.IsNull(session.PrepareVoiceAsync(Mix(models.Target, models.Other), 0, null, Token).GetAwaiter().GetResult());
++                Assert.False(session.IsVoiceAllowedAsync(models.Target, Token).GetAwaiter().GetResult(), "An explicit recording cannot bypass a blocked voice.");
++                Assert.True(session.IsVoiceAllowedAsync(models.Other, Token).GetAwaiter().GetResult());
++            }
++        }
++
++        [Test]
++        public void AllSilentRecordingCannotEnrollOrSubmit()
++        {
++            var models = new Models();
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { separateSpeakers = true }, new MNNAcousticSettings(), models))
++            {
++                Assert.IsNull(session.PrepareVoiceAsync(new float[48000], 0, null, Token).GetAwaiter().GetResult());
++                Assert.AreEqual(0, models.VisualCalls + models.SeparationCalls + models.ReferenceCalls);
++                Assert.IsNull(session.CaptureTargetIdentityAsync(Token).GetAwaiter().GetResult());
++            }
++        }
++
++        [Test]
++        public void TrailingSilentWindowDoesNotDiscardCompletedSpeech()
++        {
++            var models = new Models { CopyVisual = true };
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true }, new MNNAcousticSettings(), models))
++            {
++                for (int i = 0; i < 60; ++i) session.VisualFrames.Add(new float[112 * 112], 10 + i / 25.0, "a");
++                var audio = new float[48000];
++                Array.Copy(Source(200, .6f), audio, Count);
++                var result = session.PrepareVoiceAsync(audio, 10 * Stopwatch.Frequency, "a", Token).GetAwaiter().GetResult();
++                TestContext.WriteLine("completed speech accepted=" + (result != null));
++                Assert.IsNotNull(result, "An all-silent final window must preserve the preceding speech and its sample clock.");
++                Assert.That(result, Is.EqualTo(audio));
++                Assert.AreEqual(1, models.VisualCalls, "Silence needs no target-model inference.");
++            }
++        }
++
++        [Test]
++        public void AutomaticPickupAcceptsANewVisibleSpeakerOnTheNextTurnWithoutRegistration()
++        {
++            var models = new Models();
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true }, new MNNAcousticSettings(), models))
++            {
++                for (int i = 0; i < 25; ++i) session.VisualFrames.Add(new float[112 * 112], 10 + i / 25.0, "a");
++                Assert.IsNotNull(session.PrepareVoiceAsync(Mix(models.Target, models.Other), 10 * Stopwatch.Frequency, "a", Token).GetAwaiter().GetResult());
++                models.Target = Source(347, .6f);
++                for (int i = 0; i < 25; ++i) session.VisualFrames.Add(new float[112 * 112], 12 + i / 25.0, "b");
++                var result = session.PrepareVoiceAsync(Mix(models.Target, models.Other), 12 * Stopwatch.Frequency, "b", Token).GetAwaiter().GetResult();
++                TestContext.WriteLine("next speaker accepted=" + (result != null));
++                Assert.That(result, Is.EqualTo(models.Target));
++            }
++        }
++
++        [Test]
+         public void MicrophoneRestartRetainsTargetEvenWhenAnotherVoiceBecomesDominant()
+         {
+             var settings = new MNNInteractionSettings { separateSpeakers = true };
+@@ -70,7 +144,7 @@
+         [Test]
+         public void RestoredIdentityCanRebuildReferenceWithoutEnablingRepeatedSeparation()
+         {
+-            var settings = new MNNInteractionSettings { referenceSpeaker = true, separateSpeakers = false };
++            var settings = new MNNInteractionSettings { automaticSpeakerSelection = false, referenceSpeaker = true, separateSpeakers = false };
+             var models = new Models();
+             using (var session = new MNNTargetSpeechSession(settings, new MNNAcousticSettings(), models))
+             {
+@@ -88,7 +162,7 @@
+         public void AllEnabledUsesRealVisualTargetOnceAndEnrollsOnlyItsIsolatedVoice()
+         {
+             var models = new Models();
+-            var settings = new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true, referenceSpeaker = true, separateSpeakers = true };
++            var settings = new MNNInteractionSettings { automaticSpeakerSelection = false, visualPresence = true, audioVisualSpeech = true, referenceSpeaker = true, separateSpeakers = true };
+             using (var session = new MNNTargetSpeechSession(settings, new MNNAcousticSettings(), models))
+             {
+                 long ticks = 10 * Stopwatch.Frequency;
+@@ -112,7 +186,7 @@
+         public void VisualModeNeverEnrollsFromAnUnconditionedMixtureOrAnotherTrack()
+         {
+             var models = new Models();
+-            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { visualPresence = true, referenceSpeaker = true, separateSpeakers = true }, new MNNAcousticSettings(), models))
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { automaticSpeakerSelection = false, visualPresence = true, audioVisualSpeech = true, referenceSpeaker = true, separateSpeakers = true }, new MNNAcousticSettings(), models))
+             {
+                 var mixture = Mix(models.Target, models.Other);
+                 Assert.That(session.PrepareVoiceAsync(mixture, 10 * Stopwatch.Frequency, "a", Token).GetAwaiter().GetResult(), Is.Null);
+@@ -129,7 +203,7 @@
+         public void VisualReacquisitionKeepsTheSameVoiceAndRejectsAReplacementPerson()
+         {
+             var models = new Models();
+-            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true, referenceSpeaker = true }, new MNNAcousticSettings(), models))
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { automaticSpeakerSelection = false, visualPresence = true, audioVisualSpeech = true, referenceSpeaker = true }, new MNNAcousticSettings(), models))
+             {
+                 for (int i = 0; i < 25; ++i) session.VisualFrames.Add(new float[112 * 112], 10 + i / 25.0, "a");
+                 var enrolled = session.PrepareVoiceAsync(Mix(models.Target, models.Other), 10 * Stopwatch.Frequency, "a", Token).GetAwaiter().GetResult();
+@@ -146,7 +220,7 @@
+         public void AudioOnlyLocksMainSpeakerEvenWhenBystanderBecomesLouder()
+         {
+             var models = new Models();
+-            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { separateSpeakers = true }, new MNNAcousticSettings(), models))
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { automaticSpeakerSelection = false, separateSpeakers = true }, new MNNAcousticSettings(), models))
+             {
+                 Assert.That(session.PrepareVoiceAsync(Mix(models.Target, models.Other), 0, null, Token).GetAwaiter().GetResult(), Is.EqualTo(models.Target));
+                 models.Target = Source(200, .1f); models.Other = Source(347, .7f);
+@@ -162,7 +236,7 @@
+             var models = new Models { Other = Source(347, .6f), Target = Source(200, .6f) };
+             var mixture = Mix(models.Target, models.Other);
+             for (int i = 0; i < Count; ++i) { mixture[i] *= .5f; models.Target[i] *= .5f; models.Other[i] *= .5f; }
+-            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { separateSpeakers = true }, new MNNAcousticSettings(), models))
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { automaticSpeakerSelection = false, separateSpeakers = true }, new MNNAcousticSettings(), models))
+                 Assert.That(session.PrepareVoiceAsync(mixture, 0, null, Token).GetAwaiter().GetResult(), Is.Null);
+         }
+ 
+@@ -170,7 +244,7 @@
+         public void ModelFailurePropagatesAndNeverFallsBackToMixture()
+         {
+             var models = new Models { ThrowVisual = true };
+-            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true }, new MNNAcousticSettings(), models))
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { automaticSpeakerSelection = false, visualPresence = true, audioVisualSpeech = true }, new MNNAcousticSettings(), models))
+             {
+                 for (int i = 0; i < 25; ++i) session.VisualFrames.Add(new float[112 * 112], 10 + i / 25.0, "a");
+                 Assert.Throws<InvalidOperationException>(() => session.PrepareVoiceAsync(Mix(models.Target, models.Other), 10 * Stopwatch.Frequency, "a", Token).GetAwaiter().GetResult());
+@@ -182,7 +256,7 @@
+         public void OverlappingWindowsPreserveLongUtteranceLengthAndBoundaries()
+         {
+             var models = new Models { CopyVisual = true };
+-            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true }, new MNNAcousticSettings(), models))
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { automaticSpeakerSelection = false, visualPresence = true, audioVisualSpeech = true }, new MNNAcousticSettings(), models))
+             {
+                 for (int i = 0; i < 100; ++i) session.VisualFrames.Add(new float[112 * 112], 10 + i / 25.0, "a");
+                 var audio = new float[64000];
+@@ -198,7 +272,7 @@
+         public void MalformedExtractionCannotEnrollOrPoisonNextAttempt()
+         {
+             var models = new Models { WrongLength = true };
+-            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { visualPresence = true, audioVisualSpeech = true, referenceSpeaker = true }, new MNNAcousticSettings(), models))
++            using (var session = new MNNTargetSpeechSession(new MNNInteractionSettings { automaticSpeakerSelection = false, visualPresence = true, audioVisualSpeech = true, referenceSpeaker = true }, new MNNAcousticSettings(), models))
+             {
+                 for (int i = 0; i < 25; ++i) session.VisualFrames.Add(new float[112 * 112], 10 + i / 25.0, "a");
+                 Assert.Throws<InvalidOperationException>(() => session.PrepareVoiceAsync(Mix(models.Target, models.Other), 10 * Stopwatch.Frequency, "a", Token).GetAwaiter().GetResult());
+diff --git a/Packages/com.eitan.mnn/Tests/Editor/Language/Realtime/ConversationCommandTests.cs b/Packages/com.eitan.mnn/Tests/Editor/Language/Realtime/ConversationCommandTests.cs
+--- a/Packages/com.eitan.mnn/Tests/Editor/Language/Realtime/ConversationCommandTests.cs
++++ b/Packages/com.eitan.mnn/Tests/Editor/Language/Realtime/ConversationCommandTests.cs
+@@ -9,6 +9,34 @@
+ {
+     public sealed class ConversationCommandTests
+     {
++        [Test]
++        public void EnrollmentUsesTheSharedCaptureAndNeverSubmitsOrTranscribes()
++        {
++            var input = new MNNConversationInputState();
++            bool captureEnabled = false;
++            int submissions = 0, transcriptions = 0, drains = 0;
++            var recording = new MNNConversationRecording(input)
++            { FlushInputAsync = () => { ++drains; return Task.CompletedTask; } };
++            var commands = new MNNConversationCommands(new MNNConversationCommandBindings(input, recording)
++            {
++                SessionState = () => MNNRealtimeSessionState.Running,
++                SupportsRecordedVoice = () => false,
++                SetCaptureEnabled = enabled => captureEnabled = enabled,
++                SubmitAudioAsync = (_, __) => { ++submissions; return Task.CompletedTask; },
++                TranscribeAsync = (_, __) => { ++transcriptions; return Task.FromResult("unexpected"); }
++            });
++            Assert.True(commands.BeginEnrollmentRecordingAsync().GetAwaiter().GetResult());
++            Assert.True(captureEnabled);
++            var audio = new float[4096]; Array.Fill(audio, .2f); input.Consume(audio);
++            var captured = commands.FinishEnrollmentRecordingAsync().GetAwaiter().GetResult();
++            CollectionAssert.AreEqual(audio, captured);
++            Assert.AreEqual(2, drains, "Both mode handover and the final microphone tail must drain.");
++            Assert.AreEqual(0, submissions + transcriptions);
++            Assert.False(captureEnabled);
++            Assert.False(input.Recording);
++            Assert.True(commands.CaptureFinished.IsCompleted && commands.SubmissionFinished.IsCompleted);
++        }
++
+         [Test]
+         public void CommandsCannotRecordFromAnUnrelatedInputOwner()
+         {
+diff --git a/Packages/com.eitan.mnn/Tests/Editor/Models/Catalog/AudioModelClassificationTests.cs b/Packages/com.eitan.mnn/Tests/Editor/Models/Catalog/AudioModelClassificationTests.cs
+--- a/Packages/com.eitan.mnn/Tests/Editor/Models/Catalog/AudioModelClassificationTests.cs
++++ b/Packages/com.eitan.mnn/Tests/Editor/Models/Catalog/AudioModelClassificationTests.cs
+@@ -66,11 +66,13 @@
+         public void EveryPublishedAudioProfileHasASpecificCategoryAndCorrectExecutionAvailability()
+         {
+             var models = MNNModelCatalog.CreateDefault().Models.Where(model => MNNModelCatalog.IsPublishedSpeechRepository(model.repositoryId)).ToArray();
+-            Assert.AreEqual(47, models.Length);
++            Assert.AreEqual(56, models.Length);
+             Assert.False(models.Any(model => model.category == "AudioProcessing" || model.category == "Other"));
+             Assert.True(models.All(model => model.category == MNNModelRepository.Classify(model.repositoryId, tasks: model.tasks)));
+             Assert.True(models.Where(model => model.category != "TargetSpeakerExtraction" && model.category != "SpeakerDiarization").All(model => model.runtimeAvailable));
+-            Assert.True(models.Where(model => model.category == "TargetSpeakerExtraction" || model.category == "SpeakerDiarization").All(model => !model.runtimeAvailable));
++            foreach (var model in models.Where(model => model.category == "TargetSpeakerExtraction" || model.category == "SpeakerDiarization"))
++                Assert.AreEqual(MNNAcousticModelCatalog.SupportsTargetSpeech(model, MNNAcousticModelTask.AudioVisualSpeech) ||
++                    MNNAcousticModelCatalog.SupportsTargetSpeech(model, MNNAcousticModelTask.ReferenceSpeaker), model.runtimeAvailable, model.repositoryId);
+         }
+ 
+         [Test]
+diff --git a/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/PresenceControllerTests.cs b/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/PresenceControllerTests.cs
+--- a/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/PresenceControllerTests.cs
++++ b/Packages/com.eitan.mnn/Tests/Editor/Vision/Presence/PresenceControllerTests.cs
+@@ -5,5 +5,13 @@
+ {
+     public sealed class PresenceControllerTests
+     {
++        [Test]
++        public void BlockedFaceCannotEnterEvenWhenUnknownFacesAreAllowed()
++        {
++            var gate = new MNNPresenceController(new MNNPresenceOptions(confirmationSeconds: 0), null, new[] { "blocked" });
++            Assert.False(gate.Observe(Face(1, identity: "blocked"), 1).CanStartInteraction);
++            Assert.True(gate.Observe(Face(2, track: "b"), 2).CanStartInteraction);
++            Assert.False(gate.Observe(Face(3, track: "c", identity: "blocked"), 3).CanStartInteraction);
++        }
+         private static MNNPresenceObservation Face(double time, string track = "a", string identity = null) =>
+             new MNNPresenceObservation(time, MNNPresenceKind.Face, track, .9f, identity);
