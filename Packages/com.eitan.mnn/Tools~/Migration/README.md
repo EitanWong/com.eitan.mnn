@@ -394,3 +394,17 @@ Omni 表示模型直接接受音频并生成语音，不等于模型原生 Full-
 不使用眼球注视。复用现有视听提取模型选择器，录入引导支持等比预览、分步采集、
 确认、重录、取消及管理。包与导入源码共用整组哈希校验，重复运行不重复应用；
 独立修改或部分迁移会在写入前拒绝。启发式阈值尚未实拍标定，见 `Documentation~/SpeechVisionSettings.md`。
+
+## 说话收尾、朝向舒适区与人员管理
+
+已应用 `visual-speech-focus` 并具有对应当前源码的本地工程可执行：
+
+```bash
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage speech-comfort
+```
+
+此阶段移动两个语义开关到“对话”，增加独立人员管理、姓名与本地人脸缩略图，
+修复慢端点处理期间尾部静音填满容量后丢句，改善头姿容差、唇动位移补偿和目标尺度连续性。
+它同时更新共享托管核心与本地导入样例；不包含模型、原生桥或 C++ 变更。
+逐文件哈希在写入前拒绝不匹配/混合版本；重复执行无变化。此增量不会补齐缺失的原样例或其他阶段。
+验证范围及实际环境限制见 [视听设置与人员管理](../../Documentation~/SpeechVisionSettings.md)。
