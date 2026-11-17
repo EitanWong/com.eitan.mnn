@@ -10003,6 +10003,10 @@ public System.Threading.Tasks.Task MNN.Unity.MNNFaceCameraComponent.Completion {
 ```
 
 ```csharp
+public int MNN.Unity.MNNFaceCameraComponent.CurrentDetectionFramesPerSecond { get; }
+```
+
+```csharp
 public MNN.Unity.MNNPresenceObservation? MNN.Unity.MNNFaceCameraComponent.LatestObservation { get; private set; }
 ```
 

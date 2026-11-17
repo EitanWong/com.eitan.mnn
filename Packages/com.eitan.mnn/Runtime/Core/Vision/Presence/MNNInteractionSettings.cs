@@ -13,7 +13,7 @@ namespace MNN.Unity
         public bool visualPresence;
         public bool requirePresenceForVoice;
         public bool faceRecognition;
-        public bool imageContext;
+        public bool imageContext = true;
         public bool audioVisualSpeech;
         public bool referenceSpeaker;
         public bool separateSpeakers;
@@ -21,7 +21,7 @@ namespace MNN.Unity
         public float confirmationSeconds = .35f;
         public float graceSeconds = 3;
         public float sleepSeconds = 15;
-        public MNNPresenceSleepDisplay sleepDisplay;
+        public MNNPresenceSleepDisplay sleepDisplay = MNNPresenceSleepDisplay.Dimmed;
         public string[] allowedIdentities = Array.Empty<string>();
         public string detectorDirectory = "budaoshou--InsightFace-Det500M-MNN";
         public string recognizerDirectory = "budaoshou--InsightFace-MobileFaceNet-MNN";
@@ -46,7 +46,6 @@ namespace MNN.Unity
             if (faceRecognition && (!visualPresence || allowedIdentities == null || allowedIdentities.Length == 0))
                 throw new ArgumentException("Identity gating requires visual presence and explicitly enrolled allowed identities.");
             if (audioVisualSpeech && !visualPresence) throw new ArgumentException("Visual speech extraction requires target presence.");
-            if (imageContext && !visualPresence) throw new ArgumentException("Image context requires target presence.");
         }
 
         public MNNPresenceOptions ToPresenceOptions() => new MNNPresenceOptions(confirmationSeconds,

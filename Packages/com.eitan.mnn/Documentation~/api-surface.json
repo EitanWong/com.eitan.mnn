@@ -16032,6 +16032,13 @@
   {
     "Assembly": "MNN.Unity",
     "Domain": "Components",
+    "Id": "P:MNN.Unity.MNNFaceCameraComponent.CurrentDetectionFramesPerSecond",
+    "Signature": "public int MNN.Unity.MNNFaceCameraComponent.CurrentDetectionFramesPerSecond { get; }",
+    "Summary": ""
+  },
+  {
+    "Assembly": "MNN.Unity",
+    "Domain": "Components",
     "Id": "P:MNN.Unity.MNNFaceCameraComponent.LatestObservation",
     "Signature": "public MNN.Unity.MNNPresenceObservation? MNN.Unity.MNNFaceCameraComponent.LatestObservation { get; private set; }",
     "Summary": "Latest completed observation on the main thread; cleared on stop, failure or replacement. Consumers must check CapturedAt before displaying geometry over a live frame."

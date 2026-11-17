@@ -27,6 +27,16 @@ namespace MNN.Unity
         public event Action<MNNRgbImage, double> FrameCaptured;
         public event Action<Exception> Failed;
         public Task Completion => _pending ?? Task.CompletedTask;
+        public int CurrentDetectionFramesPerSecond
+        {
+            get
+            {
+                if (_presence == null) _presence = GetComponent<MNNPresenceComponent>();
+                return _presence != null && _presence.enabled && _presence.Current.State == MNNPresenceState.Sleeping
+                    ? _sleepFramesPerSecond : _framesPerSecond;
+            }
+        }
+        internal void BindPresence(MNNPresenceComponent presence) => _presence = presence;
         /// <summary>Latest completed observation on the main thread; cleared on stop, failure or replacement.
         /// Consumers must check CapturedAt before displaying geometry over a live frame.</summary>
         public MNNPresenceObservation? LatestObservation { get; private set; }
@@ -41,6 +51,7 @@ namespace MNN.Unity
             StopTracking();
             if (_pending != null) { var error = _pending.Exception; _pending = null; }
             _pipeline = pipeline;
+            if (_presence == null) _presence = GetComponent<MNNPresenceComponent>();
             _pipeline.Reset();
             _camera = camera;
             _cancellation = new CancellationTokenSource();
@@ -105,8 +116,7 @@ namespace MNN.Unity
                 return;
             double now = Time.realtimeSinceStartupAsDouble;
             if (now < _nextCapture || _camera.width <= 16 || _camera.height <= 16) return;
-            bool awake = _presence == null || _presence.Current.State != MNNPresenceState.Sleeping;
-            _nextCapture = now + 1.0 / Mathf.Max(1, awake ? _framesPerSecond : _sleepFramesPerSecond);
+            _nextCapture = now + 1.0 / Mathf.Max(1, CurrentDetectionFramesPerSecond);
             try
             {
                 _pixels = _camera.GetPixels32(_pixels);

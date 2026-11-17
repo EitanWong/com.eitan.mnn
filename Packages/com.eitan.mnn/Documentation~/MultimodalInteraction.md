@@ -185,3 +185,8 @@ SenseVoiceSmall + 原音的总体 CER 为 137/672（20.39%），单人 10/224（
 漏唤醒、首字截断、端到端 P50/P95 延迟、显存/内存和持续运行实时率，不能只比较输出是否非零。
 验收门槛由产品与设备预算指定；在未完成这些测量前，不承诺任意多人环境均可准确拾音。
 模型加载、目录和部署校验仍遵循共享 registry 与现有[语音处理](SpeechProcessing.md)、[实时对话](RealtimeConversations.md)约定。
+
+
+## 摄像头休眠分析频率与图像偏好
+
+`MNNInteractionSettings` 默认关闭 `visualPresence`、启用 `imageContext` 偏好；后者只有视觉开启且目标已确认时生效。默认休眠显示为 `Dimmed`，已持久化的选择继续保留。`MNNFaceCameraComponent` 自动关联同物体的在场组件，并通过 `CurrentDetectionFramesPerSecond` 暴露当前分析频率。休眠默认 2 次/秒，确认返回后恢复 10 次/秒；不修改设备协商的采集模式。`MNNInteractionComponent` 将摄像头结果交给唯一的在场 owner，避免重复观察。SiriAI 的光球动画、音频暂停、12 FPS 界面与一次空闲回收由样例负责。

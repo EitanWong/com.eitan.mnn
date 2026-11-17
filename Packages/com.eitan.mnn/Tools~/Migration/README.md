@@ -585,3 +585,16 @@ validation of direct official MNN C++ calls.
 
 The migration checks exact file hashes, rejects partial or edited imports before
 writing, preserves GUIDs, and makes no changes when repeated.
+
+
+## 无人在场时的休眠与摄像头授权
+
+`presence-sleep` 为光球增加去饱和、降低亮度和约六秒一次的呼吸动画；暂停无人时的自动音频与 ASR，目标界面降至 12 FPS。摄像头保持连接并以低频分析等待返回；空闲后每次休眠只清理一次无引用资源和 GC，手动录音与返回可恢复。默认视觉关闭、图像上下文偏好启用，原有用户选择保留。macOS 引导增加可选摄像头授权和官方 AVFoundation 回调，Player 补齐用途说明。
+
+在已完成 `camera-authorization`、精确匹配 `SiriAIPresenceSleep.files.json` 的样例上运行：
+
+```sh
+python3 Packages/com.eitan.mnn/Tools~/Migration/migrate_siriai_conversation.py --stage presence-sleep
+```
+
+升级共享 package 后再应用本阶段；此 stage 只更新样例。保留已有 GUID，完整哈希不匹配时零写入，重复应用零写入。详情见样例 `Documentation~/PresenceSleep.md`。

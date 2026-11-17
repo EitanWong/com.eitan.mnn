@@ -44,7 +44,9 @@ namespace MNN.Unity
             VisionContext.Clear();
             Presence.Configure(settings.ToPresenceOptions(), settings.faceRecognition ? settings.allowedIdentities : null);
             Presence.enabled = settings.visualPresence;
+            Camera.BindPresence(Presence);
             Camera.enabled = settings.visualPresence;
+            Camera.Configure(settings.camera ?? new MNNCameraSettings());
             Publish(Presence.Current);
         }
 
@@ -93,18 +95,13 @@ namespace MNN.Unity
         private void OnEnable()
         {
             Presence.Changed += Publish;
-            Camera.Observation += Observe;
             Camera.FrameCaptured += CaptureImage;
             Publish(Presence.Current);
-        }
-        private void Observe(MNNPresenceObservation observation)
-        {
-            Presence.Report(observation);
         }
         private void CaptureImage(MNNRgbImage image, double capturedAt)
         {
             lock (_gate)
-                if (_settings.imageContext && _snapshot.CanStartInteraction)
+                if (_settings.visualPresence && _settings.imageContext && _snapshot.CanStartInteraction)
                     VisionContext.Update(image, capturedAt, _snapshot.TrackId);
         }
         private void Update() { if (Presence.enabled) Publish(Presence.Current); }
@@ -123,7 +120,6 @@ namespace MNN.Unity
         private void OnDisable()
         {
             Presence.Changed -= Publish;
-            Camera.Observation -= Observe;
             Camera.FrameCaptured -= CaptureImage;
             lock (_gate) { _snapshot = default; _speech = null; _captureInput = null; }
             VisionContext.Clear();

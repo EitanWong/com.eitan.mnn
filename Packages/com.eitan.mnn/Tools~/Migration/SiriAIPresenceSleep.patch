@@ -1,0 +1,1298 @@
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader b/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/ClassicOrb.shader
+@@ -4,6 +4,8 @@
+ {
+     Properties
+     {
++        _SleepBlend ("Sleep Blend", Range(0,1)) = 0
++        _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+         _LightAppearance ("Light Appearance", Range(0,1)) = 0
+         _ListeningBlend ("Listening Presence", Range(0,1)) = 0
+         _ListeningLevel ("Captured Voice Envelope", Range(0,1)) = 0
+@@ -47,6 +49,7 @@
+ #ifndef UNITY_COLORSPACE_GAMMA
+                 glow = float3(GammaToLinearSpaceExact(glow.r), GammaToLinearSpaceExact(glow.g), GammaToLinearSpaceExact(glow.b));
+ #endif
++                glow = siriSleepColor(glow);
+                 return float4(glow, _SiriDesktopMode * saturate(max(glow.r, max(glow.g, glow.b))));
+             }
+             ENDCG
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader b/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopClassic.shader
+@@ -3,6 +3,8 @@
+ {
+     Properties
+     {
++        _SleepBlend ("Sleep Blend", Range(0,1)) = 0
++        _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+         _LightAppearance ("Light Appearance", Range(0,1)) = 0
+         _ListeningBlend ("Listening Presence", Range(0,1)) = 0
+         _ListeningLevel ("Captured Voice Envelope", Range(0,1)) = 0
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc b/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopGlass.cginc
+@@ -1,5 +1,11 @@
+ #ifndef SIRIAI_DESKTOP_GLASS_INCLUDED
+ #define SIRIAI_DESKTOP_GLASS_INCLUDED
++float _SleepBlend, _SleepBreath;
++float3 siriSleepColor(float3 color)
++{
++    float grey = dot(color, float3(.2126, .7152, .0722));
++    return lerp(color, lerp(grey.xxx, color, .08) * (.16 + .012 * _SleepBreath), saturate(_SleepBlend));
++}
+ float _SiriDesktopMode;
+ sampler2D _SiriDesktopBackdrop;
+ float _SiriDesktopBackdropAvailable;
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader b/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopLiquid.shader
+@@ -3,6 +3,8 @@
+ {
+     Properties
+     {
++        _SleepBlend ("Sleep Blend", Range(0,1)) = 0
++        _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+         [Header(Spectrum Strands)]
+         _StrandIntensity ("Shared Brightness", Range(0, 12)) = 2.05
+         [HDR] _StrandColor ("Shared Tint", Color) = (1, 1, 1, 1)
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader b/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/DesktopOriginal.shader
+@@ -3,6 +3,8 @@
+ {
+     Properties
+     {
++        _SleepBlend ("Sleep Blend", Range(0,1)) = 0
++        _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+         _BodyColor ("Glass Tint", Color) = (0, 0, 0, 1)
+         _GlassTint ("Glass Tint Amount", Range(0, 1)) = 1
+         _GlassAlpha ("Glass Absorption", Range(0, 1)) = 0.796
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader b/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/LiquidSpectrum.shader
+@@ -4,6 +4,8 @@
+ {
+     Properties
+     {
++        _SleepBlend ("Sleep Blend", Range(0,1)) = 0
++        _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+         [Header(Spectrum Strands)]
+         _StrandIntensity ("Shared Brightness", Range(0, 12)) = 2.05
+         [HDR] _StrandColor ("Shared Tint", Color) = (1, 1, 1, 1)
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/OrbMobile.shader
+@@ -2,6 +2,8 @@
+ {
+     Properties
+     {
++        _SleepBlend ("Sleep Blend", Range(0,1)) = 0
++        _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+         _BodyColor ("Glass Tint", Color) = (0, 0, 0, 1)
+         _GlassTint ("Glass Tint Amount", Range(0, 1)) = 1
+         _GlassAlpha ("Glass Absorption", Range(0, 1)) = 0.796
+@@ -181,7 +183,7 @@
+                     _SiriGlassBackground_TexelSize.xy,blurPixels);
+                 float3 background=siriGlassSampleChromaticBackground(_SiriGlassBackground,_SiriGlassBackground_TexelSize.xy,
+                     uv,offset,rimCurve,_ChromaticAberration,blurPixels);
+-                return siriDesktopGlass(siriGlassComposite(background * transmission * (1-reflectance), color, reflection * reflectance), .04 + .16 * reflectance);
++                return siriDesktopGlass(siriSleepColor(siriGlassComposite(background * transmission * (1-reflectance), color, reflection * reflectance)), .04 + .16 * reflectance);
+             }
+             ENDCG
+         }
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc b/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc
+--- a/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc
++++ b/Assets/Samples/SiriAI/Art/Shaders/OrbStyleCommon.cginc
+@@ -69,7 +69,7 @@
+ {
+     float radius = length(disc);
+     float inside = 1.0 - smoothstep(1.0 - max(fwidth(radius), .0015), 1.0, radius);
+-    color = siriDesktopShell(color, disc);
++    color = siriSleepColor(siriDesktopShell(color, disc));
+     color = lerp(StyleBackground(uv), color, inside);
+ #ifndef UNITY_COLORSPACE_GAMMA
+     color = max(color, 0);
+diff --git a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+--- a/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
++++ b/Assets/Samples/SiriAI/Art/Shaders/SiriAI.shader
+@@ -2,6 +2,8 @@
+ {
+     Properties
+     {
++        _SleepBlend ("Sleep Blend", Range(0,1)) = 0
++        _SleepBreath ("Sleep Breath", Range(-1,1)) = 0
+         _BodyColor ("Glass Tint", Color) = (0, 0, 0, 1)
+         _GlassTint ("Glass Tint Amount", Range(0, 1)) = 1
+         _GlassAlpha ("Glass Absorption", Range(0, 1)) = 0.796
+@@ -395,7 +397,7 @@
+                 float2 disc = mul((float3x3)UNITY_MATRIX_V, input.worldPosition.xyz - center).xy / worldRadius;
+                 color = siriDesktopShell(color, disc);
+                 UNITY_APPLY_FOG(input.worldPosition.w, color);
+-                return siriDesktopGlass(color, .04 + .16 * data.fresnel);
++                return siriDesktopGlass(siriSleepColor(color), .04 + .16 * data.fresnel);
+             }
+             ENDCG
+         }
+@@ -423,7 +425,7 @@
+                 data.normal = normalize(input.worldNormal);
+                 float3 color = shadeAdditional(input, data, attenuation);
+                 UNITY_APPLY_FOG_COLOR(input.worldPosition.w, color, float4(0, 0, 0, 0));
+-                return half4(color, 0.0);
++                return half4(siriSleepColor(color), 0.0);
+             }
+             ENDCG
+         }
+diff --git a/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Documentation~/PresenceSleep.md
+@@ -0,0 +1,13 @@
++# 无人在场时的休眠模式
++
++新设置默认关闭视觉，保留启用的图像上下文偏好。关闭视觉不会启动摄像头、保留图像或请求必需摄像头授权；重新启用后仅使用新鲜且已确认目标的图像。已有用户保存的选择不重置。
++
++macOS 引导提供摄像头权限行，视觉关闭时可选。使用 AVFoundation 的官方 `requestAccessForMediaType:completionHandler:`，等待回调并重新读取授权状态，不把请求完成视为授权。Player 构建补齐摄像头和麦克风用途说明，保留产品自定义文本。Unity Hub 启动导致缺少摄像头 entitlement 时，仍需退出并通过 `Tools~/Testing/open_editor_macos.command` 独立启动 Editor；此功能不修改应用签名或系统权限数据库。
++
++启用视觉后，无人状态达到“Sleep after absence”时进入休眠。进行中的回复、播放、手动录音、初始化和重置优先完成，不在其中强制回收资源。光球平滑变暗和去饱和，约六秒一次轻微呼吸，停止跟随语音起伏。默认“Dimmed standby”保留完整尺寸光球；仍可选择隐藏界面或黑屏。
++
++休眠时自动语音采集、唤醒词监听与自动 ASR 暂停；图像上下文清空。摄像头保留连接，默认在场分析从 10 次/秒降为 2 次/秒，供人回来时唤醒。这里降低的是分析频率，摄像头设备的实际采集模式保持原协商值。界面目标帧率降为 12 FPS，背景停止动态流动；设置、拖动和手动交互保持可用。
++
++持续空闲两秒，且没有在场推理任务运行后，每次进入休眠只执行一次 `Resources.UnloadUnusedAssets`，完成后执行一次 `GC.Collect`。保留在用的模型和设备；不会每帧或每次检测都 GC。回来后恢复音频、正常分析频率和原外观，重新计算空闲超时窗口；退出或关闭视图恢复此前帧率与垂直同步设置。
++
++验证包括实际 GPU 像素、原生 macOS 授权回调、采集/自动 ASR 暂停、一次回收、手动录音和返回恢复。资源频率下降不等于已测量电功耗，本次未做瓦数测量。
+diff --git a/Assets/Samples/SiriAI/Scripts/Editor/Desktop/SiriAIDesktopBuild.cs b/Assets/Samples/SiriAI/Scripts/Editor/Desktop/SiriAIDesktopBuild.cs
+--- a/Assets/Samples/SiriAI/Scripts/Editor/Desktop/SiriAIDesktopBuild.cs
++++ b/Assets/Samples/SiriAI/Scripts/Editor/Desktop/SiriAIDesktopBuild.cs
+@@ -42,9 +42,22 @@
+             // Unity 2021 has no macOS microphone-usage PlayerSettings property. Write the
+             // standard bundle key without depending on the optional iOS Xcode module.
+             string path = Path.Combine(report.summary.outputPath, "Contents", "Info.plist");
++            EnsureMacPermissionDescriptions(path);
++        }
++
++        internal static void EnsureMacPermissionDescriptions(string path)
++        {
+             var plist = XDocument.Load(path);
+             var dictionary = plist.Root.Element("dict");
+-            const string key = "NSMicrophoneUsageDescription";
++            EnsureUsageDescription(dictionary, "NSMicrophoneUsageDescription",
++                "SiriAI uses the microphone for voice conversations and hold-to-speak recording.");
++            EnsureUsageDescription(dictionary, "NSCameraUsageDescription",
++                "SiriAI uses the camera for optional visual presence and image context when you enable vision.");
++            plist.Save(path);
++        }
++
++        private static void EnsureUsageDescription(XElement dictionary, string key, string explanation)
++        {
+             var existing = dictionary.Elements("key").FirstOrDefault(element => element.Value == key);
+             if (existing != null)
+             {
+@@ -53,9 +66,7 @@
+                 if (value != null && !string.IsNullOrWhiteSpace(value.Value)) return;
+                 value?.Remove(); existing.Remove();
+             }
+-            dictionary.Add(new XElement("key", key), new XElement("string",
+-                "SiriAI uses the microphone for voice conversations and hold-to-speak recording."));
+-            plist.Save(path);
++            dictionary.Add(new XElement("key", key), new XElement("string", explanation));
+         }
+     }
+ }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Acoustics.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Acoustics.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Acoustics.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Acoustics.cs
+@@ -63,7 +63,7 @@
+                 acousticProcessing.InitializeLegacy(acoustics, createdForLegacyChat: true);
+                 owner = acousticProcessing;
+             }
+-            owner.WakeAllowed = () => InteractionAdmission && !_suspendAcousticWake && !_context.Input.Realtime &&
++            owner.WakeAllowed = () => InteractionAdmission && !_presenceLowPower && !_suspendAcousticWake && !_context.Input.Realtime &&
+                 !_context.Input.Recording && (!_context.SpeakerAudible || _context.CanInterruptSpeech);
+             await owner.PrepareAsync(token);
+             _context.Acoustics = owner.Frontend;
+@@ -74,7 +74,7 @@
+             // Wake-only monitoring must not mute UI. WakeAllowed already rejects speaker
+             // audio and its tail; explicit recording/realtime input keeps cue protection.
+             _audio.SetCaptureSoundProtection(enabled);
+-            _audio.SetCaptureEnabled(enabled || (!_suspendAcousticWake && AcousticFrontend?.WakeEnabled == true));
++            _audio.SetCaptureEnabled(enabled || (!_presenceLowPower && !_suspendAcousticWake && AcousticFrontend?.WakeEnabled == true));
+         }
+ 
+         private void UpdateAcousticWake()
+@@ -88,7 +88,7 @@
+                 GateAcousticCapture(_context.Input.Realtime || _context.Input.Recording);
+             }
+             if (AcousticFrontend == null || !AcousticFrontend.TakeWakeRequest()) return;
+-            if (IsRealtimeConversation || IsRecordingVoice || IsResettingConversation || _suspendAcousticWake ||
++            if (IsRealtimeConversation || IsRecordingVoice || IsResettingConversation || _presenceLowPower || _suspendAcousticWake ||
+                 _session == null || _session.State != MNN.Unity.MNNRealtimeSessionState.Running) return;
+             _wakeActivation = true;
+             SetRealtimeConversation(true);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Events.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Events.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Events.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Events.cs
+@@ -8,6 +8,7 @@
+     {
+         private MNNConversationEventReply _backgroundReply;
+         public bool CanPresentBackgroundResult => isActiveAndEnabled && _stopTask == null && !IsResettingConversation &&
++            !IsPresenceSleeping &&
+             !IsProcessing && !IsUserSpeaking && !IsRecordingVoice && !IsSubmittingText && !IsPreparingRealtime &&
+             _registration?.TryBeginEventReply != null && _session?.State == MNNRealtimeSessionState.Running;
+ 
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.Interaction.cs
+@@ -46,7 +46,8 @@
+         public bool TryGetInteractionImage(out MNNRgbImage image)
+         {
+             image = null;
+-            return _interaction != null && _interaction.ReadSettings().imageContext &&
++            var settings = _interaction?.ReadSettings();
++            return !IsPresenceSleeping && settings?.visualPresence == true && settings.imageContext &&
+                 _interaction.VisionContext.TryGet(_interaction.Presence.Current.TrackId, Time.realtimeSinceStartupAsDouble, out image);
+         }
+         public MNNInteractionComponent Interaction => _interaction;
+@@ -57,13 +58,14 @@
+             if (_context == null || _stopTask != null || !_interactionStartupReady) return;
+             if (_visualReady && _interactionCamera != null && !_interactionCamera.isPlaying)
+             { _visualReady = false; RetryVisualCamera(); }
+-            if (_interactionSettings == null || Time.realtimeSinceStartupAsDouble >= _nextInteractionSettingsRead)
++            bool readSettings = _interactionSettings == null || Time.realtimeSinceStartupAsDouble >= _nextInteractionSettingsRead;
++            if (readSettings)
+             {
+                 _interactionSettings = GetAcousticSettings().interaction ?? new MNNInteractionSettings();
+                 _nextInteractionSettingsRead = Time.realtimeSinceStartupAsDouble + .25;
+             }
+             var settings = _interactionSettings;
+-            string configuration = JsonUtility.ToJson(settings);
++            string configuration = readSettings ? JsonUtility.ToJson(settings) : _interactionConfiguration;
+             if (configuration != _interactionConfiguration)
+             {
+                 _interactionConfiguration = configuration;
+@@ -85,8 +87,9 @@
+                 Observe(() => _presenceChange);
+             }
+             _context.Interaction = settings.visualPresence || settings.audioVisualSpeech || settings.referenceSpeaker || settings.separateSpeakers ? _interaction : null;
+-            if (_interaction != null && settings.RequiresPresenceForVoice)
++            if (_interaction != null && settings.visualPresence)
+                 _interaction.Presence.SetInteractionBusy(IsProcessing || IsRecordingVoice);
++            UpdatePresenceLowPower();
+             // Presence gates continuous listening, never an explicit recording or the user's mode choice.
+             // Keep realtime selected so fresh presence resumes capture without changing manual mode.
+             if (_context.Input.Realtime) _context.SetCaptureEnabled(true);
+@@ -257,6 +260,7 @@
+ 
+         private async Task StopInteractionAsync()
+         {
++            SetPresenceLowPower(false);
+             _interactionStartupReady = false;
+             ++_presenceRevision;
+             _presenceLifetime?.Cancel();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs
+@@ -0,0 +1,57 @@
++using System;
++using MNN.Unity;
++using UnityEngine;
++
++namespace MNN.Samples.SiriAI
++{
++    public sealed partial class SiriAIChat
++    {
++        private bool _presenceLowPower, _presenceCleanupPending;
++        private double _presenceCleanupAt;
++        private AsyncOperation _presenceUnload;
++        private int _presenceSleepRevision;
++        public int SleepCleanupCount { get; private set; }
++        /// <summary>Visual sleep only. Explicit interaction and active work keep normal resources available.</summary>
++        public bool IsPresenceSleeping => isActiveAndEnabled && _stopTask == null && _interactionSettings?.visualPresence == true && _visualReady &&
++            _interaction != null && _interaction.Presence.Current.State == MNNPresenceState.Sleeping &&
++            !IsProcessing && !IsRecordingVoice && !_voiceFinishing && !IsPreparingConversation && !IsResettingConversation;
++        public bool IsLowPowerMode => _presenceLowPower;
++
++        private void UpdatePresenceLowPower()
++        {
++            SetPresenceLowPower(IsPresenceSleeping);
++            if (!_presenceLowPower || !_presenceCleanupPending || _presenceUnload != null ||
++                Time.realtimeSinceStartupAsDouble < _presenceCleanupAt || !_interaction.Camera.Completion.IsCompleted) return;
++            _presenceCleanupPending = false;
++            _interaction.VisionContext.Clear();
++            AcousticFrontend?.DiscardWake();
++            // Reclaim only unreferenced Unity assets. Live models, capture and wake detector stay owned.
++            int revision = _presenceSleepRevision;
++            _presenceUnload = Resources.UnloadUnusedAssets();
++            _presenceUnload.completed += _ =>
++            {
++                _presenceUnload = null;
++                if (this == null || !_presenceLowPower || revision != _presenceSleepRevision) return;
++                GC.Collect();
++                ++SleepCleanupCount;
++            };
++        }
++
++        private void SetPresenceLowPower(bool sleeping)
++        {
++            if (_presenceLowPower == sleeping) return;
++            _presenceLowPower = sleeping;
++            ++_presenceSleepRevision;
++            _presenceCleanupPending = sleeping;
++            _presenceCleanupAt = Time.realtimeSinceStartupAsDouble + 2;
++            if (_context != null)
++            {
++                _context.AutomaticInputSuspended = sleeping;
++                // Invalidate queued audio/idle-exit requests, and give wake a fresh inactivity window.
++                if (_context.Input.Realtime) _context.Input.SetRealtime(true);
++                _context.SetCaptureEnabled(_stopTask == null && (_context.Input.Realtime || _context.Input.Recording));
++            }
++            if (sleeping) { _interaction?.VisionContext.Clear(); DiscardWakeActivation(); }
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Conversation/SiriAIChat.LowPower.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 18e2c83b6c9049368c412f0b16f33e5e
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.Response.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.Response.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.Response.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.Response.cs
+@@ -15,7 +15,7 @@
+             input = speech = 0f;
+             thinking = false;
+             // Editor preview must not create conversation drivers or acquire audio.
+-            if (_editorPreview || _chat == null || !_chat.isActiveAndEnabled) return;
++            if (_editorPreview || _chat == null || !_chat.isActiveAndEnabled || _chat.IsPresenceSleeping) return;
+             if (_backgroundFeedback == null)
+                 _backgroundFeedback = _chat.GetComponent<SiriAIConversationFeedback>() ??
+                     _chat.gameObject.AddComponent<SiriAIConversationFeedback>();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Background.cs
+@@ -97,7 +97,7 @@
+              _backgroundDivisor != BackgroundDivisor || _backgroundMode != settings.mode ||
+              _backgroundQuality != SiriAIGraphicsQuality.Current.Tier);
+ 
+-        private bool BackgroundMotionReduced => (IsSettingsOpen ? _settingsDraft.Appearance.reduceMotion :
++        private bool BackgroundMotionReduced => _chat?.IsLowPowerMode == true || (IsSettingsOpen ? _settingsDraft.Appearance.reduceMotion :
+             _interactionFeedback?.ReduceMotion ?? _viewPreferences.reduceMotion) ||
+             (interactionFeedback != null && (interactionFeedback.reducedMotion || !interactionFeedback.animations));
+ 
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.System.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.System.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.System.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.System.cs
+@@ -35,13 +35,22 @@
+ 
+         private void TickDesktopScheduling()
+         {
++            bool sleeping = _chat?.IsLowPowerMode == true && !IsSettingsOpen && !IsSetupOpen && !IsComposerExpanded &&
++                !_voiceHeld && !_desktopDragging && !_desktopResizing && !IsFeedbackOpen;
+             bool realtime = _voiceHeld || _isPreparing || (_chat?.IsProcessing ?? false) || (_chat?.IsRealtimeConversation ?? false);
+             bool active = realtime || _desktopDragging || _desktopResizing ||
+                 Application.isFocused && (IsSettingsOpen || IsComposerExpanded || _desktopControlsOpacity > .05f);
+             int refresh = Screen.currentResolution.refreshRate;
+-            int rate = _desktopWindow != null && !_desktopWindow.IsVisible && !realtime ? 5
++            int rate = sleeping ? 12 : _desktopWindow != null && !_desktopWindow.IsVisible && !realtime ? 5
+                 : active ? Mathf.Clamp(refresh > 0 ? refresh : 60, 30, 120) : 30;
+             if (Application.targetFrameRate != rate) Application.targetFrameRate = rate;
++        }
++
++        private void TickApplicationScheduling()
++        {
++            if (_desktopWindow != null || _chat?.IsLowPowerMode == true)
++            { BeginDesktopScheduling(); TickDesktopScheduling(); }
++            else RestoreDesktopScheduling();
+         }
+ 
+         private void RestoreDesktopScheduling()
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Desktop.cs
+@@ -118,7 +118,6 @@
+                     _desktopWindow = SiriAIDesktopStartup.Take() ?? SiriAIDesktopWindow.Open(false);
+                     _desktopWindow.SetTopmost(SiriAISetupStore.Completed && !SetupOwnsStartup);
+                     _desktopTopmostAt = 0f;
+-                    BeginDesktopScheduling();
+                     _desktopWasPressed = _desktopWindow.LeftButton;
+                     _desktopStatus = _desktopWindow.GlobalShortcutAvailable ? null : "Enable Input Monitoring for this app in macOS System Settings to use the voice shortcut in background.";
+                     _desktopRequestFrame = -1;
+@@ -177,7 +176,6 @@
+                 _desktopWasPressed = pressedSetup;
+                 return;
+             }
+-            TickDesktopScheduling();
+             bool pressed = _desktopWindow.LeftButton;
+             _desktopPressBegan = pressed && !_desktopWasPressed; _desktopWasPressed = pressed;
+             UpdateDesktopControls(DesktopHoverContains(local), Time.unscaledDeltaTime);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Interaction.cs
+@@ -17,7 +17,7 @@
+                 Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand))) OpenSettings();
+             TickCameraSettings();
+             var interaction = _chat?.Interaction;
+-            bool enabled = _chat != null && _chat.IsRealtimeConversation && interaction != null && interaction.ReadSettings().RequiresPresenceForVoice;
++            bool enabled = _chat != null && _chat.IsRealtimeConversation && interaction != null && interaction.ReadSettings().visualPresence;
+             if (!enabled && !_presencePresentationActive) return;
+             if (_presenceCanvas == null && _canvasRoot != null)
+             {
+@@ -26,7 +26,8 @@
+             }
+             if (!enabled)
+             {
+-                if (_presencePresentation != null) _presencePresentation.ConfigurePresentation(null, null, MNNPresenceSleepDisplay.Hidden);
++                if (_presencePresentation != null)
++                { _presencePresentation.ConfigurePresentation(null, null, MNNPresenceSleepDisplay.Hidden); _presencePresentation.ConfigureVisualRoot(null); }
+                 if (_presenceCanvas != null) { _presenceCanvas.alpha = 1; _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = true; }
+                 if (_presenceBlack != null) _presenceBlack.alpha = 0;
+                 if (_presenceOrbContainer != null) _presenceOrbContainer.localScale = Vector3.one;
+@@ -49,19 +50,21 @@
+                 _presenceOrbContainer = new GameObject("Presence Orb Container").transform;
+                 _presenceOrbContainer.SetParent(siriOrb.transform.parent, false);
+                 siriOrb.transform.SetParent(_presenceOrbContainer, true);
+-                interaction.Presence.ConfigureVisualRoot(_presenceOrbContainer);
++                // Keep the orb visible at full size; its renderer owns the dim sleep breath.
+             }
+             _presencePresentation = interaction.Presence;
+             // Keep settings usable so camera gating can always be disabled without a visible face.
+             bool settingsOpen = IsSettingsOpen || IsSetupOpen || _chat.IsVisualLoading;
+-            if (_presenceVisualHeld != settingsOpen || !_presencePresentationActive)
++            var display = interaction.ReadSettings().sleepDisplay;
++            bool holdOrb = settingsOpen || display == MNNPresenceSleepDisplay.Dimmed;
++            if (_presenceVisualHeld != holdOrb || !_presencePresentationActive)
+             {
+-                _presencePresentation.ConfigureVisualRoot(settingsOpen ? null : _presenceOrbContainer);
+-                _presenceVisualHeld = settingsOpen;
++                _presencePresentation.ConfigureVisualRoot(holdOrb ? null : _presenceOrbContainer);
++                _presenceVisualHeld = holdOrb;
+             }
+-            _presencePresentation.ConfigurePresentation(settingsOpen ? null : _presenceCanvas,
++            _presencePresentation.ConfigurePresentation(settingsOpen || display == MNNPresenceSleepDisplay.Dimmed ? null : _presenceCanvas,
+                 settingsOpen ? null : _presenceBlack, interaction.ReadSettings().sleepDisplay);
+-            if (settingsOpen)
++            if (settingsOpen || display == MNNPresenceSleepDisplay.Dimmed)
+             {
+                 if (_presenceCanvas != null) { _presenceCanvas.alpha = 1; _presenceCanvas.interactable = _presenceCanvas.blocksRaycasts = true; }
+                 if (_presenceBlack != null) _presenceBlack.alpha = 0;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Settings.Interaction.cs
+@@ -14,7 +14,7 @@
+             { SettingsDescription("Add Acoustic Processing to configure visual interaction."); return; }
+             var value = acoustics.interaction ?? (acoustics.interaction = new MNNInteractionSettings());
+             AddSettingsTitle("Vision", "Changes apply after saving and restarting the conversation.");
+-            AddBoolField("Enable vision", "Off also disables identity gating, image context and audio-visual pickup. Audio-only settings stay unchanged.",
++            AddBoolField("Enable vision", "Off releases the camera. The image context preference is preserved for next time.",
+                 () => value.visualPresence, enabled => UpdateAudioSettings(() =>
+                 {
+                     value.visualPresence = enabled;
+@@ -22,7 +22,6 @@
+                     {
+                         value.requirePresenceForVoice = false;
+                         value.faceRecognition = false;
+-                        value.imageContext = false;
+                         value.audioVisualSpeech = false;
+                     }
+                 }));
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs
+@@ -17,12 +17,12 @@
+         private ScrollRect _setupScroll;
+         private Material _setupGlassMaterial, _setupControlMaterial;
+         private SiriAISetupStep? _setupRenderedStep;
+-        private readonly Text[] _setupPermissionStatus = new Text[4];
+-        private readonly Button[] _setupPermissionRequest = new Button[4];
++        private readonly Text[] _setupPermissionStatus = new Text[5];
++        private readonly Button[] _setupPermissionRequest = new Button[5];
+         private readonly SiriAISetupPermission[] _setupPermissionKinds = {
+-            SiriAISetupPermission.Microphone, SiriAISetupPermission.ScreenRecording, SiriAISetupPermission.InputMonitoring, SiriAISetupPermission.Storage };
+-        private static readonly string[] SetupPermissionNames = { "Microphone", "Screen Recording", "Input Monitoring", "Local files" };
+-        private static readonly string[] SetupPermissionPanes = { "Privacy_Microphone", "Privacy_ScreenCapture", "Privacy_ListenEvent", "Privacy_FilesAndFolders" };
++            SiriAISetupPermission.Microphone, SiriAISetupPermission.ScreenRecording, SiriAISetupPermission.InputMonitoring, SiriAISetupPermission.Storage, SiriAISetupPermission.Camera };
++        private static readonly string[] SetupPermissionNames = { "Microphone", "Screen Recording", "Input Monitoring", "Local files", "Camera" };
++        private static readonly string[] SetupPermissionPanes = { "Privacy_Microphone", "Privacy_ScreenCapture", "Privacy_ListenEvent", "Privacy_FilesAndFolders", "Privacy_Camera" };
+ 
+         private void BuildSetupWizard()
+         {
+@@ -167,7 +167,7 @@
+                 var child = _setupContent.GetChild(i);
+                 child.gameObject.SetActive(false); Release(child.gameObject);
+             }
+-            Array.Clear(_setupPermissionStatus, 0, 4); Array.Clear(_setupPermissionRequest, 0, 4);
++            Array.Clear(_setupPermissionStatus, 0, _setupPermissionStatus.Length); Array.Clear(_setupPermissionRequest, 0, _setupPermissionRequest.Length);
+             _setupDetails = null; _setupPrepare = null; _setupTransferFill = null; _setupProgressLabel = null;
+             switch (_setupFlow.Step)
+             {
+@@ -222,7 +222,7 @@
+             {
+                 int index = i; var kind = _setupPermissionKinds[i];
+                 if (kind == SiriAISetupPermission.ScreenRecording) continue;
+-                if (kind != SiriAISetupPermission.Storage && kind != SiriAISetupPermission.Microphone && Application.platform != RuntimePlatform.OSXPlayer && !_editorPreview) continue;
++                if (kind != SiriAISetupPermission.Storage && kind != SiriAISetupPermission.Microphone && kind != SiriAISetupPermission.Camera && Application.platform != RuntimePlatform.OSXPlayer && !_editorPreview) continue;
+                 SetupDescription(Localize(SetupPermissionNames[i]), 19);
+                 _setupPermissionStatus[i] = SetupDescription("", 15);
+                 var actions = RectObject(SetupPermissionNames[i] + " Actions", _setupContent);
+@@ -264,7 +264,7 @@
+             _setupNext.interactable = !_setupRequestBusy && (_setupFlow.CanFinish || (!_setupPreparing || _setupFlow.Step != SiriAISetupStep.Preparation) && _setupFlow.CanAdvance);
+             SetTextIfChanged(_setupNext.GetComponentInChildren<Text>(), _setupFlow.CanFinish ? "Start using SiriAI" :
+                 _setupPreparing ? "Preparing…" : _setupRequestBusy ? "Checking access…" : "Continue");
+-            for (int i = 0; i < 4; ++i) RefreshSetupPermissionRow(i);
++            for (int i = 0; i < _setupPermissionKinds.Length; ++i) RefreshSetupPermissionRow(i);
+             RefreshSetupPreparation();
+             SetTextIfChanged(_setupError, _setupFailure ?? "");
+             _setupError.gameObject.SetActive(!string.IsNullOrEmpty(_setupFailure));
+@@ -278,8 +278,9 @@
+             var permission = _setupPermissionKinds[index];
+             bool required = (_setupFlow.Required & permission) != 0;
+             bool granted = (_setupFlow.Granted & permission) != 0;
+-            SetTextIfChanged(_setupPermissionStatus[index], !required ? "Not required for the selected features" : granted ? "Allowed" : "Access needed. Grant access or enable it in system settings.");
+-            _setupPermissionRequest[index].interactable = required && !granted && !_setupRequestBusy;
++            bool optionalCamera = permission == SiriAISetupPermission.Camera && !required;
++            SetTextIfChanged(_setupPermissionStatus[index], granted ? "Allowed" : optionalCamera ? "Optional while vision is off. Grant access before enabling vision." : !required ? "Not required for the selected features" : "Access needed. Grant access or enable it in system settings.");
++            _setupPermissionRequest[index].interactable = (required || optionalCamera) && !granted && !_setupRequestBusy;
+         }
+ 
+         private void RefreshSetupPreparation()
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs
+@@ -100,6 +100,15 @@
+             }
+             catch (Exception error) { _setupFailure = error.Message; }
+ #endif
++#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX || UNITY_IOS || UNITY_ANDROID
++            if (!_editorPreview)
++            {
++                // Vision off never requires camera consent. Its optional setup row still allows early consent.
++                if (_chat?.GetAcousticSettings().interaction?.visualPresence == true) _setupRequired |= SiriAISetupPermission.Camera;
++                try { if (SiriAICameraAccess.HasSystemAccess) _setupGranted |= SiriAISetupPermission.Camera; }
++                catch (Exception error) { _setupFailure = error.Message; }
++            }
++#endif
+         }
+ 
+         private bool SetupRuntimeReady => !_setupRestartNeeded && _chat?.SessionComponent != null &&
+@@ -254,6 +263,8 @@
+                 token.ThrowIfCancellationRequested(); _setupStorageReady = true;
+             }
+             else if (permission == SiriAISetupPermission.Microphone) await SiriAIMicrophoneAccess.System.EnsureAsync(token);
++            else if (permission == SiriAISetupPermission.Camera && !await SiriAICameraAccess.RequestAsync(token))
++                throw SiriAICameraAccess.StartupFailure("Camera access was not granted. Enable Camera access in system settings and retry.");
+ #if UNITY_STANDALONE_OSX && !UNITY_EDITOR
+             else if (permission == SiriAISetupPermission.InputMonitoring) MacWindow.RequestInputMonitoringPermission();
+ #endif
+@@ -268,7 +279,7 @@
+ 
+         private async void RequestSetupPermission(SiriAISetupPermission permissions)
+         {
+-            if (_editorPreview || Application.isEditor || _setupFlow == null || _setupRequestBusy) return;
++            if (_editorPreview || !Application.isPlaying || _setupFlow == null || _setupRequestBusy) return;
+             _setupPermissionAttempted |= permissions;
+             _setupRequestBusy = true; _setupFailure = null;
+             var lifetime = _setupCancellation;
+@@ -294,7 +305,7 @@
+         private void OpenSetupPrivacySettings(string pane)
+         {
+             if (_editorPreview || _setupRequestBusy) return;
+-#if UNITY_STANDALONE_OSX && !UNITY_EDITOR
++#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+             _setupAwayForSettings = true; _setupRoot.gameObject.SetActive(false);
+             _desktopWindow?.SetClickThrough(true);
+             Application.OpenURL("x-apple.systempreferences:com.apple.preference.security?" + pane);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.cs
+@@ -290,6 +290,7 @@
+             PollSystemAppearance();
+             TickDesktopMode();
+             TickInteractionPresentation();
++            TickApplicationScheduling();
+             TickSetup();
+             TickFlowBackground(Time.unscaledDeltaTime);
+             TickSettingsNotification(Time.realtimeSinceStartup);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Feedback/SiriAIConversationAnimation.cs
+@@ -52,6 +52,8 @@
+                 !_feedback.isActiveAndEnabled || _renderer == null || !_renderer.isActiveAndEnabled)
+             { Release(); return; }
+             _driven = true;
++            _renderer.SetSleeping(conversation.IsPresenceSleeping);
++            if (conversation.IsPresenceSleeping) return;
+             if (_interaction == null) _interaction = conversation.GetComponentInChildren<SiriAIInteractionFeedback>();
+             bool realtime = conversation.IsRealtimeConversation;
+             if (realtime && !_wasRealtime) _listeningEnteredAt = Time.unscaledTime;
+@@ -73,6 +75,7 @@
+         {
+             if (_renderer != null && _driven)
+             {
++                _renderer.SetSleeping(false);
+                 _renderer.SetListening(false, 0f);
+                 _renderer.SetState(SiriAIRenderer.AnimationState.Strands);
+                 _renderer.SetSpeechLevel(0f);
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Appearance.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Appearance.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Appearance.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Appearance.cs
+@@ -17,7 +17,7 @@
+     {
+         // Integrate speed; changing volume or leaving thinking never rewinds phase.
+         float thought = thinkingProgress * (1f - listeningPresence);
+-        classicMotionTime += deltaTime * (.85 + .85 * speechSpeedLevel + .55 * thought);
++        classicMotionTime += deltaTime * (.85 + .85 * speechSpeedLevel + .55 * thought) * Mathf.Lerp(1f, .06f, sleepBlend);
+     }
+ 
+     public SiriAIOrbStyle Style
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Rendering.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Rendering.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Rendering.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Rendering.cs
+@@ -147,6 +147,7 @@
+         ApplyOrbQuality(orbQuality);
+         bool simple = orbQuality == SiriAIOrbQuality.Compatibility;
+         EnsureSettings();
++        ApplySleepSettings();
+         if (EffectiveStyle != SiriAIOrbStyle.Original)
+         {
+             if (EffectiveStyle == SiriAIOrbStyle.LiquidSpectrum) ApplyStrandSourceSettings();
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs
+@@ -0,0 +1,35 @@
++using UnityEngine;
++
++public sealed partial class SiriAIRenderer
++{
++    private bool sleeping;
++    private float sleepBlend, sleepVelocity;
++    private double sleepTime;
++    private static readonly int SleepBlendId = Shader.PropertyToID("_SleepBlend");
++    private static readonly int SleepBreathId = Shader.PropertyToID("_SleepBreath");
++    public bool IsSleeping => sleeping;
++
++    /// <summary>Audio-independent dim breathing. Authored appearance remains intact for wake.</summary>
++    public void SetSleeping(bool value)
++    {
++        if (sleeping == value) return;
++        sleeping = value;
++        if (value)
++        {
++            ClearSpeechWaveform();
++            SetState(AnimationState.Strands);
++        }
++    }
++
++    private void AdvanceSleepAnimation(float dt)
++    {
++        AdvanceMorph(ref sleepBlend, ref sleepVelocity, sleeping ? 1f : 0f, sleeping ? 1.4f : .5f, dt);
++        sleepTime += Mathf.Max(0, dt);
++    }
++
++    private void ApplySleepSettings()
++    {
++        SetFloatIfChanged(SleepBlendId, sleepBlend);
++        SetFloatIfChanged(SleepBreathId, (float)System.Math.Sin(sleepTime * System.Math.PI / 3));
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs.meta b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Sleep.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 6f9f8aa3bf0e4023a2c8f2deb81cd568
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Speech.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Speech.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Speech.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.Speech.cs
+@@ -51,6 +51,7 @@
+     /// <summary>Fresh captured PCM observations. Listening owns voice feedback while the user speaks.</summary>
+     public void SetListening(bool active, float level, MNN.Samples.SiriAI.SiriAIVoiceFeatures features, bool reducedMotion = false)
+     {
++        if (sleeping) active = false;
+         listening = active;
+         listeningTarget = active ? FiniteClamp(level, 0f, 1f) : 0f;
+         listeningFeatures = active ? features : default;
+@@ -68,12 +69,12 @@
+     /// <summary>Continuous authored idle travel, smoothly accelerated by measured voice.</summary>
+     public float CurrentMotionSpeed => !listeningReducedMotion
+         ? FiniteClamp(strands.speed, -3f, 3f) *
+-            (1f + speechSpeedLevel * FiniteClamp(speechMotion.motionSpeedBoost, 0f, 4f) * ((6.37f / 3.05f - 1f) / 3f)) : 0f;
++            (1f + speechSpeedLevel * FiniteClamp(speechMotion.motionSpeedBoost, 0f, 4f) * ((6.37f / 3.05f - 1f) / 3f)) * Mathf.Lerp(1f, .06f, sleepBlend) : 0f;
+ 
+     /// <summary>Normalized playback envelope. Authored Energy, Motion speed and fine tuning remain the baseline.</summary>
+     public void SetSpeechLevel(float level)
+     {
+-        speechTarget = FiniteClamp(level, 0f, 1f);
++        speechTarget = sleeping ? 0f : FiniteClamp(level, 0f, 1f);
+         speechFeatures = default;
+         lastSpeechUpdate = Time.realtimeSinceStartupAsDouble;
+     }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Rendering/SiriAIRenderer.cs
+@@ -430,8 +430,9 @@
+         lastAnimationTime = now;
+         if (!HasPreviewMorph)
+         {
+-            animationTime += deltaTime;
+-        }
++            animationTime += deltaTime * Mathf.Lerp(1f, .06f, sleepBlend);
++        }
++        AdvanceSleepAnimation(deltaTime);
+         if (!HasPreviewMorph) AdvanceSpeechAnimation(deltaTime);
+         AdvanceThinkingAnimation(deltaTime);
+     }
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Conversation/SiriAIChatContext.cs
+@@ -59,8 +59,9 @@
+         public void SetCaptureEnabled(bool enabled)
+         {
+             if (enabled) Recording.EnsureDrained();
+-            _captureGate?.Invoke(enabled && (Input.Recording || Input.Realtime && (Interaction == null || Interaction.CanStartInteraction)));
++            _captureGate?.Invoke(enabled && (Input.Recording || !AutomaticInputSuspended && Input.Realtime && (Interaction == null || Interaction.CanStartInteraction)));
+         }
++        internal volatile bool AutomaticInputSuspended;
+         public MNNConversationMailbox Mailbox { get; }
+         internal void PublishRecognitionPreview(int revision, string text) => Mailbox.PublishRecognitionPreview(revision, text);
+         internal bool TryReadRecognitionPreview(out string text) => Mailbox.TryReadRecognitionPreview(Input.Revision, Input.Realtime, out text);
+@@ -80,11 +81,11 @@
+         internal int RealtimeInactivitySeconds = 60;
+         private int _exitRevision = -1;
+         internal bool RequestRealtimeExit(int revision) =>
+-            Input.TryAcceptRealtime(revision, () => Interlocked.Exchange(ref _exitRevision, revision));
++            !AutomaticInputSuspended && Input.TryAcceptRealtime(revision, () => Interlocked.Exchange(ref _exitRevision, revision));
+         internal bool TakeRealtimeExit()
+         {
+             int revision = Interlocked.Exchange(ref _exitRevision, -1);
+-            return revision >= 0 && Input.TryAcceptRealtime(revision, () => { });
++            return !AutomaticInputSuspended && revision >= 0 && Input.TryAcceptRealtime(revision, () => { });
+         }
+         internal void ActivateWake(Func<SiriAIWakeHandoff> snapshot) =>
+             Input.SetRealtime(true, () => WakeCommand = snapshot());
+@@ -96,6 +97,7 @@
+         /// <summary>Returns selected mono 16 kHz speech, or null when automatic selection is ambiguous.</summary>
+         public async Task<float[]> PrepareVoiceAsync(float[] samples, CancellationToken token)
+         {
++            if (!_manualVoice.Value && Input.Realtime && AutomaticInputSuspended) return null;
+             if (!_manualVoice.Value && Input.Realtime && Interaction != null)
+                 samples = await Interaction.PrepareVoiceAsync(samples, token).ConfigureAwait(false);
+             if (samples == null) return null;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/Desktop/MNNInterop.Desktop.Mac.Permissions.cs
+@@ -1,6 +1,7 @@
+ #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+ using System;
+ using System.Runtime.InteropServices;
++using System.Threading.Tasks;
+ 
+ namespace MNN.Samples.SiriAI
+ {
+@@ -13,6 +14,53 @@
+         // Query the actual process attribution; Unity 2021's legacy check returns true on macOS.
+         private static readonly IntPtr CameraFramework = LoadCameraFramework(
+             "/System/Library/Frameworks/AVFoundation.framework/AVFoundation", 1);
++        private static readonly object CameraRequestGate = new object();
++        private static TaskCompletionSource<bool> _cameraRequest;
++        private static IntPtr _cameraPermissionBlock;
++        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
++        private delegate void CameraPermissionCompletion(IntPtr block, [MarshalAs(UnmanagedType.I1)] bool granted);
++        private static readonly CameraPermissionCompletion CameraCompletion = CompleteCameraPermission;
++
++        // Apple Block ABI (64-bit macOS): a global, non-capturing block has process lifetime.
++        // https://clang.llvm.org/docs/Block-ABI-Apple.html
++        [StructLayout(LayoutKind.Sequential)]
++        private struct CameraBlock { internal IntPtr isa; internal int flags, reserved; internal IntPtr invoke, descriptor; }
++        [StructLayout(LayoutKind.Sequential)]
++        private struct CameraBlockDescriptor { internal UIntPtr reserved, size; internal IntPtr signature; }
++
++        internal static Task<bool> RequestCameraAccess()
++        {
++            lock (CameraRequestGate)
++            {
++                if (_cameraRequest != null && !_cameraRequest.Task.IsCompleted) return _cameraRequest.Task;
++                // Also fail clearly before dispatch if AVFoundation is unavailable.
++                int status = CameraAuthorizationStatus;
++                if (_cameraPermissionBlock == IntPtr.Zero)
++                {
++                    IntPtr isa = CameraSymbol(new IntPtr(-2), "_NSConcreteGlobalBlock");
++                    if (isa == IntPtr.Zero) throw new PlatformNotSupportedException("The macOS Block ABI is unavailable.");
++                    var descriptor = new CameraBlockDescriptor { size = (UIntPtr)Marshal.SizeOf<CameraBlock>(),
++                        signature = Marshal.StringToHGlobalAnsi("v@?c") };
++                    IntPtr descriptorPointer = Marshal.AllocHGlobal(Marshal.SizeOf<CameraBlockDescriptor>());
++                    Marshal.StructureToPtr(descriptor, descriptorPointer, false);
++                    var block = new CameraBlock { isa = isa, flags = (1 << 28) | (1 << 30),
++                        invoke = Marshal.GetFunctionPointerForDelegate(CameraCompletion), descriptor = descriptorPointer };
++                    _cameraPermissionBlock = Marshal.AllocHGlobal(Marshal.SizeOf<CameraBlock>());
++                    Marshal.StructureToPtr(block, _cameraPermissionBlock, false);
++                }
++                _cameraRequest = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
++                IntPtr media = SendString(objc_getClass("NSString"), Sel("stringWithUTF8String:"), "vide");
++                RequestCameraAuthorization(objc_getClass("AVCaptureDevice"), Sel("requestAccessForMediaType:completionHandler:"),
++                    media, _cameraPermissionBlock);
++                return _cameraRequest.Task;
++            }
++        }
++
++        [AOT.MonoPInvokeCallback(typeof(CameraPermissionCompletion))]
++        private static void CompleteCameraPermission(IntPtr block, bool granted)
++        {
++            lock (CameraRequestGate) _cameraRequest?.TrySetResult(granted);
++        }
+         internal static int CameraAuthorizationStatus
+         {
+             get
+@@ -27,6 +75,10 @@
+ 
+         [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "dlopen", CallingConvention = CallingConvention.Cdecl)]
+         private static extern IntPtr LoadCameraFramework(string path, int mode);
++        [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "dlsym", CallingConvention = CallingConvention.Cdecl)]
++        private static extern IntPtr CameraSymbol(IntPtr handle, string name);
++        [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend", CallingConvention = CallingConvention.Cdecl)]
++        private static extern void RequestCameraAuthorization(IntPtr receiver, IntPtr selector, IntPtr media, IntPtr completion);
+     }
+ }
+ #endif
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAICameraAccess.cs
+@@ -21,13 +21,17 @@
+         }
+ 
+ #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+-        internal static Task<bool> RequestAsync(CancellationToken token)
++        internal static async Task<bool> RequestAsync(CancellationToken token)
+         {
+             token.ThrowIfCancellationRequested();
+-            // AVFoundation automatically prompts when WebCamTexture creates its device input.
+-            // Unity 2021's RequestUserAuthorization only implements iOS/WebGL camera prompts.
+             int status = MacWindow.CameraAuthorizationStatus;
+-            return Task.FromResult(status == 0 || status == 3);
++            if (status != 0) return status == 3;
++            var request = MacWindow.RequestCameraAccess();
++            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
++            // Cancelling a caller must not invalidate a block still owned by the OS permission dialog.
++            using (token.Register(() => cancelled.TrySetCanceled())) await await Task.WhenAny(request, cancelled.Task);
++            token.ThrowIfCancellationRequested();
++            return HasSystemAccess;
+         }
+ #else
+         internal static async Task<bool> RequestAsync(CancellationToken token)
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAILocalization.cs
+@@ -13,6 +13,8 @@
+             { "The previous voice is unavailable. The model default is selected.", "原音色已不可用，已选择模型默认音色。" },
+             { "This model uses your reference recording as its voice.", "此模型使用参考录音中的声音。" },
+             { "Choose a voice provided by the selected model.", "请选择所选模型提供的音色。" },
++            { "Off releases the camera. The image context preference is preserved for next time.", "关闭后释放摄像头；保留图像上下文偏好，供下次启用视觉时使用。" },
++            { "Optional while vision is off. Grant access before enabling vision.", "视觉关闭时为可选权限，可在启用视觉前授权。" },
+             { "Vision", "视觉" },
+             { "Enable vision", "启用视觉" },
+             { "Require visible face for voice", "仅在人脸可见时接受语音" },
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupFlow.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupFlow.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupFlow.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupFlow.cs
+@@ -4,7 +4,7 @@
+ namespace MNN.Samples.SiriAI
+ {
+     [Flags]
+-    public enum SiriAISetupPermission { None = 0, Microphone = 1, ScreenRecording = 2, InputMonitoring = 4, Storage = 8 }
++    public enum SiriAISetupPermission { None = 0, Microphone = 1, ScreenRecording = 2, InputMonitoring = 4, Storage = 8, Camera = 16 }
+     public enum SiriAISetupStep { Welcome, Configuration, Permissions, Preparation, Ready }
+ 
+     /// <summary>Setup decisions depend on observed grants and runtime readiness, never saved permission claims.</summary>
+@@ -30,7 +30,7 @@
+ 
+         public void Refresh(SiriAISetupPermission required, SiriAISetupPermission granted, bool ready, bool failed)
+         {
+-            const SiriAISetupPermission supported = SiriAISetupPermission.Microphone | SiriAISetupPermission.ScreenRecording | SiriAISetupPermission.InputMonitoring | SiriAISetupPermission.Storage;
++            const SiriAISetupPermission supported = SiriAISetupPermission.Microphone | SiriAISetupPermission.Camera | SiriAISetupPermission.ScreenRecording | SiriAISetupPermission.InputMonitoring | SiriAISetupPermission.Storage;
+             if ((required & ~supported) != 0 || (granted & ~supported) != 0) throw new ArgumentOutOfRangeException(nameof(required));
+             Required = required; Granted = granted; RuntimeReady = ready; PreparationFailed = failed;
+             _permissionsObserved = true;
+diff --git a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupPermissions.cs b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupPermissions.cs
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupPermissions.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Core/Presentation/SiriAISetupPermissions.cs
+@@ -13,7 +13,7 @@
+         {
+             string failure = null;
+             foreach (var permission in new[] { SiriAISetupPermission.Storage, SiriAISetupPermission.Microphone,
+-                SiriAISetupPermission.ScreenRecording, SiriAISetupPermission.InputMonitoring })
++                SiriAISetupPermission.Camera, SiriAISetupPermission.ScreenRecording, SiriAISetupPermission.InputMonitoring })
+             {
+                 token.ThrowIfCancellationRequested();
+                 if ((missing & permission) == 0) continue;
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Conversation/VisionSettingsTests.cs
+@@ -90,7 +90,7 @@
+                 Assert.That(value.visualPresence, Is.False);
+                 Assert.That(value.requirePresenceForVoice, Is.False);
+                 Assert.That(value.faceRecognition, Is.False, "Disabling vision must also disable identity gating.");
+-                Assert.That(value.imageContext, Is.False);
++                Assert.That(value.imageContext, Is.True);
+                 Assert.That(value.audioVisualSpeech, Is.False);
+                 Assert.That(value.referenceSpeaker && value.separateSpeakers, Is.True, "Audio-only capabilities stay independent.");
+                 Assert.That(value.camera.deviceName, Is.EqualTo("Saved camera"));
+@@ -106,13 +106,14 @@
+                 Assert.That(Active(content, "Overlapping speaker separation").GetComponentInChildren<Button>().interactable, Is.True);
+                 SiriAIAcousticPreferencesStore.Save(key, draft.Acoustics);
+                 var restored = SiriAIAcousticPreferencesStore.Read(key).interaction;
+-                Assert.That(restored.visualPresence || restored.faceRecognition || restored.imageContext || restored.audioVisualSpeech, Is.False);
++                Assert.That(restored.visualPresence || restored.faceRecognition || restored.audioVisualSpeech, Is.False);
++                Assert.That(restored.imageContext, Is.True, "The saved preference survives disabling vision.");
+                 Assert.That(restored.referenceSpeaker && restored.separateSpeakers, Is.True);
+                 type.GetMethod("ShowSettingsTab", Private).Invoke(view, new object[] {13, true});
+                 Active(content, "Enable vision").GetComponentInChildren<Button>().onClick.Invoke();
+                 Assert.That(value.visualPresence, Is.True);
+                 Assert.That(draft.Acoustics.enabled, Is.False, "Vision must work independently of the acoustic processing switch.");
+-                Assert.That(value.faceRecognition || value.imageContext || value.audioVisualSpeech, Is.False);
++                Assert.That(value.faceRecognition || value.audioVisualSpeech, Is.False);
+                 Assert.That(Active(content, "Image context").GetComponentInChildren<Button>().interactable, Is.True);
+                 Assert.DoesNotThrow(() => value.Validate());
+                 var interaction = root.AddComponent<MNNInteractionComponent>();
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs
+@@ -0,0 +1,326 @@
++using System;
++using System.Collections.Generic;
++using System.Collections;
++using System.Reflection;
++using System.Threading;
++using System.Threading.Tasks;
++using MNN.Unity;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.TestTools;
++using Object = UnityEngine.Object;
++
++namespace MNN.Samples.SiriAI.Tests
++{
++    public sealed class SiriAILowPowerTests
++    {
++        [Test]
++        public void SleepingDefersBackgroundSpeechUntilPresenceReturns()
++        {
++            var root = new GameObject("Sleeping background presentation");
++            MNNRealtimeSession session = null;
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>();
++                var endpoint = root.AddComponent<SiriAIRecordingAudioEndpoint>();
++                var component = root.AddComponent<MNNRealtimeSessionComponent>();
++                var backend = root.AddComponent<SiriAITestBackend>(); chat.Configure(endpoint, component);
++                session = new MNNRealtimeSession(backend, new MNNRealtimeOutputPipeline(new MNNPcmFormat(16000, 1), 160));
++                SiriAITestAccess.Set(component, "_session", session); session.StartAsync().GetAwaiter().GetResult();
++                int calls = 0;
++                var caps = new MNNRealtimeCapabilities(MNNRealtimeFeature.None, "fixture", null);
++                SiriAITestAccess.Set(chat, "_registration", new SiriAIBackendRegistration(backend, caps, caps,
++                    tryBeginEventReply: (input, token) => { ++calls; return null; }));
++                var owner = root.AddComponent<MNNInteractionComponent>();
++                var settings = new MNNInteractionSettings { visualPresence = true, confirmationSeconds = 0 };
++                owner.Configure(settings);
++                SiriAITestAccess.Set(chat, "_interaction", owner); SiriAITestAccess.Set(chat, "_interactionSettings", settings);
++                Assert.True(chat.CanPresentBackgroundResult);
++                SiriAITestAccess.Set(chat, "_visualReady", true);
++                Assert.False(chat.CanPresentBackgroundResult);
++                chat.TryBeginEventReply(null, CancellationToken.None); Assert.Zero(calls);
++                owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
++                Assert.True(chat.CanPresentBackgroundResult);
++                chat.TryBeginEventReply(null, CancellationToken.None); Assert.AreEqual(1, calls);
++            }
++            finally { session?.StopAsync().GetAwaiter().GetResult(); Object.DestroyImmediate(root); }
++        }
++
++        [UnityTest]
++        public IEnumerator MacCameraPermissionUsesOfficialNativeCompletion()
++        {
++#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
++            if (MacWindow.CameraAuthorizationStatus != 3) Assert.Ignore("This process has no existing grant; preserve the user's permission choices.");
++            var method = typeof(MacWindow).GetMethod("RequestCameraAccess", BindingFlags.Static | BindingFlags.NonPublic);
++            Assert.NotNull(method);
++            var request = (Task<bool>)method.Invoke(null, null);
++            double until = Time.realtimeSinceStartupAsDouble + 10;
++            while (!request.IsCompleted && Time.realtimeSinceStartupAsDouble < until) yield return null;
++            Assert.True(request.IsCompleted, "AVFoundation must complete its managed block callback.");
++            Assert.True(request.GetAwaiter().GetResult());
++            Assert.True(SiriAICameraAccess.HasSystemAccess);
++            TestContext.WriteLine("AVFoundation requestAccess completion=True observedStatus=3; no WebCamTexture opened");
++#else
++            Assert.Ignore("macOS only");
++            yield break;
++#endif
++        }
++
++        [Test]
++        public void MacBuildHasCameraAndMicrophoneUsageDescriptionsAndPreservesProductText()
++        {
++            var type = Type.GetType("MNN.Samples.SiriAI.Editor.SiriAIDesktopBuild, MNN.Samples.SiriAI.Editor");
++            Assert.NotNull(type);
++            var ensure = type.GetMethod("EnsureMacPermissionDescriptions", BindingFlags.Static | BindingFlags.NonPublic);
++            Assert.NotNull(ensure);
++            string directory = System.IO.Path.GetFullPath("TestArtifacts~/LowPowerPermissionFixture");
++            System.IO.Directory.CreateDirectory(directory);
++            string file = System.IO.Path.Combine(directory, "Info.plist");
++            try
++            {
++                System.IO.File.WriteAllText(file, "<plist><dict><key>NSMicrophoneUsageDescription</key><string>Product voice explanation</string></dict></plist>");
++                ensure.Invoke(null, new object[] { file }); ensure.Invoke(null, new object[] { file });
++                string text = System.IO.File.ReadAllText(file);
++                StringAssert.Contains("NSCameraUsageDescription", text);
++                StringAssert.Contains("Product voice explanation", text);
++                Assert.AreEqual(1, text.Split(new[] { "NSCameraUsageDescription" }, StringSplitOptions.None).Length - 1);
++            }
++            finally { System.IO.File.Delete(file); System.IO.Directory.Delete(directory); }
++        }
++
++        private sealed class EmptyCapture : IMNNAudioCaptureSource
++        {
++            public MNNPcmFormat CaptureFormat => new MNNPcmFormat(16000, 1);
++            public int MaximumCaptureSamples => 512;
++            public long DroppedCaptureBlocks => 0;
++            public bool HasPendingCaptureFrames => false;
++            public bool TryReadCapture(float[] destination, int offset, out MNNAudioFrameInfo info, out int count)
++            { info = default; count = 0; return false; }
++        }
++
++        private sealed class PresenceProbe : IMNNPresenceSource
++        {
++            internal volatile bool Present;
++            internal int Count;
++            public void Reset() { Count = 0; }
++            public MNNPresenceObservation Process(MNNRgbImage image, double at, CancellationToken token)
++            {
++                token.ThrowIfCancellationRequested(); Interlocked.Increment(ref Count);
++                return new MNNPresenceObservation(at, Present ? MNNPresenceKind.Face : MNNPresenceKind.None,
++                    Present ? "probe-person" : null, Present ? 1 : 0);
++            }
++        }
++
++        [UnityTest]
++        public IEnumerator C930cActuallyPollsSlowlyDuringSleepAndRestoresOnReturn()
++        {
++            if (!SiriAICameraAccess.HasSystemAccess) Assert.Ignore("No existing camera grant for this test process.");
++            var device = Array.Find(WebCamTexture.devices, value => value.name.Contains("C930"));
++            if (string.IsNullOrEmpty(device.name)) Assert.Ignore("C930c is not connected.");
++            var root = new GameObject("C930c low frequency wake probe");
++            var camera = new WebCamTexture(device.name);
++            try
++            {
++                camera.Play(); double deadline = Time.realtimeSinceStartupAsDouble + 15;
++                while ((camera.width <= 16 || !camera.didUpdateThisFrame) && Time.realtimeSinceStartupAsDouble < deadline)
++                { camera.GetPixels32(); yield return null; }
++                Assert.Greater(camera.width, 16);
++                var owner = root.AddComponent<MNNInteractionComponent>();
++                owner.Configure(new MNNInteractionSettings { visualPresence = true, confirmationSeconds = 0 });
++                var probe = new PresenceProbe(); owner.StartCamera(camera, probe);
++                double until = Time.realtimeSinceStartupAsDouble + 3;
++                while (Time.realtimeSinceStartupAsDouble < until)
++                { SiriAITestAccess.Call(owner.Camera, "Update"); yield return null; }
++                int sleeping = probe.Count;
++                Assert.That(sleeping, Is.InRange(4, 7));
++                probe.Present = true;
++                until = Time.realtimeSinceStartupAsDouble + 1;
++                while (owner.Presence.Current.State != MNNPresenceState.Present && Time.realtimeSinceStartupAsDouble < until)
++                { SiriAITestAccess.Call(owner.Camera, "Update"); yield return null; }
++                Assert.AreEqual(MNNPresenceState.Present, owner.Presence.Current.State);
++                int start = probe.Count;
++                until = Time.realtimeSinceStartupAsDouble + 3;
++                while (Time.realtimeSinceStartupAsDouble < until)
++                { SiriAITestAccess.Call(owner.Camera, "Update"); yield return null; }
++                int awake = probe.Count - start;
++                Assert.Greater(awake, sleeping * 2);
++                var stop = owner.StopCameraAsync(); while (!stop.IsCompleted) yield return null; stop.GetAwaiter().GetResult();
++                TestContext.WriteLine("C930c " + camera.width + "x" + camera.height + " sleep detections/3s=" + sleeping +
++                    " awake detections/3s=" + awake + "; sensor input simulated for deterministic sleep/wake; camera frames real");
++            }
++            finally { camera.Stop(); Object.DestroyImmediate(root); Object.DestroyImmediate(camera); }
++        }
++
++        [UnityTest]
++        public IEnumerator SleepSuspendsAutomaticVoiceCleansOnceAndManualRecordingWakes()
++        {
++            var root = new GameObject("Idle resource owner");
++            int oldRate = Application.targetFrameRate, oldVsync = QualitySettings.vSyncCount;
++            try
++            {
++                var chat = root.AddComponent<SiriAIChat>();
++                var owner = root.AddComponent<MNNInteractionComponent>();
++                var settings = new MNNInteractionSettings { visualPresence = true, confirmationSeconds = 0 };
++                owner.Configure(settings);
++                bool capture = true;
++                var context = new SiriAIChatContext(new EmptyCapture(), () => null, captureGate: value => capture = value);
++                SiriAITestAccess.Set(chat, "_context", context);
++                SiriAITestAccess.Set(chat, "_interaction", owner);
++                SiriAITestAccess.Set(chat, "_interactionSettings", settings);
++                SiriAITestAccess.Set(chat, "_visualReady", true);
++                var tick = typeof(SiriAIChat).GetMethod("UpdatePresenceLowPower", BindingFlags.Instance | BindingFlags.NonPublic);
++                Assert.NotNull(tick);
++                tick.Invoke(chat, null);
++                Assert.False(capture);
++                Assert.True(context.Input.Realtime, "Sleep must preserve the user's realtime selection.");
++                Assert.False(context.RequestRealtimeExit(context.Input.Revision), "Sleeping must not time out the selected mode.");
++                float[] samples = { .1f, -.1f };
++                Assert.IsNull(context.PrepareVoiceAsync(samples, CancellationToken.None).GetAwaiter().GetResult());
++                Assert.AreSame(samples, context.ProcessManualVoiceAsync(() => context.PrepareVoiceAsync(samples, CancellationToken.None)).GetAwaiter().GetResult());
++                var view = root.AddComponent<SiriAIChatView>();
++                SiriAITestAccess.Set(view, "_chat", chat);
++                SiriAITestAccess.Call(view, "TickApplicationScheduling");
++                Assert.AreEqual(12, Application.targetFrameRate);
++                SiriAITestAccess.Set(chat, "_presenceCleanupAt", 0d);
++                tick.Invoke(chat, null);
++                var count = typeof(SiriAIChat).GetProperty("SleepCleanupCount");
++                double until = Time.realtimeSinceStartupAsDouble + 15;
++                while ((int)count.GetValue(chat) == 0 && Time.realtimeSinceStartupAsDouble < until) yield return null;
++                Assert.AreEqual(1, count.GetValue(chat));
++                for (int i = 0; i < 10; ++i) tick.Invoke(chat, null);
++                Assert.AreEqual(1, count.GetValue(chat), "Repeated sleeping frames must not trigger repeated GC/unload.");
++                context.Input.BeginRecording(); tick.Invoke(chat, null);
++                Assert.True(capture, "Explicit recording works without a visible person.");
++                SiriAITestAccess.Call(view, "TickApplicationScheduling");
++                Assert.AreEqual(oldRate, Application.targetFrameRate);
++                Assert.AreEqual(oldVsync, QualitySettings.vSyncCount);
++                context.Input.FinishRecording(true);
++                owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
++                context.Input.SetRealtime(true); tick.Invoke(chat, null);
++                Assert.True(capture);
++                Assert.AreSame(samples, context.PrepareVoiceAsync(samples, CancellationToken.None).GetAwaiter().GetResult());
++                TestContext.WriteLine("sleep: capture=False ASR=null targetFPS=12 cleanup=1; manual: capture=True; wake: capture=True ASR=samples previousFPS/vSync restored");
++            }
++            finally
++            {
++                Object.DestroyImmediate(root);
++                Application.targetFrameRate = oldRate; QualitySettings.vSyncCount = oldVsync;
++            }
++        }
++
++        [TestCase(SiriAIOrbStyle.Original)]
++        [TestCase(SiriAIOrbStyle.LiquidSpectrum)]
++        [TestCase(SiriAIOrbStyle.ClassicSiri)]
++        public void SleepActuallyRendersDarkerAndGrey(SiriAIOrbStyle style)
++        {
++            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) Assert.Ignore("Requires graphics.");
++            using (var view = new SiriAIOrbStyleView(style, false))
++            {
++                var awake = view.Render(1);
++                view.Material.SetFloat("_SleepBlend", 1);
++                view.Material.SetFloat("_SleepBreath", 0);
++                var asleep = view.Render(1);
++                double bright = 0, dim = 0, awakeChroma = 0, sleepChroma = 0;
++                for (int i = 0; i < awake.Length; ++i)
++                {
++                    bright += awake[i].grayscale; dim += asleep[i].grayscale;
++                    awakeChroma += Mathf.Max(awake[i].r, awake[i].g, awake[i].b) - Mathf.Min(awake[i].r, awake[i].g, awake[i].b);
++                    sleepChroma += Mathf.Max(asleep[i].r, asleep[i].g, asleep[i].b) - Mathf.Min(asleep[i].r, asleep[i].g, asleep[i].b);
++                }
++                Assert.Less(dim, bright * .65);
++                Assert.Less(sleepChroma, awakeChroma * .2);
++                SiriAIOrbStyleView.Save(awake, style + "-awake"); SiriAIOrbStyleView.Save(asleep, style + "-asleep");
++                TestContext.WriteLine(style + " rendered brightness ratio=" + dim / bright + " chroma ratio=" + sleepChroma / awakeChroma);
++            }
++        }
++
++        [Test]
++        public void DefaultsKeepCameraOffAndImagePreferenceOn()
++        {
++            var settings = new MNNInteractionSettings();
++            Assert.False(settings.visualPresence);
++            Assert.True(settings.imageContext);
++            Assert.DoesNotThrow(settings.Validate);
++        }
++
++        [Test]
++        public void CameraPermissionIsObservedAndRequestedInSequence()
++        {
++            Assert.True(Enum.IsDefined(typeof(SiriAISetupPermission), "Camera"), "Onboarding must expose a real camera grant.");
++            var camera = (SiriAISetupPermission)Enum.Parse(typeof(SiriAISetupPermission), "Camera");
++            var flow = new SiriAISetupFlow();
++            flow.Refresh(camera, 0, true, false); flow.MoveNext();
++            Assert.False(flow.CanFinish);
++            var requests = new List<SiriAISetupPermission>();
++            SiriAISetupPermissions.RequestAsync(camera | SiriAISetupPermission.Microphone,
++                p => { requests.Add(p); return Task.CompletedTask; }, CancellationToken.None).GetAwaiter().GetResult();
++            CollectionAssert.AreEqual(new[] { SiriAISetupPermission.Microphone, camera }, requests);
++            Assert.False(flow.CanFinish, "Request completion alone is not evidence of authorization.");
++            flow.Refresh(camera, camera, true, false);
++            Assert.True(flow.CanFinish);
++        }
++
++        [Test]
++        public void AutoCreatedCameraUsesSleepPollingAndRestoresOnPresence()
++        {
++            var root = new GameObject("Low power camera");
++            try
++            {
++                var owner = root.AddComponent<MNNInteractionComponent>();
++                var wrongOwner = new GameObject("Other rig");
++                wrongOwner.transform.SetParent(root.transform);
++                SiriAITestAccess.Set(owner.Camera, "_presence", wrongOwner.AddComponent<MNNPresenceComponent>());
++                owner.Configure(new MNNInteractionSettings { visualPresence = true, confirmationSeconds = 0 });
++                var rate = typeof(MNNFaceCameraComponent).GetProperty("CurrentDetectionFramesPerSecond");
++                Assert.NotNull(rate, "Polling must use the same presence owner as interaction.");
++                Assert.AreEqual(2, rate.GetValue(owner.Camera));
++                owner.Presence.Report(new MNNPresenceObservation(Time.realtimeSinceStartupAsDouble, MNNPresenceKind.Face, "person", 1));
++                Assert.AreEqual(MNNPresenceState.Present, owner.Presence.Current.State);
++                Assert.AreEqual(10, rate.GetValue(owner.Camera));
++                owner.Configure(new MNNInteractionSettings());
++                Assert.False(owner.Camera.enabled, "An image preference must never start a camera.");
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [TestCase(SiriAIOrbStyle.Original)]
++        [TestCase(SiriAIOrbStyle.LiquidSpectrum)]
++        [TestCase(SiriAIOrbStyle.ClassicSiri)]
++        public void SleepingOrbIgnoresVoiceDimsBreathesAndRestoresAuthoredAppearance(SiriAIOrbStyle style)
++        {
++            var root = new GameObject("Sleeping orb");
++            try
++            {
++                var orb = root.AddComponent<SiriAIRenderer>(); orb.Style = style; orb.Refresh();
++                var sleep = typeof(SiriAIRenderer).GetMethod("SetSleeping");
++                Assert.NotNull(sleep, "A visible sleep animation must be driven independently of voice.");
++                var color = orb.Strands.color; float intensity = orb.Strands.intensity;
++                sleep.Invoke(orb, new object[] { true });
++                for (int i = 0; i < 300; ++i)
++                {
++                    orb.SetListening(true, 1); orb.SetSpeechLevel(1);
++                    SiriAITestAccess.Call(orb, "AdvanceSleepAnimation", 1f / 30);
++                    SiriAITestAccess.Call(orb, "AdvanceSpeechAnimation", 1f / 30);
++                }
++                orb.Refresh(); var material = root.GetComponent<MeshRenderer>().sharedMaterial;
++                Assert.Greater(material.GetFloat("_SleepBlend"), .99f);
++                Assert.That(material.GetFloat("_SleepBreath"), Is.InRange(-1f, 1f));
++                Assert.Less(orb.SpeechLevel, .001f);
++                Assert.AreEqual(1f, orb.ListeningScale, .001f);
++                float breath = material.GetFloat("_SleepBreath");
++                SiriAITestAccess.Call(orb, "AdvanceSleepAnimation", 1f); orb.Refresh();
++                Assert.AreNotEqual(breath, material.GetFloat("_SleepBreath"), "Sleep retains a slow, audio-independent breath.");
++                sleep.Invoke(orb, new object[] { false });
++                for (int i = 0; i < 150; ++i) SiriAITestAccess.Call(orb, "AdvanceSleepAnimation", 1f / 30);
++                orb.SetListening(true, 1);
++                for (int i = 0; i < 60; ++i) SiriAITestAccess.Call(orb, "AdvanceSpeechAnimation", 1f / 60);
++                orb.Refresh();
++                Assert.Less(material.GetFloat("_SleepBlend"), .001f);
++                Assert.Greater(orb.SpeechLevel, .1f);
++                Assert.AreEqual(color, orb.Strands.color); Assert.AreEqual(intensity, orb.Strands.intensity);
++                TestContext.WriteLine(style + " sleep: voice=0, sleepBlend>0.99, breath changes; wake: voice>0.1, sleepBlend<0.001, authored settings preserved");
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++    }
++}
+diff --git a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs.meta b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAILowPowerTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: cc3bab149aea43e89cdb30db2d273749
