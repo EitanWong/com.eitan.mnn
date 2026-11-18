@@ -1,0 +1,194 @@
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs
+@@ -10,6 +10,7 @@
+         private bool _setupDragging, _setupClosing;
+         private SiriAISurfaceTransition _setupTransition;
+         private Image _setupBacking, _setupOptics;
++        private SiriAIGlassLayer _setupOpticsLayer;
+         private RectTransform _setupDragHeader;
+         private Vector2 _setupOffset, _setupDragStart, _setupDragOffset;
+         private Text _setupTitle, _setupStepLabel, _setupDetails, _setupError;
+@@ -103,6 +104,7 @@
+ 
+             GlassScope(_setupCard, 4);
+             GlassSurfaceLayer(_setupCard.Find("Setup Liquid Glass"), 3);
++            if (_setupOptics != null) _setupOpticsLayer = _setupOptics.GetComponent<SiriAIGlassLayer>();
+             GlassCapture(_setupCard, 4);
+         }
+ 
+@@ -250,10 +252,14 @@
+         private void RenderSetupWizard()
+         {
+             if (_setupFlow == null || _setupRoot == null) return;
+-            bool readableBacking = _setupGlassMaterial == null || IsDesktopMode &&
+-                !SiriAIDesktopWindow.UsesSystemGlass(Application.platform) && !_desktopBackdropReady;
+-            if (_setupBacking != null) _setupBacking.gameObject.SetActive(readableBacking);
+-            if (_setupOptics != null) _setupOptics.transform.parent.gameObject.SetActive(!readableBacking);
++            SetActiveIfChanged(_setupBacking, _setupGlassMaterial == null);
++            // Layer zero keeps the shader's readable translucent body over native glass or an uncaptured desktop.
++            int layer = IsDesktopMode && !_desktopBackdropReady ? 0 : 3;
++            if (_setupOpticsLayer != null && _setupOpticsLayer.OverrideLayer != layer)
++            {
++                _setupOpticsLayer.OverrideLayer = layer;
++                _setupOptics.SetMaterialDirty();
++            }
+             if (_setupRenderedStep != _setupFlow.Step) BuildSetupStep();
+             string[] titles = { "Welcome to SiriAI", "Models and services", "Permissions", "Download and initialize", "Setup complete" };
+             bool macPermissions = _setupFlow.Step == SiriAISetupStep.Permissions && Application.platform == RuntimePlatform.OSXPlayer;
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs
+@@ -78,6 +78,8 @@
+             else if (!owns && _setupHiddenOrb != null)
+             { _setupHiddenOrb.enabled = _setupOrbWasEnabled; _setupHiddenOrb = null; }
+             _desktopWindow?.SetTopmost(!owns);
++            SetActiveIfChanged(_panelClip, !owns);
++            UpdateFloatingTabVisibility();
+             if (_chatInteraction != null) _chatInteraction.interactable = _chatInteraction.blocksRaycasts = !owns;
+             if (_settingsEntry != null) _settingsEntry.interactable = !owns;
+             if (owns && !_editorPreview && EventSystem.current != null && _setupNext != null)
+@@ -164,7 +166,7 @@
+                 if (!_editorPreview && !_setupPermissionsOnly && !SiriAISetupStore.Complete(_setupFlow)) return;
+                 _chat.DeferAutomaticStartup = false;
+                 if (!_editorPreview && !SetupRuntimeReady && !_setupPreparing) PrepareSetup();
+-                AnimateSetupClose(() => { ResetSetupWizard(); SetSetupInteraction(false); });
++                AnimateSetupClose(ResetSetupWizard);
+                 return;
+             }
+             _setupFlow.MoveNext(); TryEnterSetupWithLocalFiles();
+@@ -365,7 +367,8 @@
+             _setupEntryChecked = false;
+             ResetSetupVisuals();
+             _setupFailure = null; _lastSetupFeedback = null; _setupRenderedStep = null; _setupOffset = Vector2.zero;
+-            _setupBacking = _setupOptics = null; _setupDragHeader = null; _setupDragging = _setupClosing = false; _setupTransition = null;
++            _setupBacking = _setupOptics = null; _setupOpticsLayer = null;
++            _setupDragHeader = null; _setupDragging = _setupClosing = false; _setupTransition = null;
+         }
+     }
+ }
+--- a/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Floating.cs
++++ b/Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Floating.cs
+@@ -191,6 +191,12 @@
+             if (!_editorPreview) { _conversationNavigationSavePending = true; _conversationNavigationSaveAt = Time.unscaledTime + .4f; }
+             _layoutConfigured = false; _layoutDirty = true;
+         }
++        private void UpdateFloatingTabVisibility()
++        {
++            if (_floatingTab == null) return;
++            SetActiveIfChanged(_floatingTab, _panelClip.gameObject.activeSelf &&
++                (IsFloatingChat && _floatingPanel.Tucked || _floatingTab.GetComponent<SiriAIFloatingDragSurface>().IsHeld));
++        }
+         private void LayoutFloatingControls(Rect bounds)
+         {
+             if (!IsFloatingChat && _floatingHeader == null) { _floatingOccupied = Rect.zero; return; }
+@@ -199,7 +205,7 @@
+             _drawerSurface.GetComponent<Graphic>().raycastTarget = floating && !tucked;
+             SetActiveIfChanged(_floatingHeader, floating && !tucked);
+             foreach (var side in _floatingSides) SetActiveIfChanged(side, floating && !tucked);
+-            SetActiveIfChanged(_floatingTab, tucked || _floatingTab.GetComponent<SiriAIFloatingDragSurface>().IsHeld);
++            UpdateFloatingTabVisibility();
+             if (floating)
+             {
+                 Place(_floatingHeader, new Rect(64, bounds.height - 84, Mathf.Max(0, bounds.width - 128), 72));
+--- a/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs
++++ b/Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs
+@@ -269,7 +269,42 @@
+             Assert.AreEqual(SiriAISetupStep.Permissions, flow.Step);
+         }
+ 
+-        [Test] public void GuideHidesOrbUntilItReleasesStartupAndHasAReadableMovableSheet()
++        [TestCase(false)] [TestCase(true)]
++        public void GuideHidesFloatingChatAndRestoresItsPresentation(bool tucked)
++        {
++            var root = new GameObject("Setup floating chat visibility");
++            try
++            {
++                var view = root.AddComponent<SiriAIChatView>();
++                var viewport = new Rect(0, 0, 1400, 1000);
++                view.TickEditorPreview(viewport, 1f);
++                SiriAITestAccess.Set(view, "immersiveMode", false);
++                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").immersiveMode = false;
++                view.ApplyViewport(viewport, 1f, false);
++                var panel = SiriAITestAccess.Field<RectTransform>(view, "_panel");
++                var tab = SiriAITestAccess.Field<RectTransform>(view, "_floatingTab");
++                var placement = SiriAITestAccess.Field<SiriAIFloatingPanel>(view, "_floatingPanel");
++                if (tucked) placement.ToggleTucked();
++                view.ApplyViewport(viewport, 1f, false);
++                Assert.AreEqual(!tucked, panel.gameObject.activeInHierarchy);
++                Assert.AreEqual(tucked, tab.gameObject.activeInHierarchy);
++
++                view.OpenSetupWizard();
++                Assert.IsFalse(panel.gameObject.activeInHierarchy || tab.gameObject.activeInHierarchy,
++                    "Opening the guide must hide both the floating chat and its edge handle immediately.");
++                view.ApplyViewport(viewport, 1f, false);
++                Assert.IsFalse(panel.gameObject.activeInHierarchy || tab.gameObject.activeInHierarchy,
++                    "Viewport refresh must not reveal the chat behind the guide.");
++
++                SiriAITestAccess.Call(view, "ResetSetupWizard");
++                Assert.AreEqual(tucked, placement.Tucked);
++                Assert.AreEqual(!tucked, panel.gameObject.activeInHierarchy);
++                Assert.AreEqual(tucked, tab.gameObject.activeInHierarchy);
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        [Test] public void GuideHidesOrbUntilItReleasesStartupAndKeepsMovableGlassWithoutDesktopCapture()
+         {
+             var root = new GameObject("First run experience");
+             try
+@@ -278,19 +313,22 @@
+                 var view = root.AddComponent<SiriAIChatView>();
+                 SiriAITestAccess.Set(view, "siriOrb", orb.GetComponent<Renderer>());
+                 view.TickEditorPreview(new Rect(0, 0, 1400, 1000), 1f);
+-                SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences").desktopMode = true;
++                var preferences = SiriAITestAccess.Field<SiriAIChatViewPreferences>(view, "_viewPreferences");
++                preferences.desktopMode = preferences.desktopRefraction = true;
+                 view.OpenSetupWizard();
+                 Assert.IsFalse(orb.GetComponent<Renderer>().enabled, "The first-run guide owns the entire startup experience.");
+                 var card = SiriAITestAccess.Field<RectTransform>(view, "_setupCard");
+                 var backing = card.Find("Setup Readable Backing");
+-                Assert.IsNotNull(backing, "Platforms requiring capture keep a readable fallback sheet.");
+-                bool nativeGlass = SiriAIDesktopWindow.UsesSystemGlass(Application.platform);
+-                Assert.AreEqual(!nativeGlass, backing.gameObject.activeSelf); Assert.AreEqual(1f, backing.GetComponent<Image>().color.a);
+-                var optics = card.Find("Setup Liquid Glass"); Assert.AreEqual(nativeGlass, optics.gameObject.activeSelf);
++                Assert.IsFalse(backing.gameObject.activeSelf, "Missing capture must not replace the glass card with a solid sheet.");
++                var optics = card.Find("Setup Liquid Glass"); Assert.IsTrue(optics.gameObject.activeSelf);
++                var glass = optics.GetComponentInChildren<Image>();
++                var layer = glass.GetComponent<SiriAIGlassLayer>();
++                Assert.AreEqual(0, layer.OverrideLayer, "Without a desktop capture, retain the glass shader's desktop transparency path.");
++                Assert.Greater(glass.material.GetFloat("_Refraction"), 0f);
+                 SiriAITestAccess.Call(view, "ApplySystemAppearance", false);
+-                Assert.Greater(backing.GetComponent<Image>().color.r, .8f);
++                Assert.AreEqual(1f, glass.material.GetFloat("_LightAppearance"));
+                 SiriAITestAccess.Call(view, "ApplySystemAppearance", true);
+-                Assert.Less(backing.GetComponent<Image>().color.r, .2f);
++                Assert.AreEqual(0f, glass.material.GetFloat("_LightAppearance"));
+                 var handle = card.GetComponentInChildren<SiriAIFloatingDragSurface>(); Assert.IsNotNull(handle);
+                 var events = new UnityEngine.EventSystems.PointerEventData(null) { position = new Vector2(700, 500), pointerId = 1 };
+                 var before = card.anchoredPosition;
+@@ -298,7 +336,9 @@
+                 SiriAITestAccess.Call(view, "LayoutSetupWizard");
+                 Assert.Greater(Vector2.Distance(before, card.anchoredPosition), 20f, "Layout must preserve the user's drag.");
+                 SiriAITestAccess.Set(view, "_desktopBackdropReady", true);
+-                SiriAITestAccess.Call(view, "RenderSetupWizard"); Assert.IsFalse(backing.gameObject.activeSelf); Assert.IsTrue(optics.gameObject.activeSelf);
++                SiriAITestAccess.Call(view, "RenderSetupWizard");
++                Assert.IsFalse(backing.gameObject.activeSelf); Assert.IsTrue(optics.gameObject.activeSelf);
++                Assert.AreEqual(3, layer.OverrideLayer);
+                 SiriAITestAccess.Call(view, "ResetSetupWizard"); Assert.IsTrue(orb.GetComponent<Renderer>().enabled);
+             }
+             finally { Object.DestroyImmediate(root); }
+--- a/Assets/Samples/SiriAI/Documentation~/Onboarding.md
++++ b/Assets/Samples/SiriAI/Documentation~/Onboarding.md
+@@ -12,10 +12,9 @@
+ 8K 是推荐的规划工作负载，不是运行时上下文限制；较长会话或不同图像/音频负载应使用新参数重新评估。
+ 
+ 引导、权限页与设置窗口统一使用圆角矩形：窗口圆角 24 逻辑点，按钮圆角 12 点。
+-玻璃表面支持深浅主题与 DPI；没有可用桌面画面时，改用随主题切换的不透明底色。
+-底色使用普通 UI 材质，仅由窗口的 24 点圆角轮廓裁剪，避免共享材质的相对半径随窗口尺寸放大。
+-捕获成功后恢复玻璃透射，隐藏时停止采样，关闭时释放专属材质与采样资源。
+-引导期间隐藏 Orb（包括前景副本），结束或释放引导时恢复之前的渲染状态。
++引导沿用设置窗口的 Liquid Glass 材质，支持深浅主题与 DPI。没有桌面画面时仍保留半透明玻璃和边缘高光；取得桌面画面后加入背景折射。
++没有玻璃材质时才使用随主题切换的圆角纯色底。隐藏时停止采样，关闭时释放专属材质与采样资源。
++引导期间隐藏 Orb（包括前景副本）、聊天窗及其边缘把手；结束时恢复原有状态，保留聊天窗的位置和收起状态。
+ 引导标题区域支持拖动，位置在每帧布局和切换页面后保留并限制在可见区域内。
+ 引导期间原生窗口使用普通层级，macOS 的透明刷新不会再将其提升为置顶。
+ 桌面模式不加全屏暗色遮罩，卡片之外可点击穿透；完成引导后恢复桌面 Orb 层级。

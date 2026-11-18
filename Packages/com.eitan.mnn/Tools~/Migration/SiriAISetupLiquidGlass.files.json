@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.UI.cs",
+      "before": "73f09222e3ed00e39b05ffca35c0b25118ef39d4aae6ec831dd4949764c48842",
+      "after": "72b3bda7028ed14d7341f39fbb425cfcf221871faab567f1848f637f4757ac06"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Setup.cs",
+      "before": "d25bfd14261c1ff00e30ad0aa430bf2f57dd5efaccd2f179bc3ff001c1d7f44b",
+      "after": "84bc2d2d1a2531a0ef01037de647e51e6716e6f354c43d07c76e419f9237b7af"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Runtime/Components/Presentation/Chat/SiriAIChatView.Floating.cs",
+      "before": "e136bab4a8f7097becea95ca948427566a7de4161f810e103315564d8537cc59",
+      "after": "d9b86f9264206e7944812d8a794a5743dfded6585967a8a46b74e4e943233c8a"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Scripts/Tests/Editor/Presentation/SiriAIOnboardingTests.cs",
+      "before": "1e3ca7a0f5f67dfe643c806dcc480e4a3e56a3be4a583770aba5ca3cbe4aa525",
+      "after": "95de901f9cc08d42b65f06d7ae7d8ae8f97c4a172fde466e5202d2aad9fd9961"
+    },
+    {
+      "path": "Assets/Samples/SiriAI/Documentation~/Onboarding.md",
+      "before": "2ee5533c511e84943580888ea7e20370ee93cb8f72b5c579159b6e61182061e3",
+      "after": "6559635c148c0b48532fac2312910a6eedfba79afa047ff0633ab70fa3ad1b1b"
+    }
+  ]
+}
